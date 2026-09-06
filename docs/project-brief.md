@@ -20,7 +20,3 @@ The owner attempts small pieces of core logic first and requests help when stuck
 - Hosting: the owner's existing server, exposed through a public-IP VPS and FRP. Network topology, domain, HTTPS termination, process placement, database backups, and any additional service budget remain to be worked out.
 
 Google sign-in and the deployed friend-group trial are requirements in the specification. The selected stack and its rationale are in [ADR-0003](adr/0003-typescript-relational-backend.md).
-
-## Current phase
-
-Product choices through Q35 and the test boundary are accepted and published in [GitHub issue #1](https://github.com/SimianW/share-tally/issues/1). Seven implementation sub-issues are published with `ready-for-human` and blocking dependencies, starting at [issue #2](https://github.com/SimianW/share-tally/issues/2). They budget 24 hours plus six hours of contingency. Authentication service selection, architecture, and test tooling are resolved within the relevant tickets before dependent implementation. The owner is starting the application skeleton with guidance. This does not authorize unattended implementation of the full application.
