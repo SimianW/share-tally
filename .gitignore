@@ -3,22 +3,70 @@ node_modules/
 
 # Build output and TypeScript cache
 dist/
+dist-ssr/
 *.tsbuildinfo
 
-# Local environment variables
+# Local environment variables & secrets
 .env
 .env.*
 !.env.example
 !.env.*.example
+*.env
+*.env.*
+!.env.sample
+!.env.*.sample
+.secrets/
+*.secret
+*.secrets
+
+# Keys, certificates, and credentials
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+*credentials*.json
+*service-account*.json
+*client_secret*.json
+token.json
+
+# FRP and reverse proxy configurations (contain tokens/secrets)
+frpc.ini
+frps.ini
+frpc.toml
+frps.toml
+frp.ini
+frp.toml
+!.frpc.example.*
+!.frps.example.*
+
+# Local databases and backups
+*.sqlite
+*.sqlite-journal
+*.db
+*.dump
+*.rdb
 
 # Logs
 *.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
 # Test output
 coverage/
 playwright-report/
 test-results/
 
-# Operating system files
+# Operating system & editor files
 .DS_Store
 Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.sw?
+*.local
+
