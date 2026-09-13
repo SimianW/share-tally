@@ -8,6 +8,8 @@
 | Product requirements, acceptance criteria, and open design questions | [GitHub issue #1: first-release specification](https://github.com/SimianW/share-tally/issues/1) |
 | Implementation tickets | [Seven sub-issues under spec #1](https://github.com/SimianW/share-tally/issues/1), with native blocking dependencies; start with [issue #2](https://github.com/SimianW/share-tally/issues/2) |
 | Clerk session investigation | [Owner accepts a 7-day session lifetime as of 2026-09-13; deployed session behavior still needs verification](../research/2026-09-12-clerk-sessions.md) |
+| Drone deployment | [Pipeline, host preparation, and release operations](../deploy/README.md) |
+| Drone research | [Official references and local runner findings](../research/2026-09-13-drone-cicd.md) |
 | Skill configuration | [Issue tracker](agents/issue-tracker.md), [triage labels](agents/triage-labels.md), [domain docs](agents/domain.md) |
 | Historical discussion | [Archived interview through Q35](../research/archive/2026-09-06-project-discussion.md) |
 

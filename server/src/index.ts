@@ -1,8 +1,9 @@
 import { createApp } from './app.js'
 
 const port = 3000
+const host = process.env.HOST ?? '127.0.0.1'
 const app = createApp()
 
-app.listen(port, '127.0.0.1', () => {
-  console.log(`API listening at http://127.0.0.1:${port}`)
+app.listen(port, host, () => {
+  console.log(`API listening at http://${host}:${port}`)
 })

@@ -1,0 +1,40 @@
+name: share-tally
+
+services:
+  api:
+    image: ghcr.io/simianw/share-tally-api:${IMAGE_TAG:?Set IMAGE_TAG to a tested commit SHA}
+    restart: unless-stopped
+    init: true
+    env_file: .env.production
+    networks:
+      - app
+      - database
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+  web:
+    image: ghcr.io/simianw/share-tally-web:${IMAGE_TAG:?Set IMAGE_TAG to a tested commit SHA}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:11119:80"
+    networks:
+      - app
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, wget, -q, --spider, http://127.0.0.1/api/health]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+networks:
+  app:
+  database:
+    external: true
+    name: 1panel-network

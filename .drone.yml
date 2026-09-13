@@ -1,0 +1,65 @@
+kind: pipeline
+type: docker
+name: share-tally
+
+# Socket access requires a trusted repository. Do not enable this pipeline for
+# untrusted pull_request events: its steps control the deployment host's Docker.
+trigger:
+  event: [push]
+
+# Serialize releases so migrations and application updates cannot overlap.
+concurrency:
+  limit: 1
+
+volumes:
+  - name: docker-socket
+    host:
+      path: /var/run/docker.sock
+  - name: deployment
+    host:
+      path: /opt/repo/share-tally
+
+steps:
+  - name: test-and-build
+    image: docker:27-cli
+    volumes:
+      - name: docker-socket
+        path: /var/run/docker.sock
+    commands:
+      - sh deploy/check.sh
+
+  - name: publish-images
+    image: docker:27-cli
+    volumes:
+      - name: docker-socket
+        path: /var/run/docker.sock
+    environment:
+      GHCR_USERNAME:
+        from_secret: GHCR_USERNAME
+      GHCR_TOKEN:
+        from_secret: GHCR_TOKEN
+      VITE_CLERK_PUBLISHABLE_KEY:
+        from_secret: VITE_CLERK_PUBLISHABLE_KEY
+    commands:
+      - sh deploy/publish.sh
+    when:
+      branch: [main]
+      event: [push]
+
+  - name: deploy
+    image: docker:27-cli
+    volumes:
+      - name: docker-socket
+        path: /var/run/docker.sock
+      - name: deployment
+        path: /opt/repo/share-tally
+    environment:
+      GHCR_USERNAME:
+        from_secret: GHCR_USERNAME
+      GHCR_TOKEN:
+        from_secret: GHCR_TOKEN
+    commands:
+      - sh deploy/deploy.sh
+    when:
+      branch: [main]
+      event: [push]
