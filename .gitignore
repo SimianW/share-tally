@@ -13,6 +13,7 @@ dist-ssr/
 !.env.*.example
 *.env
 *.env.*
+!/deploy/.env.production.example
 !.env.sample
 !.env.*.sample
 .secrets/
@@ -69,4 +70,3 @@ Thumbs.db
 !.vscode/extensions.json
 *.sw?
 *.local
-

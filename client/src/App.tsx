@@ -5,6 +5,8 @@ import {
   UserButton,
 } from '@clerk/react'
 
+import AccountCheck from './AccountCheck'
+
 function App() {
   return (
     <main>
@@ -25,6 +27,7 @@ function App() {
       <Show when="signed-in">
         <p>You are signed in to ShareTally.</p>
         <UserButton />
+        <AccountCheck />
       </Show>
     </main>
   )
