@@ -1,4 +1,5 @@
-import { BillDetails, GroupBills, OverviewBalance } from './Bills';
+import { BillDetails, OverviewBalance } from './Bills';
+import GroupWorkspace from './GroupWorkspace';
 import { useRoute } from './route';
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
@@ -90,8 +91,8 @@ export default function PlayApp({
             {navigation.map((item) => (
               <button
                 key={item.id}
-                className={view === item.id ? "active" : ""}
-                aria-current={view === item.id ? "page" : undefined}
+                className={(billGroupId ? item.id === "groups" : view === item.id) ? "active" : ""}
+                aria-current={(billGroupId ? item.id === "groups" : view === item.id) ? "page" : undefined}
                 onClick={() => { setView(item.id); closeGroup(); }}
               >
                 <Icon name={item.icon} />
@@ -118,17 +119,17 @@ export default function PlayApp({
           </div>
         </aside>
         <main className="main-content" id="main-content" tabIndex={-1}>
-          {!billId && !billGroupId && <header className="page-header">
+          {!billId && <header className="page-header">
             <div>
               <div className="eyebrow">YOUR SHARED PURCHASES</div>
               <h1>
-                {view === "overview" ? (
+                {view === "overview" && !billGroupId ? (
                   <>
                     Hey {displayName}, <span>all good?</span>
                     <Icon name="spark" />
                   </>
                 ) : (
-                  navigation.find((item) => item.id === view)?.label
+                  billGroupId ? "My groups" : navigation.find((item) => item.id === view)?.label
                 )}
               </h1>
               <p>
@@ -144,7 +145,7 @@ export default function PlayApp({
               </Button>
             )}
           </header>}
-          {billId ? <BillDetails key={billId} id={billId} /> : billGroupId ? <GroupBills key={billGroupId} id={billGroupId} /> : view === "account" ? (
+          {billId ? <BillDetails key={billId} id={billId} /> : (billGroupId || view === "groups") ? <GroupWorkspace key={billGroupId ?? "groups"} groups={groups} selectedId={billGroupId ?? undefined} loading={loading} error={error} retry={() => setRevision(value => value + 1)} onCreate={() => setCreating(true)} /> : view === "account" ? (
             <section className="account-panel">
               <AccountCheck />
             </section>
@@ -160,7 +161,7 @@ export default function PlayApp({
               {!loading && !error && <GroupList
                 groups={groups}
                 onCreate={() => setCreating(true)}
-                onOpen={goToGroup}
+                onOpen={group => { window.location.hash = `/group-bills/${group.id}`; }}
               />}
             </section>
           )}

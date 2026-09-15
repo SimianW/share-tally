@@ -13,6 +13,7 @@ import {
 import { useGroupApi, errorMessage, type GroupDetail } from "./group-api";
 import { Avatar, Button } from "./ui";
 import Dialog from "./Dialog";
+import { GroupDetails } from "./GroupDetails";
 import "./bills.css";
 
 export function Balance({
@@ -79,7 +80,8 @@ export function OverviewBalance({ revision }: { revision: string }) {
     <p role="status">Loading balances...</p>
   );
 }
-export function GroupBills({ id }: { id: string }) {
+export function GroupBills({ id, onSummary }: { id: string; onSummary: (id: string, summary: Summary | null) => void }) {
+  const [membersOpen, setMembersOpen] = useState(false);
   const api = useBillApi();
   const groups = useGroupApi();
   const [data, setData] = useState<{
@@ -99,42 +101,40 @@ export function GroupBills({ id }: { id: string }) {
       .then(([bills, group]) => {
         if (!controller.signal.aborted) {
           setData({ ...bills, ...group });
+          onSummary(id, bills.summary);
           setError("");
         }
       })
       .catch((error) => {
-        if (!controller.signal.aborted) setError(errorMessage(error));
+        if (!controller.signal.aborted) {
+          setError(errorMessage(error));
+          onSummary(id, null);
+        }
       });
     return () => controller.abort();
-  }, [api, groups, id, revision]);
+  }, [api, groups, id, revision, onSummary]);
+  function closeMembers() {
+    setMembersOpen(false);
+    setRevision(n => n + 1);
+  }
   return (
     <section className="bills-page">
-      <Button
-        variant="secondary"
-        onClick={() => {
-          window.location.hash = "";
-        }}
-      >
-        Back to groups
-      </Button>
       <div className="bill-heading">
-        <h1>{data?.group.name ?? "Group bills"}</h1>
+        <h2>{data?.group.name ?? "Group bills"}</h2>
+        <Button variant="text" onClick={() => setMembersOpen(true)}>Members & invites</Button>
         <Button onClick={() => setRevision((n) => n + 1)}>Refresh bills</Button>
       </div>
       {error ? (
-        <p role="alert" className="form-error">
-          {error}
-        </p>
+        <div role="alert" className="form-error"><p>{error}</p><Button onClick={() => setRevision(n => n + 1)}>Retry group bills</Button></div>
       ) : !data ? (
         <p role="status">Loading bills...</p>
       ) : (
         <>
-          <Balance summary={data.summary} group />
+          <div className="workspace-balance"><Balance summary={data.summary} group /><Button onClick={() => setCreating(true)}>New bill</Button></div>
           <div className="bill-heading">
             <h2>
               Bills <small>{data.bills.length}</small>
             </h2>
-            <Button onClick={() => setCreating(true)}>New bill</Button>
           </div>
           {!data.bills.length && (
             <p>No bills yet. Record a purchase you paid for to get started.</p>
@@ -172,6 +172,7 @@ export function GroupBills({ id }: { id: string }) {
           )}
         </>
       )}
+      {membersOpen && <GroupDetails id={id} api={groups} close={closeMembers} onViewBills={closeMembers} />}
     </section>
   );
 }
@@ -269,6 +270,33 @@ function CreateBill({
         className="bill-form"
       >
         <fieldset disabled={busy || request !== null}>
+          <fieldset>
+            <legend>Who shared this purchase?</legend>
+            <p>You are included as the initiator. Select the other participants.</p>
+            <div className="participant-actions">
+              <Button variant="text" onClick={() => setSelected(group.members.map(member => member.id))}>Select everyone</Button>
+              <Button variant="text" onClick={() => setSelected([me.id])}>Just me</Button>
+            </div>
+            {group.members.map((member) => (
+              <label className="participant-choice" key={member.id}>
+                <input
+                  type="checkbox"
+                  checked={selected.includes(member.id)}
+                  disabled={member.isCurrentUser}
+                  onChange={(e) =>
+                    setSelected((ids) =>
+                      e.target.checked
+                        ? [...ids, member.id]
+                        : ids.filter((id) => id !== member.id),
+                    )
+                  }
+                />
+                {member.displayName}
+                {member.isCurrentUser && " · You, initiator"}
+              </label>
+            ))}
+            <p>{selected.length} participants selected · {group.members.length} group members</p>
+          </fieldset>
           <label>
             Bill title
             <input
@@ -316,27 +344,7 @@ function CreateBill({
               onChange={(e) => setNotes(e.target.value)}
             />
           </label>
-          <fieldset>
-            <legend>Participants</legend>
-            {group.members.map((member) => (
-              <label className="participant-choice" key={member.id}>
-                <input
-                  type="checkbox"
-                  checked={selected.includes(member.id)}
-                  disabled={member.isCurrentUser}
-                  onChange={(e) =>
-                    setSelected((ids) =>
-                      e.target.checked
-                        ? [...ids, member.id]
-                        : ids.filter((id) => id !== member.id),
-                    )
-                  }
-                />
-                {member.displayName}
-                {member.isCurrentUser && " · You, initiator"}
-              </label>
-            ))}
-          </fieldset>
+
         </fieldset>
         <p>
           Creating this bill confirms your share. Once everyone confirms, up to
