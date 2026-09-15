@@ -1,5 +1,8 @@
 import {
   check,
+  date,
+  integer,
+  unique,
   index,
   pgTable,
   primaryKey,
@@ -95,3 +98,36 @@ export const groupMembers = pgTable(
     index('group_members_user_id_idx').on(table.userId),
   ],
 );
+
+export const bills = pgTable('bills', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  groupId: uuid('group_id').notNull().references(() => groups.id),
+  initiatorId: uuid('initiator_id').notNull().references(() => users.id),
+  requestId: uuid('request_id').notNull(),
+  requestPayload: text('request_payload').notNull(),
+  title: text('title').notNull(),
+  purchaseDate: date('purchase_date').notNull(),
+  notes: text('notes').notNull().default(''),
+  totalCents: integer('total_cents').notNull(),
+  adjustmentCents: integer('adjustment_cents'),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, table => [
+  unique('bills_creation_request').on(table.initiatorId, table.requestId),
+  index('bills_group_idx').on(table.groupId),
+  check('bills_total_range', sql`${table.totalCents} between 1 and 1000000`),
+  check('bills_title_length', sql`char_length(btrim(${table.title})) between 1 and 120`),
+  check('bills_notes_length', sql`char_length(${table.notes}) <= 2000`),
+  check('bills_completion', sql`(${table.completedAt} is null and ${table.adjustmentCents} is null) or (${table.completedAt} is not null and ${table.adjustmentCents} is not null and ${table.adjustmentCents} between -5 and 5)`),
+]);
+
+export const billShares = pgTable('bill_shares', {
+  billId: uuid('bill_id').notNull().references(() => bills.id),
+  userId: uuid('user_id').notNull().references(() => users.id),
+  amountCents: integer('amount_cents'),
+  confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+}, table => [
+  primaryKey({ columns: [table.billId, table.userId] }),
+  check('bill_shares_amount', sql`${table.amountCents} between 0 and 1000000`),
+  check('bill_shares_confirmation', sql`(${table.amountCents} is null) = (${table.confirmedAt} is null)`),
+]);

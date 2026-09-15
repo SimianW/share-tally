@@ -1,3 +1,5 @@
+import { createBillsRouter } from './bill-routes.js';
+import { BillError } from './bills.js';
 import express, { type ErrorRequestHandler, type Request, type RequestHandler } from 'express';
 import { clerkClient, clerkMiddleware, getAuth } from '@clerk/express';
 import { getOrCreateUser } from './users.js';
@@ -49,6 +51,7 @@ export function createApp(auth: Authentication = {
     next();
   });
   app.use('/api/groups', createGroupsRouter(displayName));
+  app.use('/api', createBillsRouter(displayName));
 
   app.get('/api/me', async (req, res) => {
     const user = await getOrCreateUser(res.locals.clerkUserId);
@@ -65,7 +68,7 @@ export function createApp(auth: Authentication = {
       return;
     }
 
-    if (error instanceof GroupAccessError) {
+    if (error instanceof GroupAccessError || error instanceof BillError) {
       res.status(error.status).json({ error: error.message });
       return;
     }

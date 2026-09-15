@@ -1,0 +1,2 @@
+ALTER TABLE "bills" DROP CONSTRAINT "bills_completion";--> statement-breakpoint
+ALTER TABLE "bills" ADD CONSTRAINT "bills_completion" CHECK (("bills"."completed_at" is null and "bills"."adjustment_cents" is null) or ("bills"."completed_at" is not null and "bills"."adjustment_cents" is not null and "bills"."adjustment_cents" between -5 and 5));

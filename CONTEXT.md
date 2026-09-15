@@ -30,8 +30,11 @@ A participant's acknowledgment of their submitted share for the bill's current r
 _Avoid_: Payment confirmation, which acknowledges received money during settlement.
 
 **Complete bill**:
-A bill for which every participant has confirmed their share for the current revision and the shares add up to the total. Completion does not mean the group has finished repaying its debts.
+A bill for which every participant has confirmed their share for the current revision and any permitted difference is accounted for by an initiator adjustment. Completion does not mean the group has finished repaying its debts.
 _Avoid_: Paid bill.
+
+**Initiator adjustment**:
+The small difference between a bill's total and its submitted shares, assigned to the initiator without changing anyone's submitted share. It increases or decreases the initiator's effective cost.
 
 **Settlement**:
 A group process that calculates repayments from member net balances and finishes when recipients confirm the required payments.

@@ -38,6 +38,8 @@ try {
   });
   vite = await createServer({
     root: clientRoot, configFile: false, envDir: false,
+    // Keep the test-only Clerk bundle separate from production dependency caching.
+    cacheDir: `${clientRoot}/node_modules/.vite-smoke`,
     define: { 'import.meta.env.VITE_CLERK_PUBLISHABLE_KEY': JSON.stringify('test-only-clerk-boundary') },
     plugins: [{ name: 'smoke-clerk', enforce: 'pre', resolveId(id) {
       if (id === '@clerk/react') return `${clientRoot}/test/clerk.tsx`;
@@ -61,6 +63,7 @@ try {
     const page = await context.newPage();
     page.setDefaultTimeout(10_000);
     page.on('pageerror', error => errors.push(error.message));
+    page.on('console', message => { if (message.type() === 'error') console.error('Browser console:', message.text()); });
     return page;
   }
   const alice = await pageFor('alice-token', { width: 1280, height: 900 });
@@ -139,6 +142,67 @@ try {
   await carol.getByRole('button', { name: 'Join group', exact: true }).click();
   await expect(carol.getByRole('dialog')).toContainText('3 members');
 
+  // Issue #4: real bill creation, response-loss retry, share confirmation, and balances.
+  await alice.getByRole('button', { name: 'View bills and balance' }).click();
+  await alice.getByRole('button', { name: 'New bill', exact: true }).click();
+  await alice.getByLabel('Bill title', { exact: true }).fill('Weekend groceries');
+  await alice.getByLabel('Bill total · CAD', { exact: true }).fill('100.001');
+  await alice.getByLabel('My share · CAD', { exact: true }).fill('40.00');
+  await alice.getByRole('checkbox', { name: 'Bob', exact: true }).check();
+  await alice.getByRole('button', { name: 'Create bill and confirm my share' }).click();
+  await expect(alice.getByRole('alert')).toContainText('at most two decimal places');
+  await alice.getByLabel('Bill total · CAD', { exact: true }).fill('100.00');
+  let creationAttempts = 0;
+  await alice.route('**/api/groups/*/bills', async route => {
+    if (route.request().method() !== 'POST') return route.continue();
+    const response = await route.fetch();
+    creationAttempts++;
+    if (creationAttempts === 1) return route.abort('failed');
+    return route.fulfill({ response });
+  });
+  await alice.getByRole('button', { name: 'Create bill and confirm my share' }).click();
+  await expect(alice.getByRole('button', { name: 'Retry creation' })).toBeVisible();
+  await alice.reload();
+  await alice.getByRole('button', { name: 'New bill', exact: true }).click();
+  await expect(alice.getByLabel('Bill title', { exact: true })).toHaveValue('Weekend groceries');
+  await alice.getByRole('button', { name: 'Retry creation' }).click();
+  await expect(alice.getByRole('heading', { name: 'Weekend groceries' })).toBeVisible();
+  assert.equal(creationAttempts, 2);
+  await expect(alice.locator('.difference-number')).toHaveText('$60.00');
+  await expect(alice.locator('.difference-card')).toContainText('1/2 confirmed');
+  const billUrl = alice.url();
+  await bob.goto(billUrl);
+  await bob.getByLabel('My share · CAD', { exact: true }).fill('59.97');
+  let shareAttempts = 0;
+  await bob.route('**/api/bills/*/share', async route => {
+    const response = await route.fetch();
+    shareAttempts++;
+    if (shareAttempts === 1) return route.abort('failed');
+    return route.fulfill({ response });
+  });
+  await bob.getByRole('button', { name: 'Submit and confirm my share' }).click();
+  await expect(bob.getByRole('button', { name: 'Retry confirmation' })).toBeVisible();
+  await bob.getByRole('button', { name: 'Retry confirmation' }).click();
+  await expect(bob.locator('.bill-status')).toContainText('COMPLETE');
+  await expect(bob.locator('.difference-number')).toHaveText('$0.03');
+  await expect(bob.locator('.bill-adjustment')).toContainText('$40.03 effective cost');
+  await alice.getByRole('button', { name: 'Refresh bill', exact: true }).click();
+  await expect(alice.locator('.bill-status')).toContainText('COMPLETE');
+  await carol.goto(billUrl);
+  await expect(carol.getByText('Only its participants can submit shares.', { exact: false })).toBeVisible();
+  await expect(carol.getByRole('button', { name: 'Submit and confirm my share' })).toHaveCount(0);
+  await alice.screenshot({ path: `${clientRoot}/test-results/bills-desktop.png`, fullPage: true });
+  await bob.screenshot({ path: `${clientRoot}/test-results/bills-mobile.png`, fullPage: true });
+  assert.equal(await bob.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await alice.getByRole('link', { name: 'Group bills', exact: false }).click();
+  await expect(alice.locator('.bill-list-row')).toHaveCount(1);
+  await expect(alice.locator('.balance-number')).toHaveText('$59.97');
+  await alice.getByRole('button', { name: 'Back to groups' }).click();
+  await alice.getByRole('button', { name: 'Overview', exact: true }).click();
+  await expect(alice.locator('.balance-number')).toHaveText('$59.97');
+  await alice.goto(groupUrl);
+  await bob.goto(groupUrl);
+  await carol.goto(groupUrl);
   await bob.reload();
   await expect(bob.getByRole('dialog')).toContainText('3 members');
   await bob.getByRole('button', { name: 'Close dialog' }).click();
@@ -152,7 +216,7 @@ try {
   await carol.setViewportSize({ width: 390, height: 844 });
   await carol.screenshot({ path: `${clientRoot}/test-results/groups-mobile.png`, fullPage: true });
   assert.deepEqual(errors, []);
-  console.log('Group browser smoke passed: creation, Unicode icon, persistence, sign-in return, membership, invitation permissions, rotation, invalid links, repeat joining, mobile layout, sign-out.');
+  console.log('Group and bill browser smoke passed: creation, Unicode icon, persistence, sign-in return, membership, invitation permissions, rotation, invalid links, repeat joining, mobile layout, sign-out, bill creation and confirmation, response-loss retries, initiator adjustment, and balances.');
 } catch (error) {
   if (browser) {
     for (const context of browser.contexts()) for (const page of context.pages()) {
