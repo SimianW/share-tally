@@ -588,9 +588,6 @@ h1 {
 .group-grid {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 245px), 1fr));
 }
-.group-card {
-  max-width: 440px;
-}
 .group-card h3 {
   font-size: 22px;
 }
@@ -730,9 +727,6 @@ h1 {
   }
   .page-header > .button {
     width: 100%;
-  }
-  .group-card {
-    max-width: none;
   }
   .play-dialog {
     padding: 24px 20px;
