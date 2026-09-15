@@ -11,6 +11,12 @@ importers:
       '@clerk/react':
         specifier: ^6.15.1
         version: 6.15.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      emojibase-data:
+        specifier: ^17.0.0
+        version: 17.0.0(emojibase@17.0.0)
+      lucide-react:
+        specifier: ^1.45.0
+        version: 1.45.0(react@19.2.8)
       react:
         specifier: ^19.2.8
         version: 19.2.8
@@ -21,6 +27,9 @@ importers:
       '@eslint/js':
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.10.0)
+      '@playwright/test':
+        specifier: ^1.63.0
+        version: 1.63.0
       '@types/node':
         specifier: ^24.13.3
         version: 24.13.3
@@ -235,6 +244,11 @@ packages:
 
   '@oxc-project/types@0.148.0':
     resolution: {integrity: sha512-Nm4s/jB+4FpFsPhWGEC4h7rzksesmtnMXomo6rCMcg/b8zLQuOziRgkCS1fxDCXOlJB/6Q8oABOZ/OP6RIPj9A==}
+
+  '@playwright/test@1.63.0':
+    resolution: {integrity: sha512-oxMK4vllB9RK5NQ2l1pq1IfOf2AvnEuj/vYGDj0H2nMtmtZpKtCwt/l00GEO6xjGfpBNAvjovvYdCm50dRQkpQ==}
+    engines: {node: '>=20'}
+    hasBin: true
 
   '@rolldown/binding-android-arm-eabi@1.2.7':
     resolution: {integrity: sha512-EypzgnYCwyVY4NDHKzGmNJT5b+XaQEBniHxsMdeIQLB/tcCzZnhqrzHpZFbX9iaxx+5RiB8caATBtfvZP7zVxQ==}
@@ -497,6 +511,15 @@ packages:
   electron-to-chromium@1.5.422:
     resolution: {integrity: sha512-UvA/32XqrLDdZSn7Jllo1AYNcWji/G0d5M0GTViE7KoGBiMunw3a34Sb2KO4ZZyrSEhqsxFoVhWWJshdyfKqJA==}
 
+  emojibase-data@17.0.0:
+    resolution: {integrity: sha512-Yvgb5AWoHViHV/gq1qr5ZAarcBip+B27/ZLRsUJkbgAEaLlZ/fof9g882LTpmEpyhBNEC0m2SEmItljHsTygjA==}
+    peerDependencies:
+      emojibase: '*'
+
+  emojibase@17.0.0:
+    resolution: {integrity: sha512-bXdpf4HPY3p41zK5swVKZdC/VynsMZ4LoLxdYDE+GucqkFwzcM1GVc4ODfYAlwoKaf2U2oNNUoOO78N96ovpBA==}
+    engines: {node: '>=18.12.0'}
+
   escalade@3.2.0:
     resolution: {integrity: sha512-WUj2qlxaQtO4g6Pq5c29GTcWGDyd8itL8zTlipgECz3JesAiiOKotd8JU6otB3PACgG6xkJUyVhboMS+bje/jA==}
     engines: {node: '>=6'}
@@ -755,6 +778,11 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
+  lucide-react@1.45.0:
+    resolution: {integrity: sha512-yH1ubCAduho9UR7oJhRXIQXogksRILBiTuZC4/bQIGeB9JOkxMlSuEHyyZpo1Z3S0yWJO2KTSUZbjiNvVxeOUw==}
+    peerDependencies:
+      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
   minimatch@10.2.6:
     resolution: {integrity: sha512-vpLQEs+VLCr1nU0BXS07maYoFwlDAH0gngQuuttxIwutDFEMHq2blX+8vpgxDdK3J1PwjCJiep77OitTZ4Ll1A==}
     engines: {node: 18 || 20 || >=22}
@@ -800,6 +828,16 @@ packages:
   picomatch@4.0.7:
     resolution: {integrity: sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA==}
     engines: {node: '>=12'}
+
+  playwright-core@1.63.0:
+    resolution: {integrity: sha512-rYCsBF/M5HjUch52bbtVONEFjv6Xu8sm8h72dNlR5bzIE1fvC/bxgspzkjSfU+MweEMmPM8KJebG6nnyxo5mCg==}
+    engines: {node: '>=20'}
+    hasBin: true
+
+  playwright@1.63.0:
+    resolution: {integrity: sha512-+7ziBLidS4NaNCdt57SUDT+wYmmd5fmiQejUic/kb+YsYSCPyOOE9sebzMjNmQrsnNpDJqd4WHvV/8lfKfUDUg==}
+    engines: {node: '>=20'}
+    hasBin: true
 
   postcss@8.5.28:
     resolution: {integrity: sha512-RRuzqDtt5Y9h3quz5hWhK+TPnsmVs6WwSU6LkJMeY4HstUEDuYTG8UJSdawMRzmzAtV+KEoG8N3Qg2qLy5vM/A==}
@@ -1174,6 +1212,10 @@ snapshots:
 
   '@oxc-project/types@0.148.0': {}
 
+  '@playwright/test@1.63.0':
+    dependencies:
+      playwright: 1.63.0
+
   '@rolldown/binding-android-arm-eabi@1.2.7':
     optional: true
 
@@ -1397,6 +1439,12 @@ snapshots:
   detect-libc@2.1.2: {}
 
   electron-to-chromium@1.5.422: {}
+
+  emojibase-data@17.0.0(emojibase@17.0.0):
+    dependencies:
+      emojibase: 17.0.0
+
+  emojibase@17.0.0: {}
 
   escalade@3.2.0: {}
 
@@ -1627,6 +1675,10 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
+  lucide-react@1.45.0(react@19.2.8):
+    dependencies:
+      react: 19.2.8
+
   minimatch@10.2.6:
     dependencies:
       brace-expansion: 5.0.9
@@ -1663,6 +1715,12 @@ snapshots:
   picocolors@1.1.1: {}
 
   picomatch@4.0.7: {}
+
+  playwright-core@1.63.0: {}
+
+  playwright@1.63.0:
+    dependencies:
+      playwright-core: 1.63.0
 
   postcss@8.5.28:
     dependencies:
