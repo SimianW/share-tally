@@ -145,7 +145,7 @@ export default function PlayApp({
               </Button>
             )}
           </header>}
-          {billId ? <BillDetails key={billId} id={billId} /> : (billGroupId || view === "groups") ? <GroupWorkspace groups={groups} selectedId={billGroupId ?? undefined} loading={loading} error={error} retry={() => setRevision(value => value + 1)} onCreate={() => setCreating(true)} /> : view === "account" ? (
+          {billId ? <BillDetails key={billId} id={billId} /> : (billGroupId || view === "groups") ? <GroupWorkspace key={billGroupId ?? "groups"} groups={groups} selectedId={billGroupId ?? undefined} loading={loading} error={error} retry={() => setRevision(value => value + 1)} onCreate={() => setCreating(true)} /> : view === "account" ? (
             <section className="account-panel">
               <AccountCheck />
             </section>

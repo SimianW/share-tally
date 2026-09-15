@@ -80,7 +80,7 @@ export function OverviewBalance({ revision }: { revision: string }) {
     <p role="status">Loading balances...</p>
   );
 }
-export function GroupBills({ id }: { id: string }) {
+export function GroupBills({ id, onSummary }: { id: string; onSummary: (id: string, summary: Summary) => void }) {
   const [membersOpen, setMembersOpen] = useState(false);
   const api = useBillApi();
   const groups = useGroupApi();
@@ -101,6 +101,7 @@ export function GroupBills({ id }: { id: string }) {
       .then(([bills, group]) => {
         if (!controller.signal.aborted) {
           setData({ ...bills, ...group });
+          onSummary(id, bills.summary);
           setError("");
         }
       })
@@ -108,7 +109,11 @@ export function GroupBills({ id }: { id: string }) {
         if (!controller.signal.aborted) setError(errorMessage(error));
       });
     return () => controller.abort();
-  }, [api, groups, id, revision]);
+  }, [api, groups, id, revision, onSummary]);
+  function closeMembers() {
+    setMembersOpen(false);
+    setRevision(n => n + 1);
+  }
   return (
     <section className="bills-page">
       <div className="bill-heading">
@@ -164,7 +169,7 @@ export function GroupBills({ id }: { id: string }) {
           )}
         </>
       )}
-      {membersOpen && <GroupDetails id={id} api={groups} close={() => setMembersOpen(false)} />}
+      {membersOpen && <GroupDetails id={id} api={groups} close={closeMembers} onViewBills={closeMembers} />}
     </section>
   );
 }
@@ -287,7 +292,7 @@ function CreateBill({
                 {member.isCurrentUser && " · You, initiator"}
               </label>
             ))}
-            <p>{selected.length} of {group.members.length} members selected</p>
+            <p>{selected.length} participants selected · {group.members.length} group members</p>
           </fieldset>
           <label>
             Bill title
