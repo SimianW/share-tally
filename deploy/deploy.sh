@@ -6,7 +6,7 @@ set -eu
 deploy_dir=/opt/repo/share-tally
 # Provision this file once on the host; pipeline runs never overwrite it.
 test -s "$deploy_dir/.env.production" || {
-  echo "Missing $deploy_dir/.env.production; follow deploy/README.md" >&2
+  echo "Missing $deploy_dir/.env.production; provision it from deploy/.env.production.example with production values" >&2
   exit 1
 }
 export DOCKER_CONFIG

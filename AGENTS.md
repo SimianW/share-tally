@@ -2,7 +2,7 @@
 
 ### Project context
 
-Before planning or implementing, read `docs/README.md` for current sources and `docs/project-brief.md` for ownership and delivery constraints.
+Before planning or implementing, read `docs/project-brief.md` for ownership and delivery constraints. Current requirements live in GitHub issue #1 and its implementation tickets; domain terms and accepted decisions live in `CONTEXT.md` and `docs/adr/`. Research notes are background, not approved requirements.
 
 ### Issue tracker
 
