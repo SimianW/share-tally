@@ -1,0 +1,351 @@
+import { and, desc, eq, inArray } from "drizzle-orm";
+import { db } from "./db/index.js";
+import { bills, billShares, groupMembers, groups, users } from "./db/schema.js";
+
+export class BillError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+export const isUuid = (value: unknown): value is string =>
+  typeof value === "string" &&
+  /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value);
+export function cents(value: unknown, max = 1000000): number {
+  if (
+    typeof value !== "number" ||
+    !Number.isSafeInteger(value) ||
+    value < 0 ||
+    value > max
+  )
+    throw new BillError(
+      400,
+      `Amount must be integer cents between 0 and ${max}.`,
+    );
+  return value;
+}
+function object(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new BillError(400, "Expected a JSON object.");
+  return value as Record<string, unknown>;
+}
+export function parseShare(value: unknown) {
+  const body = object(value);
+  if (Object.keys(body).some((key) => key !== "amountCents"))
+    throw new BillError(400, "Submit only your own amountCents.");
+  return cents(body.amountCents);
+}
+export function parseBill(value: unknown) {
+  const body = object(value);
+  const allowed = [
+    "requestId",
+    "title",
+    "purchaseDate",
+    "timeZone",
+    "notes",
+    "totalCents",
+    "ownShareCents",
+    "participantIds",
+  ];
+  if (Object.keys(body).some((key) => !allowed.includes(key)))
+    throw new BillError(400, "Unexpected bill field.");
+  if (!isUuid(body.requestId))
+    throw new BillError(400, "A UUID requestId is required.");
+  if (
+    typeof body.title !== "string" ||
+    !body.title.trim() ||
+    [...body.title.trim()].length > 120 ||
+    /\p{Cc}/u.test(body.title)
+  )
+    throw new BillError(
+      400,
+      "Title must contain 1 to 120 characters without control characters.",
+    );
+  const notes = body.notes ?? "";
+  if (
+    typeof notes !== "string" ||
+    [...notes].length > 2000 ||
+    notes.includes("\0")
+  )
+    throw new BillError(400, "Notes must contain at most 2,000 characters.");
+  if (
+    typeof body.purchaseDate !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(body.purchaseDate) ||
+    body.purchaseDate < "0001-01-01" ||
+    !Number.isFinite(Date.parse(body.purchaseDate)) ||
+    new Date(body.purchaseDate).toISOString().slice(0, 10) !== body.purchaseDate
+  )
+    throw new BillError(400, "Enter a valid purchase date.");
+  let today: string;
+  try {
+    if (typeof body.timeZone !== "string") throw new Error();
+    today = new Intl.DateTimeFormat("en-CA", {
+      timeZone: body.timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+  } catch {
+    throw new BillError(400, "A valid device time zone is required.");
+  }
+  if (body.purchaseDate > today)
+    throw new BillError(400, "Purchase date cannot be in the future.");
+  const totalCents = cents(body.totalCents);
+  if (totalCents === 0)
+    throw new BillError(400, "Bill total must be positive.");
+  if (
+    !Array.isArray(body.participantIds) ||
+    !body.participantIds.length ||
+    !body.participantIds.every(isUuid)
+  )
+    throw new BillError(400, "Select group participants.");
+  const participantIds = body.participantIds
+    .map((id) => id.toLowerCase())
+    .sort();
+  if (new Set(participantIds).size !== participantIds.length)
+    throw new BillError(400, "Participants must be unique.");
+  return {
+    requestId: body.requestId.toLowerCase(),
+    title: body.title.trim(),
+    purchaseDate: body.purchaseDate,
+    notes,
+    totalCents,
+    ownShareCents: cents(body.ownShareCents, totalCents),
+    participantIds,
+  };
+}
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+async function member(tx: Tx, groupId: string, userId: string) {
+  const [row] = await tx
+    .select()
+    .from(groupMembers)
+    .where(
+      and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)),
+    );
+  if (!row) throw new BillError(404, "Group not found.");
+}
+async function complete(tx: Tx, bill: typeof bills.$inferSelect) {
+  const shares = await tx
+    .select()
+    .from(billShares)
+    .where(eq(billShares.billId, bill.id));
+  if (shares.some((share) => share.amountCents === null)) return;
+  const sum = shares.reduce((n, share) => n + BigInt(share.amountCents!), 0n);
+  const difference = BigInt(bill.totalCents) - sum;
+  const initiator = shares.find((share) => share.userId === bill.initiatorId)!;
+  if (
+    difference >= -5n &&
+    difference <= 5n &&
+    BigInt(initiator.amountCents!) + difference >= 0n
+  ) {
+    await tx
+      .update(bills)
+      .set({ adjustmentCents: Number(difference), completedAt: new Date() })
+      .where(eq(bills.id, bill.id));
+  }
+}
+export async function createBill(
+  groupId: string,
+  userId: string,
+  input: ReturnType<typeof parseBill>,
+) {
+  return db.transaction(async (tx) => {
+    // Serialize creation with membership changes and other creations in this group.
+    await tx.select().from(groups).where(eq(groups.id, groupId)).for("update");
+    await member(tx, groupId, userId);
+    const payload = JSON.stringify({ groupId, ...input });
+    const [existing] = await tx
+      .select()
+      .from(bills)
+      .where(
+        and(
+          eq(bills.initiatorId, userId),
+          eq(bills.requestId, input.requestId),
+        ),
+      );
+    if (existing) {
+      if (existing.requestPayload !== payload)
+        throw new BillError(
+          409,
+          "This creation request was already used with different details.",
+        );
+      return existing.id;
+    }
+    if (!input.participantIds.includes(userId))
+      throw new BillError(400, "The initiator must be a participant.");
+    const members = await tx
+      .select()
+      .from(groupMembers)
+      .where(eq(groupMembers.groupId, groupId));
+    if (
+      input.participantIds.some((id) => !members.some((m) => m.userId === id))
+    )
+      throw new BillError(400, "Every participant must belong to this group.");
+    const [bill] = await tx
+      .insert(bills)
+      .values({
+        groupId,
+        initiatorId: userId,
+        requestId: input.requestId,
+        requestPayload: payload,
+        title: input.title,
+        purchaseDate: input.purchaseDate,
+        notes: input.notes,
+        totalCents: input.totalCents,
+      })
+      .onConflictDoNothing()
+      .returning();
+    if (!bill)
+      throw new BillError(
+        409,
+        "This creation request was already used in another group.",
+      );
+    await tx
+      .insert(billShares)
+      .values(
+        input.participantIds.map((id) => ({
+          billId: bill.id,
+          userId: id,
+          amountCents: id === userId ? input.ownShareCents : null,
+          confirmedAt: id === userId ? new Date() : null,
+        })),
+      );
+    await complete(tx, bill);
+    return bill.id;
+  });
+}
+export async function submitShare(id: string, userId: string, amount: number) {
+  await db.transaction(async (tx) => {
+    // Every first submission locks this bill before reading or changing its shares.
+    const [bill] = await tx
+      .select()
+      .from(bills)
+      .where(eq(bills.id, id))
+      .for("update");
+    if (!bill) throw new BillError(404, "Bill not found.");
+    await member(tx, bill.groupId, userId);
+    const [share] = await tx
+      .select()
+      .from(billShares)
+      .where(and(eq(billShares.billId, id), eq(billShares.userId, userId)));
+    if (!share)
+      throw new BillError(
+        403,
+        "Only selected participants can submit a share.",
+      );
+    cents(amount, bill.totalCents);
+    if (share.amountCents !== null) {
+      if (share.amountCents !== amount)
+        throw new BillError(
+          409,
+          "Your share is already confirmed. Editing is not available yet.",
+        );
+      return;
+    }
+    if (bill.completedAt) throw new BillError(409, "This bill is complete.");
+    await tx
+      .update(billShares)
+      .set({ amountCents: amount, confirmedAt: new Date() })
+      .where(and(eq(billShares.billId, id), eq(billShares.userId, userId)));
+    await complete(tx, bill);
+  });
+}
+function safe(value: bigint) {
+  const number = Number(value);
+  if (!Number.isSafeInteger(number))
+    throw new BillError(422, "Balance exceeds the supported range.");
+  return number;
+}
+export async function readBills(userId: string, groupId?: string, id?: string) {
+  return db.transaction(
+    async (tx) => {
+      if (groupId) await member(tx, groupId, userId);
+      const rows = await tx
+        .select({ bill: bills })
+        .from(bills)
+        .innerJoin(
+          groupMembers,
+          and(
+            eq(groupMembers.groupId, bills.groupId),
+            eq(groupMembers.userId, userId),
+          ),
+        )
+        .where(
+          and(
+            groupId ? eq(bills.groupId, groupId) : undefined,
+            id ? eq(bills.id, id) : undefined,
+          ),
+        )
+        .orderBy(desc(bills.createdAt), bills.id);
+      if (id && !rows.length) throw new BillError(404, "Bill not found.");
+      if (!rows.length) return [];
+      const shares = await tx
+        .select({
+          userId: billShares.userId,
+          billId: billShares.billId,
+          amountCents: billShares.amountCents,
+          confirmedAt: billShares.confirmedAt,
+          displayName: users.displayName,
+        })
+        .from(billShares)
+        .innerJoin(users, eq(users.id, billShares.userId))
+        .where(
+          inArray(
+            billShares.billId,
+            rows.map((row) => row.bill.id),
+          ),
+        )
+        .orderBy(users.id);
+      return rows.map(({ bill }) => {
+        const participants = shares
+          .filter((s) => s.billId === bill.id)
+          .map((s) => ({
+            ...s,
+            displayName: s.displayName ?? "Member",
+            isCurrentUser: s.userId === userId,
+          }));
+        const submittedCents = safe(
+          participants.reduce((n, s) => n + BigInt(s.amountCents ?? 0), 0n),
+        );
+        const {
+          requestId: _requestId,
+          requestPayload: _payload,
+          ...fields
+        } = bill;
+        return {
+          ...fields,
+          participants,
+          submittedCents,
+          differenceCents: bill.totalCents - submittedCents,
+          confirmedCount: participants.filter((s) => s.confirmedAt !== null)
+            .length,
+        };
+      });
+    },
+    { isolationLevel: "repeatable read", accessMode: "read only" },
+  );
+}
+export function summarize(
+  rows: Awaited<ReturnType<typeof readBills>>,
+  userId: string,
+) {
+  let receivable = 0n,
+    payable = 0n;
+  for (const bill of rows) {
+    if (!bill.completedAt) continue;
+    const own = bill.participants.find((p) => p.userId === userId);
+    if (!own) continue;
+    if (bill.initiatorId === userId)
+      receivable += BigInt(
+        bill.totalCents - own.amountCents! - bill.adjustmentCents!,
+      );
+    else payable += BigInt(own.amountCents!);
+  }
+  return {
+    receivableCents: safe(receivable),
+    payableCents: safe(payable),
+    netCents: safe(receivable - payable),
+  };
+}

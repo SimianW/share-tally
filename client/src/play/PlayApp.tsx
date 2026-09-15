@@ -1,3 +1,4 @@
+import { BillDetails, GroupBills, OverviewBalance } from './Bills';
 import { useRoute } from './route';
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
@@ -43,6 +44,8 @@ export default function PlayApp({
   const api = useGroupApi();
   const route = useRoute();
   const selectedId = route.startsWith('#/groups/') ? route.slice('#/groups/'.length) : null;
+  const billId = route.startsWith('#/bills/') ? route.slice('#/bills/'.length) : null;
+  const billGroupId = route.startsWith('#/group-bills/') ? route.slice('#/group-bills/'.length) : null;
   const invitationToken = route.startsWith('#/join/') ? route.slice('#/join/'.length) : null;
   const [groups, setGroups] = useState<GroupView[]>([]);
   const [creating, setCreating] = useState(false);
@@ -77,7 +80,7 @@ export default function PlayApp({
         <aside className="sidebar">
           <button
             className="logo-button"
-            onClick={() => setView("overview")}
+            onClick={() => { setView("overview"); closeGroup(); }}
             aria-label="ShareTally home"
           >
             <Logo />
@@ -89,7 +92,7 @@ export default function PlayApp({
                 key={item.id}
                 className={view === item.id ? "active" : ""}
                 aria-current={view === item.id ? "page" : undefined}
-                onClick={() => setView(item.id)}
+                onClick={() => { setView(item.id); closeGroup(); }}
               >
                 <Icon name={item.icon} />
                 <span>{item.label}</span>
@@ -115,7 +118,7 @@ export default function PlayApp({
           </div>
         </aside>
         <main className="main-content" id="main-content" tabIndex={-1}>
-          <header className="page-header">
+          {!billId && !billGroupId && <header className="page-header">
             <div>
               <div className="eyebrow">YOUR SHARED PURCHASES</div>
               <h1>
@@ -140,13 +143,14 @@ export default function PlayApp({
                 New group
               </Button>
             )}
-          </header>
-          {view === "account" ? (
+          </header>}
+          {billId ? <BillDetails key={billId} id={billId} /> : billGroupId ? <GroupBills key={billGroupId} id={billGroupId} /> : view === "account" ? (
             <section className="account-panel">
               <AccountCheck />
             </section>
           ) : (
             <section>
+              {view === "overview" && <OverviewBalance revision={`${route}:${revision}`} />}
               {loading && <p role="status">Loading groups…</p>}
               {error && <div role="alert" className="form-error">
                 <p>{error}</p>

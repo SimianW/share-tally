@@ -24,6 +24,7 @@ export function GroupDetails({ id, api, close }: { id: string; api: GroupApi; cl
       {error && <p role="alert" className="form-error">{error}</p>}
       <Button variant="secondary" onClick={refresh} disabled={loading}>Refresh members</Button>
       {group && !error && <>
+        <Button onClick={() => { window.location.hash = `/group-bills/${id}`; }}>View bills and balance</Button>
         <p className="dialog-intro">{group.memberCount} {group.memberCount === 1 ? 'member' : 'members'}</p>
         {group.members.map(member => <div className="member-row" key={member.id}>
           <Avatar name={member.displayName} />
