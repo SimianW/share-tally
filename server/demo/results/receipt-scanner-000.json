@@ -1,0 +1,74 @@
+{
+  "engine": "receipt-scanner",
+  "receiptId": "000",
+  "model": "gemini-2.5-flash",
+  "status": "success",
+  "ranAt": "2026-09-15T19:15:44.116Z",
+  "durationMs": 8872,
+  "data": {
+    "merchant": {
+      "name": "BOOK TA.K (TAMAN DAYA) SDN BHD",
+      "address": "NO.53 55,57 & 59, JALAN SAGU 18, TAMAN DAYA",
+      "city": "JOHOR BAHRU",
+      "state": "JOHOR",
+      "postalCode": "81100",
+      "country": "Malaysia",
+      "phone": null,
+      "website": null,
+      "taxId": "789417-W"
+    },
+    "receiptType": "retail",
+    "date": "2018-12-25",
+    "time": "20:13:39",
+    "timezone": null,
+    "receiptNumber": "TD01167104",
+    "orderNumber": null,
+    "tableNumber": null,
+    "invoiceNumber": null,
+    "items": [
+      {
+        "description": "KF MODELLING CLAY KIDDY FISH",
+        "quantity": 1,
+        "unitPrice": 9,
+        "totalPrice": 9,
+        "sku": "9556939040118",
+        "category": null,
+        "discountAmount": 0,
+        "isVoided": false,
+        "barcode": null,
+        "brand": null,
+        "discountLabel": null,
+        "notes": null,
+        "productType": "toys"
+      }
+    ],
+    "subtotal": 9,
+    "discountTotal": 0,
+    "taxes": [],
+    "serviceCharge": null,
+    "deliveryFee": null,
+    "tip": null,
+    "total": 9,
+    "currency": "MYR",
+    "payment": {
+      "method": "cash",
+      "cardBrand": null,
+      "cardLastFour": null,
+      "transactionId": null,
+      "authCode": null,
+      "tip": null,
+      "cashGiven": 10,
+      "changeGiven": 1
+    },
+    "cashier": "MANIS",
+    "confidence": 0.95,
+    "rawText": "BOOK TA.K (TAMAN DAYA) SDN BHD\n789417-W\nNO.53 55,57 & 59, JALAN SAGU 18,\nTAMAN DAYA,\n81100 JOHOR BAHRU,\nJOHOR.\nDocument No : TD01167104\nDate : 25/12/2018 8:13:39 PM\nCashier :\nMANIS\nMember :\nCASH BILL\nCODE/DESC\nPRICE\nDisc\nAMOUNT\nQTY\nRM\nRM\n9556939040118\nKF MODELLING CLAY KIDDY FISH\n1 PC\n9.000\n0.00\n9.00\nTotal :\n9.00\nRour ding Adjustment :\n0.00\nRound d Total (RM):\n9.00\nCash\n10.00\nCHANGE\n1.00\nGOODS SOLD ARE NOT RETURNABLE OR\nEXCHANGEABLE\n如有不便, 敬请原谅.谢谢!\nTHANK YOU\nPLEASE COME AGAIN !",
+    "warnings": []
+  },
+  "raw": "{\n  \"merchant\": {\n    \"name\": \"BOOK TA.K (TAMAN DAYA) SDN BHD\",\n    \"address\": \"NO.53 55,57 & 59, JALAN SAGU 18, TAMAN DAYA\",\n    \"city\": \"JOHOR BAHRU\",\n    \"state\": \"JOHOR\",\n    \"postalCode\": \"81100\",\n    \"country\": \"Malaysia\",\n    \"phone\": null,\n    \"website\": null,\n    \"taxId\": \"789417-W\"\n  },\n  \"receiptType\": \"retail\",\n  \"date\": \"2018-12-25\",\n  \"time\": \"20:13:39\",\n  \"timezone\": null,\n  \"receiptNumber\": \"TD01167104\",\n  \"orderNumber\": null,\n  \"tableNumber\": null,\n  \"invoiceNumber\": null,\n  \"items\": [\n    {\n      \"description\": \"KF MODELLING CLAY KIDDY FISH\",\n      \"quantity\": 1,\n      \"unitPrice\": 9.00,\n      \"totalPrice\": 9.00,\n      \"sku\": \"9556939040118\",\n      \"category\": null,\n      \"discountAmount\": 0.00,\n      \"productType\": \"toys\",\n      \"isVoided\": false\n    }\n  ],\n  \"subtotal\": 9.00,\n  \"discountTotal\": 0.00,\n  \"taxes\": [],\n  \"serviceCharge\": null,\n  \"deliveryFee\": null,\n  \"tip\": null,\n  \"total\": 9.00,\n  \"currency\": \"MYR\",\n  \"payment\": {\n    \"method\": \"cash\",\n    \"cardBrand\": null,\n    \"cardLastFour\": null,\n    \"transactionId\": null,\n    \"authCode\": null,\n    \"tip\": null,\n    \"cashGiven\": 10.00,\n    \"changeGiven\": 1.00\n  },\n  \"cashier\": \"MANIS\",\n  \"confidence\": 0.95,\n  \"rawText\": \"BOOK TA.K (TAMAN DAYA) SDN BHD\\n789417-W\\nNO.53 55,57 & 59, JALAN SAGU 18,\\nTAMAN DAYA,\\n81100 JOHOR BAHRU,\\nJOHOR.\\nDocument No : TD01167104\\nDate : 25/12/2018 8:13:39 PM\\nCashier :\\nMANIS\\nMember :\\nCASH BILL\\nCODE/DESC\\nPRICE\\nDisc\\nAMOUNT\\nQTY\\nRM\\nRM\\n9556939040118\\nKF MODELLING CLAY KIDDY FISH\\n1 PC\\n9.000\\n0.00\\n9.00\\nTotal :\\n9.00\\nRour ding Adjustment :\\n0.00\\nRound d Total (RM):\\n9.00\\nCash\\n10.00\\nCHANGE\\n1.00\\nGOODS SOLD ARE NOT RETURNABLE OR\\nEXCHANGEABLE\\n如有不便, 敬请原谅.谢谢!\\nTHANK YOU\\nPLEASE COME AGAIN !\",\n  \"warnings\": []\n}",
+  "usage": {
+    "inputTokens": 1493,
+    "outputTokens": 824,
+    "totalTokens": 3341
+  }
+}

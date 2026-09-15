@@ -1,0 +1,58 @@
+{
+  "engine": "ai-sdk",
+  "receiptId": "002",
+  "model": "gemini-2.5-flash",
+  "status": "success",
+  "ranAt": "2026-09-15T19:15:35.241Z",
+  "durationMs": 6302,
+  "data": {
+    "merchant": "MR D.I.Y. (JOHOR) SDN BHD",
+    "currency": "RM",
+    "items": [
+      {
+        "description": "CHOPPING BOARD 35.5x25.5CM 803M#",
+        "quantity": 1,
+        "unitPrice": 19,
+        "totalPrice": 19
+      },
+      {
+        "description": "AIR PRESSURE SPRAYER SX-575-1 1.5L",
+        "quantity": 1,
+        "unitPrice": 8.02,
+        "totalPrice": 8.02
+      },
+      {
+        "description": "WAXCO WINDSHILED CLEANER 120ML",
+        "quantity": 1,
+        "unitPrice": 3.02,
+        "totalPrice": 3.02
+      },
+      {
+        "description": "BOPP TAPE 48MM*100M CLEAR",
+        "quantity": 1,
+        "unitPrice": 3.88,
+        "totalPrice": 3.88
+      }
+    ],
+    "subtotal": 33.92,
+    "discountTotal": 0,
+    "taxes": [],
+    "roundingAdjustment": -0.02,
+    "total": 33.9,
+    "warnings": []
+  },
+  "raw": "{\n  \"merchant\": \"MR D.I.Y. (JOHOR) SDN BHD\",\n  \"currency\": \"RM\",\n  \"items\": [\n    {\n      \"description\": \"CHOPPING BOARD 35.5x25.5CM 803M#\",\n      \"quantity\": 1,\n      \"unitPrice\": 19.00,\n      \"totalPrice\": 19.00\n    },\n    {\n      \"description\": \"AIR PRESSURE SPRAYER SX-575-1 1.5L\",\n      \"quantity\": 1,\n      \"unitPrice\": 8.02,\n      \"totalPrice\": 8.02\n    },\n    {\n      \"description\": \"WAXCO WINDSHILED CLEANER 120ML\",\n      \"quantity\": 1,\n      \"unitPrice\": 3.02,\n      \"totalPrice\": 3.02\n    },\n    {\n      \"description\": \"BOPP TAPE 48MM*100M CLEAR\",\n      \"quantity\": 1,\n      \"unitPrice\": 3.88,\n      \"totalPrice\": 3.88\n    }\n  ],\n  \"subtotal\": 33.92,\n  \"discountTotal\": 0,\n  \"taxes\": [],\n  \"roundingAdjustment\": -0.02,\n  \"total\": 33.90,\n  \"warnings\": []\n}",
+  "usage": {
+    "inputTokens": 360,
+    "inputTokenDetails": {
+      "noCacheTokens": 360,
+      "cacheReadTokens": 0
+    },
+    "outputTokens": 1088,
+    "outputTokenDetails": {
+      "textTokens": 345,
+      "reasoningTokens": 743
+    },
+    "totalTokens": 1448
+  }
+}

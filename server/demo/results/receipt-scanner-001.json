@@ -1,0 +1,76 @@
+{
+  "engine": "receipt-scanner",
+  "receiptId": "001",
+  "model": "gemini-2.5-flash",
+  "status": "success",
+  "ranAt": "2026-09-15T19:15:57.636Z",
+  "durationMs": 13518,
+  "data": {
+    "merchant": {
+      "name": "INDAH GIFT & HOME DECO",
+      "address": "27, JALAN DEDAP 13, TAMAN JOHOR JAYA",
+      "city": "JOHOR BAHRU",
+      "state": "JOHOR",
+      "postalCode": "81100",
+      "country": "MYS",
+      "phone": "07-3507405",
+      "website": null,
+      "taxId": null
+    },
+    "receiptType": "retail",
+    "date": "2018-10-19",
+    "time": "20:49:59",
+    "timezone": null,
+    "receiptNumber": "050100035279",
+    "orderNumber": null,
+    "tableNumber": "01",
+    "invoiceNumber": null,
+    "items": [
+      {
+        "description": "GF-TABLE LAMP/STITCH <i>",
+        "quantity": 1,
+        "unitPrice": 55.9,
+        "totalPrice": 55.9,
+        "sku": "62483",
+        "category": null,
+        "discountAmount": 5.59,
+        "isVoided": false,
+        "barcode": null,
+        "brand": null,
+        "discountLabel": null,
+        "notes": null,
+        "productType": "home decor"
+      }
+    ],
+    "subtotal": 65.9,
+    "discountTotal": 5.59,
+    "taxes": [],
+    "serviceCharge": null,
+    "deliveryFee": null,
+    "tip": null,
+    "total": 60.3,
+    "currency": "MYR",
+    "payment": {
+      "method": "cash",
+      "cardBrand": null,
+      "cardLastFour": null,
+      "transactionId": null,
+      "authCode": null,
+      "tip": null,
+      "cashGiven": 70.3,
+      "changeGiven": 10
+    },
+    "cashier": "CN",
+    "confidence": 0.95,
+    "rawText": "tan woon yann\nINDAH GIFT & HOME DECO\n27,JALAN DEDAP 13,\nTAMAN JOHOR JAYA,\n81100 JOHOR BAHRU,JOHOR.\nTel:07-3507405 Fax:07-3558160\nRECEIPT\n19/10/2018 20:49:59 #01\nCashier: CN Location/SP: 05 /0531\nMB: M026588\nRoom No: 01 050100035279\nDesc/Item Qty Price Amt(RM)\nST-PRIVILEGE CARD/GD INDAH\n88888 1 10.00 10.00\nGF-TABLE LAMP/STITCH <i>\n62483 1 55.90 55.90\n@DISC 10.00% -5.59\n#Total Qty 2\nTOTAL AMT........... RM 60.31\nROUNDING ADJ............ -0.01\nRM 60.30 ✓\nCASH............... RM 70.30\nCHANGE............. RM 10.00\nThank You ! Please Come Again !\nGoods Sold Are Not Returnable\nDealing In Wholesale And Retail.",
+    "warnings": [
+      "Rounding adjustment of -0.01 applied to total."
+    ]
+  },
+  "raw": "{\n  \"merchant\": {\n    \"name\": \"INDAH GIFT & HOME DECO\",\n    \"address\": \"27, JALAN DEDAP 13, TAMAN JOHOR JAYA\",\n    \"city\": \"JOHOR BAHRU\",\n    \"state\": \"JOHOR\",\n    \"postalCode\": \"81100\",\n    \"country\": \"MYS\",\n    \"phone\": \"07-3507405\",\n    \"website\": null,\n    \"taxId\": null\n  },\n  \"receiptType\": \"retail\",\n  \"date\": \"2018-10-19\",\n  \"time\": \"20:49:59\",\n  \"timezone\": null,\n  \"receiptNumber\": \"050100035279\",\n  \"orderNumber\": null,\n  \"tableNumber\": \"01\",\n  \"invoiceNumber\": null,\n  \"items\": [\n    {\n      \"description\": \"ST-PRIVILEGE CARD/GD INDAH\",\n      \"quantity\": 1,\n      \"unitPrice\": 10.00,\n      \"totalPrice\": 10.00,\n      \"sku\": \"88888\",\n      \"category\": null,\n      \"discountAmount\": null,\n      \"productType\": \"other\",\n      \"isVoided\": false\n    ,\n    \"description\": \"GF-TABLE LAMP/STITCH <i>\",\n      \"quantity\": 1,\n      \"unitPrice\": 55.90,\n      \"totalPrice\": 55.90,\n      \"sku\": \"62483\",\n      \"category\": null,\n      \"discountAmount\": 5.59,\n      \"productType\": \"home decor\",\n      \"isVoided\": false\n    }\n  ],\n  \"subtotal\": 65.90,\n  \"discountTotal\": 5.59,\n  \"taxes\": [],\n  \"serviceCharge\": null,\n  \"deliveryFee\": null,\n  \"tip\": null,\n  \"total\": 60.30,\n  \"currency\": \"MYR\",\n  \"payment\": {\n    \"method\": \"cash\",\n    \"cardBrand\": null,\n    \"cardLastFour\": null,\n    \"transactionId\": null,\n    \"authCode\": null,\n    \"tip\": null,\n    \"cashGiven\": 70.30,\n    \"changeGiven\": 10.00\n  },\n  \"cashier\": \"CN\",\n  \"confidence\": 0.95,\n  \"rawText\": \"tan woon yann\\nINDAH GIFT & HOME DECO\\n27,JALAN DEDAP 13,\\nTAMAN JOHOR JAYA,\\n81100 JOHOR BAHRU,JOHOR.\\nTel:07-3507405 Fax:07-3558160\\nRECEIPT\\n19/10/2018 20:49:59 #01\\nCashier: CN Location/SP: 05 /0531\\nMB: M026588\\nRoom No: 01 050100035279\\nDesc/Item Qty Price Amt(RM)\\nST-PRIVILEGE CARD/GD INDAH\\n88888 1 10.00 10.00\\nGF-TABLE LAMP/STITCH <i>\\n62483 1 55.90 55.90\\n@DISC 10.00% -5.59\\n#Total Qty 2\\nTOTAL AMT........... RM 60.31\\nROUNDING ADJ............ -0.01\\nRM 60.30 ✓\\nCASH............... RM 70.30\\nCHANGE............. RM 10.00\\nThank You ! Please Come Again !\\nGoods Sold Are Not Returnable\\nDealing In Wholesale And Retail.\",\n  \"warnings\": [\n    \"Rounding adjustment of -0.01 applied to total.\"\n  ]\n}",
+  "usage": {
+    "inputTokens": 1493,
+    "outputTokens": 981,
+    "totalTokens": 4425
+  }
+}

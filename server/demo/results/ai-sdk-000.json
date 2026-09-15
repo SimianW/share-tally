@@ -1,0 +1,40 @@
+{
+  "engine": "ai-sdk",
+  "receiptId": "000",
+  "model": "gemini-2.5-flash",
+  "status": "success",
+  "ranAt": "2026-09-15T19:15:08.419Z",
+  "durationMs": 5084,
+  "data": {
+    "merchant": "BOOK TA.K (TAMAN DAYA) SDN BHD",
+    "currency": "RM",
+    "items": [
+      {
+        "description": "KF MODELLING CLAY KIDDY FISH",
+        "quantity": 1,
+        "unitPrice": 9,
+        "totalPrice": 9
+      }
+    ],
+    "subtotal": 9,
+    "discountTotal": 0,
+    "taxes": [],
+    "roundingAdjustment": 0,
+    "total": 9,
+    "warnings": []
+  },
+  "raw": "{\"merchant\":\"BOOK TA.K (TAMAN DAYA) SDN BHD\",\"currency\":\"RM\",\"items\":[{\"description\":\"KF MODELLING CLAY KIDDY FISH\",\"quantity\":1,\"unitPrice\":9.00,\"totalPrice\":9.00}],\"subtotal\":9.00,\"discountTotal\":0.00,\"taxes\":[],\"roundingAdjustment\":0.00,\"total\":9.00,\"warnings\":[]}",
+  "usage": {
+    "inputTokens": 360,
+    "inputTokenDetails": {
+      "noCacheTokens": 360,
+      "cacheReadTokens": 0
+    },
+    "outputTokens": 893,
+    "outputTokenDetails": {
+      "textTokens": 93,
+      "reasoningTokens": 800
+    },
+    "totalTokens": 1253
+  }
+}

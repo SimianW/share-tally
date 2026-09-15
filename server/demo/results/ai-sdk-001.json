@@ -1,0 +1,46 @@
+{
+  "engine": "ai-sdk",
+  "receiptId": "001",
+  "model": "gemini-2.5-flash",
+  "status": "success",
+  "ranAt": "2026-09-15T19:15:28.932Z",
+  "durationMs": 5949,
+  "data": {
+    "merchant": "INDAH GIFT & HOME DECO",
+    "currency": "RM",
+    "items": [
+      {
+        "description": "ST-PRIVILEGE CARD/GD INDAH",
+        "quantity": 1,
+        "unitPrice": 10,
+        "totalPrice": 10
+      },
+      {
+        "description": "GF-TABLE LAMP/STITCH <i>",
+        "quantity": 1,
+        "unitPrice": 55.9,
+        "totalPrice": 55.9
+      }
+    ],
+    "subtotal": 65.9,
+    "discountTotal": 5.59,
+    "taxes": [],
+    "roundingAdjustment": -0.01,
+    "total": 60.3,
+    "warnings": []
+  },
+  "raw": "{\n  \"merchant\": \"INDAH GIFT & HOME DECO\",\n  \"currency\": \"RM\",\n  \"items\": [\n    {\n      \"description\": \"ST-PRIVILEGE CARD/GD INDAH\",\n      \"quantity\": 1,\n      \"unitPrice\": 10.00,\n      \"totalPrice\": 10.00\n    },\n    {\n      \"description\": \"GF-TABLE LAMP/STITCH <i>\",\n      \"quantity\": 1,\n      \"unitPrice\": 55.90,\n      \"totalPrice\": 55.90\n    }\n  ],\n  \"subtotal\": 65.90,\n  \"discountTotal\": 5.59,\n  \"taxes\": [],\n  \"roundingAdjustment\": -0.01,\n  \"total\": 60.30,\n  \"warnings\": []\n}",
+  "usage": {
+    "inputTokens": 360,
+    "inputTokenDetails": {
+      "noCacheTokens": 360,
+      "cacheReadTokens": 0
+    },
+    "outputTokens": 1127,
+    "outputTokenDetails": {
+      "textTokens": 207,
+      "reasoningTokens": 920
+    },
+    "totalTokens": 1487
+  }
+}

@@ -1,0 +1,121 @@
+{
+  "engine": "receipt-scanner",
+  "receiptId": "002",
+  "model": "gemini-2.5-flash",
+  "status": "success",
+  "ranAt": "2026-09-15T19:16:10.859Z",
+  "durationMs": 13220,
+  "data": {
+    "merchant": {
+      "name": "MR D.I.Y. (JOHOR) SDN BHD",
+      "address": "LOT 1851-A & 1851-B, JALAN KPB 6, KAWASAN PERINDUSTRIAN BALAKONG",
+      "city": "SERI KEMBANGAN",
+      "state": "SELANGOR",
+      "postalCode": "43300",
+      "country": null,
+      "phone": null,
+      "website": null,
+      "taxId": "933109-X"
+    },
+    "receiptType": "retail",
+    "date": "2019-01-12",
+    "time": "21:13:00",
+    "timezone": null,
+    "receiptNumber": null,
+    "orderNumber": null,
+    "tableNumber": null,
+    "invoiceNumber": "R000027830",
+    "items": [
+      {
+        "description": "CHOPPING BOARD 35.5x25.5CM 803M#",
+        "quantity": 1,
+        "unitPrice": 19,
+        "totalPrice": 19,
+        "sku": "EZ10HD05 - 24",
+        "category": null,
+        "discountAmount": null,
+        "isVoided": false,
+        "barcode": null,
+        "brand": null,
+        "discountLabel": null,
+        "notes": null,
+        "productType": "household"
+      },
+      {
+        "description": "AIR PRESSURE SPRAYER SX-575-1 1.5L",
+        "quantity": 1,
+        "unitPrice": 8.02,
+        "totalPrice": 8.02,
+        "sku": "HC03-7 - 15",
+        "category": null,
+        "discountAmount": null,
+        "isVoided": false,
+        "barcode": null,
+        "brand": null,
+        "discountLabel": null,
+        "notes": null,
+        "productType": "household"
+      },
+      {
+        "description": "WAXCO WINDSHILED CLEANER 120ML",
+        "quantity": 1,
+        "unitPrice": 3.02,
+        "totalPrice": 3.02,
+        "sku": "WA14-3A - 48",
+        "category": null,
+        "discountAmount": null,
+        "isVoided": false,
+        "barcode": null,
+        "brand": null,
+        "discountLabel": null,
+        "notes": null,
+        "productType": "cleaning_supplies"
+      },
+      {
+        "description": "BOPP TAPE 48MM*100M CLEAR",
+        "quantity": 1,
+        "unitPrice": 3.88,
+        "totalPrice": 3.88,
+        "sku": "FZ-04 - 36",
+        "category": null,
+        "discountAmount": null,
+        "isVoided": false,
+        "barcode": null,
+        "brand": null,
+        "discountLabel": null,
+        "notes": null,
+        "productType": "household"
+      }
+    ],
+    "subtotal": 33.92,
+    "discountTotal": null,
+    "taxes": [],
+    "serviceCharge": null,
+    "deliveryFee": null,
+    "tip": null,
+    "total": 33.9,
+    "currency": "MYR",
+    "payment": {
+      "method": "cash",
+      "cardBrand": null,
+      "cardLastFour": null,
+      "transactionId": null,
+      "authCode": null,
+      "tip": null,
+      "cashGiven": 50,
+      "changeGiven": 16.1
+    },
+    "cashier": "TRAINEE CASHIER",
+    "confidence": 0.95,
+    "rawText": "tan woon yann\nMR D.I.Y. (JOHOR) SDN BHD\n(CO.REG :933109-X)\nLOT 1851-A & 1851-B, JALAN KPB 6,\nKAWASAN PERINDUSTRIAN BALAKONG,\n43300 SERI KEMBANGAN, SELANGOR\n(MR DIY TESCO TERBAU)\n-INVOICE-\n----------------------------------------\nCHOPPING BOARD 35.5x25.5CM 803M#\nEZ10HD05 - 24\n8970669\n1 X 19.00 19.00\nAIR PRESSURE SPRAYER SX-575-1 1.5L\nHC03-7 - 15\n9066468\n1 X 8.02 8.02\nWAXCO WINDSHILED CLEANER 120ML\nWA14-3A - 48\n9557031100236\n1 X 3.02 3.02\nBOPP TAPE 48MM*100M CLEAR\nFZ-04 - 36\n6935818350846\n1 X 3.88 3.88\n----------------------------------------\nItem(s) : 4\nQty(s) : 4\n----------------------------------------\nTOTAL\nRM 33.92\nROUNDING ADJUSTMENT\n-RM 0.02\nTOTAL ROUNDED\nRM 33.90\nCASH\nRM 50.00\nCHANGE\nRM 16.10\n----------------------------------------\n*\n12-01-19 21:13 SH01 ZK09 T4 R000027830\nOPERATOR TRAINEE CASHIER\n\nEXCHANGE ARE ALLOWED WITHIN\n7 DAYS WITH RECEIPT.\nSTRICTLY NO CASH REFUND.",
+    "warnings": [
+      "Rounding adjustment of -0.02 applied to total."
+    ]
+  },
+  "raw": "{\n  \"merchant\": {\n    \"name\": \"MR D.I.Y. (JOHOR) SDN BHD\",\n    \"address\": \"LOT 1851-A & 1851-B, JALAN KPB 6, KAWASAN PERINDUSTRIAN BALAKONG\",\n    \"city\": \"SERI KEMBANGAN\",\n    \"state\": \"SELANGOR\",\n    \"postalCode\": \"43300\",\n    \"country\": null,\n    \"phone\": null,\n    \"website\": null,\n    \"taxId\": \"933109-X\"\n  },\n  \"receiptType\": \"retail\",\n  \"date\": \"2019-01-12\",\n  \"time\": \"21:13:00\",\n  \"timezone\": null,\n  \"receiptNumber\": null,\n  \"orderNumber\": null,\n  \"tableNumber\": null,\n  \"invoiceNumber\": \"R000027830\",\n  \"items\": [\n    {\n      \"description\": \"CHOPPING BOARD 35.5x25.5CM 803M#\",\n      \"quantity\": 1,\n      \"unitPrice\": 19.00,\n      \"totalPrice\": 19.00,\n      \"sku\": \"EZ10HD05 - 24\",\n      \"category\": null,\n      \"discountAmount\": null,\n      \"productType\": \"household\",\n      \"isVoided\": false\n    },\n    {\n      \"description\": \"AIR PRESSURE SPRAYER SX-575-1 1.5L\",\n      \"quantity\": 1,\n      \"unitPrice\": 8.02,\n      \"totalPrice\": 8.02,\n      \"sku\": \"HC03-7 - 15\",\n      \"category\": null,\n      \"discountAmount\": null,\n      \"productType\": \"household\",\n      \"isVoided\": false\n    },\n    {\n      \"description\": \"WAXCO WINDSHILED CLEANER 120ML\",\n      \"quantity\": 1,\n      \"unitPrice\": 3.02,\n      \"totalPrice\": 3.02,\n      \"sku\": \"WA14-3A - 48\",\n      \"category\": null,\n      \"discountAmount\": null,\n      \"productType\": \"cleaning_supplies\",\n      \"isVoided\": false\n    },\n    {\n      \"description\": \"BOPP TAPE 48MM*100M CLEAR\",\n      \"quantity\": 1,\n      \"unitPrice\": 3.88,\n      \"totalPrice\": 3.88,\n      \"sku\": \"FZ-04 - 36\",\n      \"category\": null,\n      \"discountAmount\": null,\n      \"productType\": \"household\",\n      \"isVoided\": false\n    }\n  ],\n  \"subtotal\": 33.92,\n  \"discountTotal\": null,\n  \"taxes\": [],\n  \"serviceCharge\": null,\n  \"deliveryFee\": null,\n  \"tip\": null,\n  \"total\": 33.90,\n  \"currency\": \"MYR\",\n  \"payment\": {\n    \"method\": \"cash\",\n    \"cardBrand\": null,\n    \"cardLastFour\": null,\n    \"transactionId\": null,\n    \"authCode\": null,\n    \"tip\": null,\n    \"cashGiven\": 50.00,\n    \"changeGiven\": 16.10\n  },\n  \"cashier\": \"TRAINEE CASHIER\",\n  \"confidence\": 0.95,\n  \"rawText\": \"tan woon yann\\nMR D.I.Y. (JOHOR) SDN BHD\\n(CO.REG :933109-X)\\nLOT 1851-A & 1851-B, JALAN KPB 6,\\nKAWASAN PERINDUSTRIAN BALAKONG,\\n43300 SERI KEMBANGAN, SELANGOR\\n(MR DIY TESCO TERBAU)\\n-INVOICE-\\n----------------------------------------\\nCHOPPING BOARD 35.5x25.5CM 803M#\\nEZ10HD05 - 24\\n8970669\\n1 X 19.00 19.00\\nAIR PRESSURE SPRAYER SX-575-1 1.5L\\nHC03-7 - 15\\n9066468\\n1 X 8.02 8.02\\nWAXCO WINDSHILED CLEANER 120ML\\nWA14-3A - 48\\n9557031100236\\n1 X 3.02 3.02\\nBOPP TAPE 48MM*100M CLEAR\\nFZ-04 - 36\\n6935818350846\\n1 X 3.88 3.88\\n----------------------------------------\\nItem(s) : 4\\nQty(s) : 4\\n----------------------------------------\\nTOTAL\\nRM 33.92\\nROUNDING ADJUSTMENT\\n-RM 0.02\\nTOTAL ROUNDED\\nRM 33.90\\nCASH\\nRM 50.00\\nCHANGE\\nRM 16.10\\n----------------------------------------\\n*\\n12-01-19 21:13 SH01 ZK09 T4 R000027830\\nOPERATOR TRAINEE CASHIER\\n\\nEXCHANGE ARE ALLOWED WITHIN\\n7 DAYS WITH RECEIPT.\\nSTRICTLY NO CASH REFUND.\",\n  \"warnings\": [\n    \"Rounding adjustment of -0.02 applied to total.\"\n  ]\n}",
+  "usage": {
+    "inputTokens": 1493,
+    "outputTokens": 1412,
+    "totalTokens": 4127
+  }
+}
