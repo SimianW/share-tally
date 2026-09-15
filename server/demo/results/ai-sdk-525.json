@@ -1,0 +1,116 @@
+{
+  "engine": "ai-sdk",
+  "receiptId": "525",
+  "model": "gemini-2.5-flash",
+  "status": "success",
+  "ranAt": "2026-09-15T19:26:39.230Z",
+  "durationMs": 19880,
+  "imageSha256": "c8ec390866ff730437e0a5327653cf5dd321e9481de77cbbc0a192ddb39cdf8e",
+  "protocol": "receipt-demo-v1",
+  "data": {
+    "merchant": "AEON CO. (M) BHD",
+    "currency": "SR",
+    "items": [
+      {
+        "description": "CHEK HUP 2INI",
+        "quantity": 1,
+        "unitPrice": 15.56,
+        "totalPrice": 15.56
+      },
+      {
+        "description": "MS SWM ENZO RT",
+        "quantity": 1,
+        "unitPrice": 10.28,
+        "totalPrice": 10.28
+      },
+      {
+        "description": "VALENCIA ORANGE",
+        "quantity": 1,
+        "unitPrice": 18.5,
+        "totalPrice": 18.5
+      },
+      {
+        "description": "US RED GLOBE",
+        "quantity": 1,
+        "unitPrice": 10,
+        "totalPrice": 10
+      },
+      {
+        "description": "CN PEAR",
+        "quantity": 1,
+        "unitPrice": 10.5,
+        "totalPrice": 10.5
+      },
+      {
+        "description": "CHN FUJI AP 4S",
+        "quantity": 1,
+        "unitPrice": 14,
+        "totalPrice": 14
+      },
+      {
+        "description": "AUS SEEKA KIWI",
+        "quantity": 1,
+        "unitPrice": 10.9,
+        "totalPrice": 10.9
+      },
+      {
+        "description": "CHILE ANGELENO",
+        "quantity": 1,
+        "unitPrice": 7.9,
+        "totalPrice": 7.9
+      },
+      {
+        "description": "CUT FRUITS 1.99",
+        "quantity": 1,
+        "unitPrice": 2.5,
+        "totalPrice": 2.5
+      },
+      {
+        "description": "CHERRY SUNGOLD",
+        "quantity": 1,
+        "unitPrice": 4.8,
+        "totalPrice": 4.8
+      },
+      {
+        "description": "TURKEY CHERRY 2",
+        "quantity": 1,
+        "unitPrice": 18.9,
+        "totalPrice": 18.9
+      },
+      {
+        "description": "SUSHI SET-PTC",
+        "quantity": 1,
+        "unitPrice": 15,
+        "totalPrice": 15
+      }
+    ],
+    "subtotal": 138.84,
+    "discountTotal": 11.47,
+    "taxes": [
+      {
+        "label": "GST",
+        "amount": 0
+      }
+    ],
+    "roundingAdjustment": -0.02,
+    "total": 127.35,
+    "warnings": [
+      "Currency symbol 'SR' not a standard ISO 4217 code; assuming it refers to Malaysian Ringgit (MYR).",
+      "Subtotal calculated from gross item prices (138.84) rather than the receipt's 'Sub-total' line (127.37) to adhere to 'totalPrice' instruction."
+    ]
+  },
+  "raw": "{\n  \"merchant\": \"AEON CO. (M) BHD\",\n  \"currency\": \"SR\",\n  \"items\": [\n    {\n      \"description\": \"CHEK HUP 2INI\",\n      \"quantity\": 1,\n      \"unitPrice\": 15.56,\n      \"totalPrice\": 15.56\n    },\n    {\n      \"description\": \"MS SWM ENZO RT\",\n      \"quantity\": 1,\n      \"unitPrice\": 10.28,\n      \"totalPrice\": 10.28\n    },\n    {\n      \"description\": \"VALENCIA ORANGE\",\n      \"quantity\": 1,\n      \"unitPrice\": 18.50,\n      \"totalPrice\": 18.50\n    },\n    {\n      \"description\": \"US RED GLOBE\",\n      \"quantity\": 1,\n      \"unitPrice\": 10.00,\n      \"totalPrice\": 10.00\n    },\n    {\n      \"description\": \"CN PEAR\",\n      \"quantity\": 1,\n      \"unitPrice\": 10.50,\n      \"totalPrice\": 10.50\n    },\n    {\n      \"description\": \"CHN FUJI AP 4S\",\n      \"quantity\": 1,\n      \"unitPrice\": 14.00,\n      \"totalPrice\": 14.00\n    },\n    {\n      \"description\": \"AUS SEEKA KIWI\",\n      \"quantity\": 1,\n      \"unitPrice\": 10.90,\n      \"totalPrice\": 10.90\n    },\n    {\n      \"description\": \"CHILE ANGELENO\",\n      \"quantity\": 1,\n      \"unitPrice\": 7.90,\n      \"totalPrice\": 7.90\n    },\n    {\n      \"description\": \"CUT FRUITS 1.99\",\n      \"quantity\": 1,\n      \"unitPrice\": 2.50,\n      \"totalPrice\": 2.50\n    },\n    {\n      \"description\": \"CHERRY SUNGOLD\",\n      \"quantity\": 1,\n      \"unitPrice\": 4.80,\n      \"totalPrice\": 4.80\n    },\n    {\n      \"description\": \"TURKEY CHERRY 2\",\n      \"quantity\": 1,\n      \"unitPrice\": 18.90,\n      \"totalPrice\": 18.90\n    },\n    {\n      \"description\": \"SUSHI SET-PTC\",\n      \"quantity\": 1,\n      \"unitPrice\": 15.00,\n      \"totalPrice\": 15.00\n    }\n  ],\n  \"subtotal\": 138.84,\n  \"discountTotal\": 11.47,\n  \"taxes\": [\n    {\n      \"label\": \"GST\",\n      \"amount\": 0.00\n    }\n  ],\n  \"roundingAdjustment\": -0.02,\n  \"total\": 127.35,\n  \"warnings\": [\n    \"Currency symbol 'SR' not a standard ISO 4217 code; assuming it refers to Malaysian Ringgit (MYR).\",\n    \"Subtotal calculated from gross item prices (138.84) rather than the receipt's 'Sub-total' line (127.37) to adhere to 'totalPrice' instruction.\"\n  ]\n}",
+  "usage": {
+    "inputTokens": 360,
+    "inputTokenDetails": {
+      "noCacheTokens": 360,
+      "cacheReadTokens": 0
+    },
+    "outputTokens": 4207,
+    "outputTokenDetails": {
+      "textTokens": 820,
+      "reasoningTokens": 3387
+    },
+    "totalTokens": 4567
+  }
+}

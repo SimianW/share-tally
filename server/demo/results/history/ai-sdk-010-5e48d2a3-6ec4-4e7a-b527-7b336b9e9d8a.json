@@ -1,0 +1,55 @@
+{
+  "engine": "ai-sdk",
+  "receiptId": "010",
+  "model": "gemini-2.5-flash",
+  "status": "success",
+  "ranAt": "2026-09-15T19:24:07.246Z",
+  "durationMs": 19443,
+  "imageSha256": "ae9ee3b5dc0860c10753b9fa37adc88f424e72cc546cf68ad3bc0e7d4287af7d",
+  "protocol": "receipt-demo-v1",
+  "data": {
+    "merchant": "SAM SAM TRADING CO",
+    "currency": "RM",
+    "items": [
+      {
+        "description": "HE EOG UNICORN TWIN SUPER GLUE USG-99-9557368063013",
+        "quantity": 1,
+        "unitPrice": 5.2,
+        "totalPrice": 5.2
+      },
+      {
+        "description": "SS EZL A4 CYBER MIX COLOR PAPER 100'S8 227008",
+        "quantity": 1,
+        "unitPrice": 8.9,
+        "totalPrice": 8.9
+      }
+    ],
+    "subtotal": 13.3,
+    "discountTotal": 0,
+    "taxes": [
+      {
+        "label": "GST 6%",
+        "amount": 0.8
+      }
+    ],
+    "roundingAdjustment": 0,
+    "total": 14.1,
+    "warnings": [
+      "The sum of item total prices (14.10) represents the gross amount including tax. The 'subtotal' field (13.30) reflects the net amount before tax, derived from Total - Tax."
+    ]
+  },
+  "raw": "{\n  \"merchant\": \"SAM SAM TRADING CO\",\n  \"currency\": \"RM\",\n  \"items\": [\n    {\n      \"description\": \"HE EOG UNICORN TWIN SUPER GLUE USG-99-9557368063013\",\n      \"quantity\": 1,\n      \"unitPrice\": 5.20,\n      \"totalPrice\": 5.20\n    },\n    {\n      \"description\": \"SS EZL A4 CYBER MIX COLOR PAPER 100'S8 227008\",\n      \"quantity\": 1,\n      \"unitPrice\": 8.90,\n      \"totalPrice\": 8.90\n    }\n  ],\n  \"subtotal\": 13.30,\n  \"discountTotal\": 0,\n  \"taxes\": [\n    {\n      \"label\": \"GST 6%\",\n      \"amount\": 0.80\n    }\n  ],\n  \"roundingAdjustment\": 0,\n  \"total\": 14.10,\n  \"warnings\": [\n    \"The sum of item total prices (14.10) represents the gross amount including tax. The 'subtotal' field (13.30) reflects the net amount before tax, derived from Total - Tax.\"\n  ]\n}",
+  "usage": {
+    "inputTokens": 360,
+    "inputTokenDetails": {
+      "noCacheTokens": 360,
+      "cacheReadTokens": 0
+    },
+    "outputTokens": 4076,
+    "outputTokenDetails": {
+      "textTokens": 310,
+      "reasoningTokens": 3766
+    },
+    "totalTokens": 4436
+  }
+}

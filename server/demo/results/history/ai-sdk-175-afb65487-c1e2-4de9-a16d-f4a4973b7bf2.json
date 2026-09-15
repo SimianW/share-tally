@@ -1,0 +1,53 @@
+{
+  "engine": "ai-sdk",
+  "receiptId": "175",
+  "model": "gemini-2.5-flash",
+  "status": "success",
+  "ranAt": "2026-09-15T19:25:12.712Z",
+  "durationMs": 6285,
+  "imageSha256": "dc3c1419c65e0bb1f9f9225ae5a0e622c4158713c1a9018bd140089ed147c8dd",
+  "protocol": "receipt-demo-v1",
+  "data": {
+    "merchant": "POPULAR BOOK CO. (M) SDN BHD",
+    "currency": "RM",
+    "items": [
+      {
+        "description": "PB D/S Tape 12mm",
+        "quantity": 1,
+        "unitPrice": 1.9,
+        "totalPrice": 1.9
+      },
+      {
+        "description": "H/C A4 400'S",
+        "quantity": 1,
+        "unitPrice": 9.9,
+        "totalPrice": 9.9
+      }
+    ],
+    "subtotal": 11.13,
+    "discountTotal": 0,
+    "taxes": [
+      {
+        "label": "GST",
+        "amount": 0.67
+      }
+    ],
+    "roundingAdjustment": 0,
+    "total": 11.8,
+    "warnings": []
+  },
+  "raw": "{\"merchant\":\"POPULAR BOOK CO. (M) SDN BHD\",\"currency\":\"RM\",\"items\":[{\"description\":\"PB D/S Tape 12mm\",\"quantity\":1,\"unitPrice\":1.90,\"totalPrice\":1.90},{\"description\":\"H/C A4 400'S\",\"quantity\":1,\"unitPrice\":9.90,\"totalPrice\":9.90}],\"subtotal\":11.13,\"discountTotal\":0.00,\"taxes\":[{\"label\":\"GST\",\"amount\":0.67}],\"roundingAdjustment\":0.00,\"total\":11.80,\"warnings\":[]}",
+  "usage": {
+    "inputTokens": 360,
+    "inputTokenDetails": {
+      "noCacheTokens": 260,
+      "cacheReadTokens": 100
+    },
+    "outputTokens": 1154,
+    "outputTokenDetails": {
+      "textTokens": 138,
+      "reasoningTokens": 1016
+    },
+    "totalTokens": 1514
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "engine": "receipt-scanner",
+  "receiptId": "225",
+  "model": "gemini-2.5-flash",
+  "status": "success",
+  "ranAt": "2026-09-15T19:25:38.658Z",
+  "durationMs": 10463,
+  "imageSha256": "bf7381430aa36bde6fae21fa8b22b2185667b5ca5358f7368ad1b90a686b3eca",
+  "protocol": "receipt-demo-v1",
+  "data": {
+    "merchant": {
+      "name": "RELAIS TOTAL OULMES",
+      "address": "AUTOROUTE RABAT MEKNES",
+      "city": "KHEMISSET",
+      "state": null,
+      "postalCode": "15000",
+      "country": null,
+      "phone": "05.22.95.66.66",
+      "website": null,
+      "taxId": "40132774"
+    },
+    "receiptType": "restaurant",
+    "date": "2018-03-30",
+    "time": "12:36:00",
+    "timezone": null,
+    "receiptNumber": "V201855892CAISSIER 1, C",
+    "orderNumber": null,
+    "tableNumber": null,
+    "invoiceNumber": null,
+    "items": [
+      {
+        "description": "CAFE EXPRESSO",
+        "quantity": 2,
+        "unitPrice": 10,
+        "totalPrice": 20,
+        "sku": null,
+        "category": null,
+        "discountAmount": null,
+        "isVoided": false,
+        "barcode": null,
+        "brand": null,
+        "discountLabel": null,
+        "notes": null,
+        "productType": "beverages"
+      },
+      {
+        "description": "CHOCOLAT CHAUD",
+        "quantity": 1,
+        "unitPrice": 12,
+        "totalPrice": 12,
+        "sku": null,
+        "category": null,
+        "discountAmount": null,
+        "isVoided": false,
+        "barcode": null,
+        "brand": null,
+        "discountLabel": null,
+        "notes": null,
+        "productType": "beverages"
+      }
+    ],
+    "subtotal": 56,
+    "discountTotal": null,
+    "taxes": [],
+    "serviceCharge": null,
+    "deliveryFee": null,
+    "tip": null,
+    "total": 56,
+    "currency": "MAD",
+    "payment": {
+      "method": "cash",
+      "cardBrand": null,
+      "cardLastFour": null,
+      "transactionId": null,
+      "authCode": null,
+      "tip": null,
+      "cashGiven": 56,
+      "changeGiven": 0
+    },
+    "cashier": "CAISSIER 1, C",
+    "confidence": 0.95,
+    "rawText": "RELAIS TOTAL OULMES\nAUTOROUTE RABAT MEKNES\n15000 KHEMISSET\nTel. : 05.22.95.66.66\nLe 30/03/2018 a 12:36 V201855892CAISSIER 1, C\nDESIGNATION P.U. QTE TOTAL\nCAFE CREME 12.00 2 24.00\nCAFE EXPRESSO 10.00 2 20.00\nCHOCOLAT CHAUD 12.00 1 12.00\nTotal Facture : 56.00 DH\nREGLE PAR ESPECE 56.00 DH\n***Merci de votre visite***\nPAT:37993027/RC:209031/IF:40132774\nICE:000081241000051",
+    "warnings": []
+  },
+  "raw": "{\n  \"merchant\": {\n    \"name\": \"RELAIS TOTAL OULMES\",\n    \"address\": \"AUTOROUTE RABAT MEKNES\",\n    \"city\": \"KHEMISSET\",\n    \"state\": null,\n    \"postalCode\": \"15000\",\n    \"country\": null,\n    \"phone\": \"05.22.95.66.66\",\n    \"website\": null,\n    \"taxId\": \"40132774\"\n  },\n  \"receiptType\": \"restaurant\",\n  \"date\": \"2018-03-30\",\n  \"time\": \"12:36:00\",\n  \"timezone\": null,\n  \"receiptNumber\": \"V201855892CAISSIER 1, C\",\n  \"orderNumber\": null,\n  \"tableNumber\": null,\n  \"invoiceNumber\": null,\n  \"items\": [\n    {\n      \"description\": \"CAFE CREME\",\n      \"quantity\": 2,\n      \"unitPrice\": 12.00,\n      \"totalPrice\": 24.00,\n      \"sku\": null,\n      \"category\": null,\n      \"discountAmount\": null,\n      \"productType\": \"beverages\",\n      \"isVoided\": false\n    ,\n    \"description\": \"CAFE EXPRESSO\",\n      \"quantity\": 2,\n      \"unitPrice\": 10.00,\n      \"totalPrice\": 20.00,\n      \"sku\": null,\n      \"category\": null,\n      \"discountAmount\": null,\n      \"productType\": \"beverages\",\n      \"isVoided\": false\n    },\n    {\n      \"description\": \"CHOCOLAT CHAUD\",\n      \"quantity\": 1,\n      \"unitPrice\": 12.00,\n      \"totalPrice\": 12.00,\n      \"sku\": null,\n      \"category\": null,\n      \"discountAmount\": null,\n      \"productType\": \"beverages\",\n      \"isVoided\": false\n    }\n  ],\n  \"subtotal\": 56.00,\n  \"discountTotal\": null,\n  \"taxes\": [],\n  \"serviceCharge\": null,\n  \"deliveryFee\": null,\n  \"tip\": null,\n  \"total\": 56.00,\n  \"currency\": \"MAD\",\n  \"payment\": {\n    \"method\": \"cash\",\n    \"cardBrand\": null,\n    \"cardLastFour\": null,\n    \"transactionId\": null,\n    \"authCode\": null,\n    \"tip\": null,\n    \"cashGiven\": 56.00,\n    \"changeGiven\": 0.00\n  },\n  \"cashier\": \"CAISSIER 1, C\",\n  \"confidence\": 0.95,\n  \"rawText\": \"RELAIS TOTAL OULMES\\nAUTOROUTE RABAT MEKNES\\n15000 KHEMISSET\\nTel. : 05.22.95.66.66\\nLe 30/03/2018 a 12:36 V201855892CAISSIER 1, C\\nDESIGNATION P.U. QTE TOTAL\\nCAFE CREME 12.00 2 24.00\\nCAFE EXPRESSO 10.00 2 20.00\\nCHOCOLAT CHAUD 12.00 1 12.00\\nTotal Facture : 56.00 DH\\nREGLE PAR ESPECE 56.00 DH\\n***Merci de votre visite***\\nPAT:37993027/RC:209031/IF:40132774\\nICE:000081241000051\",\n  \"warnings\": []\n}",
+  "usage": {
+    "inputTokens": 1493,
+    "outputTokens": 940,
+    "totalTokens": 3719
+  }
+}

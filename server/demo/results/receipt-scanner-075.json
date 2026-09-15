@@ -1,0 +1,97 @@
+{
+  "engine": "receipt-scanner",
+  "receiptId": "075",
+  "model": "gemini-2.5-flash",
+  "status": "success",
+  "ranAt": "2026-09-15T19:25:06.424Z",
+  "durationMs": 15660,
+  "imageSha256": "25da7080734abf41cb17d4cf97ac3966b9f7c5591e54e9e344726547a7545f54",
+  "protocol": "receipt-demo-v1",
+  "data": {
+    "merchant": {
+      "name": "LIAN HING STATIONERY SDN BHD",
+      "address": "NO 32 & 33, JALAN SR 1/9, SEKSYEN 9, TAMAN SERDANG RAYA",
+      "city": "SERI KEMBANGAN",
+      "state": "SELANGOR",
+      "postalCode": "43300",
+      "country": "MY",
+      "phone": null,
+      "website": null,
+      "taxId": "002139201536"
+    },
+    "receiptType": "retail",
+    "date": "2018-03-30",
+    "time": null,
+    "timezone": null,
+    "receiptNumber": null,
+    "orderNumber": null,
+    "tableNumber": null,
+    "invoiceNumber": "CS-20322",
+    "items": [
+      {
+        "description": "Duratile H399 (110 x 95mm) Name Badge (H)",
+        "quantity": 200,
+        "unitPrice": 0.55,
+        "totalPrice": 110,
+        "sku": "H399",
+        "category": "Stationery",
+        "discountAmount": null,
+        "isVoided": false,
+        "barcode": null,
+        "brand": null,
+        "discountLabel": null,
+        "notes": null,
+        "productType": "Office Supplies"
+      },
+      {
+        "description": "809 Metal Name Badge Clip - 100's",
+        "quantity": 2,
+        "unitPrice": 20,
+        "totalPrice": 40,
+        "sku": "809",
+        "category": "Stationery",
+        "discountAmount": null,
+        "isVoided": false,
+        "barcode": null,
+        "brand": null,
+        "discountLabel": null,
+        "notes": null,
+        "productType": "Office Supplies"
+      }
+    ],
+    "subtotal": 150,
+    "discountTotal": null,
+    "taxes": [
+      {
+        "label": "GST",
+        "rate": 0.06,
+        "amount": 9
+      }
+    ],
+    "serviceCharge": null,
+    "deliveryFee": null,
+    "tip": null,
+    "total": 159,
+    "currency": "MYR",
+    "payment": {
+      "method": "cash",
+      "cardBrand": null,
+      "cardLastFour": null,
+      "transactionId": null,
+      "authCode": null,
+      "tip": null,
+      "cashGiven": 200,
+      "changeGiven": 41
+    },
+    "cashier": null,
+    "confidence": 1,
+    "rawText": "3180303\nCHECKED\nLIAN HING STATIONERY SDN BHD\n(162761-M)\nNO 32 & 33, JALAN SR 1/9, SEKSYEN 9,\nTAMAN SERDANG RAYA,\n43300 SERI KEMBANGAN, SELANGOR\nDARUL EHSAN\nGST ID : 002139201536\nTax Invoice\n30/03/2018 No. : CS-20322\nQty Tax RM\nDuratile H399 (110 x 95mm) 200 SR 116.60\nName Badge (H) @ 0.5500\n809 Metal Name Badge Clip 2 SR 42.40\n- 100's @ 20 0000\nTotal Amt Incl. GST @ 6% : 159.00\nRounding Adjustment : 0.00\nTotal Amt Payable : 159.00\nPaid Amount : 200.00\nChange : 41.00\nTotal Qty Tender : 202\nGST Summary Amount Tax\n(RM) (RM)\nSR @ A 150.00 9.00\nTotal 150.00 9.00\nTHANK YOU\nFor any enquiry please contact us:",
+    "warnings": []
+  },
+  "raw": "{\n  \"merchant\": {\n    \"name\": \"LIAN HING STATIONERY SDN BHD\",\n    \"address\": \"NO 32 & 33, JALAN SR 1/9, SEKSYEN 9, TAMAN SERDANG RAYA\",\n    \"city\": \"SERI KEMBANGAN\",\n    \"state\": \"SELANGOR\",\n    \"postalCode\": \"43300\",\n    \"country\": \"MY\",\n    \"phone\": null,\n    \"website\": null,\n    \"taxId\": \"002139201536\"\n  },\n  \"receiptType\": \"retail\",\n  \"date\": \"2018-03-30\",\n  \"time\": null,\n  \"timezone\": null,\n  \"receiptNumber\": null,\n  \"orderNumber\": null,\n  \"tableNumber\": null,\n  \"invoiceNumber\": \"CS-20322\",\n  \"items\": [\n    {\n      \"description\": \"Duratile H399 (110 x 95mm) Name Badge (H)\",\n      \"quantity\": 200,\n      \"unitPrice\": 0.55,\n      \"totalPrice\": 110.00,\n      \"sku\": \"H399\",\n      \"category\": \"Stationery\",\n      \"discountAmount\": null,\n      \"productType\": \"Office Supplies\",\n      \"isVoided\": false\n    },\n    {\n      \"description\": \"809 Metal Name Badge Clip - 100's\",\n      \"quantity\": 2,\n      \"unitPrice\": 20.00,\n      \"totalPrice\": 40.00,\n      \"sku\": \"809\",\n      \"category\": \"Stationery\",\n      \"discountAmount\": null,\n      \"productType\": \"Office Supplies\",\n      \"isVoided\": false\n    }\n  ],\n  \"subtotal\": 150.00,\n  \"discountTotal\": null,\n  \"taxes\": [\n    {\n      \"label\": \"GST\",\n      \"rate\": 0.06,\n      \"amount\": 9.00\n    }\n  ],\n  \"serviceCharge\": null,\n  \"deliveryFee\": null,\n  \"tip\": null,\n  \"total\": 159.00,\n  \"currency\": \"MYR\",\n  \"payment\": {\n    \"method\": \"cash\",\n    \"cardBrand\": null,\n    \"cardLastFour\": null,\n    \"transactionId\": null,\n    \"authCode\": null,\n    \"tip\": null,\n    \"cashGiven\": 200.00,\n    \"changeGiven\": 41.00\n  },\n  \"cashier\": null,\n  \"confidence\": 1.0,\n  \"rawText\": \"3180303\\nCHECKED\\nLIAN HING STATIONERY SDN BHD\\n(162761-M)\\nNO 32 & 33, JALAN SR 1/9, SEKSYEN 9,\\nTAMAN SERDANG RAYA,\\n43300 SERI KEMBANGAN, SELANGOR\\nDARUL EHSAN\\nGST ID : 002139201536\\nTax Invoice\\n30/03/2018 No. : CS-20322\\nQty Tax RM\\nDuratile H399 (110 x 95mm) 200 SR 116.60\\nName Badge (H) @ 0.5500\\n809 Metal Name Badge Clip 2 SR 42.40\\n- 100's @ 20 0000\\nTotal Amt Incl. GST @ 6% : 159.00\\nRounding Adjustment : 0.00\\nTotal Amt Payable : 159.00\\nPaid Amount : 200.00\\nChange : 41.00\\nTotal Qty Tender : 202\\nGST Summary Amount Tax\\n(RM) (RM)\\nSR @ A 150.00 9.00\\nTotal 150.00 9.00\\nTHANK YOU\\nFor any enquiry please contact us:\",\n  \"warnings\": []\n}",
+  "usage": {
+    "inputTokens": 1493,
+    "outputTokens": 1034,
+    "totalTokens": 5233
+  }
+}

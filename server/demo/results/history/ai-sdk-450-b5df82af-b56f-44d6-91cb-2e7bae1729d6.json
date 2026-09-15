@@ -1,0 +1,59 @@
+{
+  "engine": "ai-sdk",
+  "receiptId": "450",
+  "model": "gemini-2.5-flash",
+  "status": "success",
+  "ranAt": "2026-09-15T19:26:08.689Z",
+  "durationMs": 8884,
+  "imageSha256": "42be2e039e022bb1efa31c5807f5a7db204c59efdf2211782dc02aced9630e7a",
+  "protocol": "receipt-demo-v1",
+  "data": {
+    "merchant": "MR. D.I.Y. (M) SDN BHD",
+    "currency": "RM",
+    "items": [
+      {
+        "description": "ALUMINIUM FOIL 25SQ# 30CM*7.62M",
+        "quantity": 1,
+        "unitPrice": 5.5,
+        "totalPrice": 5.5
+      },
+      {
+        "description": "SEKOPLAS H/D GARBAGE 89cm*117cm 10s",
+        "quantity": 5,
+        "unitPrice": 9.5,
+        "totalPrice": 47.5
+      },
+      {
+        "description": "PLASTIC BAGS",
+        "quantity": 1,
+        "unitPrice": 0.2,
+        "totalPrice": 0.2
+      }
+    ],
+    "subtotal": 53.2,
+    "discountTotal": 0,
+    "taxes": [
+      {
+        "label": "GST @6%",
+        "amount": 3.01
+      }
+    ],
+    "roundingAdjustment": 0,
+    "total": 53.2,
+    "warnings": []
+  },
+  "raw": "{\n  \"merchant\": \"MR. D.I.Y. (M) SDN BHD\",\n  \"currency\": \"RM\",\n  \"items\": [\n    {\n      \"description\": \"ALUMINIUM FOIL 25SQ# 30CM*7.62M\",\n      \"quantity\": 1,\n      \"unitPrice\": 5.50,\n      \"totalPrice\": 5.50\n    },\n    {\n      \"description\": \"SEKOPLAS H/D GARBAGE 89cm*117cm 10s\",\n      \"quantity\": 5,\n      \"unitPrice\": 9.50,\n      \"totalPrice\": 47.50\n    },\n    {\n      \"description\": \"PLASTIC BAGS\",\n      \"quantity\": 1,\n      \"unitPrice\": 0.20,\n      \"totalPrice\": 0.20\n    }\n  ],\n  \"subtotal\": 53.20,\n  \"discountTotal\": 0,\n  \"taxes\": [\n    {\n      \"label\": \"GST @6%\",\n      \"amount\": 3.01\n    }\n  ],\n  \"roundingAdjustment\": 0,\n  \"total\": 53.20,\n  \"warnings\": []\n}",
+  "usage": {
+    "inputTokens": 360,
+    "inputTokenDetails": {
+      "noCacheTokens": 360,
+      "cacheReadTokens": 0
+    },
+    "outputTokens": 1848,
+    "outputTokenDetails": {
+      "textTokens": 305,
+      "reasoningTokens": 1543
+    },
+    "totalTokens": 2208
+  }
+}

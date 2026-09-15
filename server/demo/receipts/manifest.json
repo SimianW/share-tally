@@ -1,5 +1,483 @@
 [
-  {"id":"000","name":"Book Ta .K","tag":"Simple purchase","description":"One item, cash tendered and change. Does the model choose the amount due?","source":"https://github.com/zzzDavid/ICDAR-2019-SROIE/blob/master/data/img/000.jpg","annotation":"https://github.com/zzzDavid/ICDAR-2019-SROIE/blob/master/data/box/000.csv","expected":{"currency":"MYR","total":9,"itemCount":1,"lineAmounts":[9],"discount":0,"rounding":0}},
-  {"id":"001","name":"Indah Gift & Home Deco","tag":"Discount + rounding","description":"Two items, a 10% line discount and a separate rounding adjustment.","source":"https://github.com/zzzDavid/ICDAR-2019-SROIE/blob/master/data/img/001.jpg","annotation":"https://github.com/zzzDavid/ICDAR-2019-SROIE/blob/master/data/box/001.csv","expected":{"currency":"MYR","total":60.3,"itemCount":2,"lineAmounts":[10,55.9],"discount":5.59,"rounding":-0.01}},
-  {"id":"002","name":"MR. DIY","tag":"Multiple item rows","description":"Four products with wrapped descriptions, item codes and rounding.","source":"https://github.com/zzzDavid/ICDAR-2019-SROIE/blob/master/data/img/002.jpg","annotation":"https://github.com/zzzDavid/ICDAR-2019-SROIE/blob/master/data/box/002.csv","expected":{"currency":"MYR","total":33.9,"itemCount":4,"lineAmounts":[19,8.02,3.02,3.88],"discount":0,"rounding":-0.02}}
+  {
+    "id": "000",
+    "name": "Book Ta .K",
+    "tag": "Simple purchase",
+    "description": "One item, cash tendered and change. Does the model choose the amount due?",
+    "source": "https://github.com/zzzDavid/ICDAR-2019-SROIE/blob/master/data/img/000.jpg",
+    "annotation": "https://github.com/zzzDavid/ICDAR-2019-SROIE/blob/master/data/box/000.csv",
+    "expected": {
+      "currency": "MYR",
+      "total": 9,
+      "itemCount": 1,
+      "lineAmounts": [
+        9
+      ],
+      "discount": 0,
+      "rounding": 0,
+      "quantities": [
+        1
+      ],
+      "unitPrices": [
+        9
+      ],
+      "taxTotal": null,
+      "itemDescriptions": [
+        "KF MODELLING CLAY KIDDY FISH"
+      ],
+      "currencyPrinted": true
+    },
+    "sha256": "8b85d2c325c68579b53446177602709a8f8faeeec710912f62b6ad369234887c",
+    "groundTruthNote": "Transcribed from source OCR annotations and visually checked against the original scan before extraction. Null expectations are not scored.",
+    "reviewNotes": {
+      "ai-sdk": "Item and amounts match.",
+      "receipt-scanner": "Item and amounts match."
+    }
+  },
+  {
+    "id": "001",
+    "name": "Indah Gift & Home Deco",
+    "tag": "Discount + rounding",
+    "description": "Two items, a 10% line discount and a separate rounding adjustment.",
+    "source": "https://github.com/zzzDavid/ICDAR-2019-SROIE/blob/master/data/img/001.jpg",
+    "annotation": "https://github.com/zzzDavid/ICDAR-2019-SROIE/blob/master/data/box/001.csv",
+    "expected": {
+      "currency": "MYR",
+      "total": 60.3,
+      "itemCount": 2,
+      "lineAmounts": [
+        10,
+        55.9
+      ],
+      "discount": 5.59,
+      "rounding": -0.01,
+      "quantities": [
+        1,
+        1
+      ],
+      "unitPrices": [
+        10,
+        55.9
+      ],
+      "taxTotal": null,
+      "itemDescriptions": [
+        "ST-PRIVILEGE CARD/GD INDAH",
+        "GF-TABLE LAMP/STITCH"
+      ],
+      "currencyPrinted": true
+    },
+    "sha256": "4e7bb7f427732e769eafc6f6eed5a92eedccf96bc0c711f46466462b98916c73",
+    "groundTruthNote": "Transcribed from source OCR annotations and visually checked against the original scan before extraction. Null expectations are not scored.",
+    "reviewNotes": {
+      "ai-sdk": "Both purchased lines, discount and rounded total match.",
+      "receipt-scanner": "Raw JSON repeats description/price keys within one object. JSON.parse keeps the last keys, dropping the RM 10 privilege-card line even though the transcript contains it."
+    }
+  },
+  {
+    "id": "002",
+    "name": "MR. DIY",
+    "tag": "Multiple item rows",
+    "description": "Four products with wrapped descriptions, item codes and rounding.",
+    "source": "https://github.com/zzzDavid/ICDAR-2019-SROIE/blob/master/data/img/002.jpg",
+    "annotation": "https://github.com/zzzDavid/ICDAR-2019-SROIE/blob/master/data/box/002.csv",
+    "expected": {
+      "currency": "MYR",
+      "total": 33.9,
+      "itemCount": 4,
+      "lineAmounts": [
+        19,
+        8.02,
+        3.02,
+        3.88
+      ],
+      "discount": null,
+      "rounding": -0.02,
+      "quantities": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "unitPrices": [
+        19,
+        8.02,
+        3.02,
+        3.88
+      ],
+      "taxTotal": null,
+      "itemDescriptions": [
+        "CHOPPING BOARD",
+        "AIR PRESSURE SPRAYER",
+        "WAXCO WINDSHILED CLEANER",
+        "BOPP TAPE"
+      ],
+      "currencyPrinted": true
+    },
+    "sha256": "c5995745cc13c8570fe0914567124d65e29df3ea4dd91713badb9e7217bc2db1",
+    "groundTruthNote": "Transcribed from source OCR annotations and visually checked against the original scan before extraction. Null expectations are not scored.",
+    "reviewNotes": {
+      "ai-sdk": "All four products and amounts match.",
+      "receipt-scanner": "All four products and amounts match."
+    }
+  },
+  {
+    "id": "010",
+    "name": "Sam Sam Trading",
+    "tag": "Skewed, gray scan",
+    "description": "Tilted receipt on a gray background; tax is already included in both line amounts.",
+    "source": "https://github.com/zzzDavid/ICDAR-2019-SROIE/blob/master/data/img/010.jpg",
+    "annotation": "https://github.com/zzzDavid/ICDAR-2019-SROIE/blob/master/data/box/010.csv",
+    "expected": {
+      "currency": "MYR",
+      "total": 14.1,
+      "itemCount": 2,
+      "lineAmounts": [
+        5.2,
+        8.9
+      ],
+      "quantities": [
+        1,
+        1
+      ],
+      "unitPrices": [
+        5.2,
+        8.9
+      ],
+      "discount": null,
+      "rounding": null,
+      "taxTotal": 0.8,
+      "itemDescriptions": [
+        "HE EDG UNICORN TWIN SUPER GLUE USG-99",
+        "SS EZL A4 CYBER MIX COLOR PAPER"
+      ],
+      "currencyPrinted": true
+    },
+    "sha256": "ae9ee3b5dc0860c10753b9fa37adc88f424e72cc546cf68ad3bc0e7d4287af7d",
+    "groundTruthNote": "Transcribed from source OCR annotations and visually checked against the original scan before extraction. Null expectations are not scored.",
+    "reviewNotes": {
+      "ai-sdk": "Both products and printed gross prices match. Descriptions also contain nearby product codes.",
+      "receipt-scanner": "Converts printed gross prices 5.20/8.90 to inferred pre-tax values 4.91/8.39. This fails the preserve-printed-prices contract, not basic OCR recognition."
+    }
+  },
+  {
+    "id": "075",
+    "name": "Lian Hing Stationery",
+    "tag": "Stamped + bulk quantities",
+    "description": "Large upside-down stamp and pen marks. 200 badges and 2 packs; printed unit prices exclude GST while line totals include it.",
+    "source": "https://github.com/zzzDavid/ICDAR-2019-SROIE/blob/master/data/img/075.jpg",
+    "annotation": "https://github.com/zzzDavid/ICDAR-2019-SROIE/blob/master/data/box/075.csv",
+    "expected": {
+      "currency": "MYR",
+      "total": 159,
+      "itemCount": 2,
+      "lineAmounts": [
+        116.6,
+        42.4
+      ],
+      "quantities": [
+        200,
+        2
+      ],
+      "unitPrices": [
+        0.55,
+        20
+      ],
+      "discount": null,
+      "rounding": null,
+      "taxTotal": 9,
+      "itemDescriptions": [
+        "DURAFILE H399 NAME BADGE",
+        "809 METAL NAME BADGE CLIP"
+      ],
+      "currencyPrinted": true
+    },
+    "sha256": "25da7080734abf41cb17d4cf97ac3966b9f7c5591e54e9e344726547a7545f54",
+    "groundTruthNote": "Transcribed from source OCR annotations and visually checked against the original scan before extraction. Null expectations are not scored.",
+    "reviewNotes": {
+      "ai-sdk": "Correct quantities of 200 and 2, pre-tax unit prices and tax-inclusive line amounts.",
+      "receipt-scanner": "Returns pre-tax line amounts 110/40 instead of printed 116.60/42.40. Also reads Durafile as Duratile."
+    }
+  },
+  {
+    "id": "175",
+    "name": "Popular Book",
+    "tag": "Faint thermal print",
+    "description": "Very faint item descriptions and amounts. The cash row is negative; the purchase total is positive.",
+    "source": "https://github.com/zzzDavid/ICDAR-2019-SROIE/blob/master/data/img/175.jpg",
+    "annotation": "https://github.com/zzzDavid/ICDAR-2019-SROIE/blob/master/data/box/175.csv",
+    "expected": {
+      "currency": "MYR",
+      "total": 11.8,
+      "itemCount": 2,
+      "lineAmounts": [
+        1.9,
+        9.9
+      ],
+      "quantities": [
+        null,
+        null
+      ],
+      "unitPrices": [
+        null,
+        null
+      ],
+      "discount": null,
+      "rounding": null,
+      "taxTotal": 0.67,
+      "itemDescriptions": [
+        "PB D/S TAPE 12MM",
+        "H/C A4 400'S"
+      ],
+      "currencyPrinted": true
+    },
+    "sha256": "dc3c1419c65e0bb1f9f9225ae5a0e622c4158713c1a9018bd140089ed147c8dd",
+    "groundTruthNote": "Transcribed from source OCR annotations and visually checked against the original scan before extraction. Null expectations are not scored.",
+    "reviewNotes": {
+      "ai-sdk": "Both faint product descriptions and amounts match.",
+      "receipt-scanner": "No usable parsed response: invalid JSON. This failed first attempt is included in the denominator and was not retried."
+    }
+  },
+  {
+    "id": "225",
+    "name": "Relais Total Oulmes",
+    "tag": "French + dirhams",
+    "description": "Skewed French receipt from Morocco, with quantities and a DH currency symbol.",
+    "source": "https://github.com/zzzDavid/ICDAR-2019-SROIE/blob/master/data/img/225.jpg",
+    "annotation": "https://github.com/zzzDavid/ICDAR-2019-SROIE/blob/master/data/box/225.csv",
+    "expected": {
+      "currency": "MAD",
+      "total": 56,
+      "itemCount": 3,
+      "lineAmounts": [
+        24,
+        20,
+        12
+      ],
+      "quantities": [
+        2,
+        2,
+        1
+      ],
+      "unitPrices": [
+        12,
+        10,
+        12
+      ],
+      "discount": null,
+      "rounding": null,
+      "taxTotal": null,
+      "itemDescriptions": [
+        "CAFE CREME",
+        "CAFE EXPRESSO",
+        "CHOCOLAT CHAUD"
+      ],
+      "currencyPrinted": true
+    },
+    "sha256": "bf7381430aa36bde6fae21fa8b22b2185667b5ca5358f7368ad1b90a686b3eca",
+    "groundTruthNote": "Transcribed from source OCR annotations and visually checked against the original scan before extraction. Null expectations are not scored.",
+    "reviewNotes": {
+      "ai-sdk": "All three French descriptions, quantities and amounts match. DH is normalized to MAD.",
+      "receipt-scanner": "Raw JSON repeats keys without starting a new item. Parsing overwrites CAFE CREME with CAFE EXPRESSO, losing the 24.00 line while preserving the 56.00 total."
+    }
+  },
+  {
+    "id": "275",
+    "name": "99 Speed Mart",
+    "tag": "Severely faded",
+    "description": "Low-contrast thermal print with vertical creases. Item prices remain verifiable against source annotations.",
+    "source": "https://github.com/zzzDavid/ICDAR-2019-SROIE/blob/master/data/img/275.jpg",
+    "annotation": "https://github.com/zzzDavid/ICDAR-2019-SROIE/blob/master/data/box/275.csv",
+    "expected": {
+      "currency": "MYR",
+      "total": 11.5,
+      "itemCount": 2,
+      "lineAmounts": [
+        6.85,
+        4.65
+      ],
+      "quantities": [
+        null,
+        null
+      ],
+      "unitPrices": [
+        null,
+        null
+      ],
+      "discount": null,
+      "rounding": null,
+      "taxTotal": 0.65,
+      "itemDescriptions": [
+        "CRISPI ROLL 12 GRAIN SE",
+        "CS 1002 A5 H/COVER NOT"
+      ],
+      "currencyPrinted": true
+    },
+    "sha256": "9b5e7e7364761ab8c481995ac1f07f58c19080f4113563255e91e4180749cef3",
+    "groundTruthNote": "Transcribed from source OCR annotations and visually checked against the original scan before extraction. Null expectations are not scored.",
+    "reviewNotes": {
+      "ai-sdk": "Returns 4.85 for the first item; source annotation says 6.85. The glyph is heavily faded. The source-label amount reconciles 6.85 + 4.65 = 11.50. Model warns of inconsistent sums.",
+      "receipt-scanner": "Raw response reads the first price as 4.85 and repeats object keys; parsing then loses that item. Only the 4.65 notebook remains."
+    }
+  },
+  {
+    "id": "450",
+    "name": "MR. DIY / bulk purchase",
+    "tag": "Creases + handwriting",
+    "description": "Creased paper with handwriting and a quantity-five line. Three item rows represent seven units.",
+    "source": "https://github.com/zzzDavid/ICDAR-2019-SROIE/blob/master/data/img/450.jpg",
+    "annotation": "https://github.com/zzzDavid/ICDAR-2019-SROIE/blob/master/data/box/450.csv",
+    "expected": {
+      "currency": "MYR",
+      "total": 53.2,
+      "itemCount": 3,
+      "lineAmounts": [
+        5.5,
+        47.5,
+        0.2
+      ],
+      "quantities": [
+        1,
+        5,
+        1
+      ],
+      "unitPrices": [
+        5.5,
+        9.5,
+        0.2
+      ],
+      "discount": null,
+      "rounding": null,
+      "taxTotal": 3.01,
+      "itemDescriptions": [
+        "ALUMINIUM FOIL 25SQ# 30CM*7.62M",
+        "SEKOPLAS H/D GARBAGE 89CM*117CM 10S",
+        "PLASTIC BAGS"
+      ],
+      "currencyPrinted": true
+    },
+    "sha256": "42be2e039e022bb1efa31c5807f5a7db204c59efdf2211782dc02aced9630e7a",
+    "groundTruthNote": "Transcribed from source OCR annotations and visually checked against the original scan before extraction. Null expectations are not scored.",
+    "reviewNotes": {
+      "ai-sdk": "All three product rows match, including the quantity-five line and 0.20 plastic bag.",
+      "receipt-scanner": "All three product rows match, including the quantity-five line and 0.20 plastic bag."
+    }
+  },
+  {
+    "id": "525",
+    "name": "AEON groceries",
+    "tag": "Long receipt + coupons",
+    "description": "Twelve items, three separate promotion discounts and rounding, scanned onto a large white page. Submitted at original resolution.",
+    "source": "https://github.com/zzzDavid/ICDAR-2019-SROIE/blob/master/data/img/525.jpg",
+    "annotation": "https://github.com/zzzDavid/ICDAR-2019-SROIE/blob/master/data/box/525.csv",
+    "expected": {
+      "currency": "MYR",
+      "total": 127.35,
+      "itemCount": 12,
+      "lineAmounts": [
+        15.56,
+        10.28,
+        18.5,
+        10,
+        10.5,
+        14,
+        10.9,
+        7.9,
+        2.5,
+        4.8,
+        18.9,
+        15
+      ],
+      "quantities": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "unitPrices": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "discount": 11.47,
+      "rounding": -0.02,
+      "taxTotal": 0,
+      "itemDescriptions": [
+        "CHEK HUP 2IN1",
+        "MS SWM ENZO RT",
+        "VALENCIA ORANGE",
+        "US RED GLOBE",
+        "CN PEAR",
+        "CHN FUJI AP 4S",
+        "AUS SEEKA KIWI",
+        "CHILE ANGELENO",
+        "CUT FRUITS 1.99",
+        "CHERRY SUNGOLD",
+        "TURKEY CHERRY 2",
+        "SUSHI SET-PTC"
+      ],
+      "currencyPrinted": false
+    },
+    "sha256": "c8ec390866ff730437e0a5327653cf5dd321e9481de77cbbc0a192ddb39cdf8e",
+    "groundTruthNote": "Transcribed from source OCR annotations and visually checked against the original scan before extraction. Null expectations are not scored. Currency comes from the Malaysian merchant address, not a printed symbol. Null is accepted; a wrong non-currency token is not.",
+    "reviewNotes": {
+      "ai-sdk": "All 12 gross amounts, quantities, coupon total 11.47 and rounding match. Returns SR as currency, but SR is a GST marker. Also reads 2INI rather than 2IN1 in a product name.",
+      "receipt-scanner": "No usable parsed response: invalid JSON. Failed first attempt preserved, not retried."
+    }
+  },
+  {
+    "id": "550",
+    "name": "McDonald's",
+    "tag": "Faded + meal components",
+    "description": "Faded scan with a gray horizontal band. Two priced meals; Coke, fries and sauce are unpriced components, not additional charged rows.",
+    "source": "https://github.com/zzzDavid/ICDAR-2019-SROIE/blob/master/data/img/550.jpg",
+    "annotation": "https://github.com/zzzDavid/ICDAR-2019-SROIE/blob/master/data/box/550.csv",
+    "expected": {
+      "currency": "MYR",
+      "total": 18.9,
+      "itemCount": 2,
+      "lineAmounts": [
+        11.1,
+        7.8
+      ],
+      "quantities": [
+        1,
+        1
+      ],
+      "unitPrices": [
+        null,
+        null
+      ],
+      "discount": null,
+      "rounding": 0,
+      "taxTotal": 1.07,
+      "itemDescriptions": [
+        "L MCCHICKEN",
+        "6NUGGETS"
+      ],
+      "currencyPrinted": false
+    },
+    "sha256": "17462e8b5979d37c0786228d97a8241c0fbdb7327e3435be58e09d8c48fa7fbe",
+    "groundTruthNote": "Transcribed from source OCR annotations and visually checked against the original scan before extraction. Null expectations are not scored. Currency comes from the Malaysian merchant address, not a printed symbol. Null is accepted; a wrong non-currency token is not.",
+    "reviewNotes": {
+      "ai-sdk": "Correctly groups unpriced Coke/fries and sauce into two priced meals. Currency is unprinted, so null is acceptable.",
+      "receipt-scanner": "Two priced meals and amounts match. Currency is unprinted, so null is acceptable."
+    }
+  }
 ]

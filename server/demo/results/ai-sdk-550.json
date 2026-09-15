@@ -1,0 +1,56 @@
+{
+  "engine": "ai-sdk",
+  "receiptId": "550",
+  "model": "gemini-2.5-flash",
+  "status": "success",
+  "ranAt": "2026-09-15T19:27:39.093Z",
+  "durationMs": 25451,
+  "imageSha256": "17462e8b5979d37c0786228d97a8241c0fbdb7327e3435be58e09d8c48fa7fbe",
+  "protocol": "receipt-demo-v1",
+  "data": {
+    "merchant": "McDonald's",
+    "currency": null,
+    "items": [
+      {
+        "description": "1 L McChicken, 1 L Coke, 1 L Fries",
+        "quantity": 1,
+        "unitPrice": 11.1,
+        "totalPrice": 11.1
+      },
+      {
+        "description": "1 6Nuggets, 1 French Cheese Sauce",
+        "quantity": 1,
+        "unitPrice": 7.8,
+        "totalPrice": 7.8
+      }
+    ],
+    "subtotal": 17.83,
+    "discountTotal": 0,
+    "taxes": [
+      {
+        "label": "GST",
+        "amount": 1.07
+      }
+    ],
+    "roundingAdjustment": 0,
+    "total": 18.9,
+    "warnings": [
+      "Currency not explicitly stated on receipt. Value set to null per instructions.",
+      "Item descriptions '1 L Coke', '1 L Fries', and '1 French Cheese Sauce' were grouped with other items to assign a total price due to lack of individual pricing on the receipt. 'totalPrice' for these groups includes GST as per the receipt's 'TakeOut Total (incl GST)' line."
+    ]
+  },
+  "raw": "{\n  \"merchant\": \"McDonald's\",\n  \"currency\": null,\n  \"items\": [\n    {\n      \"description\": \"1 L McChicken, 1 L Coke, 1 L Fries\",\n      \"quantity\": 1,\n      \"unitPrice\": 11.10,\n      \"totalPrice\": 11.10\n    },\n    {\n      \"description\": \"1 6Nuggets, 1 French Cheese Sauce\",\n      \"quantity\": 1,\n      \"unitPrice\": 7.80,\n      \"totalPrice\": 7.80\n    }\n  ],\n  \"subtotal\": 17.83,\n  \"discountTotal\": 0.00,\n  \"taxes\": [\n    {\n      \"label\": \"GST\",\n      \"amount\": 1.07\n    }\n  ],\n  \"roundingAdjustment\": 0.00,\n  \"total\": 18.90,\n  \"warnings\": [\n    \"Currency not explicitly stated on receipt. Value set to null per instructions.\",\n    \"Item descriptions '1 L Coke', '1 L Fries', and '1 French Cheese Sauce' were grouped with other items to assign a total price due to lack of individual pricing on the receipt. 'totalPrice' for these groups includes GST as per the receipt's 'TakeOut Total (incl GST)' line.\"\n  ]\n}",
+  "usage": {
+    "inputTokens": 360,
+    "inputTokenDetails": {
+      "noCacheTokens": 360,
+      "cacheReadTokens": 0
+    },
+    "outputTokens": 5345,
+    "outputTokenDetails": {
+      "textTokens": 320,
+      "reasoningTokens": 5025
+    },
+    "totalTokens": 5705
+  }
+}

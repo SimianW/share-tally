@@ -1,0 +1,84 @@
+{
+  "engine": "receipt-scanner",
+  "receiptId": "275",
+  "model": "gemini-2.5-flash",
+  "status": "success",
+  "ranAt": "2026-09-15T19:25:59.803Z",
+  "durationMs": 12852,
+  "imageSha256": "9b5e7e7364761ab8c481995ac1f07f58c19080f4113563255e91e4180749cef3",
+  "protocol": "receipt-demo-v1",
+  "data": {
+    "merchant": {
+      "name": "99 SPEED MART S/B",
+      "address": "LOT P.T. 2811, JALAN ANGSA, TAMAN BERKELEY",
+      "city": "KLANG",
+      "state": "SELANGOR",
+      "postalCode": "41150",
+      "country": "Malaysia",
+      "phone": null,
+      "website": null,
+      "taxId": "000181747712"
+    },
+    "receiptType": "grocery",
+    "date": "2017-05-10",
+    "time": "14:31:00",
+    "timezone": null,
+    "receiptNumber": "31705509",
+    "orderNumber": "565497",
+    "tableNumber": null,
+    "invoiceNumber": "1802B/103/T0269",
+    "items": [
+      {
+        "description": "CS 1002 A5 H/COVER NOT",
+        "quantity": 1,
+        "unitPrice": null,
+        "totalPrice": 4.65,
+        "sku": "9413",
+        "category": null,
+        "discountAmount": null,
+        "isVoided": false,
+        "barcode": null,
+        "brand": null,
+        "discountLabel": null,
+        "notes": null,
+        "productType": "stationery"
+      }
+    ],
+    "subtotal": 10.85,
+    "discountTotal": null,
+    "taxes": [
+      {
+        "label": "GST",
+        "rate": 0.06,
+        "amount": 0.65
+      }
+    ],
+    "serviceCharge": null,
+    "deliveryFee": null,
+    "tip": null,
+    "total": 11.5,
+    "currency": "MYR",
+    "payment": {
+      "method": "cash",
+      "cardBrand": null,
+      "cardLastFour": null,
+      "transactionId": null,
+      "authCode": null,
+      "tip": null,
+      "cashGiven": 52,
+      "changeGiven": 40.5
+    },
+    "cashier": null,
+    "confidence": 0.9,
+    "rawText": "31705509\n99 SPEED MART S/B (519537-X)\nLOT P.T. 2811, JALAN ANGSA,\nTAMAN BERKELEY\n41150 KLANG, SELANGOR\n1214-JINJANG UTARA\nGST ID. NO : 000181747712\nINVOICE NO : 1802B/103/T0269\n02:31PM 565497 10-05-17\n355 CRISPI ROLL 12 GRAIN SE RM4.85 s\n9413 CS 1002 A5 H/COVER NOT RM4.65 s\nTotal Sales (Inclusive GST) RM 11.50\nCASH RM 52.00\nCHANGE RM 40.50\nGST Summary Amount(RM) Tax(RM)\ns = 6% 10.85 .65\nThank You. Please come again\nKeep the invoice for applicable returns",
+    "warnings": [
+      "Sum of listed items (9.50) does not match calculated subtotal (10.85)."
+    ]
+  },
+  "raw": "{\n  \"merchant\": {\n    \"name\": \"99 SPEED MART S/B\",\n    \"address\": \"LOT P.T. 2811, JALAN ANGSA, TAMAN BERKELEY\",\n    \"city\": \"KLANG\",\n    \"state\": \"SELANGOR\",\n    \"postalCode\": \"41150\",\n    \"country\": \"Malaysia\",\n    \"phone\": null,\n    \"website\": null,\n    \"taxId\": \"000181747712\"\n  },\n  \"receiptType\": \"grocery\",\n  \"date\": \"2017-05-10\",\n  \"time\": \"14:31:00\",\n  \"timezone\": null,\n  \"receiptNumber\": \"31705509\",\n  \"orderNumber\": \"565497\",\n  \"tableNumber\": null,\n  \"invoiceNumber\": \"1802B/103/T0269\",\n  \"items\": [\n    {\n      \"description\": \"CRISPI ROLL 12 GRAIN SE\",\n      \"quantity\": 1,\n      \"unitPrice\": null,\n      \"totalPrice\": 4.85,\n      \"sku\": \"355\",\n      \"category\": null,\n      \"discountAmount\": null,\n      \"productType\": \"snacks\",\n      \"isVoided\": false\n    ,\n      \"description\": \"CS 1002 A5 H/COVER NOT\",\n      \"quantity\": 1,\n      \"unitPrice\": null,\n      \"totalPrice\": 4.65,\n      \"sku\": \"9413\",\n      \"category\": null,\n      \"discountAmount\": null,\n      \"productType\": \"stationery\",\n      \"isVoided\": false\n    }\n  ],\n  \"subtotal\": 10.85,\n  \"discountTotal\": null,\n  \"taxes\": [\n    {\n      \"label\": \"GST\",\n      \"rate\": 0.06,\n      \"amount\": 0.65\n    }\n  ],\n  \"serviceCharge\": null,\n  \"deliveryFee\": null,\n  \"tip\": null,\n  \"total\": 11.50,\n  \"currency\": \"MYR\",\n  \"payment\": {\n    \"method\": \"cash\",\n    \"cardBrand\": null,\n    \"cardLastFour\": null,\n    \"transactionId\": null,\n    \"authCode\": null,\n    \"tip\": null,\n    \"cashGiven\": 52.00,\n    \"changeGiven\": 40.50\n  },\n  \"cashier\": null,\n  \"confidence\": 0.9,\n  \"rawText\": \"31705509\\n99 SPEED MART S/B (519537-X)\\nLOT P.T. 2811, JALAN ANGSA,\\nTAMAN BERKELEY\\n41150 KLANG, SELANGOR\\n1214-JINJANG UTARA\\nGST ID. NO : 000181747712\\nINVOICE NO : 1802B/103/T0269\\n02:31PM 565497 10-05-17\\n355 CRISPI ROLL 12 GRAIN SE RM4.85 s\\n9413 CS 1002 A5 H/COVER NOT RM4.65 s\\nTotal Sales (Inclusive GST) RM 11.50\\nCASH RM 52.00\\nCHANGE RM 40.50\\nGST Summary Amount(RM) Tax(RM)\\ns = 6% 10.85 .65\\nThank You. Please come again\\nKeep the invoice for applicable returns\",\n  \"warnings\": [\n    \"Sum of listed items (9.50) does not match calculated subtotal (10.85).\"\n  ]\n}",
+  "usage": {
+    "inputTokens": 1493,
+    "outputTokens": 952,
+    "totalTokens": 4362
+  }
+}

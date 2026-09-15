@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { config } from 'dotenv';
 import { generateText, Output } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
@@ -17,7 +18,12 @@ const clientRequire = createRequire(path.join(clientRoot, 'package.json'));
 const { createServer: createViteServer } = await import(pathToFileURL(clientRequire.resolve('vite')).href);
 const fixtures = JSON.parse(await readFile(path.join(here, 'receipts/manifest.json'), 'utf8'));
 const resultsDirectory = path.join(here, 'results');
-await mkdir(resultsDirectory, { recursive: true });
+await mkdir(path.join(resultsDirectory, 'history'), { recursive: true });
+async function saveResult(engine: string, id: string, result: unknown) {
+  const json = JSON.stringify(result, null, 2);
+  await writeFile(path.join(resultsDirectory, 'history', `${engine}-${id}-${randomUUID()}.json`), json);
+  await writeFile(path.join(resultsDirectory, `${engine}-${id}.json`), json);
+}
 const app = express();
 const http = createServer(app);
 app.use(express.json({ limit: '12mb' }));
@@ -77,13 +83,15 @@ app.post('/receipt-demo-api/extract', async (req, res) => {
       const result = await scanner.scan({ base64: bytes.toString('base64'), mediaType });
       data = result.data; raw = result.rawResponse; usage = result.usage;
     }
-    const result = { engine, receiptId: fixture?.id ?? 'upload', model, status: 'success', ranAt: new Date().toISOString(), durationMs: Date.now() - started, data, raw, usage };
-    if (fixture) await writeFile(path.join(resultsDirectory, `${engine}-${fixture.id}.json`), JSON.stringify(result, null, 2));
+    const result = { engine, receiptId: fixture?.id ?? 'upload', model, status: 'success', ranAt: new Date().toISOString(), durationMs: Date.now() - started, imageSha256: fixture?.sha256, protocol: 'receipt-demo-v1', data, raw, usage };
+    if (fixture) await saveResult(engine, fixture.id, result);
     res.json(result);
   } catch (error) {
     // SDK error objects can include request details. Return a short redacted message only.
     const message = (error instanceof Error ? error.message : 'Extraction failed').replaceAll(apiKey, '[redacted]').slice(0, 700);
-    res.status(502).json({ error: message, engine, receiptId, durationMs: Date.now() - started });
+    const failure = { error: message, status: 'error', engine, receiptId: fixture?.id ?? 'upload', model, ranAt: new Date().toISOString(), imageSha256: fixture?.sha256, protocol: 'receipt-demo-v1', durationMs: Date.now() - started };
+    if (fixture) await saveResult(engine, fixture.id, failure);
+    res.status(502).json(failure);
   } finally { busy = false; }
 });
 const vite = await createViteServer({

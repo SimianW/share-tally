@@ -1,0 +1,99 @@
+{
+  "engine": "receipt-scanner",
+  "receiptId": "550",
+  "model": "gemini-2.5-flash",
+  "status": "success",
+  "ranAt": "2026-09-15T19:28:10.182Z",
+  "durationMs": 31087,
+  "imageSha256": "17462e8b5979d37c0786228d97a8241c0fbdb7327e3435be58e09d8c48fa7fbe",
+  "protocol": "receipt-demo-v1",
+  "data": {
+    "merchant": {
+      "name": "McDonald's",
+      "address": "Shell Mahkota Cheras DT (#36)",
+      "city": "Cheras",
+      "state": "Selangor",
+      "postalCode": null,
+      "country": null,
+      "phone": "03-9010-9849",
+      "website": null,
+      "taxId": "000504654064"
+    },
+    "receiptType": "restaurant",
+    "date": "2018-05-11",
+    "time": "20:22:56",
+    "timezone": null,
+    "receiptNumber": null,
+    "orderNumber": "58",
+    "tableNumber": null,
+    "invoiceNumber": "003621900031356",
+    "items": [
+      {
+        "description": "L McChicken",
+        "quantity": 1,
+        "unitPrice": null,
+        "totalPrice": 11.1,
+        "sku": null,
+        "category": null,
+        "discountAmount": null,
+        "isVoided": false,
+        "barcode": null,
+        "brand": null,
+        "discountLabel": null,
+        "notes": null,
+        "productType": "burgers"
+      },
+      {
+        "description": "L Coke, L Fries, 6Nuggets, French Cheese Sauce",
+        "quantity": 1,
+        "unitPrice": null,
+        "totalPrice": 7.8,
+        "sku": null,
+        "category": null,
+        "discountAmount": null,
+        "isVoided": false,
+        "barcode": null,
+        "brand": null,
+        "discountLabel": null,
+        "notes": null,
+        "productType": "meal"
+      }
+    ],
+    "subtotal": 18.9,
+    "discountTotal": null,
+    "taxes": [
+      {
+        "label": "GST",
+        "rate": 0.06,
+        "amount": 1.07
+      }
+    ],
+    "serviceCharge": null,
+    "deliveryFee": null,
+    "tip": null,
+    "total": 18.9,
+    "currency": null,
+    "payment": {
+      "method": "cash",
+      "cardBrand": null,
+      "cardLastFour": null,
+      "transactionId": null,
+      "authCode": null,
+      "tip": null,
+      "cashGiven": 50,
+      "changeGiven": 31.1
+    },
+    "cashier": null,
+    "confidence": 0.95,
+    "rawText": "158\nGerbang Alaf Restaurants Sdn Bhd\n(65351-M)\nLicensee of McDonald's\nLevel 6, Bangunan TH, Damansara Uptown3\nNo.3, Jalan SS21/39,47400 Petaling Jaya\nSelangor\n(GST ID No: 000504654064)\nMcDonald's Shell Mahkota Cheras DT (#36\nTel No. 03-9010-9849\nTAX INVOICE\n\nMFY Side 1\n\nINV# 003621900031356\nORD #58 -REG #19- 11/05/2018 20:22:56\nQTY ITEM TOTAL\n1 L McChicken 11.10\n1 L Coke\n1 L Fries\n1 6Nuggets\n1 French Cheese Sauce 7.80\n\nTakeOut Total (incl GST) 18.90\nTotal Rounded 18.90\nCash Tendered 50.00\nChange 31.10\n\nTOTAL INCLUDES 6% GST 1.07\n\nThank You and Please Come Again.\nGuest Relations Center : 1300-13-1300",
+    "warnings": [
+      "Currency not explicitly stated on receipt."
+    ]
+  },
+  "raw": "{\n  \"merchant\": {\n    \"name\": \"McDonald's\",\n    \"address\": \"Shell Mahkota Cheras DT (#36)\",\n    \"city\": \"Cheras\",\n    \"state\": \"Selangor\",\n    \"postalCode\": null,\n    \"country\": null,\n    \"phone\": \"03-9010-9849\",\n    \"website\": null,\n    \"taxId\": \"000504654064\"\n  },\n  \"receiptType\": \"restaurant\",\n  \"date\": \"2018-05-11\",\n  \"time\": \"20:22:56\",\n  \"timezone\": null,\n  \"receiptNumber\": null,\n  \"orderNumber\": \"58\",\n  \"tableNumber\": null,\n  \"invoiceNumber\": \"003621900031356\",\n  \"items\": [\n    {\n      \"description\": \"L McChicken\",\n      \"quantity\": 1,\n      \"unitPrice\": null,\n      \"totalPrice\": 11.10,\n      \"sku\": null,\n      \"category\": null,\n      \"discountAmount\": null,\n      \"productType\": \"burgers\",\n      \"isVoided\": false\n    },\n    {\n      \"description\": \"L Coke, L Fries, 6Nuggets, French Cheese Sauce\",\n      \"quantity\": 1,\n      \"unitPrice\": null,\n      \"totalPrice\": 7.80,\n      \"sku\": null,\n      \"category\": null,\n      \"discountAmount\": null,\n      \"productType\": \"meal\",\n      \"isVoided\": false\n    }\n  ],\n  \"subtotal\": 18.90,\n  \"discountTotal\": null,\n  \"taxes\": [\n    {\n      \"label\": \"GST\",\n      \"rate\": 0.06,\n      \"amount\": 1.07\n    }\n  ],\n  \"serviceCharge\": null,\n  \"deliveryFee\": null,\n  \"tip\": null,\n  \"total\": 18.90,\n  \"currency\": null,\n  \"payment\": {\n    \"method\": \"cash\",\n    \"cardBrand\": null,\n    \"cardLastFour\": null,\n    \"transactionId\": null,\n    \"authCode\": null,\n    \"tip\": null,\n    \"cashGiven\": 50.00,\n    \"changeGiven\": 31.10\n  },\n  \"cashier\": null,\n  \"confidence\": 0.95,\n  \"rawText\": \"158\\nGerbang Alaf Restaurants Sdn Bhd\\n(65351-M)\\nLicensee of McDonald's\\nLevel 6, Bangunan TH, Damansara Uptown3\\nNo.3, Jalan SS21/39,47400 Petaling Jaya\\nSelangor\\n(GST ID No: 000504654064)\\nMcDonald's Shell Mahkota Cheras DT (#36\\nTel No. 03-9010-9849\\nTAX INVOICE\\n\\nMFY Side 1\\n\\nINV# 003621900031356\\nORD #58 -REG #19- 11/05/2018 20:22:56\\nQTY ITEM TOTAL\\n1 L McChicken 11.10\\n1 L Coke\\n1 L Fries\\n1 6Nuggets\\n1 French Cheese Sauce 7.80\\n\\nTakeOut Total (incl GST) 18.90\\nTotal Rounded 18.90\\nCash Tendered 50.00\\nChange 31.10\\n\\nTOTAL INCLUDES 6% GST 1.07\\n\\nThank You and Please Come Again.\\nGuest Relations Center : 1300-13-1300\",\n  \"warnings\": [\n    \"Currency not explicitly stated on receipt.\"\n  ]\n}",
+  "usage": {
+    "inputTokens": 1493,
+    "outputTokens": 968,
+    "totalTokens": 8558
+  }
+}

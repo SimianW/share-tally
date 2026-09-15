@@ -1,0 +1,112 @@
+{
+  "engine": "receipt-scanner",
+  "receiptId": "450",
+  "model": "gemini-2.5-flash",
+  "status": "success",
+  "ranAt": "2026-09-15T19:26:19.348Z",
+  "durationMs": 10657,
+  "imageSha256": "42be2e039e022bb1efa31c5807f5a7db204c59efdf2211782dc02aced9630e7a",
+  "protocol": "receipt-demo-v1",
+  "data": {
+    "merchant": {
+      "name": "MR. D.I.Y. (M) SDN BHD",
+      "address": "LOT 1851-A & 1851-B, JALAN KPB 6, KAWASAN PERINDUSTRIAN BALAKONG",
+      "city": "SERI KEMBANGAN",
+      "state": "SELANGOR",
+      "postalCode": "43300",
+      "country": null,
+      "phone": null,
+      "website": null,
+      "taxId": "000306020352"
+    },
+    "receiptType": "retail",
+    "date": "2018-04-28",
+    "time": "15:40:00",
+    "timezone": null,
+    "receiptNumber": "R000064333",
+    "orderNumber": null,
+    "tableNumber": null,
+    "invoiceNumber": null,
+    "items": [
+      {
+        "description": "ALUMINIUM FOIL 25SQ# 30CM*7.62M",
+        "quantity": 1,
+        "unitPrice": 5.5,
+        "totalPrice": 5.5,
+        "sku": "9069295",
+        "category": null,
+        "discountAmount": null,
+        "isVoided": false,
+        "barcode": null,
+        "brand": null,
+        "discountLabel": null,
+        "notes": null,
+        "productType": "household"
+      },
+      {
+        "description": "SEKOPLAS H/D GARBAGE 89cm*117cm 10s",
+        "quantity": 5,
+        "unitPrice": 9.5,
+        "totalPrice": 47.5,
+        "sku": "9557002081113",
+        "category": null,
+        "discountAmount": null,
+        "isVoided": false,
+        "barcode": null,
+        "brand": null,
+        "discountLabel": null,
+        "notes": null,
+        "productType": "household"
+      },
+      {
+        "description": "PLASTIC BAGS",
+        "quantity": 1,
+        "unitPrice": 0.2,
+        "totalPrice": 0.2,
+        "sku": "99999",
+        "category": null,
+        "discountAmount": null,
+        "isVoided": false,
+        "barcode": null,
+        "brand": null,
+        "discountLabel": null,
+        "notes": null,
+        "productType": "household"
+      }
+    ],
+    "subtotal": 50.19,
+    "discountTotal": null,
+    "taxes": [
+      {
+        "label": "GST",
+        "rate": 0.06,
+        "amount": 3.01
+      }
+    ],
+    "serviceCharge": null,
+    "deliveryFee": null,
+    "tip": null,
+    "total": 53.2,
+    "currency": "MYR",
+    "payment": {
+      "method": "cash",
+      "cardBrand": null,
+      "cardLastFour": null,
+      "transactionId": null,
+      "authCode": null,
+      "tip": null,
+      "cashGiven": 100.2,
+      "changeGiven": 47
+    },
+    "cashier": "OPERATOR TRAINEE CASHIER",
+    "confidence": 1,
+    "rawText": "31804058\nMR. D.I.Y. (M) SDN BHD\n(CO.REG :860671-D)\nLOT 1851-A & 1851-B, JALAN KPB 6,\nKAWASAN PERINDUSTRIAN BALAKONG,\n43300 SERI KEMBANGAN, SELANGOR\n(GST ID No :000306020352)\n(IOI PUCHONG)\n-TAX INVOICE-\nALUMINIUM FOIL 25SQ# 30CM*7.62M *S\nBJ41/2-52 - 24\n9069295 1 X 5.50 5.50\nSEKOPLAS H/D GARBAGE 89cm*117cm 10s *S\nWA58 - 16\n9557002081113 5 X 9.50 47.50\nPLASTIC BAGS *S\n99999 1 X 0.20 0.20\nItem(s) : 3 Qty(s) : 7\nTotal Incl. GST@6% RM 53.20\nCASH RM 100.20\nCHANGE RM 47.00\nGST @6% included in total RM 3.01\n*-\n28-04-18 15:40 SH01 ZJ86 T3 R000064333\nOPERATOR TRAINEE CASHIER\nEXCHANGE ARE ALLOWED WITHIN\n7 DAY WITH RECEIPT.\nSTRICTLY NO CASH REFUND.",
+    "warnings": []
+  },
+  "raw": "{\n  \"merchant\": {\n    \"name\": \"MR. D.I.Y. (M) SDN BHD\",\n    \"address\": \"LOT 1851-A & 1851-B, JALAN KPB 6, KAWASAN PERINDUSTRIAN BALAKONG\",\n    \"city\": \"SERI KEMBANGAN\",\n    \"state\": \"SELANGOR\",\n    \"postalCode\": \"43300\",\n    \"country\": null,\n    \"phone\": null,\n    \"website\": null,\n    \"taxId\": \"000306020352\"\n  },\n  \"receiptType\": \"retail\",\n  \"date\": \"2018-04-28\",\n  \"time\": \"15:40:00\",\n  \"timezone\": null,\n  \"receiptNumber\": \"R000064333\",\n  \"orderNumber\": null,\n  \"tableNumber\": null,\n  \"invoiceNumber\": null,\n  \"items\": [\n    {\n      \"description\": \"ALUMINIUM FOIL 25SQ# 30CM*7.62M\",\n      \"quantity\": 1,\n      \"unitPrice\": 5.50,\n      \"totalPrice\": 5.50,\n      \"sku\": \"9069295\",\n      \"category\": null,\n      \"discountAmount\": null,\n      \"productType\": \"household\",\n      \"isVoided\": false\n    },\n    {\n      \"description\": \"SEKOPLAS H/D GARBAGE 89cm*117cm 10s\",\n      \"quantity\": 5,\n      \"unitPrice\": 9.50,\n      \"totalPrice\": 47.50,\n      \"sku\": \"9557002081113\",\n      \"category\": null,\n      \"discountAmount\": null,\n      \"productType\": \"household\",\n      \"isVoided\": false\n    },\n    {\n      \"description\": \"PLASTIC BAGS\",\n      \"quantity\": 1,\n      \"unitPrice\": 0.20,\n      \"totalPrice\": 0.20,\n      \"sku\": \"99999\",\n      \"category\": null,\n      \"discountAmount\": null,\n      \"productType\": \"household\",\n      \"isVoided\": false\n    }\n  ],\n  \"subtotal\": 50.19,\n  \"discountTotal\": null,\n  \"taxes\": [\n    {\n      \"label\": \"GST\",\n      \"rate\": 0.06,\n      \"amount\": 3.01\n    }\n  ],\n  \"serviceCharge\": null,\n  \"deliveryFee\": null,\n  \"tip\": null,\n  \"total\": 53.20,\n  \"currency\": \"MYR\",\n  \"payment\": {\n    \"method\": \"cash\",\n    \"cardBrand\": null,\n    \"cardLastFour\": null,\n    \"transactionId\": null,\n    \"authCode\": null,\n    \"tip\": null,\n    \"cashGiven\": 100.20,\n    \"changeGiven\": 47.00\n  },\n  \"cashier\": \"OPERATOR TRAINEE CASHIER\",\n  \"confidence\": 1.0,\n  \"rawText\": \"31804058\\nMR. D.I.Y. (M) SDN BHD\\n(CO.REG :860671-D)\\nLOT 1851-A & 1851-B, JALAN KPB 6,\\nKAWASAN PERINDUSTRIAN BALAKONG,\\n43300 SERI KEMBANGAN, SELANGOR\\n(GST ID No :000306020352)\\n(IOI PUCHONG)\\n-TAX INVOICE-\\nALUMINIUM FOIL 25SQ# 30CM*7.62M *S\\nBJ41/2-52 - 24\\n9069295 1 X 5.50 5.50\\nSEKOPLAS H/D GARBAGE 89cm*117cm 10s *S\\nWA58 - 16\\n9557002081113 5 X 9.50 47.50\\nPLASTIC BAGS *S\\n99999 1 X 0.20 0.20\\nItem(s) : 3 Qty(s) : 7\\nTotal Incl. GST@6% RM 53.20\\nCASH RM 100.20\\nCHANGE RM 47.00\\nGST @6% included in total RM 3.01\\n*-\\n28-04-18 15:40 SH01 ZJ86 T3 R000064333\\nOPERATOR TRAINEE CASHIER\\nEXCHANGE ARE ALLOWED WITHIN\\n7 DAY WITH RECEIPT.\\nSTRICTLY NO CASH REFUND.\",\n  \"warnings\": []\n}",
+  "usage": {
+    "inputTokens": 1493,
+    "outputTokens": 1230,
+    "totalTokens": 3957
+  }
+}

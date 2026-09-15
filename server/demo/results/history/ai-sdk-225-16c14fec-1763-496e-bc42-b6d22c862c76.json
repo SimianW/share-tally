@@ -1,0 +1,54 @@
+{
+  "engine": "ai-sdk",
+  "receiptId": "225",
+  "model": "gemini-2.5-flash",
+  "status": "success",
+  "ranAt": "2026-09-15T19:25:28.192Z",
+  "durationMs": 4469,
+  "imageSha256": "bf7381430aa36bde6fae21fa8b22b2185667b5ca5358f7368ad1b90a686b3eca",
+  "protocol": "receipt-demo-v1",
+  "data": {
+    "merchant": "RELAIS TOTAL OULMES",
+    "currency": "DH",
+    "items": [
+      {
+        "description": "CAFE CREME",
+        "quantity": 2,
+        "unitPrice": 12,
+        "totalPrice": 24
+      },
+      {
+        "description": "CAFE EXPRESSO",
+        "quantity": 2,
+        "unitPrice": 10,
+        "totalPrice": 20
+      },
+      {
+        "description": "CHOCOLAT CHAUD",
+        "quantity": 1,
+        "unitPrice": 12,
+        "totalPrice": 12
+      }
+    ],
+    "subtotal": 56,
+    "discountTotal": 0,
+    "taxes": [],
+    "roundingAdjustment": 0,
+    "total": 56,
+    "warnings": []
+  },
+  "raw": "{\n\"merchant\": \"RELAIS TOTAL OULMES\",\n\"currency\": \"DH\",\n\"items\": [\n{\n\"description\": \"CAFE CREME\",\n\"quantity\": 2,\n\"unitPrice\": 12,\n\"totalPrice\": 24\n},\n{\n\"description\": \"CAFE EXPRESSO\",\n\"quantity\": 2,\n\"unitPrice\": 10,\n\"totalPrice\": 20\n},\n{\n\"description\": \"CHOCOLAT CHAUD\",\n\"quantity\": 1,\n\"unitPrice\": 12,\n\"totalPrice\": 12\n}\n],\n\"subtotal\": 56,\n\"discountTotal\": 0,\n\"taxes\": [],\n\"roundingAdjustment\": 0,\n\"total\": 56,\n\"warnings\": []\n}",
+  "usage": {
+    "inputTokens": 360,
+    "inputTokenDetails": {
+      "noCacheTokens": 360,
+      "cacheReadTokens": 0
+    },
+    "outputTokens": 776,
+    "outputTokenDetails": {
+      "textTokens": 188,
+      "reasoningTokens": 588
+    },
+    "totalTokens": 1136
+  }
+}

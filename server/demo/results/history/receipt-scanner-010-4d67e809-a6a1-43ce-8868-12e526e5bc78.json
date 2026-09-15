@@ -1,0 +1,99 @@
+{
+  "engine": "receipt-scanner",
+  "receiptId": "010",
+  "model": "gemini-2.5-flash",
+  "status": "success",
+  "ranAt": "2026-09-15T19:24:34.560Z",
+  "durationMs": 27308,
+  "imageSha256": "ae9ee3b5dc0860c10753b9fa37adc88f424e72cc546cf68ad3bc0e7d4287af7d",
+  "protocol": "receipt-demo-v1",
+  "data": {
+    "merchant": {
+      "name": "SAM SAM TRADING CO",
+      "address": "67,JLN MEWAH 25/63 TMN SRI MUDA",
+      "city": "SHAH ALAM",
+      "state": null,
+      "postalCode": "40400",
+      "country": null,
+      "phone": "03-51213881",
+      "website": null,
+      "taxId": "001006288896"
+    },
+    "receiptType": "retail",
+    "date": "2017-12-29",
+    "time": "20:17:00",
+    "timezone": null,
+    "receiptNumber": null,
+    "orderNumber": null,
+    "tableNumber": null,
+    "invoiceNumber": "R000721136",
+    "items": [
+      {
+        "description": "HE EOG UNICORN TWIN SUPER GLUE USG-99-9557368063013",
+        "quantity": 1,
+        "unitPrice": 4.91,
+        "totalPrice": 4.91,
+        "sku": "9557368063013",
+        "category": null,
+        "discountAmount": null,
+        "isVoided": false,
+        "barcode": null,
+        "brand": null,
+        "discountLabel": null,
+        "notes": null,
+        "productType": "stationery"
+      },
+      {
+        "description": "SS EZL A4 CYBER MIX COLOR PAPER 100'S8",
+        "quantity": 1,
+        "unitPrice": 8.39,
+        "totalPrice": 8.39,
+        "sku": "22008",
+        "category": null,
+        "discountAmount": null,
+        "isVoided": false,
+        "barcode": null,
+        "brand": null,
+        "discountLabel": null,
+        "notes": null,
+        "productType": "stationery"
+      }
+    ],
+    "subtotal": 13.3,
+    "discountTotal": null,
+    "taxes": [
+      {
+        "label": "GST 6%",
+        "rate": 0.06,
+        "amount": 0.8
+      }
+    ],
+    "serviceCharge": null,
+    "deliveryFee": null,
+    "tip": null,
+    "total": 14.1,
+    "currency": "MYR",
+    "payment": {
+      "method": "cash",
+      "cardBrand": null,
+      "cardLastFour": null,
+      "transactionId": null,
+      "authCode": null,
+      "tip": null,
+      "cashGiven": 20,
+      "changeGiven": 5.9
+    },
+    "cashier": "SAM SAM",
+    "confidence": 0.95,
+    "rawText": "SAM SAM TRADING CO\n(742016-W)\n67,JLN MEWAH 25/63 TMN SRI MUDA,\n40400 SHAH ALAM.\nTEL/FAX : 03-51213881\nGST NO: 001006288896\nTAX INVOICE\n====================================\nHE EOG UNICORN TWIN SUPER GLUE USG-99-\n9557368063013 1 X 5.20 5.20 S\nSS EZL A4 CYBER MIX COLOR PAPER 100'S8\n22???008 1 X 8.90 8.90 S\nNo. Qtys: 2 No. Items: 2\n------------------------------------\nTAX AMT (S) 6% RM 13.30\nGST 6% RM 0.80\nTAX AMT (Z) 0% RM 0.00\nGST 0% RM 0.00\nTAX AMT (E) 6% RM 0.00\nEXC GST 6% RM 0.00\n------------------------------------\nTOTAL RM 14.10\nCASH RM 20.00\nCHANGE RM 5.90\n------------------------------------\nTHANK YOU FOR SHOPPING\nGOODS SOLD ARE NOT RETURNABLE.\nFriday, 29-12-2017 Time : 20:17\nCas. r : SAM SAM\nWc5 SWH 01 Inv:R000721136",
+    "warnings": [
+      "Item prices listed on receipt appear to be gross prices, net prices calculated for items to align with subtotal and tax breakdown."
+    ]
+  },
+  "raw": "{\n  \"merchant\": {\n    \"name\": \"SAM SAM TRADING CO\",\n    \"address\": \"67,JLN MEWAH 25/63 TMN SRI MUDA\",\n    \"city\": \"SHAH ALAM\",\n    \"state\": null,\n    \"postalCode\": \"40400\",\n    \"country\": null,\n    \"phone\": \"03-51213881\",\n    \"website\": null,\n    \"taxId\": \"001006288896\"\n  },\n  \"receiptType\": \"retail\",\n  \"date\": \"2017-12-29\",\n  \"time\": \"20:17:00\",\n  \"timezone\": null,\n  \"receiptNumber\": null,\n  \"orderNumber\": null,\n  \"tableNumber\": null,\n  \"invoiceNumber\": \"R000721136\",\n  \"items\": [\n    {\n      \"description\": \"HE EOG UNICORN TWIN SUPER GLUE USG-99-9557368063013\",\n      \"quantity\": 1,\n      \"unitPrice\": 4.91,\n      \"totalPrice\": 4.91,\n      \"sku\": \"9557368063013\",\n      \"category\": null,\n      \"discountAmount\": null,\n      \"productType\": \"stationery\",\n      \"isVoided\": false\n    },\n    {\n      \"description\": \"SS EZL A4 CYBER MIX COLOR PAPER 100'S8\",\n      \"quantity\": 1,\n      \"unitPrice\": 8.39,\n      \"totalPrice\": 8.39,\n      \"sku\": \"22008\",\n      \"category\": null,\n      \"discountAmount\": null,\n      \"productType\": \"stationery\",\n      \"isVoided\": false\n    }\n  ],\n  \"subtotal\": 13.30,\n  \"discountTotal\": null,\n  \"taxes\": [\n    {\n      \"label\": \"GST 6%\",\n      \"rate\": 0.06,\n      \"amount\": 0.80\n    }\n  ],\n  \"serviceCharge\": null,\n  \"deliveryFee\": null,\n  \"tip\": null,\n  \"total\": 14.10,\n  \"currency\": \"MYR\",\n  \"payment\": {\n    \"method\": \"cash\",\n    \"cardBrand\": null,\n    \"cardLastFour\": null,\n    \"transactionId\": null,\n    \"authCode\": null,\n    \"tip\": null,\n    \"cashGiven\": 20.00,\n    \"changeGiven\": 5.90\n  },\n  \"cashier\": \"SAM SAM\",\n  \"confidence\": 0.95,\n  \"rawText\": \"SAM SAM TRADING CO\\n(742016-W)\\n67,JLN MEWAH 25/63 TMN SRI MUDA,\\n40400 SHAH ALAM.\\nTEL/FAX : 03-51213881\\nGST NO: 001006288896\\nTAX INVOICE\\n====================================\\nHE EOG UNICORN TWIN SUPER GLUE USG-99-\\n9557368063013 1 X 5.20 5.20 S\\nSS EZL A4 CYBER MIX COLOR PAPER 100'S8\\n22???008 1 X 8.90 8.90 S\\nNo. Qtys: 2 No. Items: 2\\n------------------------------------\\nTAX AMT (S) 6% RM 13.30\\nGST 6% RM 0.80\\nTAX AMT (Z) 0% RM 0.00\\nGST 0% RM 0.00\\nTAX AMT (E) 6% RM 0.00\\nEXC GST 6% RM 0.00\\n------------------------------------\\nTOTAL RM 14.10\\nCASH RM 20.00\\nCHANGE RM 5.90\\n------------------------------------\\nTHANK YOU FOR SHOPPING\\nGOODS SOLD ARE NOT RETURNABLE.\\nFriday, 29-12-2017 Time : 20:17\\nCas. r : SAM SAM\\nWc5 SWH 01 Inv:R000721136\",\n  \"warnings\": [\n    \"Item prices listed on receipt appear to be gross prices, net prices calculated for items to align with subtotal and tax breakdown.\"\n  ]\n}",
+  "usage": {
+    "inputTokens": 1493,
+    "outputTokens": 1118,
+    "totalTokens": 7299
+  }
+}

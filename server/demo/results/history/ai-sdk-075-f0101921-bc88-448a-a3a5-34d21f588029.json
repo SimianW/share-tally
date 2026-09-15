@@ -1,0 +1,53 @@
+{
+  "engine": "ai-sdk",
+  "receiptId": "075",
+  "model": "gemini-2.5-flash",
+  "status": "success",
+  "ranAt": "2026-09-15T19:24:50.761Z",
+  "durationMs": 16198,
+  "imageSha256": "25da7080734abf41cb17d4cf97ac3966b9f7c5591e54e9e344726547a7545f54",
+  "protocol": "receipt-demo-v1",
+  "data": {
+    "merchant": "LIAN HING STATIONERY SDN BHD",
+    "currency": "RM",
+    "items": [
+      {
+        "description": "Durafile H399 (110 x 95mm) Name Badge (H)",
+        "quantity": 200,
+        "unitPrice": 0.55,
+        "totalPrice": 116.6
+      },
+      {
+        "description": "809 Metal Name Badge Clip - 100's",
+        "quantity": 2,
+        "unitPrice": 20,
+        "totalPrice": 42.4
+      }
+    ],
+    "subtotal": 150,
+    "discountTotal": 0,
+    "taxes": [
+      {
+        "label": "GST",
+        "amount": 9
+      }
+    ],
+    "roundingAdjustment": 0,
+    "total": 159,
+    "warnings": []
+  },
+  "raw": "{\n  \"merchant\": \"LIAN HING STATIONERY SDN BHD\",\n  \"currency\": \"RM\",\n  \"items\": [\n    {\n      \"description\": \"Durafile H399 (110 x 95mm) Name Badge (H)\",\n      \"quantity\": 200,\n      \"unitPrice\": 0.55,\n      \"totalPrice\": 116.60\n    },\n    {\n      \"description\": \"809 Metal Name Badge Clip - 100's\",\n      \"quantity\": 2,\n      \"unitPrice\": 20.00,\n      \"totalPrice\": 42.40\n    }\n  ],\n  \"subtotal\": 150.00,\n  \"discountTotal\": 0.00,\n  \"taxes\": [\n    {\n      \"label\": \"GST\",\n      \"amount\": 9.00\n    }\n  ],\n  \"roundingAdjustment\": 0.00,\n  \"total\": 159.00,\n  \"warnings\": []\n}",
+  "usage": {
+    "inputTokens": 360,
+    "inputTokenDetails": {
+      "noCacheTokens": 360,
+      "cacheReadTokens": 0
+    },
+    "outputTokens": 3346,
+    "outputTokenDetails": {
+      "textTokens": 255,
+      "reasoningTokens": 3091
+    },
+    "totalTokens": 3706
+  }
+}

@@ -1,6 +1,6 @@
 # Receipt extraction demo
 
-Throwaway branch `demo/receipt-extraction`. Compare AI SDK and receipt-ai-scanner using the same Gemini model on three actual public receipt scans. There are no simulated extraction results.
+Throwaway branch `demo/receipt-extraction`. Compare AI SDK and receipt-ai-scanner using the same Gemini model on 11 actual public receipt scans. There are no simulated extraction results.
 
 Run from `server/`:
 
@@ -16,17 +16,24 @@ Install `client/` dependencies too if this is a fresh checkout. The command serv
 
 Add `GOOGLE_GENERATIVE_AI_API_KEY` to `server/.env`. `GEMINI_API_KEY` also works. The key stays server-side. The refresh button detects a newly added key without restarting. Restart after changing an existing key. Set `RECEIPT_DEMO_MODEL` in the process environment to select another Gemini vision model; the default is `gemini-2.5-flash`.
 
-Click **Run all 6 extractions** to run both libraries on all receipts sequentially. Calls consume provider quota. Each successful sample run saves its result and timestamp in `server/demo/results/`, shown again when opening the pages. These files are actual model responses, not ground truth. Uploads remain in browser/server memory and do not save images or responses to disk.
+Click **Run all 22 extractions** to run both libraries on all receipts sequentially. Calls consume provider quota. Every new sample attempt, including errors, saves its result and timestamp in `server/demo/results/`. Latest results load into the pages; `results/history/` retains new attempts even after a rerun. These files are actual model responses, not ground truth. Uploads remain in browser/server memory and do not save images or responses to disk.
 
 ## Samples and expectations
 
-Images `000.jpg`, `001.jpg`, and `002.jpg` and their OCR annotation CSV files came from [zzzDavid/ICDAR-2019-SROIE](https://github.com/zzzDavid/ICDAR-2019-SROIE/tree/master/data), downloaded on 2026-09-15. The upstream README identifies these as scanned receipts from the ICDAR 2019 SROIE dataset. Source links appear beside each image and expected result. Third-party dataset assets retain their upstream terms; this demo does not relicense them.
+The 11 images and OCR annotation CSV files come from [zzzDavid/ICDAR-2019-SROIE](https://github.com/zzzDavid/ICDAR-2019-SROIE/tree/master/data), downloaded on 2026-09-15. The subset contains Malaysian and Moroccan receipts. Source links appear beside every image. These are original scans, without synthetic blur, rotation, cropping or contrast changes in model inputs. SHA-256 values in the manifest identify the original images. Local inspection crops were only used to read small text and are not model inputs.
 
-`receipts/manifest.json` records expectations transcribed from annotations: final rounded total, purchased item row count, gross line amounts, separate discount, and rounding. These are Malaysian receipts in MYR, not Costco/CAD examples. Models receive only image bytes and extraction instructions, never expected answers or transcripts.
+Eight harder scans extend the original three: `010`, `075`, `175`, `225`, `275`, `450`, `525`, and `550`. Cases include skew, faint thermal print, severe fading, pen marks, bulk quantities, French labels, multiple coupon rows, and unpriced meal components. Samples were selected by visual inspection before extraction, not by observing model failures.
 
-Comparison checks cover totals, item counts, and gross line amounts in receipt order. They are not an overall accuracy score and do not judge descriptions, quantities, or discount associations. Both libraries receive the same supplemental instructions, but receipt-ai-scanner retains its built-in prompt and schema. This compares integration approaches, not just model performance.
+`receipts/manifest.json` records item descriptions, line amounts, quantities, printed unit prices, tax, discounts and totals, transcribed from OCR annotations and checked against the scans. SROIE does not provide structured item objects; these expectations are our manual labels. The models receive only the original image and extraction instructions, never the expected values or transcripts.
 
-AI SDK captures signed rounding separately. receipt-ai-scanner has no rounding field in its built-in schema, so the UI displays it as unknown; the full raw response remains inspectable.
+The eight scored fields are total, priced-row count, ordered line amounts, quantities, unit prices, currency, discount, and tax. Missing expected quantity/unit-price/discount/tax fields are not scored. RM/MYR and DH/MAD are treated as equivalent. Unknown currency is accepted when a symbol/code is not printed, but an incorrect token such as SR still fails. This absent-currency scoring rule was clarified after inspecting the outputs; monetary and item labels were recorded before the calls and remained unchanged. No model response was modified or rerun to improve its score.
+
+Two important interpretation limits:
+
+- Receipt 275's first price is extremely faint. The source transcript says 6.85 and that reconciles the printed total. The models read 4.85. This is a mismatch against the source label, not proof that every human could recover that glyph from the image alone.
+- For McDonald's 550, only two rows have prices. Unpriced Coke/fries/sauce are meal components. The row check expects two priced meals, not five separately charged items. Rounding is displayed but excluded from shared checks because receipt-ai-scanner has no corresponding schema field. Description spelling and discount-to-item associations require manual review; eight passing fields are not complete semantic correctness.
+
+The SROIE mirror has an MIT software license, but we did not establish an explicit image/data license. Do not describe its dataset as confirmed open-licensed. See [the dataset research](../../research/2026-09-15-open-receipt-datasets.md) for CORD v2, the preferred alternative with explicit CC BY 4.0 terms and item-level labels. The demo includes links to CORD, SROIE and WildReceipt.
 
 ## Integration observations
 
@@ -37,14 +44,26 @@ AI SDK captures signed rounding separately. receipt-ai-scanner has no rounding f
 
 ## Observed results
 
-Six actual Gemini 2.5 Flash calls completed on 2026-09-15. Saved responses are in `results/` and load automatically into both pages.
+All 22 attempts used Gemini 2.5 Flash. The original six responses were retained; 16 new calls tested the eight added images once per library. The prompt, schema, model and output budget were unchanged from the first demo. Successful responses and error records load automatically into both pages.
 
-| Receipt | AI SDK | receipt-ai-scanner |
+| Measure | AI SDK | receipt-ai-scanner |
 | --- | --- | --- |
-| 000, one item | Total, item count, line amount match; 5.1 s | Same checks match; 8.9 s |
-| 001, discount and rounding | Both items and total match; 5.9 s | Total matches, but misses the RM 10 privilege-card item; 13.5 s |
-| 002, four items | All three checks match; 6.3 s | All three checks match; 13.2 s |
+| Attempts with usable parsed output | 11/11 | 9/11 |
+| Receipts matching all applicable scored fields | 9/11 | 4/11 |
+| Correct final total with usable output | 11/11 | 9/11 |
 
-AI SDK matched all three checks on 3/3 receipts. receipt-ai-scanner matched them on 2/3. The second receipt demonstrates why a matching grand total is insufficient: the scanner returns 60.30 while omitting a purchased line. These are one run per sample, not a representative accuracy or speed benchmark. The libraries use different prompts/schemas and different Google API interfaces despite selecting the same model.
+AI SDK's two failures are 275's faded price, 4.85 versus source-label 6.85, and 525's currency, where it emits GST marker SR. It otherwise gets the long receipt's 12 amounts, three-discount sum, and rounding right. Minor description differences remain, including 2INI instead of 2IN1.
 
-Client build, demo server type check, and targeted client lint passed. Browser smoke checks cover both routes, sample selection, upload, mobile layout, image loading, missing-key responses, saved real output, and comparison results. No automated bill/share tests are needed because the demo is disconnected from those workflows.
+receipt-ai-scanner fails JSON parsing on 175 and 525. On 001, 225 and 275, the raw JSON repeats keys inside one object. JavaScript JSON parsing keeps the last values, silently dropping an item even though it appears in the raw transcript. On 010 and 075, the output converts printed gross prices to pre-tax amounts, contrary to the requested extraction contract. Its usable outputs all have correct grand totals, illustrating why total-only scoring misses failures.
+
+The UI includes per-field expected/returned values, error rows, source links and manual review notes. Click a receipt name in the comparison to inspect the relevant page. Confidence values from the model are not used in scoring.
+
+These are one run per sample, not a representative accuracy or speed benchmark. The two libraries retain different prompts and schemas and call different Google API interfaces despite selecting the same model. Public datasets may have appeared in model training. This comparison supports a prototype choice, not an estimate of production accuracy.
+
+Recompute the report without any model calls:
+
+```sh
+node --import=tsx demo/evaluate-results.ts
+```
+
+The report is `results/evaluation.json`; the UI uses the same evaluator. Client build, targeted lint, demo server type checks, and browser checks cover the expanded collection, saved error/success views, eight-field scores, source/dataset links and mobile layout.

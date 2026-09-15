@@ -1,0 +1,55 @@
+{
+  "engine": "ai-sdk",
+  "receiptId": "275",
+  "model": "gemini-2.5-flash",
+  "status": "success",
+  "ranAt": "2026-09-15T19:25:46.949Z",
+  "durationMs": 8289,
+  "imageSha256": "9b5e7e7364761ab8c481995ac1f07f58c19080f4113563255e91e4180749cef3",
+  "protocol": "receipt-demo-v1",
+  "data": {
+    "merchant": "99 SPEED MART S/B",
+    "currency": "RM",
+    "items": [
+      {
+        "description": "355 CRISPI ROLL 12 GRAIN SE",
+        "quantity": 1,
+        "unitPrice": 4.85,
+        "totalPrice": 4.85
+      },
+      {
+        "description": "9413 CS 1002 A5 H/COVER NOT",
+        "quantity": 1,
+        "unitPrice": 4.65,
+        "totalPrice": 4.65
+      }
+    ],
+    "subtotal": 10.85,
+    "discountTotal": 0,
+    "taxes": [
+      {
+        "label": "GST",
+        "amount": 0.65
+      }
+    ],
+    "roundingAdjustment": 0,
+    "total": 11.5,
+    "warnings": [
+      "Sum of listed item total prices (9.50) does not match the reported subtotal (10.85). There may be unlisted items or services contributing to the subtotal."
+    ]
+  },
+  "raw": "{\n  \"merchant\": \"99 SPEED MART S/B\",\n  \"currency\": \"RM\",\n  \"items\": [\n    {\n      \"description\": \"355 CRISPI ROLL 12 GRAIN SE\",\n      \"quantity\": 1,\n      \"unitPrice\": 4.85,\n      \"totalPrice\": 4.85\n    },\n    {\n      \"description\": \"9413 CS 1002 A5 H/COVER NOT\",\n      \"quantity\": 1,\n      \"unitPrice\": 4.65,\n      \"totalPrice\": 4.65\n    }\n  ],\n  \"subtotal\": 10.85,\n  \"discountTotal\": 0,\n  \"taxes\": [\n    {\n      \"label\": \"GST\",\n      \"amount\": 0.65\n    }\n  ],\n  \"roundingAdjustment\": 0,\n  \"total\": 11.5,\n  \"warnings\": [\n    \"Sum of listed item total prices (9.50) does not match the reported subtotal (10.85). There may be unlisted items or services contributing to the subtotal.\"\n  ]\n}",
+  "usage": {
+    "inputTokens": 360,
+    "inputTokenDetails": {
+      "noCacheTokens": 360,
+      "cacheReadTokens": 0
+    },
+    "outputTokens": 1626,
+    "outputTokenDetails": {
+      "textTokens": 277,
+      "reasoningTokens": 1349
+    },
+    "totalTokens": 1986
+  }
+}
