@@ -1,6 +1,6 @@
 # J-Bot Code Review
 
-This workflow copies the currently deployed DevRecall review configuration: GLM-5.3 through the mainland BigModel Coding Plan endpoint, one review pass, one shard/session at a time, finding verification and guideline review enabled, P0-P2 findings capped at ten, documentation reviews enabled, and no automatic approval.
+This workflow is based on the DevRecall review configuration: GLM-5.3 through the mainland BigModel Coding Plan endpoint, one review pass, one shard/session at a time, finding verification and guideline review enabled, P0-P3 findings capped at ten, documentation reviews enabled, and no automatic approval.
 
 ## Credentials and variables
 
