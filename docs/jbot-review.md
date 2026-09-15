@@ -21,7 +21,7 @@ After this workflow is merged into the default branch, comment exactly `/jbot` o
 
 Read the PR review as well as the Actions status. A completed workflow means review completed, not that code is bug-free. Failures in credentials, provider calls, or posting fail the workflow. Adding a secret does not itself start a run; rerun failed jobs after correcting credentials.
 
-The model receives the diff and requested repository context. REVIEW.md adds ShareTally-specific guidance and points to existing domain documents. J-Bot cannot push code or approve/merge PRs. It does not run the application test suite or deploy the app; this repository currently has no separate CI workflow.
+The model receives the diff and requested repository context. The repository no longer supplies a separate REVIEW.md override. Project context is documented in [AGENTS.md](../AGENTS.md), with terminology in [CONTEXT.md](../CONTEXT.md) and accepted decisions in [docs/adr](adr/). J-Bot cannot push code or approve/merge PRs. It does not run the application test suite or deploy the app; the separate Drone pipeline runs tests and builds on pushes, and deploys main-branch pushes.
 
 The setup PR can validate credentials and review posting before merge. This is an integration test, not a benchmark of bug-finding quality. Comment and manual triggers require default-branch installation.
 

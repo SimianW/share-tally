@@ -1,6 +1,6 @@
 # ShareTally project discussion
 
-Archived planning record. This file preserves the conversation through Q35, including proposals later superseded. It is not the current specification and should not be updated with new decisions. Use the [documentation index](../../docs/README.md) for current sources.
+Archived planning record. This file preserves the conversation through Q35, including proposals later superseded. It is not the current specification and should not be updated with new decisions. Use the [agent instructions](../../AGENTS.md) for current sources.
 
 Recorded September 6, 2026. This is an organized record of the planning conversation, not a verbatim transcript or a finished implementation specification. No external market research was performed. Recommendations remain proposals unless explicitly accepted below.
 
