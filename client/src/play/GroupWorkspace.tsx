@@ -24,7 +24,7 @@ export default function GroupWorkspace({ groups, selectedId, loading, error, ret
   const activeId = selectedId ?? groups[0]?.id;
   const api = useBillApi();
   const [balances, setBalances] = useState<Record<string, Summary | null>>({});
-  const updateBalance = useCallback((id: string, summary: Summary) => {
+  const updateBalance = useCallback((id: string, summary: Summary | null) => {
     setBalances(current => ({ ...current, [id]: summary }));
   }, []);
   useEffect(() => {

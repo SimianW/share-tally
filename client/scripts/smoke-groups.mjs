@@ -221,6 +221,14 @@ try {
   await expect(alice.getByRole('dialog')).toHaveCount(0);
   await alice.reload();
   await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$59.97');
+  const selectedBillsPattern = '**/api/groups/' + alice.url().split('/').pop() + '/bills';
+  await alice.route(selectedBillsPattern, route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Temporarily unavailable' }) }));
+  await alice.getByRole('button', { name: 'Refresh bills', exact: true }).click();
+  await expect(alice.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: /Costco friends/ })).toContainText('Balance unavailable');
+  await alice.unroute(selectedBillsPattern);
+  await alice.getByRole('button', { name: 'Retry group bills', exact: true }).click();
+  await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$59.97');
+  await expect(alice.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: /Costco friends/ })).toContainText('You are owed $59.97');
   await alice.screenshot({ path: `${clientRoot}/test-results/workspace-desktop.png`, fullPage: true });
   await alice.setViewportSize({ width: 390, height: 844 });
   assert.equal(await alice.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);

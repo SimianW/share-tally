@@ -80,7 +80,7 @@ export function OverviewBalance({ revision }: { revision: string }) {
     <p role="status">Loading balances...</p>
   );
 }
-export function GroupBills({ id, onSummary }: { id: string; onSummary: (id: string, summary: Summary) => void }) {
+export function GroupBills({ id, onSummary }: { id: string; onSummary: (id: string, summary: Summary | null) => void }) {
   const [membersOpen, setMembersOpen] = useState(false);
   const api = useBillApi();
   const groups = useGroupApi();
@@ -106,7 +106,10 @@ export function GroupBills({ id, onSummary }: { id: string; onSummary: (id: stri
         }
       })
       .catch((error) => {
-        if (!controller.signal.aborted) setError(errorMessage(error));
+        if (!controller.signal.aborted) {
+          setError(errorMessage(error));
+          onSummary(id, null);
+        }
       });
     return () => controller.abort();
   }, [api, groups, id, revision, onSummary]);
