@@ -145,6 +145,12 @@ try {
   // Issue #4: real bill creation, response-loss retry, share confirmation, and balances.
   await alice.getByRole('button', { name: 'View bills and balance' }).click();
   await alice.getByRole('button', { name: 'New bill', exact: true }).click();
+  await expect(alice.getByRole('group', { name: 'Who shared this purchase?' })).toBeVisible();
+  await expect(alice.getByRole('checkbox', { name: 'Alice · You, initiator' })).toBeDisabled();
+  await alice.getByRole('button', { name: 'Select everyone', exact: true }).click();
+  await expect(alice.getByRole('checkbox', { name: 'Carol', exact: true })).toBeChecked();
+  await alice.getByRole('button', { name: 'Just me', exact: true }).click();
+  await expect(alice.getByRole('checkbox', { name: 'Carol', exact: true })).not.toBeChecked();
   await alice.getByLabel('Bill title', { exact: true }).fill('Weekend groceries');
   await alice.getByLabel('Bill total · CAD', { exact: true }).fill('100.001');
   await alice.getByLabel('My share · CAD', { exact: true }).fill('40.00');
@@ -197,9 +203,31 @@ try {
   await alice.getByRole('link', { name: 'Group bills', exact: false }).click();
   await expect(alice.locator('.bill-list-row')).toHaveCount(1);
   await expect(alice.locator('.balance-number')).toHaveText('$59.97');
-  await alice.getByRole('button', { name: 'Back to groups' }).click();
+  await alice.getByRole('button', { name: 'My groups', exact: true }).click();
   await alice.getByRole('button', { name: 'Overview', exact: true }).click();
   await expect(alice.locator('.balance-number')).toHaveText('$59.97');
+  // Group navigation opens finances directly and survives reloads.
+  await alice.getByRole('button', { name: 'New group', exact: true }).first().click();
+  await alice.getByLabel('Group name').fill('Apartment');
+  await alice.getByRole('button', { name: 'Create group', exact: true }).click();
+  await expect(alice.getByRole('dialog')).toContainText('Apartment');
+  await alice.getByRole('button', { name: 'Close dialog' }).click();
+  await alice.getByRole('button', { name: 'My groups', exact: true }).click();
+  await alice.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: /Apartment/ }).click();
+  await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$0.00');
+  await alice.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: /Costco friends/ }).click();
+  await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$59.97');
+  await expect(alice.getByRole('dialog')).toHaveCount(0);
+  await alice.reload();
+  await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$59.97');
+  await alice.screenshot({ path: `${clientRoot}/test-results/workspace-desktop.png`, fullPage: true });
+  await alice.setViewportSize({ width: 390, height: 844 });
+  assert.equal(await alice.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await alice.screenshot({ path: `${clientRoot}/test-results/workspace-mobile.png`, fullPage: true });
+  await alice.getByRole('button', { name: 'Members & invites', exact: true }).click();
+  await expect(alice.getByRole('dialog')).toContainText('3 members');
+  await alice.getByRole('button', { name: 'Close dialog' }).click();
+  await alice.setViewportSize({ width: 1280, height: 900 });
   await alice.goto(groupUrl);
   await bob.goto(groupUrl);
   await carol.goto(groupUrl);
