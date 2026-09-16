@@ -6,6 +6,8 @@ export function startGroupSync<T>(options: {
   read: (signal: AbortSignal) => Promise<T>;
   apply: (value: T) => void;
   status: (message: string) => void;
+  accessDenied?: (status: number) => void;
+  invalidateRead?: () => void;
 }) {
   let stopped = false;
   let attempt = 0;
@@ -55,6 +57,7 @@ export function startGroupSync<T>(options: {
       const response = await fetch(`/api/groups/${encodeURIComponent(options.groupId)}/events`, {
         headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
       });
+      if ([401, 403, 404].includes(response.status)) options.accessDenied?.(response.status);
       if (!response.ok || !response.body || !response.headers.get('content-type')?.includes('text/event-stream')) {
         throw new Error('Stream unavailable');
       }
@@ -71,6 +74,7 @@ export function startGroupSync<T>(options: {
           while ((end = pending.indexOf('\n\n')) !== -1) {
             const event = pending.slice(0, end);
             pending = pending.slice(end + 2);
+            if (/^event: changed$/m.test(event)) options.invalidateRead?.();
             if (/^event: (ready|changed)$/m.test(event)) void refresh();
           }
           if (pending.length > 65_536) throw new Error('Invalid stream');
@@ -92,7 +96,6 @@ export function startGroupSync<T>(options: {
     const previous = active;
     active = undefined;
     previous?.abort();
-    options.status(stale);
     void connect();
   }
   function visible() { if (document.visibilityState === 'visible') retry(); }

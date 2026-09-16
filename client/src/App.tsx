@@ -7,6 +7,7 @@ import {
 } from "@clerk/react";
 
 import { useRoute } from './play/route';
+import { SessionQueries } from './play/SessionQueries';
 import PlayApp from "./play/PlayApp";
 import { Logo } from "./play/ui";
 
@@ -14,11 +15,10 @@ function SignedInApp() {
   const { user } = useUser();
   if (!user) return <p role="status">Loading your account…</p>;
   return (
-    <PlayApp
-      key={user.id}
+    <SessionQueries key={user.id}><PlayApp
       displayName={user.firstName || user.fullName || "friend"}
       accountControl={<UserButton />}
-    />
+    /></SessionQueries>
   );
 }
 

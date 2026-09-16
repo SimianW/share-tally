@@ -1,17 +1,19 @@
+import { useCached } from './query-cache';
 import { useEffect, useRef, useState } from 'react';
 import Dialog from './Dialog';
 import { Avatar, Button } from './ui';
 import { errorMessage, type GroupApi, type GroupDetail } from './group-api';
 
 export function GroupDetails({ id, api, close, onViewBills }: { id: string; api: GroupApi; close: () => void; onViewBills?: () => void }) {
-  const [group, setGroup] = useState<GroupDetail | null>(null);
+  const query = useCached<{ group: GroupDetail }>(`/groups/${id}`);
+  const group = query.data?.group;
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     const controller = new AbortController();
-    api.detail(id, controller.signal).then(({ group }) => {
-      if (!controller.signal.aborted) { setGroup(group); setError(''); }
+    api.detail(id, controller.signal).then(() => {
+      if (!controller.signal.aborted) { setError(''); }
     }).catch(error => {
       if (!controller.signal.aborted) setError(errorMessage(error));
     }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
@@ -20,7 +22,7 @@ export function GroupDetails({ id, api, close, onViewBills }: { id: string; api:
   function refresh() { setLoading(true); setRevision(value => value + 1); }
   return (
     <Dialog title={group?.name ?? 'Group'} kicker="YOUR PEOPLE" close={close}>
-      {loading && <p role="status">Loading members…</p>}
+      {loading && !group && <p role="status">Loading members…</p>}
       {error && <p role="alert" className="form-error">{error}</p>}
       <Button variant="secondary" onClick={refresh} disabled={loading}>Refresh members</Button>
       {group && !error && <>
