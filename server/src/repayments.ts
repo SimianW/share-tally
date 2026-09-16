@@ -2,7 +2,7 @@ import { and, desc, eq } from 'drizzle-orm';
 import { db } from './db/index.js';
 import { groupMembers, repayments } from './db/schema.js';
 import { BillError } from './bill-error.js';
-import { cents, isUuid } from './bills.js';
+import { cents, isUuid } from './input-validation.js';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type Repayment = typeof repayments.$inferSelect;

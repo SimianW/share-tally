@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { BillError } from './bill-error.js';
-import { isUuid } from './bills.js';
+import { isUuid } from './input-validation.js';
 import { getGroupUser } from './users.js';
 import { createRepayment, decideRepayment, parseRepayment } from './repayments.js';
 

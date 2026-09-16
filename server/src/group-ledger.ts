@@ -1,3 +1,4 @@
+import { confirmedRepaymentEntries } from "./repayment-accounting.js";
 import type { Repayment } from './repayments.js';
 import type { readBills } from './bills.js';
 import { safeCents } from './money.js';
@@ -20,11 +21,8 @@ export function groupLedger(
       balances.set(share.userId, balances.get(share.userId)! - cost);
     }
   }
-  for (const repayment of repayments) {
-    if (repayment.status !== 'confirmed') continue;
-    const amount = BigInt(repayment.amountCents);
-    balances.set(repayment.senderId, balances.get(repayment.senderId)! + amount);
-    balances.set(repayment.recipientId, balances.get(repayment.recipientId)! - amount);
+  for (const entry of confirmedRepaymentEntries(repayments)) {
+    balances.set(entry.userId, balances.get(entry.userId)! + entry.amountCents);
   }
   const result = members.map(member => {
     const netCents = safeCents(balances.get(member.userId)!);

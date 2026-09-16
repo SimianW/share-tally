@@ -1,3 +1,6 @@
+import { cents, isUuid } from "./input-validation.js";
+export { isUuid } from "./input-validation.js";
+import { confirmedRepaymentEntries } from "./repayment-accounting.js";
 import { readRepayments, type Repayment } from './repayments.js';
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { safeCents } from "./money.js";
@@ -8,22 +11,6 @@ import { bills, billShares, groupMembers, groups, users } from "./db/schema.js";
 import { BillError } from "./bill-error.js";
 export { BillError } from "./bill-error.js";
 
-export const isUuid = (value: unknown): value is string =>
-  typeof value === "string" &&
-  /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value);
-export function cents(value: unknown, max = 1000000): number {
-  if (
-    typeof value !== "number" ||
-    !Number.isSafeInteger(value) ||
-    value < 0 ||
-    value > max
-  )
-    throw new BillError(
-      400,
-      `Amount must be integer cents between 0 and ${max}.`,
-    );
-  return value;
-}
 function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw new BillError(400, "Expected a JSON object.");
@@ -515,10 +502,8 @@ export function summarize(
       ? BigInt(bill.totalCents) - BigInt(own.amountCents!) - BigInt(bill.adjustmentCents!)
       : -BigInt(own.amountCents!));
   }
-  for (const repayment of repayments) {
-    if (repayment.status !== 'confirmed') continue;
-    if (repayment.senderId === userId) add(repayment.groupId, BigInt(repayment.amountCents));
-    if (repayment.recipientId === userId) add(repayment.groupId, -BigInt(repayment.amountCents));
+  for (const entry of confirmedRepaymentEntries(repayments)) {
+    if (entry.userId === userId) add(entry.groupId, entry.amountCents);
   }
   let receivable = 0n, payable = 0n;
   for (const balance of balances.values()) {
