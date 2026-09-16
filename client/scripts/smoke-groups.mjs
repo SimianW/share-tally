@@ -1,3 +1,4 @@
+import { checkGroupRefresh } from './smoke-group-refresh.mjs';
 import { checkNavigation } from './smoke-navigation.mjs';
 // Run after installing both client and server dependencies and Chromium:
 // cd client && pnpm exec playwright install chromium && pnpm test:groups
@@ -67,6 +68,7 @@ try {
     page.on('console', message => { if (message.type() === 'error') { console.error('Browser console:', message.text()); if (message.text().includes('Encountered two children')) errors.push(message.text()); } });
     return page;
   }
+  await checkGroupRefresh(pageFor, base);
   const alice = await pageFor('alice-token', { width: 1280, height: 900 });
   await alice.goto(base);
   await alice.getByRole('button', { name: 'New group', exact: true }).click();
