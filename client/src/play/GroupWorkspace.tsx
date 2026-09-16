@@ -4,7 +4,7 @@ import { money, useBillApi, type Summary } from './bill-api';
 import type { GroupView } from './group-api';
 import { GroupBills } from './Bills';
 import { GroupIconView } from './GroupIconView';
-import { Button } from './ui';
+import { Button, Icon } from './ui';
 import './group-workspace.css';
 
 function balanceLabel(summary: Summary | null | undefined) {
@@ -24,6 +24,14 @@ export default function GroupWorkspace({ groups, selectedId, selectedRepaymentId
   onCreate: () => void;
 }) {
   const activeId = selectedId ?? groups[0]?.id;
+  if (!activeId && !loading && !error) {
+    return <section className="empty-state workspace-empty" aria-labelledby="empty-groups-title">
+      <Icon name="people" size={32} />
+      <h2 id="empty-groups-title">Your people, together.</h2>
+      <p>Create a group to start recording shared purchases.</p>
+      <Button onClick={onCreate}>Create your first group</Button>
+    </section>;
+  }
   return <div className="group-workspace">
     <nav className="workspace-groups" aria-label="Groups">
       {loading && <p role="status">Loading groups…</p>}
@@ -31,7 +39,7 @@ export default function GroupWorkspace({ groups, selectedId, selectedRepaymentId
       {groups.map(group => <GroupLink key={group.id} group={group} active={group.id === activeId} />)}
     </nav>
     <div className="workspace-content">
-      {activeId ? <GroupBills key={activeId} id={activeId} selectedRepaymentId={selectedRepaymentId} /> : !loading && !error && <div className="empty-state"><h2>Your people, together.</h2><p>Create a group to start recording shared purchases.</p><Button onClick={onCreate}>Create your first group</Button></div>}
+      {activeId && <GroupBills key={activeId} id={activeId} selectedRepaymentId={selectedRepaymentId} />}
     </div>
   </div>;
 }
