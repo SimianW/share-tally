@@ -424,6 +424,9 @@ export function BillDetails({ id }: { id: string }) {
     (p) => p.userId === bill.initiatorId,
   )!;
   const own = bill.participants.find((p) => p.isCurrentUser);
+  const needsAmountCorrection = !bill.completedAt && !bill.canceledAt &&
+    Math.abs(bill.differenceCents) > 5 &&
+    (bill.differenceCents < 0 || bill.participants.every(p => p.amountCents !== null));
   function saved(updated: Bill) {
     resetEditors.current = true;
     live.current?.retry();
@@ -467,6 +470,27 @@ export function BillDetails({ id }: { id: string }) {
           {notice}
         </p>
       )}
+      {needsAmountCorrection && (
+        <div role="alert" className="bill-warning bill-correction">
+          <h2>Adjust shares before this bill can complete.</h2>
+          <p>
+            Submitted shares are {money(Math.abs(bill.differenceCents))}{" "}
+            {bill.differenceCents < 0 ? "over" : "under"} the bill total.
+            Check your amount and correct it if needed. The combined shares must
+            be within $0.05 of the bill total.
+          </p>
+          <p>
+            Changing a saved amount requires everyone to confirm again.
+            The initiator’s new amount is confirmed when saved.
+            Confirming unchanged amounts will not fix the difference.
+          </p>
+          {own && (
+            <Button variant="secondary" onClick={() => document.getElementById("my-share-amount")?.focus()}>
+              Edit my share
+            </Button>
+          )}
+        </div>
+      )}
       <div className="bill-layout">
         <section
           className={`difference-card${bill.canceledAt ? " canceled-bill" : ""}`}
@@ -476,7 +500,9 @@ export function BillDetails({ id }: { id: string }) {
               ? "CANCELED"
               : bill.completedAt
                 ? "✓ COMPLETE"
-                : "IN PROGRESS"}
+                : needsAmountCorrection
+                  ? "SHARES NEED CORRECTION"
+                  : "IN PROGRESS"}
           </span>
           <h2>
             {bill.differenceCents > 0

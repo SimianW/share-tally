@@ -168,6 +168,7 @@ function ShareEditor({ bill, api, saved, refresh }: Props) {
       <label>
         My share · CAD
         <input
+          id="my-share-amount"
           required
           inputMode="decimal"
           value={amount}
@@ -183,7 +184,9 @@ function ShareEditor({ bill, api, saved, refresh }: Props) {
             : "Changing your amount clears everyone’s confirmation, including yours. Review and confirm again after saving."
           : own.amountCents === null
             ? "Include your tax, discounts, and rounding. Enter 0 if you have no cost."
-            : "Confirming the same amount keeps everyone else’s confirmation."}
+            : own.confirmedAt
+              ? "You can still edit your amount above. Saving a change will require renewed confirmations."
+              : "Confirming the same amount keeps everyone else’s confirmation."}
       </p>
       {validation && (
         <p role="alert" className="form-error">

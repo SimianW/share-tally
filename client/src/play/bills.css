@@ -54,6 +54,17 @@
 .bill-heading p {
   color: #626a63;
 }
+.bill-correction {
+  border: 1px solid #c28b26;
+  margin-bottom: 24px;
+}
+.bill-correction h2 {
+  margin-top: 0;
+  font-size: 1.2rem;
+}
+#my-share-amount {
+  scroll-margin-block: 100px;
+}
 .bill-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
@@ -128,7 +139,19 @@
 .bill-adjustment p {
   margin-bottom: 0;
 }
+.bill-notes {
+  margin-top: 24px;
+  padding: 20px 26px;
+  border: 1px solid #e2e5dc;
+  border-radius: 20px;
+  background: white;
+}
+.bill-notes h2 {
+  margin: 0 0 8px;
+  font-size: 1.3rem;
+}
 .bill-notes p {
+  margin: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
