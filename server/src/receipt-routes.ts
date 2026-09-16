@@ -1,12 +1,16 @@
+import { db } from "./db/index.js";
 import { interpretReceiptNames } from "./receipt-names.js";
 import { priceDraft } from "./receipt-pricing.js";
 import { Router } from "express";
 import { z } from "zod";
 import { getGroupUser } from "./users.js";
 import { BillError, isUuid, readBills } from "./bills.js";
-import { checked, revisionInput } from "./receipt-input.js";
+import { checked, revisionInput, draftInput } from "./receipt-input.js";
 import {
   saveDraft,
+  deleteDraft,
+  normalizeReceiptPhoto,
+  requireMember,
   readDraft,
   listDrafts,
   uploadPhoto,
@@ -47,6 +51,77 @@ export function createReceiptRouter(
     router.param(key, (_req, _res, next, id) =>
       next(isUuid(id) ? undefined : new BillError(404, "Record not found.")),
     );
+  router.delete("/receipt-drafts/:draftId", async (req, res) => {
+    const u = await user(res.locals.clerkUserId);
+    await deleteDraft(req.params.draftId, u.id, req.body);
+    res.json({ deleted: true });
+  });
+  // Previews never save a draft or replace its photo.
+  router.post(
+    "/groups/:groupId/receipt-preview/:operation",
+    async (req, res) => {
+      const u = await user(res.locals.clerkUserId);
+      await db.transaction((tx) => requireMember(tx, req.params.groupId, u.id));
+      const operation = req.params.operation;
+      if (operation === "prices") {
+        res.json(priceDraft(checked(draftInput, req.body)));
+        return;
+      }
+      if (operation !== "extract" && operation !== "names")
+        throw new BillError(404, "Preview not found.");
+      if (active.has(u.id))
+        throw new BillError(429, "A receipt request is already running.");
+      consumeRequest(u.id);
+      active.add(u.id);
+      try {
+        if (operation === "names") {
+          const { items } = checked(draftInput, req.body);
+          try {
+            res.json({ names: await names(items) });
+          } catch {
+            throw new BillError(
+              502,
+              "Name service unavailable. Original descriptions and amounts were kept. Retry names, edit them yourself, or initiate now.",
+            );
+          }
+        } else {
+          const input = checked(
+            z.union([
+              z.object({ base64: z.string().max(11_184_812) }).strict(),
+              z.object({ draftId: z.uuid(), revision: revisionInput }).strict(),
+            ]),
+            req.body,
+          );
+          let bytes: Buffer;
+          if ("base64" in input)
+            bytes = await normalizeReceiptPhoto(input.base64);
+          else {
+            const draft = await readDraft(input.draftId, u.id);
+            if (draft.groupId !== req.params.groupId)
+              throw new BillError(404, "Draft not found.");
+            if (draft.billId || draft.revision !== input.revision)
+              throw new BillError(
+                409,
+                "Draft changed. Reopen the saved version.",
+              );
+            bytes = await photoBytes(input.draftId, u.id, true);
+          }
+          const extraction = extractionDefaults(await extract(bytes));
+          if ("draftId" in input) {
+            const latest = await readDraft(input.draftId, u.id);
+            if (latest.billId || latest.revision !== input.revision)
+              throw new BillError(
+                409,
+                "Draft changed during scanning. Your edits were kept. Reopen the saved version before scanning again.",
+              );
+          }
+          res.json({ extraction });
+        }
+      } finally {
+        active.delete(u.id);
+      }
+    },
+  );
   router.get("/groups/:groupId/receipt-drafts", async (req, res) => {
     const u = await user(res.locals.clerkUserId);
     res.json({ drafts: await listDrafts(req.params.groupId, u.id) });

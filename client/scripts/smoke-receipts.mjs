@@ -157,10 +157,52 @@ try {
     await alice.evaluate(() => typeof crypto.randomUUID),
     "undefined",
   );
+  // Opening and dismissing a new bill must not create an untitled server draft.
   await alice.getByRole("button", { name: "New bill", exact: true }).click();
-  await alice
-    .getByRole("button", { name: "Use a receipt or enter items" })
-    .click();
+  await alice.getByRole("button", { name: "Close dialog" }).click();
+  await expect(alice.locator("dialog[open]")).toHaveCount(0);
+  assert.equal((await api(`/groups/${group.id}/receipt-drafts`)).drafts.length, 0);
+  await alice.getByRole("button", { name: "New bill", exact: true }).click();
+  const temporaryPhoto = await serverRequire("sharp")({ create: { width: 20, height: 30, channels: 3, background: "red" } }).png().toBuffer();
+  await alice.getByLabel("Choose a receipt image").setInputFiles({ name: "discard.png", mimeType: "image/png", buffer: temporaryPhoto });
+  await alice.getByRole("button", { name: "Use this photo", exact: true }).click();
+  await expect(alice.getByRole("img", { name: "Original cropped receipt" })).toBeVisible();
+  assert.equal((await api(`/groups/${group.id}/receipt-drafts`)).drafts.length, 0);
+  await alice.keyboard.press("Escape");
+  await alice.getByRole("button", { name: "Discard changes", exact: true }).click();
+  await expect(alice.locator("dialog[open]")).toHaveCount(0);
+  assert.equal((await api(`/groups/${group.id}/receipt-drafts`)).drafts.length, 0);
+  // Explicit save, edit/discard, overwrite and delete on the production list.
+  await alice.getByRole("button", { name: "New bill", exact: true }).click();
+  await alice.getByRole("button", { name: "Split by amounts instead" }).click();
+  await alice.getByLabel("Bill title", { exact: true }).fill("Draft lifecycle");
+  await alice.getByRole("button", { name: "Save draft & close" }).click();
+  const lifecycleRow = () => alice.locator(".draft-list-row").filter({ hasText: "Draft lifecycle" });
+  await lifecycleRow().getByRole("button", { name: "Continue", exact: true }).click();
+  await alice.getByLabel("Bill title", { exact: true }).fill("Discard me");
+  await alice.getByRole("button", { name: "Close dialog" }).click();
+  await alice.getByRole("button", { name: "Keep editing" }).click();
+  await expect(alice.getByLabel("Bill title", { exact: true })).toHaveValue("Discard me");
+  await alice.getByRole("button", { name: "Close dialog" }).click();
+  await alice.getByRole("button", { name: "Discard changes", exact: true }).click();
+  await lifecycleRow().getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(alice.getByLabel("Bill title", { exact: true })).toHaveValue("Draft lifecycle");
+  await alice.getByLabel("Bill title", { exact: true }).fill("Draft lifecycle updated");
+  await alice.getByRole("button", { name: "Save draft & close" }).click();
+  assert.equal((await api(`/groups/${group.id}/receipt-drafts`)).drafts.length, 1);
+  await alice.setViewportSize({ width: 390, height: 844 });
+  assert.equal(await alice.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await mkdir("/tmp/share-tally-receipt-smoke", { recursive: true });
+  await alice.screenshot({ path: "/tmp/share-tally-receipt-smoke/draft-list-a-mobile.png", fullPage: true });
+  await alice.getByRole("button", { name: "Delete Draft lifecycle updated", exact: true }).click();
+  await alice.getByRole("button", { name: "Keep draft", exact: true }).click();
+  await expect(lifecycleRow()).toBeVisible();
+  await alice.getByRole("button", { name: "Delete Draft lifecycle updated", exact: true }).click();
+  await alice.getByRole("button", { name: "Delete draft", exact: true }).click();
+  await expect(alice.locator(".draft-list-row")).toHaveCount(0);
+  assert.equal((await api(`/groups/${group.id}/receipt-drafts`)).drafts.length, 0);
+  await alice.setViewportSize({ width: 1280, height: 1000 });
+  await alice.getByRole("button", { name: "New bill", exact: true }).click();
   await expect(
     alice.getByRole("heading", { name: "Start with your receipt" }),
   ).toBeVisible();
@@ -182,7 +224,7 @@ try {
     .getByLabel("Actual paid total · CAD", { exact: true })
     .fill("3.10");
   await alice.getByRole("button", { name: "Save draft & close" }).click();
-  await alice.getByRole("button", { name: "Continue Shared apples" }).click();
+  await alice.locator(".draft-list-row").filter({ hasText: "Shared apples" }).getByRole("button", { name: "Continue", exact: true }).click();
   await expect(
     alice.getByRole("heading", { name: "Who’s sharing this bill?" }),
   ).toBeVisible();
@@ -264,9 +306,6 @@ try {
   });
   await alice.goto(`${base}#/group-bills/${group.id}`);
   await alice.getByRole("button", { name: "New bill", exact: true }).click();
-  await alice
-    .getByRole("button", { name: "Use a receipt or enter items" })
-    .click();
   await alice.getByRole("button", { name: "03 Share the bill" }).click();
   await alice.getByLabel("Bill title", { exact: true }).fill("Scanned receipt");
   await alice.getByRole("button", { name: /Bring your receipt/ }).click();
@@ -373,7 +412,19 @@ try {
   ).toHaveValue("2.70");
   await alice.getByLabel("Final cost · CAD", { exact: true }).fill("2.80");
   await alice.getByRole("button", { name: "Save draft & close" }).click();
-  await alice.getByRole("button", { name: "Continue Scanned receipt" }).click();
+  await expect(alice.locator(".draft-list-row").filter({ hasText: "Scanned receipt" })).toBeVisible();
+  const savedScan = (await api(`/groups/${group.id}/receipt-drafts`)).drafts.find(d => d.data.title === "Scanned receipt");
+  const savedPhoto = (await pool.query('SELECT base64 FROM receipt_photos WHERE draft_id = $1', [savedScan.id])).rows[0].base64;
+  await alice.locator(".draft-list-row").filter({ hasText: "Scanned receipt" }).getByRole("button", { name: "Continue", exact: true }).click();
+  await alice.getByRole("button", { name: "Replace receipt photo", exact: true }).click();
+  await alice.getByLabel("Choose a receipt image").setInputFiles({ name: "replacement.png", mimeType: "image/png", buffer: temporaryPhoto });
+  await alice.getByRole("button", { name: "Use this photo", exact: true }).click();
+  await alice.getByRole("button", { name: "Close dialog" }).click();
+  await alice.getByRole("button", { name: "Discard changes", exact: true }).click();
+  assert.equal((await pool.query('SELECT base64 FROM receipt_photos WHERE draft_id = $1', [savedScan.id])).rows[0].base64, savedPhoto);
+  assert.deepEqual((await api(`/receipt-drafts/${savedScan.id}`)).draft.data, savedScan.data);
+  await alice.locator(".draft-list-row").filter({ hasText: "Scanned receipt" }).getByRole("button", { name: "Continue", exact: true }).click();
+  await alice.getByRole("button", { name: /Check the items/ }).click();
   await expect(
     alice.getByLabel("Final cost · CAD", { exact: true }),
   ).toHaveValue("2.80");
@@ -382,7 +433,7 @@ try {
     .getByLabel("Bill title", { exact: true })
     .fill("Recovered local title");
   await alice.reload();
-  await alice.getByRole("button", { name: "Continue Scanned receipt" }).click();
+  await alice.locator(".draft-list-row").filter({ hasText: "Scanned receipt" }).getByRole("button", { name: "Continue", exact: true }).click();
   await expect(
     alice.getByText("Recovered your unsaved changes.", { exact: true }),
   ).toBeVisible();
@@ -474,9 +525,6 @@ try {
   // The guided entry still supports switching an unfinished receipt to manual shares.
   await alice.goto(`${base}#/group-bills/${group.id}`);
   await alice.getByRole("button", { name: "New bill", exact: true }).click();
-  await alice
-    .getByRole("button", { name: "Use a receipt or enter items" })
-    .click();
   await alice
     .getByRole("button", { name: "Enter items myself", exact: true })
     .click();

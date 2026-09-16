@@ -20,8 +20,77 @@ import {
   Upload,
   ReceiptText,
   PencilLine,
+  Trash2,
+  FilePenLine,
+  LockKeyhole,
 } from "lucide-react";
 import "./receipts.css";
+
+function comparable(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(comparable).join(",")}]`;
+  if (value && typeof value === "object")
+    return JSON.stringify(
+      Object.keys(value)
+        .sort()
+        .map((key) => [
+          key,
+          comparable((value as Record<string, unknown>)[key]),
+        ]),
+    );
+  return JSON.stringify(value);
+}
+
+function clearDeletedDraft(id: string) {
+  for (const key of Object.keys(sessionStorage)) {
+    if (key.startsWith("receipt-step:") && key.endsWith(`:${id}`))
+      sessionStorage.removeItem(key);
+    if (!key.startsWith("receipt-draft:")) continue;
+    try {
+      if (JSON.parse(sessionStorage.getItem(key) ?? "null")?.id === id)
+        sessionStorage.removeItem(key);
+    } catch {
+      /* Ignore unrelated invalid recovery entries. */
+    }
+  }
+}
+
+function DeleteDraftDialog({
+  title,
+  busy,
+  cancel,
+  remove,
+}: {
+  title: string;
+  busy: boolean;
+  cancel: () => void;
+  remove: () => void;
+}) {
+  return (
+    <Dialog
+      title="Delete this draft?"
+      kicker="PRIVATE DRAFT"
+      close={() => {
+        if (!busy) cancel();
+      }}
+    >
+      <p>
+        <strong>{title || "Untitled bill"}</strong>
+      </p>
+      <p>
+        This deletes the draft and any attached receipt photo. Group bills and
+        balances will not change. This cannot be undone.
+      </p>
+      <div className="dialog-actions">
+        <Button variant="secondary" disabled={busy} onClick={cancel}>
+          Keep draft
+        </Button>
+        <Button className="draft-danger" disabled={busy} onClick={remove}>
+          {busy ? "Deleting…" : "Delete draft"}
+        </Button>
+      </div>
+    </Dialog>
+  );
+}
 
 export function ReceiptDrafts({
   groupId,
@@ -34,6 +103,8 @@ export function ReceiptDrafts({
   const [drafts, setDrafts] = useState<ReceiptDraft[]>([]);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
+  const [deleting, setDeleting] = useState<ReceiptDraft | null>(null);
+  const [busy, setBusy] = useState(false);
   useEffect(() => {
     let live = true;
     api
@@ -53,12 +124,72 @@ export function ReceiptDrafts({
   }, [api, groupId, retry]);
   return (
     <section className="receipt-drafts">
-      {drafts.length > 0 && <h3>Your private drafts</h3>}
+      {drafts.length > 0 && (
+        <>
+          <h3>
+            Your drafts <small>{drafts.length}</small>
+          </h3>
+          <p className="draft-private">
+            <LockKeyhole size={14} /> Only you can see these. They do not affect
+            group balances.
+          </p>
+        </>
+      )}
       {drafts.map((d) => (
-        <Button key={d.id} variant="secondary" onClick={() => open(d.id)}>
-          Continue {d.data.title || "untitled bill"}
-        </Button>
+        <div className="draft-list-row" key={d.id}>
+          <FilePenLine className="draft-list-icon" size={24} />
+          <div className="draft-list-copy">
+            <strong>{d.data.title || "Untitled bill"}</strong>
+            <small>
+              {d.data.mode === "items" ? "Split by items" : "Split by amount"}
+              {d.updatedAt &&
+                ` · Saved ${new Date(d.updatedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`}
+            </small>
+          </div>
+          <span className="draft-list-total">
+            {d.data.totalCents === null
+              ? "Total not entered"
+              : money(d.data.totalCents)}
+          </span>
+          <Button variant="secondary" onClick={() => open(d.id)}>
+            Continue <ArrowRight size={16} />
+          </Button>
+          <button
+            className="draft-delete"
+            aria-label={`Delete ${d.data.title || "untitled bill"}`}
+            onClick={() => {
+              setError("");
+              setDeleting(d);
+            }}
+          >
+            <Trash2 size={18} />
+          </button>
+        </div>
       ))}
+      {deleting && (
+        <DeleteDraftDialog
+          title={deleting.data.title}
+          busy={busy}
+          cancel={() => setDeleting(null)}
+          remove={() => {
+            setBusy(true);
+            setError("");
+            void api
+              .remove(deleting.id, deleting.revision)
+              .then(() => {
+                clearDeletedDraft(deleting.id);
+                setDrafts((ds) => ds.filter((d) => d.id !== deleting.id));
+                setDeleting(null);
+              })
+              .catch((e) => {
+                setError(errorMessage(e));
+                setDeleting(null);
+                setRetry((n) => n + 1);
+              })
+              .finally(() => setBusy(false));
+          }}
+        />
+      )}
       {error && (
         <p role="alert">
           {error}{" "}
@@ -67,6 +198,31 @@ export function ReceiptDrafts({
       )}
     </section>
   );
+}
+
+function emptyDraft(userId: string, id = requestId()): ReceiptDraft {
+  return {
+    id,
+    revision: 0,
+    data: {
+      mode: "items",
+      title: "",
+      purchaseDate: localToday(),
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      notes: "",
+      totalCents: null,
+      ownShareCents: 0,
+      participantIds: [userId],
+      items: [],
+      receipt: {
+        subtotalCents: null,
+        taxCents: 0,
+        discountCents: 0,
+        extraCents: 0,
+        pricesIncludeTax: false,
+      },
+    },
+  };
 }
 
 export function ReceiptDraftForm({
@@ -92,29 +248,13 @@ export function ReceiptDraftForm({
     } catch {
       /* Saved server draft remains available. */
     }
-    return {
-      id: id ?? requestId(),
-      revision: 0,
-      data: {
-        mode: "items",
-        title: "",
-        purchaseDate: localToday(),
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        notes: "",
-        totalCents: null,
-        ownShareCents: 0,
-        participantIds: [me.id],
-        items: [],
-        receipt: {
-          subtotalCents: null,
-          taxCents: 0,
-          discountCents: 0,
-          extraCents: 0,
-          pricesIncludeTax: false,
-        },
-      },
-    };
+    return emptyDraft(me.id, id);
   });
+  const baseline = useRef<ReceiptDraft | null>(
+    id ? null : emptyDraft(me.id, draft.id),
+  );
+  const [discard, setDiscard] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const recoveredDraft = useRef(draft.revision > 0 ? draft : null);
   const [loading, setLoading] = useState(!!id);
   const stepKey = `receipt-step:${me.id}:${draft.id}`;
@@ -157,14 +297,19 @@ export function ReceiptDraftForm({
               .then((result) => createdRef.current(result.bill))
               .catch((e) => setError(errorMessage(e)));
           } else {
+            baseline.current = r.draft;
             const local = recoveredDraft.current;
             if (
               local?.id === r.draft.id &&
               (local.initializationRevision ||
-                JSON.stringify(local.data) !== JSON.stringify(r.draft.data))
+                comparable(local.data) !== comparable(r.draft.data) ||
+                local.pendingPhoto)
             ) {
               // Keep the base revision so a newer server edit still triggers the save conflict check.
-              setDraft({ ...local, photo: r.draft.photo });
+              setDraft({
+                ...local,
+                photo: local.pendingPhoto ? local.photo : r.draft.photo,
+              });
               setNotice(
                 local.revision === r.draft.revision
                   ? "Recovered your unsaved changes."
@@ -194,8 +339,13 @@ export function ReceiptDraftForm({
     };
   }, [api, id, stepKey]);
   useEffect(() => {
-    if (!loading && !ended.current)
-      sessionStorage.setItem(key, JSON.stringify(draft));
+    if (!loading && !ended.current) {
+      try {
+        sessionStorage.setItem(key, JSON.stringify(draft));
+      } catch {
+        sessionStorage.removeItem(key);
+      } // Large photos may exceed browser storage; keep editing in memory.
+    }
   }, [draft, key, loading]);
   function clearLocal() {
     ended.current = true;
@@ -227,17 +377,43 @@ export function ReceiptDraftForm({
       setBusy("");
     }
   }
-  async function save(value = draft) {
-    const { draft: saved } = await api.save(group.id, value);
-    const next = { ...saved, photo: value.photo };
-    setDraft(next);
-    setNotice("Draft saved. Only you can see it.");
-    return next;
+  async function prepare(value = draft) {
+    setDraft(value);
+    setNotice("Unsaved changes");
+    return value;
+  }
+  async function save() {
+    const { draft: saved } = await api.save(group.id, draft);
+    setDraft(saved);
+    baseline.current = saved;
+    return saved;
+  }
+  function closeEditor() {
+    if (pending.current) return;
+    if (draft.initializationRevision) {
+      close();
+      return;
+    }
+    if (loading) {
+      close();
+      return;
+    }
+    if (
+      file ||
+      draft.pendingPhoto ||
+      !baseline.current ||
+      comparable(draft.data) !== comparable(baseline.current.data)
+    )
+      setDiscard(true);
+    else {
+      clearLocal();
+      close();
+    }
   }
   async function scan() {
-    const saved = await save();
-    const { extraction } = await api.extract(saved.id, saved.revision);
-    const next = await save({
+    const saved = await prepare();
+    const { extraction } = await api.previewExtract(group.id, saved);
+    const next = await prepare({
       ...saved,
       data: {
         ...saved.data,
@@ -257,7 +433,8 @@ export function ReceiptDraftForm({
     setNaming(true);
     setNameError("");
     try {
-      const result = await api.names(snapshot.id, snapshot.revision);
+      const result = await api.previewNames(group.id, snapshot.data);
+      if (ended.current) return;
       setDraft((current) => ({
         ...current,
         data: {
@@ -286,32 +463,22 @@ export function ReceiptDraftForm({
     data.totalCents !== null &&
     data.totalCents > 0 &&
     data.title.trim() &&
-    (data.mode === "manual" ||
-      (data.items.length > 0 &&
+    (data.mode === "manual"
+      ? data.ownShareCents <= data.totalCents
+      : data.items.length > 0 &&
         data.items.every(
           (i) =>
             i.amountCents !== null &&
             i.finalCents !== null &&
             i.finalCents >= 0 &&
             i.name.trim(),
-        )));
-  return (
+        ));
+  const editor = (
     <Dialog
-      title="New bill"
+      title={id ? "Continue your draft" : "New bill"}
       kicker={group.name}
       className="receipt-dialog receipt-wizard"
-      close={() => {
-        if (draft.initializationRevision) {
-          close();
-          return;
-        }
-        if (!pending.current)
-          void run("Saving draft…", async () => {
-            await save();
-            clearLocal();
-            close();
-          });
-      }}
+      close={closeEditor}
     >
       {loading ? (
         <p>Opening draft…</p>
@@ -447,22 +614,13 @@ export function ReceiptDraftForm({
                       file={file}
                       cancel={() => setFile(null)}
                       save={async (base64) => {
-                        if (pending.current) return;
-                        pending.current = true;
-                        setBusy("Uploading…");
-                        try {
-                          const saved = await save();
-                          const result = await api.upload(
-                            saved.id,
-                            saved.revision,
-                            base64,
-                          );
-                          setDraft(result.draft);
-                          setFile(null);
-                        } finally {
-                          pending.current = false;
-                          setBusy("");
-                        }
+                        setDraft((current) => ({
+                          ...current,
+                          pendingPhoto: base64,
+                          photo: { expiresAt: "", expired: false },
+                        }));
+                        setNotice("Unsaved changes");
+                        setFile(null);
                       }}
                     />
                   )}
@@ -470,6 +628,7 @@ export function ReceiptDraftForm({
                     <ReceiptPhoto
                       id={draft.id}
                       version={draft.revision}
+                      localPhoto={draft.pendingPhoto}
                       expired={draft.photo.expired}
                     />
                   )}
@@ -537,6 +696,7 @@ export function ReceiptDraftForm({
                       <ReceiptPhoto
                         id={draft.id}
                         version={draft.revision}
+                        localPhoto={draft.pendingPhoto}
                         expired={draft.photo.expired}
                       />
                     )}
@@ -607,13 +767,13 @@ export function ReceiptDraftForm({
                             };
                             setDraft(next);
                             void run("Calculating…", async () => {
-                              const saved = await save(next);
-                              const result = await api.prices(
-                                saved.id,
-                                saved.revision,
+                              const saved = await prepare(next);
+                              const result = await api.previewPrices(
+                                group.id,
+                                saved.data,
                               );
                               setWarnings(result.warnings);
-                              await save({
+                              await prepare({
                                 ...saved,
                                 data: { ...saved.data, items: result.items },
                               });
@@ -646,7 +806,10 @@ export function ReceiptDraftForm({
                             change={(value) => {
                               if (value !== null)
                                 update({
-                                  receipt: { ...data.receipt!, [field]: value },
+                                  receipt: {
+                                    ...data.receipt!,
+                                    [field]: value,
+                                  },
                                 });
                             }}
                           />
@@ -660,13 +823,13 @@ export function ReceiptDraftForm({
                         variant="secondary"
                         onClick={() =>
                           void run("Calculating…", async () => {
-                            const saved = await save();
-                            const result = await api.prices(
-                              saved.id,
-                              saved.revision,
+                            const saved = await prepare();
+                            const result = await api.previewPrices(
+                              group.id,
+                              saved.data,
                             );
                             setWarnings(result.warnings);
-                            await save({
+                            await prepare({
                               ...saved,
                               data: { ...saved.data, items: result.items },
                             });
@@ -688,7 +851,7 @@ export function ReceiptDraftForm({
                     disabled={naming}
                     onClick={() =>
                       void run("Saving…", async () => {
-                        const saved = await save();
+                        const saved = await prepare();
                         void nameItems(saved);
                       })
                     }
@@ -743,6 +906,24 @@ export function ReceiptDraftForm({
                 </label>
                 <fieldset>
                   <legend>Who shared this purchase?</legend>
+                  <div className="participant-shortcuts">
+                    <Button
+                      variant="text"
+                      onClick={() =>
+                        update({
+                          participantIds: group.members.map((m) => m.id),
+                        })
+                      }
+                    >
+                      Select everyone
+                    </Button>
+                    <Button
+                      variant="text"
+                      onClick={() => update({ participantIds: [me.id] })}
+                    >
+                      Just me
+                    </Button>
+                  </div>
                   {group.members.map((m) => (
                     <label className="participant-choice" key={m.id}>
                       <input
@@ -767,6 +948,13 @@ export function ReceiptDraftForm({
                   value={data.totalCents}
                   change={(totalCents) => update({ totalCents })}
                 />
+                {data.mode === "manual" &&
+                  data.totalCents !== null &&
+                  data.ownShareCents > data.totalCents && (
+                    <p role="alert" className="field-error">
+                      Your share cannot exceed the paid total.
+                    </p>
+                  )}
                 {data.mode === "manual" ? (
                   <ReceiptAmount
                     label="My share · CAD"
@@ -823,6 +1011,8 @@ export function ReceiptDraftForm({
                   void run("Reloading…", async () => {
                     const result = await api.get(draft.id);
                     setDraft(result.draft);
+                    baseline.current = result.draft;
+                    setFile(null);
                   })
                 }
               >
@@ -864,6 +1054,16 @@ export function ReceiptDraftForm({
               >
                 Save draft & close
               </Button>
+              {id && (
+                <Button
+                  variant="text"
+                  className="draft-delete-text"
+                  disabled={!!busy || !!draft.initializationRevision}
+                  onClick={() => setDeleting(true)}
+                >
+                  <Trash2 size={16} /> Delete draft
+                </Button>
+              )}
             </div>
             {step === 1 && (
               <Button onClick={() => setStep(2)} disabled={!!busy}>
@@ -889,5 +1089,56 @@ export function ReceiptDraftForm({
         </form>
       )}
     </Dialog>
+  );
+  return (
+    <>
+      {editor}
+      {discard && (
+        <Dialog
+          title="Discard unsaved changes?"
+          kicker="BEFORE YOU CLOSE"
+          close={() => setDiscard(false)}
+        >
+          <p>
+            {id
+              ? "Your last saved draft will stay as it was. Changes made since opening it will be lost."
+              : "This bill has not been saved. Its details and receipt photo will be discarded."}
+          </p>
+          <div className="dialog-actions">
+            <Button variant="secondary" onClick={() => setDiscard(false)}>
+              Keep editing
+            </Button>
+            <Button
+              className="draft-danger"
+              onClick={() => {
+                clearLocal();
+                close();
+              }}
+            >
+              Discard changes
+            </Button>
+          </div>
+        </Dialog>
+      )}
+      {deleting && (
+        <DeleteDraftDialog
+          title={baseline.current?.data.title || ""}
+          busy={!!busy}
+          cancel={() => setDeleting(false)}
+          remove={() =>
+            void run("Deleting…", async () => {
+              try {
+                await api.remove(draft.id, draft.revision);
+                clearLocal();
+                close();
+              } catch (e) {
+                setDeleting(false);
+                throw e;
+              }
+            })
+          }
+        />
+      )}
+    </>
   );
 }

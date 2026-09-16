@@ -12,8 +12,15 @@ const identities = new Map([
 for (let i = 1; i <= 17; i++)
   identities.set(`Bearer member-${i}-token`, `user_test_member_${i}`);
 let scans = 0;
+let holdExtraction = false;
+let releaseExtraction: (() => void) | undefined;
+process.on('message', message => {
+  if (message === 'hold-extraction') { holdExtraction = true; process.send?.('holding-extraction'); }
+  if (message === 'release-extraction') { holdExtraction = false; releaseExtraction?.(); releaseExtraction = undefined; }
+});
 const app = createApp({
   receiptExtractor: async () => {
+    if (holdExtraction) await new Promise<void>(resolve => { releaseExtraction = resolve; process.send?.('extraction-held'); });
     if (++scans === 1) throw new BillError(502, 'Test extraction unavailable. Your draft is safe.');
     return { merchant: 'Test shop', currency: 'CAD', total: 3, pricesIncludeTax: false, items: [{ description: 'APPLE', plainEnglish: null, quantity: '1', amount: 3, discount: null, tax: null, taxable: null }], discountTotal: null, taxTotal: null, otherCharges: null, warnings: [] };
   },

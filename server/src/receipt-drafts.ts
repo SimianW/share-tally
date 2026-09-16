@@ -1,5 +1,5 @@
 import { isDeepStrictEqual } from "node:util";
-import { and, eq, isNull, lte, ne } from "drizzle-orm";
+import { and, eq, isNull, lte, ne, sql } from "drizzle-orm";
 import sharp from "sharp";
 import { z } from "zod";
 import { db } from "./db/index.js";
@@ -63,13 +63,24 @@ export async function saveDraft(
   body: unknown,
 ) {
   const input = checked(
-    z.object({ revision: z.number().int().min(0), data: draftInput }).strict(),
+    z
+      .object({
+        revision: z.number().int().min(0),
+        data: draftInput,
+        photoBase64: z.string().max(11_184_812).optional(),
+      })
+      .strict(),
     body,
   );
   if (
     new Set(input.data.items.map((i) => i.id)).size !== input.data.items.length
   )
     throw new BillError(400, "Item IDs must be unique.");
+  await db.transaction((tx) => requireMember(tx, groupId, userId));
+  const photo =
+    input.photoBase64 === undefined
+      ? undefined
+      : await normalizeReceiptPhoto(input.photoBase64);
   return db.transaction(async (tx) => {
     await tx.select().from(groups).where(eq(groups.id, groupId)).for("update");
     await requireMember(tx, groupId, userId);
@@ -81,7 +92,30 @@ export async function saveDraft(
     if (old) {
       if (old.initiatorId !== userId || old.groupId !== groupId)
         throw new BillError(404, "Draft not found.");
-      if (!old.billId && isDeepStrictEqual(old.data, input.data)) return old;
+      const [oldPhoto] = await tx
+        .select({
+          expiresAt: receiptPhotos.expiresAt,
+          base64:
+            photo === undefined
+              ? sql<string | null>`null`
+              : receiptPhotos.base64,
+        })
+        .from(receiptPhotos)
+        .where(eq(receiptPhotos.draftId, id));
+      if (
+        !old.billId &&
+        isDeepStrictEqual(old.data, input.data) &&
+        (photo === undefined || oldPhoto?.base64 === photo.toString("base64"))
+      )
+        return {
+          ...old,
+          photo: oldPhoto
+            ? {
+                expiresAt: oldPhoto.expiresAt,
+                expired: oldPhoto.expiresAt <= new Date(),
+              }
+            : null,
+        };
       editable(old, input.revision);
       const [updated] = await tx
         .update(receiptDrafts)
@@ -92,7 +126,17 @@ export async function saveDraft(
         })
         .where(eq(receiptDrafts.id, id))
         .returning();
-      return updated!;
+      if (photo) await storePhoto(tx, id, photo);
+      const [savedPhoto] = await tx
+        .select({ expiresAt: receiptPhotos.expiresAt })
+        .from(receiptPhotos)
+        .where(eq(receiptPhotos.draftId, id));
+      return {
+        ...updated!,
+        photo: savedPhoto
+          ? { ...savedPhoto, expired: savedPhoto.expiresAt <= new Date() }
+          : null,
+      };
     }
     if (input.revision !== 0)
       throw new BillError(409, "Draft not found. Start a new draft.");
@@ -103,7 +147,34 @@ export async function saveDraft(
       .returning();
     if (!row)
       throw new BillError(409, "Draft ID already used. Start a new draft.");
-    return row;
+    if (photo) await storePhoto(tx, id, photo);
+    const [savedPhoto] = await tx
+      .select({ expiresAt: receiptPhotos.expiresAt })
+      .from(receiptPhotos)
+      .where(eq(receiptPhotos.draftId, id));
+    return {
+      ...row,
+      photo: savedPhoto ? { ...savedPhoto, expired: false } : null,
+    };
+  });
+}
+export async function deleteDraft(id: string, userId: string, body: unknown) {
+  const { revision } = checked(
+    z.object({ revision: revisionInput }).strict(),
+    body,
+  );
+  await db.transaction(async (tx) => {
+    const [draft] = await tx
+      .select()
+      .from(receiptDrafts)
+      .where(
+        and(eq(receiptDrafts.id, id), eq(receiptDrafts.initiatorId, userId)),
+      )
+      .for("update");
+    if (!draft) return; // Retry after a successful delete is harmless; do not disclose other owners.
+    await requireMember(tx, draft.groupId, userId);
+    editable(draft, revision);
+    await tx.delete(receiptDrafts).where(eq(receiptDrafts.id, id));
   });
 }
 export async function listDrafts(groupId: string, userId: string) {
@@ -153,55 +224,11 @@ export async function uploadPhoto(id: string, userId: string, body: unknown) {
   await db.transaction(async (tx) =>
     editable(await ownDraft(tx, id, userId), input.revision),
   );
-  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(input.base64))
-    throw new BillError(400, "Invalid image data.");
-  const source = Buffer.from(input.base64, "base64");
-  if (source.length > 8 * 1024 * 1024)
-    throw new BillError(413, "Choose a photo smaller than 8 MB.");
-  let bytes: Buffer;
-  try {
-    const image = sharp(source, { limitInputPixels: 40_000_000 });
-    const metadata = await image.metadata();
-    if (
-      !["jpeg", "png", "webp"].includes(metadata.format || "") ||
-      (metadata.pages ?? 1) > 1
-    )
-      throw new Error();
-    bytes = await image
-      .rotate()
-      .resize({
-        width: 2400,
-        height: 6000,
-        fit: "inside",
-        withoutEnlargement: true,
-      })
-      .jpeg({ quality: 90 })
-      .toBuffer();
-  } catch {
-    throw new BillError(400, "Choose a valid JPEG, PNG or WebP receipt photo.");
-  }
+  const bytes = await normalizeReceiptPhoto(input.base64);
   return db.transaction(async (tx) => {
     const draft = await ownDraft(tx, id, userId, true);
     editable(draft, input.revision);
-    const expiresAt = new Date();
-    const day = expiresAt.getUTCDate();
-    expiresAt.setUTCDate(1);
-    expiresAt.setUTCMonth(expiresAt.getUTCMonth() + 6);
-    const lastDay = new Date(
-      Date.UTC(expiresAt.getUTCFullYear(), expiresAt.getUTCMonth() + 1, 0),
-    ).getUTCDate();
-    expiresAt.setUTCDate(Math.min(day, lastDay));
-    await tx
-      .insert(receiptPhotos)
-      .values({ draftId: id, base64: bytes.toString("base64"), expiresAt })
-      .onConflictDoUpdate({
-        target: receiptPhotos.draftId,
-        set: {
-          base64: bytes.toString("base64"),
-          uploadedAt: new Date(),
-          expiresAt,
-        },
-      });
+    await storePhoto(tx, id, bytes);
     await tx
       .update(receiptDrafts)
       .set({ revision: draft.revision + 1, updatedAt: new Date() })
@@ -298,27 +325,23 @@ export async function initializeDraft(
         requestPayload: JSON.stringify(draft.data),
       })
       .returning();
-    await tx
-      .insert(billShares)
-      .values(
-        input.participantIds.map((uid) => ({
+    await tx.insert(billShares).values(
+      input.participantIds.map((uid) => ({
+        billId: bill!.id,
+        userId: uid,
+        amountCents:
+          mode === "manual" && uid === userId ? input.ownShareCents : null,
+        confirmedAt: mode === "manual" && uid === userId ? new Date() : null,
+      })),
+    );
+    if (mode === "items")
+      await tx.insert(billItems).values(
+        items.map((item, position) => ({
+          ...item,
           billId: bill!.id,
-          userId: uid,
-          amountCents:
-            mode === "manual" && uid === userId ? input.ownShareCents : null,
-          confirmedAt: mode === "manual" && uid === userId ? new Date() : null,
+          position,
         })),
       );
-    if (mode === "items")
-      await tx
-        .insert(billItems)
-        .values(
-          items.map((item, position) => ({
-            ...item,
-            billId: bill!.id,
-            position,
-          })),
-        );
     if (
       mode === "manual" &&
       input.participantIds.length === 1 &&
@@ -350,4 +373,57 @@ export async function purgeExpiredPhotos() {
         ne(receiptPhotos.base64, ""),
       ),
     );
+}
+
+export async function normalizeReceiptPhoto(base64: string) {
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(base64))
+    throw new BillError(400, "Invalid image data.");
+  const source = Buffer.from(base64, "base64");
+  if (source.length > 8 * 1024 * 1024)
+    throw new BillError(413, "Choose a photo smaller than 8 MB.");
+  let bytes: Buffer;
+  try {
+    const image = sharp(source, { limitInputPixels: 40_000_000 });
+    const metadata = await image.metadata();
+    if (
+      !["jpeg", "png", "webp"].includes(metadata.format || "") ||
+      (metadata.pages ?? 1) > 1
+    )
+      throw new Error();
+    bytes = await image
+      .rotate()
+      .resize({
+        width: 2400,
+        height: 6000,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .jpeg({ quality: 90 })
+      .toBuffer();
+  } catch {
+    throw new BillError(400, "Choose a valid JPEG, PNG or WebP receipt photo.");
+  }
+  return bytes;
+}
+
+async function storePhoto(tx: Tx, id: string, bytes: Buffer) {
+  const expiresAt = new Date();
+  const day = expiresAt.getUTCDate();
+  expiresAt.setUTCDate(1);
+  expiresAt.setUTCMonth(expiresAt.getUTCMonth() + 6);
+  const lastDay = new Date(
+    Date.UTC(expiresAt.getUTCFullYear(), expiresAt.getUTCMonth() + 1, 0),
+  ).getUTCDate();
+  expiresAt.setUTCDate(Math.min(day, lastDay));
+  await tx
+    .insert(receiptPhotos)
+    .values({ draftId: id, base64: bytes.toString("base64"), expiresAt })
+    .onConflictDoUpdate({
+      target: receiptPhotos.draftId,
+      set: {
+        base64: bytes.toString("base64"),
+        uploadedAt: new Date(),
+        expiresAt,
+      },
+    });
 }

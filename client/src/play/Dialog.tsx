@@ -1,6 +1,44 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { Icon } from "./ui";
 
+let openDialogs = 0;
+let restorePageScroll: (() => void) | undefined;
+function lockPageScroll() {
+  if (openDialogs++ === 0) {
+    const body = document.body;
+    const root = document.documentElement;
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+    const previousBody = {
+      overflow: body.style.overflow,
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      width: body.style.width,
+    };
+    const rootOverflow = root.style.overflow;
+    root.style.overflow = "hidden";
+    Object.assign(body.style, {
+      overflow: "hidden",
+      position: "fixed",
+      top: `-${scrollY}px`,
+      left: `-${scrollX}px`,
+      width: "100%",
+    });
+    restorePageScroll = () => {
+      Object.assign(body.style, previousBody);
+      root.style.overflow = rootOverflow;
+      window.scrollTo({ left: scrollX, top: scrollY, behavior: "instant" });
+    };
+  }
+  return () => {
+    if (--openDialogs === 0) {
+      restorePageScroll?.();
+      restorePageScroll = undefined;
+    }
+  };
+}
+
 export default function Dialog({
   title,
   children,
@@ -21,32 +59,11 @@ export default function Dialog({
     const previous = document.activeElement;
     dialog.showModal();
     dialog.querySelector<HTMLElement>("[data-autofocus]")?.focus();
-    const body = document.body;
-    const root = document.documentElement;
-    const scrollX = window.scrollX;
-    const scrollY = window.scrollY;
-    const previousBody = {
-      overflow: body.style.overflow,
-      position: body.style.position,
-      top: body.style.top,
-      left: body.style.left,
-      width: body.style.width,
-    };
-    const rootOverflow = root.style.overflow;
-    // Mobile Safari can still pan the page behind a modal with overflow alone.
-    root.style.overflow = "hidden";
-    Object.assign(body.style, {
-      overflow: "hidden",
-      position: "fixed",
-      top: `-${scrollY}px`,
-      left: `-${scrollX}px`,
-      width: "100%",
-    });
+    // Nested discard/delete confirmations share one page scroll lock.
+    const unlock = lockPageScroll();
     return () => {
       dialog.close();
-      Object.assign(body.style, previousBody);
-      root.style.overflow = rootOverflow;
-      window.scrollTo({ left: scrollX, top: scrollY, behavior: "instant" });
+      unlock();
       if (previous instanceof HTMLElement && previous.isConnected)
         previous.focus({ preventScroll: true });
     };

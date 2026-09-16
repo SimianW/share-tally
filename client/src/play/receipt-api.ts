@@ -51,6 +51,8 @@ export type ReceiptData = {
 };
 export type ReceiptDraft = {
   initializationRevision?: number;
+  updatedAt?: string;
+  pendingPhoto?: string;
   id: string;
   revision: number;
   data: ReceiptData;
@@ -111,7 +113,35 @@ export function useReceiptApi() {
         request<{ draft: ReceiptDraft }>(
           `/groups/${groupId}/receipt-drafts/${draft.id}`,
           "PUT",
-          { revision: draft.revision, data: draft.data },
+          {
+            revision: draft.revision,
+            data: draft.data,
+            photoBase64: draft.pendingPhoto,
+          },
+        ),
+      remove: (id: string, revision: number) =>
+        request<{ deleted: boolean }>(`/receipt-drafts/${id}`, "DELETE", {
+          revision,
+        }),
+      previewExtract: (groupId: string, draft: ReceiptDraft) =>
+        request<{ extraction: Extraction }>(
+          `/groups/${groupId}/receipt-preview/extract`,
+          "POST",
+          draft.pendingPhoto
+            ? { base64: draft.pendingPhoto }
+            : { draftId: draft.id, revision: draft.revision },
+        ),
+      previewPrices: (groupId: string, data: ReceiptData) =>
+        request<{ items: ReceiptDraftItem[]; warnings: string[] }>(
+          `/groups/${groupId}/receipt-preview/prices`,
+          "POST",
+          data,
+        ),
+      previewNames: (groupId: string, data: ReceiptData) =>
+        request<{ names: { id: string; name: string }[] }>(
+          `/groups/${groupId}/receipt-preview/names`,
+          "POST",
+          data,
         ),
       upload: (id: string, revision: number, base64: string) =>
         request<{ draft: ReceiptDraft }>(`/receipt-drafts/${id}/photo`, "PUT", {

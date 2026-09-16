@@ -1686,3 +1686,98 @@ test('item completion racing a price correction preserves finality', async () =>
     assert.equal(result.items[0].claims[0].confirmedAt, null);
   }
 });
+
+test('explicit draft save atomically replaces data and photo; previews leave the saved version untouched', async () => {
+  const { group, draft } = await setup(false);
+  const { requestId: _requestId, ...fields } = draft;
+  const data = { ...fields, mode: 'manual', items: [] };
+  const id = crypto.randomUUID();
+  const sharp = (await import('sharp')).default;
+  const photo = (await sharp({ create: { width: 8, height: 8, channels: 3, background: 'red' } }).png().toBuffer()).toString('base64');
+  const replacement = (await sharp({ create: { width: 8, height: 8, channels: 3, background: 'blue' } }).png().toBuffer()).toString('base64');
+  const path = `/groups/${group.id}/receipt-drafts/${id}`;
+  const saved = (await json(await api(path, 'alice-token', 'PUT', { revision: 0, data, photoBase64: photo }))).draft;
+  const originalPhoto = Buffer.from(await (await api(`/receipt-drafts/${id}/photo`)).arrayBuffer());
+  assert.ok(saved.photo);
+  // A response-loss retry must not create another revision or renew photo retention.
+  const retry = (await json(await api(path, 'alice-token', 'PUT', { revision: 0, data, photoBase64: photo }))).draft;
+  assert.equal(retry.revision, saved.revision);
+  assert.equal(retry.photo.expiresAt, saved.photo.expiresAt);
+  const nextData = { ...data, title: 'Not saved yet' };
+  await json(await api(`/groups/${group.id}/receipt-preview/prices`, 'alice-token', 'POST', nextData));
+  await json(await api(`/groups/${group.id}/receipt-preview/names`, 'alice-token', 'POST', nextData));
+  const extraction = await api(`/groups/${group.id}/receipt-preview/extract`, 'alice-token', 'POST', { base64: replacement });
+  assert.ok([200, 502].includes(extraction.status));
+  assert.deepEqual((await json(await api(`/receipt-drafts/${id}`))).draft, saved);
+  assert.deepEqual(Buffer.from(await (await api(`/receipt-drafts/${id}/photo`)).arrayBuffer()), originalPhoto);
+  await json(await api(path, 'alice-token', 'PUT', { revision: saved.revision + 10, data: nextData, photoBase64: replacement }), 409);
+  assert.deepEqual(Buffer.from(await (await api(`/receipt-drafts/${id}/photo`)).arrayBuffer()), originalPhoto);
+  await json(await api(path, 'alice-token', 'PUT', { revision: saved.revision, data: nextData, photoBase64: 'invalid' }), 400);
+  assert.equal((await json(await api(`/receipt-drafts/${id}`))).draft.data.title, data.title);
+  const replaced = (await json(await api(path, 'alice-token', 'PUT', { revision: saved.revision, data: nextData, photoBase64: replacement }))).draft;
+  assert.equal(replaced.data.title, nextData.title);
+  assert.equal(replaced.revision, saved.revision + 1);
+  assert.notDeepEqual(Buffer.from(await (await api(`/receipt-drafts/${id}/photo`)).arrayBuffer()), originalPhoto);
+  assert.equal((await json(await api(`/groups/${group.id}/receipt-drafts`))).drafts.length, 1);
+  await json(await api(`/groups/${group.id}/receipt-preview/names`, 'carol-token', 'POST', nextData), 404);
+  await json(await api(`/groups/${group.id}/receipt-preview/extract`, 'bob-token', 'POST', { draftId: id, revision: replaced.revision }), 404);
+});
+
+test('draft deletion is owner-only, revision checked, retryable, and removes photos without changing bills', async () => {
+  const { group, draft } = await setup();
+  const { requestId: _requestId, ...fields } = draft;
+  const id = crypto.randomUUID();
+  const data = { ...fields, mode: 'manual', items: [] };
+  const sharp = (await import('sharp')).default;
+  const photo = (await sharp({ create: { width: 8, height: 8, channels: 3, background: 'red' } }).png().toBuffer()).toString('base64');
+  const saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data, photoBase64: photo }))).draft;
+  await json(await api(`/receipt-drafts/${id}`, 'bob-token', 'DELETE', { revision: saved.revision }));
+  assert.equal((await api(`/receipt-drafts/${id}`)).status, 200);
+  await json(await api(`/receipt-drafts/${id}`, 'alice-token', 'DELETE', { revision: saved.revision + 1 }), 409);
+  await json(await api(`/receipt-drafts/${id}`, 'alice-token', 'DELETE', { revision: saved.revision }));
+  await json(await api(`/receipt-drafts/${id}`, 'alice-token', 'DELETE', { revision: saved.revision }));
+  assert.equal((await api(`/receipt-drafts/${id}`)).status, 404);
+  assert.equal((await pool.query('SELECT * FROM receipt_photos WHERE draft_id = $1', [id])).rowCount, 0);
+  assert.equal((await json(await api(`/groups/${group.id}/bills`))).bills.length, 0);
+});
+
+test('racing draft deletion and initiation cannot delete a published bill or its photo', async () => {
+  const { group, draft } = await setup();
+  const { requestId: _requestId, ...fields } = draft;
+  const id = crypto.randomUUID();
+  const data = { ...fields, mode: 'manual', items: [] };
+  const saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data }))).draft;
+  const [removed, initialized] = await Promise.all([
+    api(`/receipt-drafts/${id}`, 'alice-token', 'DELETE', { revision: saved.revision }),
+    api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST', { revision: saved.revision }),
+  ]);
+  if (initialized.ok) {
+    assert.equal(removed.status, 409);
+    const { bill } = await initialized.json();
+    assert.equal((await api(`/bills/${bill.id}`)).status, 200);
+    await json(await api(`/receipt-drafts/${id}`, 'alice-token', 'DELETE', { revision: saved.revision + 1 }), 409);
+  } else { assert.equal(initialized.status, 404); assert.equal(removed.status, 200); }
+});
+
+
+test('saved-photo preview rejects results when the saved draft changes during extraction', async () => {
+  const { group, draft } = await setup();
+  const { requestId: _requestId, ...fields } = draft;
+  const data = { ...fields, mode: 'manual', items: [] };
+  const id = crypto.randomUUID();
+  const sharp = (await import('sharp')).default;
+  const photo = (await sharp({ create: { width: 8, height: 8, channels: 3, background: 'red' } }).png().toBuffer()).toString('base64');
+  const saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data, photoBase64: photo }))).draft;
+  // Consume the fixture's intentional first-provider failure before the delayed success.
+  await api(`/groups/${group.id}/receipt-preview/extract`, 'alice-token', 'POST', { base64: photo });
+  const ready = once(child!, 'message'); child!.send('hold-extraction');
+  assert.equal((await ready)[0], 'holding-extraction');
+  const started = once(child!, 'message');
+  const pending = api(`/groups/${group.id}/receipt-preview/extract`, 'alice-token', 'POST', { draftId: id, revision: saved.revision });
+  assert.equal((await started)[0], 'extraction-held');
+  try {
+    await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: saved.revision, data: { ...data, title: 'Changed elsewhere' } }));
+  } finally { child!.send('release-extraction'); }
+  await json(await pending, 409);
+  assert.equal((await json(await api(`/receipt-drafts/${id}`))).draft.data.title, 'Changed elsewhere');
+});
