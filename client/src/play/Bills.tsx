@@ -42,7 +42,7 @@ export function Balance({
         </span>
       </div>
       <p>
-        Complete, unsettled bills only.
+        Completed bills only.
         {!group && " Repayments are worked out within each group."}
       </p>
     </section>
