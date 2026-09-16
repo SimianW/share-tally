@@ -57,7 +57,7 @@ export function createBillsRouter(
   router.patch("/bills/:billId", async (req, res) => {
     const input = parseEdit(req.body);
     const user = await currentUser(res.locals.clerkUserId);
-    await changeBill(req.params.billId, user.id, "edit", input.revision, input);
+    await changeBill(req.params.billId, user.id, { action: "edit", input });
     res.json({
       bill: (await readBills(user.id, undefined, req.params.billId))[0],
     });
@@ -66,7 +66,7 @@ export function createBillsRouter(
     router.post(`/bills/:billId/${action}`, async (req, res) => {
       const revision = parseAction(req.body);
       const user = await currentUser(res.locals.clerkUserId);
-      await changeBill(req.params.billId, user.id, action, revision);
+      await changeBill(req.params.billId, user.id, { action, revision });
       res.json({
         bill: (await readBills(user.id, undefined, req.params.billId))[0],
       });

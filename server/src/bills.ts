@@ -271,7 +271,10 @@ async function lockedBill(tx: Tx, id: string, userId: string) {
   await member(tx, bill.groupId, userId);
   return bill;
 }
-function currentRevision(bill: typeof bills.$inferSelect, revision: number) {
+function assertMutableRevision(
+  bill: typeof bills.$inferSelect,
+  revision: number,
+) {
   if (bill.revision !== revision)
     throw new BillError(
       409,
@@ -288,15 +291,19 @@ async function clearConfirmations(tx: Tx, id: string) {
 export async function changeBill(
   id: string,
   userId: string,
-  action: "edit" | "reopen" | "cancel",
-  revision: number,
-  input?: ReturnType<typeof parseEdit>,
+  command:
+    | { action: "edit"; input: ReturnType<typeof parseEdit> }
+    | { action: "reopen" | "cancel"; revision: number },
 ) {
+  const { action } = command;
+  const input = command.action === "edit" ? command.input : undefined;
+  const revision =
+    command.action === "edit" ? command.input.revision : command.revision;
   await db.transaction(async (tx) => {
     const bill = await lockedBill(tx, id, userId);
     if (bill.initiatorId !== userId)
       throw new BillError(403, "Only the initiator can change this bill.");
-    currentRevision(bill, revision);
+    assertMutableRevision(bill, revision);
     if (action === "cancel") {
       if (bill.completedAt)
         throw new BillError(409, "Reopen this bill before canceling it.");
@@ -375,7 +382,7 @@ export async function submitShare(
         403,
         "Only selected participants can submit a share.",
       );
-    currentRevision(bill, input.revision);
+    assertMutableRevision(bill, input.revision);
     cents(input.amount, bill.totalCents);
     // An identical retry is harmless, even if this submission just completed the bill.
     if (share.amountCents === input.amount && share.confirmedAt) return;
