@@ -63,7 +63,7 @@ try {
     const page = await context.newPage();
     page.setDefaultTimeout(10_000);
     page.on('pageerror', error => errors.push(error.message));
-    page.on('console', message => { if (message.type() === 'error') console.error('Browser console:', message.text()); });
+    page.on('console', message => { if (message.type() === 'error') { console.error('Browser console:', message.text()); if (message.text().includes('Encountered two children')) errors.push(message.text()); } });
     return page;
   }
   const alice = await pageFor('alice-token', { width: 1280, height: 900 });
@@ -299,7 +299,7 @@ try {
   await expect(alice.locator('.bill-list-row')).toContainText('Canceled');
   await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$0.00');
   assert.deepEqual(errors, []);
-  console.log('Group and bill browser smoke passed: creation, Unicode icon, persistence, sign-in return, membership, invitation permissions, rotation, invalid links, repeat joining, mobile layout, sign-out, bill creation and confirmation, response-loss retries, initiator adjustment, and balances.');
+  console.log('Group and bill browser smoke passed: creation, Unicode icon, persistence, sign-in return, membership, invitation permissions, rotation, invalid links, repeat joining, mobile layout, sign-out, bill creation and confirmation, response-loss retries, initiator adjustment, balances, reopening, stale confirmation, correction, reconfirmation, removal, and cancellation.');
 } catch (error) {
   if (browser) {
     for (const context of browser.contexts()) for (const page of context.pages()) {

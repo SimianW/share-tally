@@ -413,11 +413,23 @@ export function BillDetails({ id }: { id: string }) {
   const own = bill.participants.find((p) => p.isCurrentUser);
   function saved(updated: Bill) {
     setBill(updated);
-    setRevision(n => n + 1);
-    setNotice(updated.canceledAt ? "Bill canceled. The record is retained." : updated.completedAt ? "Everyone confirmed. The bill completed automatically." : updated.revision !== bill!.revision ? "Amounts retained. Everyone needs to confirm again." : "Your share is confirmed.");
+    setRevision((n) => n + 1);
+    setNotice(
+      updated.canceledAt
+        ? "Bill canceled. The record is retained."
+        : updated.completedAt
+          ? "Everyone confirmed. The bill completed automatically."
+          : updated.revision !== bill!.revision
+            ? "Amounts retained. Everyone needs to confirm again."
+            : "Your share is confirmed.",
+    );
     heading.current?.focus();
   }
-  function refresh() { setNotice(""); setBill(null); setRevision(n => n + 1); }
+  function refresh() {
+    setNotice("");
+    setBill(null);
+    setRevision((n) => n + 1);
+  }
 
   return (
     <section className="bills-page">
@@ -435,11 +447,21 @@ export function BillDetails({ id }: { id: string }) {
           Refresh bill
         </Button>
       </div>
-      {notice && <p role="status" className="bill-warning">{notice}</p>}
+      {notice && (
+        <p role="status" className="bill-warning">
+          {notice}
+        </p>
+      )}
       <div className="bill-layout">
-        <section className={`difference-card${bill.canceledAt ? " canceled-bill" : ""}`}>
+        <section
+          className={`difference-card${bill.canceledAt ? " canceled-bill" : ""}`}
+        >
           <span className="bill-status">
-            {bill.canceledAt ? "CANCELED" : bill.completedAt ? "✓ COMPLETE" : "IN PROGRESS"}
+            {bill.canceledAt
+              ? "CANCELED"
+              : bill.completedAt
+                ? "✓ COMPLETE"
+                : "IN PROGRESS"}
           </span>
           <h2>
             {bill.differenceCents > 0
@@ -479,7 +501,11 @@ export function BillDetails({ id }: { id: string }) {
                 </b>
                 <span>
                   {p.userId === bill.initiatorId ? "Initiator · " : ""}
-                  {bill.canceledAt ? "Bill canceled" : p.confirmedAt ? "Confirmed" : "Awaiting confirmation"}
+                  {bill.canceledAt
+                    ? "Bill canceled"
+                    : p.confirmedAt
+                      ? "Confirmed"
+                      : "Awaiting confirmation"}
                 </span>
               </div>
               <strong>
@@ -491,7 +517,15 @@ export function BillDetails({ id }: { id: string }) {
           ))}
         </section>
         <div className="bill-adjustment">
-          {bill.canceledAt ? <><h3>This bill was canceled.</h3><p>Kept for reference and excluded from financial totals. Shares can no longer be submitted or confirmed.</p></> : bill.completedAt ? (
+          {bill.canceledAt ? (
+            <>
+              <h3>This bill was canceled.</h3>
+              <p>
+                Kept for reference and excluded from financial totals. Shares
+                can no longer be submitted or confirmed.
+              </p>
+            </>
+          ) : bill.completedAt ? (
             <>
               <h3>
                 {bill.adjustmentCents === 0
@@ -534,8 +568,35 @@ export function BillDetails({ id }: { id: string }) {
         </section>
       )}
       <div className="bill-action-layout">
-        {!bill.canceledAt && own && (!bill.completedAt ? <ShareActions key={`${bill.id}:${revision}:${bill.revision}`} bill={bill} api={api} saved={saved} refresh={refresh} /> : <section className="share-form"><h2>All confirmed.</h2><p>{own.userId === bill.initiatorId ? "Reopen this bill to correct amounts and ask everyone to confirm again." : "Ask the initiator to reopen this bill if your amount needs correcting."}</p></section>)}
-        {own?.userId === bill.initiatorId && <InitiatorActions key={`${bill.id}:${revision}:${bill.revision}`} bill={bill} api={api} saved={saved} refresh={refresh} />}
+        {!bill.canceledAt &&
+          own &&
+          (!bill.completedAt ? (
+            <ShareActions
+              key={`share:${bill.id}:${revision}:${bill.revision}`}
+              bill={bill}
+              api={api}
+              saved={saved}
+              refresh={refresh}
+            />
+          ) : (
+            <section className="share-form">
+              <h2>All confirmed.</h2>
+              <p>
+                {own.userId === bill.initiatorId
+                  ? "Reopen this bill to correct amounts and ask everyone to confirm again."
+                  : "Ask the initiator to reopen this bill if your amount needs correcting."}
+              </p>
+            </section>
+          ))}
+        {own?.userId === bill.initiatorId && (
+          <InitiatorActions
+            key={`initiator:${bill.id}:${revision}:${bill.revision}`}
+            bill={bill}
+            api={api}
+            saved={saved}
+            refresh={refresh}
+          />
+        )}
       </div>
       {!own && (
         <p>

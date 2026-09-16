@@ -45,8 +45,14 @@ export type BillDraft = {
   ownShareCents: number;
   participantIds: string[];
 };
-export type BillEdit = Omit<BillDraft, "requestId" | "ownShareCents"> & { revision: number };
-export type ShareInput = { amountCents: number; expectedAmountCents: number | null; revision: number };
+export type BillEdit = Omit<BillDraft, "requestId" | "ownShareCents"> & {
+  revision: number;
+};
+export type ShareInput = {
+  amountCents: number;
+  expectedAmountCents: number | null;
+  revision: number;
+};
 export function useBillApi() {
   const { getToken } = useAuth();
   return useMemo(() => {
@@ -99,8 +105,18 @@ export function useBillApi() {
           "POST",
           draft,
         ),
-      edit: (id: string, input: BillEdit) => request<{ bill: Bill }>(`/bills/${encodeURIComponent(id)}`, "PATCH", input),
-      change: (id: string, action: "reopen" | "cancel", revision: number) => request<{ bill: Bill }>(`/bills/${encodeURIComponent(id)}/${action}`, "POST", { revision }),
+      edit: (id: string, input: BillEdit) =>
+        request<{ bill: Bill }>(
+          `/bills/${encodeURIComponent(id)}`,
+          "PATCH",
+          input,
+        ),
+      change: (id: string, action: "reopen" | "cancel", revision: number) =>
+        request<{ bill: Bill }>(
+          `/bills/${encodeURIComponent(id)}/${action}`,
+          "POST",
+          { revision },
+        ),
       submit: (id: string, input: ShareInput) =>
         request<{ bill: Bill }>(
           `/bills/${encodeURIComponent(id)}/share`,
