@@ -93,7 +93,7 @@ after(async () => {
 beforeEach(async () => {
   // Clear only this suite's isolated database, including dependent bill tables.
   await pool.query(
-    "TRUNCATE TABLE repayments, bill_shares, bills, group_members, groups, users",
+    "TRUNCATE TABLE item_claims, bill_items, receipt_photos, receipt_drafts, repayments, bill_shares, bills, group_members, groups, users",
   );
 });
 
@@ -1473,4 +1473,216 @@ test('attention drops canceled and completed bills and excludes group nonpartici
   await json(await api(`/bills/${canceled.id}/cancel`, 'alice-token', 'POST', { revision: 1 }));
   assert.deepEqual(await attention('bob-token'), []);
   assert.deepEqual(await attention('carol-token'), []);
+});
+
+test('receipt drafts preserve missing money and reject initialization until required amounts exist', async () => {
+  const { group, draft } = await setup();
+  const id = crypto.randomUUID();
+  const { requestId: _requestId, ...fields } = draft;
+  const data: import('../src/receipt-input.js').ReceiptDraftData = { ...fields, mode: 'items', totalCents: null, items: [{
+    id: crypto.randomUUID(), name: 'Apples', originalText: 'APPLE', quantity: '1', taxable: null, manualFinal: false,
+    amountCents: null, finalCents: null, taxCents: 0, discountCents: 0, extraCents: 0,
+  }] };
+  const saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data }))).draft;
+  assert.equal(saved.data.totalCents, null);
+  assert.equal(saved.data.items[0].amountCents, null);
+  await json(await api(`/receipt-drafts/${id}`, 'bob-token'), 404);
+  await json(await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST', { revision: saved.revision }), 400);
+  data.totalCents = 100;
+  data.items[0]!.amountCents = 0;
+  data.items[0]!.finalCents = 0;
+  const corrected = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: saved.revision, data }))).draft;
+  const initialized = (await json(await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST', { revision: corrected.revision }))).bill;
+  assert.equal(initialized.mode, 'items');
+  assert.equal(initialized.items[0].finalCents, 0);
+  const retry = (await json(await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST', { revision: corrected.revision }))).bill;
+  assert.equal(retry.id, initialized.id);
+});
+
+test('item details preserve confirmation until the final claimable price changes', async () => {
+  const { group, draft, ids } = await setup();
+  const id = crypto.randomUUID();
+  const { requestId: _requestId, ...fields } = draft;
+  const item = { id: crypto.randomUUID(), name: 'Apples', originalText: 'APPLE', quantity: '1', amountCents: 100, finalCents: 100, taxCents: 0, discountCents: 0, extraCents: 0 };
+  const data = { ...fields, mode: 'items', items: [item] };
+  const saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data }))).draft;
+  let bill = (await json(await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST', { revision: saved.revision }))).bill;
+  bill = (await json(await api(`/bills/${bill.id}/claims`, 'bob-token', 'POST', { revision: bill.revision, claims: [{ itemId: item.id, numerator: 1, denominator: 2 }] }))).bill;
+  const changed = { ...item, quantity: '2', amountCents: 90, taxCents: 10 };
+  bill = (await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', { revision: bill.revision, items: [changed] }))).bill;
+  assert.ok(bill.items[0].claims.find((c: { userId: string }) => c.userId === ids.Bob).confirmedAt);
+  bill = (await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', { revision: bill.revision, items: [{ ...changed, finalCents: 101 }] }))).bill;
+  const reservation = bill.items[0].claims.find((c: { userId: string }) => c.userId === ids.Bob);
+  assert.equal(reservation.confirmedAt, null);
+  assert.equal(reservation.numerator, 1);
+  assert.equal(reservation.denominator, 2);
+});
+
+async function itemBill(costs = [100], totalCents = 100) {
+  const context = await setup();
+  const { requestId: _requestId, ...fields } = context.draft;
+  const data = { ...fields, totalCents, mode: 'items', items: costs.map((cost, index) => ({ id: crypto.randomUUID(), name: `Item ${index + 1}`, originalText: `ITEM ${index + 1}`, quantity: '1', amountCents: cost, finalCents: cost, taxCents: 0, discountCents: 0, extraCents: 0 })) };
+  const id = crypto.randomUUID();
+  const saved = (await json(await api(`/groups/${context.group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data }))).draft;
+  const bill = (await json(await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST', { revision: saved.revision }))).bill;
+  return { ...context, bill, data, draftId: id };
+}
+async function claimBill(id: string, token: string, claims: { itemId: string; numerator: number; denominator: number }[], status = 200) {
+  const bill = (await json(await api(`/bills/${id}`, token))).bill;
+  const result = await json(await api(`/bills/${id}/claims`, token, 'POST', { revision: bill.revision, claims }), status);
+  return result.bill;
+}
+test('exact thirds round after summing, complete once, and permit item adjustments beyond five cents', async () => {
+  const { bill, data } = await itemBill([1, 1, 1], 100);
+  const claims = data.items.map(i => ({ itemId: i.id, numerator: 1, denominator: 3 }));
+  await claimBill(bill.id, 'alice-token', claims);
+  await claimBill(bill.id, 'bob-token', claims);
+  const completed = await claimBill(bill.id, 'carol-token', claims);
+  assert.ok(completed.completedAt);
+  assert.deepEqual(completed.participants.map((p: { amountCents: number }) => p.amountCents), [1, 1, 1]);
+  assert.equal(completed.adjustmentCents, 97);
+  const ledger = await json(await api(`/groups/${bill.groupId}/bills`));
+  assert.equal(ledger.summary.netCents, 2);
+  assert.equal(ledger.ledger.members.reduce((sum: number, m: { netCents: number }) => sum + m.netCents, 0), 0);
+  const repayment = (await json(await api(`/groups/${bill.groupId}/repayments`, 'bob-token', 'POST', { requestId: crypto.randomUUID(), recipientId: bill.initiatorId, amountCents: 1 }), 201)).repayment;
+  await json(await api(`/repayments/${repayment.id}/decision`, 'alice-token', 'POST', { decision: 'confirmed' }));
+  assert.equal((await json(await api(`/groups/${bill.groupId}/bills`))).summary.netCents, 1);
+  const retry = await claimBill(bill.id, 'carol-token', claims);
+  assert.equal(retry.completedAt, completed.completedAt);
+  await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', { revision: completed.revision, items: data.items }), 409);
+  await json(await api(`/bills/${bill.id}/cancel`, 'alice-token', 'POST', { revision: completed.revision }), 409);
+});
+test('competing last claims serialize, stale prices fail, and reservations retain availability', async () => {
+  const { bill, data } = await itemBill([100]);
+  const claims = [{ itemId: data.items[0]!.id, numerator: 1, denominator: 1 }];
+  const responses = await Promise.all(['bob-token', 'carol-token'].map(token => api(`/bills/${bill.id}/claims`, token, 'POST', { revision: bill.revision, claims })));
+  assert.deepEqual(responses.map(r => r.status).sort(), [200, 409]);
+  let current = (await json(await api(`/bills/${bill.id}`))).bill;
+  const winner = responses[0]!.ok ? 'bob-token' : 'carol-token';
+  const loser = winner === 'bob-token' ? 'carol-token' : 'bob-token';
+  current = (await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', { revision: current.revision, items: data.items.map(i => ({ ...i, finalCents: 90 })) }))).bill;
+  assert.equal(current.items[0].claims[0].confirmedAt, null);
+  await json(await api(`/bills/${bill.id}/claims`, winner, 'POST', { revision: bill.revision, claims }), 409);
+  await claimBill(bill.id, loser, claims, 409);
+  await claimBill(bill.id, winner, []);
+  await claimBill(bill.id, loser, claims);
+  const completed = await claimBill(bill.id, 'alice-token', []);
+  assert.ok(completed.completedAt);
+  assert.equal(completed.adjustmentCents, 10);
+});
+test('negative initiator cost blocks completion until corrected total and all reconfirmations', async () => {
+  const { bill, data, draft } = await itemBill([11000], 10000);
+  await claimBill(bill.id, 'alice-token', []);
+  await claimBill(bill.id, 'carol-token', []);
+  let current = await claimBill(bill.id, 'bob-token', [{ itemId: data.items[0]!.id, numerator: 1, denominator: 1 }]);
+  assert.equal(current.completedAt, null);
+  assert.equal(current.adjustmentCents, null);
+  const { requestId: _requestId, ownShareCents: _own, ...fields } = draft;
+  current = (await json(await api(`/bills/${bill.id}`, 'alice-token', 'PATCH', { ...fields, totalCents: 11000, revision: current.revision }))).bill;
+  assert.ok(current.participants.every((p: { confirmedAt: string | null }) => p.confirmedAt === null));
+  assert.equal(current.items[0].claims[0].confirmedAt, null);
+  await claimBill(bill.id, 'alice-token', []);
+  await claimBill(bill.id, 'carol-token', []);
+  current = await claimBill(bill.id, 'bob-token', [{ itemId: data.items[0]!.id, numerator: 1, denominator: 1 }]);
+  assert.ok(current.completedAt);
+  assert.equal(current.adjustmentCents, 0);
+});
+test('photo privacy, extraction retry and naming failure preserve saved edits and initialization', async () => {
+  const sharp = (await import('sharp')).default;
+  const { group, draft } = await setup(false);
+  const { requestId: _requestId, ...fields } = draft;
+  const id = crypto.randomUUID();
+  const data = { ...fields, mode: 'items', items: [{ id: crypto.randomUUID(), name: 'My edited name', originalText: 'FAIL-NAMES', quantity: '1', amountCents: 100, finalCents: 100, taxCents: 0, discountCents: 0, extraCents: 0 }] };
+  let saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data }))).draft;
+  const bytes = await sharp({ create: { width: 30, height: 60, channels: 3, background: 'white' } }).png().toBuffer();
+  saved = (await json(await api(`/receipt-drafts/${id}/photo`, 'alice-token', 'PUT', { revision: saved.revision, base64: bytes.toString('base64') }))).draft;
+  assert.equal((await api(`/receipt-drafts/${id}/photo`, 'bob-token')).status, 404);
+  await json(await api(`/receipt-drafts/${id}/extract`, 'alice-token', 'POST', { revision: saved.revision }), 502);
+  const scanned = await json(await api(`/receipt-drafts/${id}/extract`, 'alice-token', 'POST', { revision: saved.revision }));
+  assert.equal(scanned.extraction.items[0].originalText, 'APPLE');
+  await json(await api(`/receipt-drafts/${id}/names`, 'alice-token', 'POST', { revision: saved.revision }), 502);
+  const reopened = (await json(await api(`/receipt-drafts/${id}`))).draft;
+  assert.equal(reopened.data.items[0].name, 'My edited name');
+  assert.equal(reopened.data.items[0].finalCents, 100);
+  const initialized = (await json(await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST', { revision: saved.revision }))).bill;
+  assert.equal((await api(`/receipt-drafts/${id}/photo`, 'bob-token')).status, 200);
+  assert.equal((await api(`/receipt-drafts/${id}/photo`, 'carol-token')).status, 404);
+  await pool.query('UPDATE receipt_photos SET expires_at = now() - interval \'1 second\' WHERE draft_id = $1', [id]);
+  assert.equal((await api(`/receipt-drafts/${id}/photo`)).status, 404);
+  const purged = once(child!, 'message'); child!.send('purge-photos'); await purged;
+  const photo = await pool.query('SELECT base64 FROM receipt_photos WHERE draft_id = $1', [id]);
+  assert.equal(photo.rows[0].base64, '');
+  assert.equal((await json(await api(`/bills/${initialized.id}`))).bill.photo.expired, true);
+  assert.equal((await json(await api(`/bills/${initialized.id}`))).bill.items[0].originalText, 'FAIL-NAMES');
+});
+
+test('item addition, deletion, names and participant changes follow their confirmation rules', async () => {
+  const { bill, data, draft, ids } = await itemBill([100, 100], 200);
+  await claimBill(bill.id, 'bob-token', [{ itemId: data.items[0]!.id, numerator: 1, denominator: 1 }]);
+  await claimBill(bill.id, 'alice-token', []);
+  let current = (await json(await api(`/bills/${bill.id}`))).bill;
+  // Name-only edits keep confirmations and OCR source text.
+  data.items[0]!.name = 'Friendly name';
+  current = (await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', { revision: current.revision, items: data.items }))).bill;
+  assert.ok(current.items[0].claims[0].confirmedAt);
+  assert.equal(current.items[0].originalText, 'ITEM 1');
+  await json(await api(`/bills/${bill.id}/items`, 'bob-token', 'PUT', { revision: current.revision, items: data.items }), 403);
+  const added = { ...data.items[1]!, id: crypto.randomUUID(), name: 'New item' };
+  current = (await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', { revision: current.revision, items: [...data.items, added] }))).bill;
+  assert.equal(current.participants.find((p: { userId: string }) => p.userId === ids.Alice).confirmedAt, null);
+  assert.ok(current.participants.find((p: { userId: string }) => p.userId === ids.Bob).confirmedAt);
+  assert.ok(current.items[0].claims[0].confirmedAt);
+  current = (await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', { revision: current.revision, items: [data.items[1], added] }))).bill;
+  assert.equal(current.participants.find((p: { userId: string }) => p.userId === ids.Bob).confirmedAt, null);
+  assert.equal(current.participants.find((p: { userId: string }) => p.userId === ids.Bob).amountCents, 0);
+  current = await claimBill(bill.id, 'bob-token', [{ itemId: added.id, numerator: 1, denominator: 2 }]);
+  const { requestId: _requestId, ownShareCents: _own, ...fields } = draft;
+  current = (await json(await api(`/bills/${bill.id}`, 'alice-token', 'PATCH', { ...fields, revision: current.revision, participantIds: [ids.Alice, ids.Carol] }))).bill;
+  assert.equal(current.items.flatMap((i: { claims: unknown[] }) => i.claims).length, 0);
+  assert.ok(current.participants.every((p: { confirmedAt: string | null }) => p.confirmedAt === null));
+  await claimBill(bill.id, 'bob-token', [], 403);
+});
+test('draft price defaults are repeatable and name retries only return names', async () => {
+  const { group, draft } = await setup();
+  const { requestId: _requestId, ...fields } = draft;
+  const id = crypto.randomUUID();
+  const data = { ...fields, mode: 'items', receipt: { subtotalCents: 300, taxCents: 15, discountCents: 30, extraCents: 2, pricesIncludeTax: false }, items: [0, 1, 2].map(n => ({ id: crypto.randomUUID(), name: `Edited ${n}`, originalText: 'APPLE', quantity: '1', amountCents: 100, finalCents: 100, taxCents: 0, discountCents: 0, extraCents: 0 })) };
+  let saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data }))).draft;
+  const retry = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data }))).draft;
+  assert.equal(retry.revision, saved.revision);
+  const prices = await json(await api(`/receipt-drafts/${id}/prices`, 'alice-token', 'POST', { revision: saved.revision }));
+  assert.equal(prices.items.reduce((n: number, i: { finalCents: number }) => n + i.finalCents, 0), 287);
+  saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: saved.revision, data: { ...data, items: prices.items } }))).draft;
+  const again = await json(await api(`/receipt-drafts/${id}/prices`, 'alice-token', 'POST', { revision: saved.revision }));
+  assert.deepEqual(again.items, prices.items);
+  const names = await json(await api(`/receipt-drafts/${id}/names`, 'alice-token', 'POST', { revision: saved.revision }));
+  assert.ok(names.names.every((n: object) => Object.keys(n).sort().join(',') === 'id,name'));
+  const reopened = (await json(await api(`/receipt-drafts/${id}`))).draft;
+  assert.deepEqual(reopened.data.items, prices.items);
+  const corrected = { ...reopened.data, receipt: { ...reopened.data.receipt, taxCents: 200 }, items: reopened.data.items.map((i: object, index: number) => index === 0 ? { ...i, finalCents: 42, manualFinal: true } : i) };
+  saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: reopened.revision, data: corrected }))).draft;
+  const manual = await json(await api(`/receipt-drafts/${id}/prices`, 'alice-token', 'POST', { revision: saved.revision }));
+  assert.equal(manual.items[0].finalCents, 42);
+});
+
+
+test('item completion racing a price correction preserves finality', async () => {
+  const { bill, data } = await itemBill([100], 100);
+  await claimBill(bill.id, 'carol-token', []);
+  const half = [{ itemId: data.items[0]!.id, numerator: 1, denominator: 2 }];
+  const current = await claimBill(bill.id, 'alice-token', half);
+  const responses = await Promise.all([
+    api(`/bills/${bill.id}/claims`, 'bob-token', 'POST', { revision: current.revision, claims: half }),
+    api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', { revision: current.revision, items: data.items.map(i => ({ ...i, finalCents: 90 })) }),
+  ]);
+  assert.deepEqual(responses.map(r => r.status).sort(), [200, 409]);
+  const result = (await json(await api(`/bills/${bill.id}`))).bill;
+  if (result.completedAt) {
+    assert.equal(result.items[0].finalCents, 100);
+    assert.ok(result.items[0].claims.every((c: { confirmedAt: string | null }) => c.confirmedAt));
+  } else {
+    assert.equal(result.items[0].finalCents, 90);
+    assert.equal(result.items[0].claims.length, 1);
+    assert.equal(result.items[0].claims[0].confirmedAt, null);
+  }
 });
