@@ -1,3 +1,4 @@
+import { AccessError, cachedRead, useCachedRequest, refreshFinancialQueries } from './query-cache';
 import { useMemo } from 'react';
 import { useAuth } from '@clerk/react';
 import type { GroupIcon } from './group-icon';
@@ -19,20 +20,30 @@ export type GroupDetail = GroupView & {
 
 export function useGroupApi() {
   const { getToken } = useAuth();
+  const cache = useCachedRequest();
   return useMemo(() => {
     async function request<T>(path: string, method = 'GET', body?: unknown, signal?: AbortSignal): Promise<T> {
-      const token = await getToken();
-      if (!token) throw new Error('Please sign in again to continue.');
-      const response = await fetch(`/api/groups${path}`, {
-        method, signal,
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-      });
-      if (!response.ok) {
-        const error = await response.json().catch(() => null);
-        throw new Error(error?.error || `Request failed (${response.status}). Please try again.`);
+      const key = `/groups${path}`;
+      const perform = async (readSignal?: AbortSignal): Promise<T> => {
+        const token = await getToken();
+        if (!token) throw new AccessError(401, 'Please sign in again to continue.');
+        const response = await fetch(`/api/groups${path}`, {
+          method, signal: readSignal,
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        });
+        if (!response.ok) {
+          const error = await response.json().catch(() => null);
+          throw new AccessError(response.status, error?.error || `Request failed (${response.status}). Please try again.`);
+        }
+        return response.json();
+      };
+      if (method === 'GET' && key !== '/attention' && !key.startsWith('/bills/') && !key.endsWith('/invitation')) {
+        return cachedRead<T>(cache, key);
       }
-      return response.json();
+      const result = await perform(signal);
+      if (method !== 'GET') await refreshFinancialQueries(cache);
+      return result;
     }
     return {
       list: (signal?: AbortSignal) => request<{ groups: GroupView[] }>('', 'GET', undefined, signal),
@@ -41,7 +52,7 @@ export function useGroupApi() {
       invitation: (id: string, regenerate = false) => request<{ path: string }>(`/${encodeURIComponent(id)}/invitation`, regenerate ? 'POST' : 'GET'),
       join: (token: string) => request<{ group: GroupDetail }>('/join', 'POST', { token }),
     };
-  }, [getToken]);
+  }, [getToken, cache]);
 }
 export type GroupApi = ReturnType<typeof useGroupApi>;
 export function errorMessage(error: unknown) {
