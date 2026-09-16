@@ -174,7 +174,7 @@ export function GroupBills({ id, onSummary }: { id: string; onSummary: (id: stri
           )}
         </>
       )}
-      {membersOpen && <GroupDetails id={id} api={groups} close={closeMembers} onViewBills={closeMembers} />}
+      {membersOpen && <GroupDetails id={id} api={groups} close={closeMembers} />}
     </section>
   );
 }

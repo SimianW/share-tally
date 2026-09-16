@@ -178,7 +178,7 @@ export default function PlayApp({
           onCreate={createGroup}
         />
       )}
-      {selectedId && <GroupDetails key={selectedId} id={selectedId} api={api} close={closeGroup} />}
+      {selectedId && <GroupDetails key={selectedId} id={selectedId} api={api} close={closeGroup} onViewBills={() => { window.location.hash = `/group-bills/${selectedId}`; }} />}
       {invitationToken !== null && <JoinGroup key={invitationToken} token={invitationToken} api={api} close={closeGroup} joined={group => {
         setView('groups');
         goToGroup(group);

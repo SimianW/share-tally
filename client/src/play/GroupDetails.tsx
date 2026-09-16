@@ -1,3 +1,4 @@
+import { ArrowRight, RefreshCw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import Dialog from './Dialog';
 import { Avatar, Button } from './ui';
@@ -22,10 +23,18 @@ export function GroupDetails({ id, api, close, onViewBills }: { id: string; api:
     <Dialog title={group?.name ?? 'Group'} kicker="YOUR PEOPLE" close={close}>
       {loading && <p role="status">Loading members…</p>}
       {error && <p role="alert" className="form-error">{error}</p>}
-      <Button variant="secondary" onClick={refresh} disabled={loading}>Refresh members</Button>
+      {group && !error && onViewBills && <div className="group-bills-action">
+        <Button onClick={onViewBills}>
+          View bills and balance <ArrowRight size={18} aria-hidden="true" />
+        </Button>
+      </div>}
+      <div className="group-members-toolbar">
+        {group && !error && <p className="dialog-intro">{group.memberCount} {group.memberCount === 1 ? 'member' : 'members'} · Maximum 16</p>}
+        <Button variant="text" onClick={refresh} disabled={loading}>
+          <RefreshCw size={16} aria-hidden="true" /> Refresh members
+        </Button>
+      </div>
       {group && !error && <>
-        <Button onClick={onViewBills ?? (() => { window.location.hash = `/group-bills/${id}`; })}>View bills and balance</Button>
-        <p className="dialog-intro">{group.memberCount} {group.memberCount === 1 ? 'member' : 'members'} · Maximum 16</p>
         {group.members.map(member => <div className="member-row" key={member.id}>
           <Avatar name={member.displayName} imageUrl={member.imageUrl} fallbackImageUrl={member.fallbackImageUrl} />
           <span>{member.displayName}{member.isCurrentUser ? ' · You' : ''}</span>

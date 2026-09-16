@@ -277,7 +277,8 @@ try {
   await alice.screenshot({ path: `${clientRoot}/test-results/workspace-mobile.png`, fullPage: true });
   await alice.getByRole('button', { name: 'Members & invites', exact: true }).click();
   await expect(alice.getByRole('dialog')).toContainText('3 members');
-  await alice.getByRole('button', { name: 'View bills and balance' }).click();
+  await expect(alice.getByRole('button', { name: 'View bills and balance' })).toHaveCount(0);
+  await alice.getByRole('button', { name: 'Close dialog' }).click();
   await expect(alice.getByRole('dialog')).toHaveCount(0);
   await alice.setViewportSize({ width: 1280, height: 900 });
   await alice.goto(groupUrl);
