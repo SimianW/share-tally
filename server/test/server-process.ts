@@ -7,6 +7,8 @@ const identities = new Map([
   ['Bearer bob-token', 'user_test_bob'],
   ['Bearer carol-token', 'user_test_carol'],
 ]);
+for (let i = 1; i <= 17; i++)
+  identities.set(`Bearer member-${i}-token`, `user_test_member_${i}`);
 const app = createApp({
   displayName: async id => ({ user_test_alice: 'Alice', user_test_bob: 'Bob', user_test_carol: 'Carol' })[id] ?? 'Member',
   middleware: (_req, _res, next) => next(),

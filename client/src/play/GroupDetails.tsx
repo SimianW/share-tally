@@ -25,7 +25,7 @@ export function GroupDetails({ id, api, close, onViewBills }: { id: string; api:
       <Button variant="secondary" onClick={refresh} disabled={loading}>Refresh members</Button>
       {group && !error && <>
         <Button onClick={onViewBills ?? (() => { window.location.hash = `/group-bills/${id}`; })}>View bills and balance</Button>
-        <p className="dialog-intro">{group.memberCount} {group.memberCount === 1 ? 'member' : 'members'}</p>
+        <p className="dialog-intro">{group.memberCount} {group.memberCount === 1 ? 'member' : 'members'} · Maximum 16</p>
         {group.members.map(member => <div className="member-row" key={member.id}>
           <Avatar name={member.displayName} />
           <span>{member.displayName}{member.isCurrentUser ? ' · You' : ''}</span>
@@ -63,7 +63,7 @@ function InvitationControls({ id, api }: { id: string; api: GroupApi }) {
   }
   return <section className="invitation-controls">
     <h3>Invite friends</h3>
-    <p>Anyone with this link can sign in and join. Only you can get or replace it here.</p>
+    <p>Anyone with this link can sign in and join while the group has fewer than 16 members. Only you can get or replace it here.</p>
     {error && <p role="alert" className="form-error">{error}</p>}
     {message && <p role="status">{message}</p>}
     {link ? <>

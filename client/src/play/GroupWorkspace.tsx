@@ -9,7 +9,7 @@ import './group-workspace.css';
 function balanceLabel(summary: Summary | null | undefined) {
   if (summary === undefined) return 'Loading balance…';
   if (summary === null) return 'Balance unavailable';
-  if (summary.netCents === 0) return 'All square · $0.00';
+  if (summary.netCents === 0) return 'Your balance · $0.00';
   return `${summary.netCents < 0 ? 'You owe' : 'You are owed'} ${money(Math.abs(summary.netCents))}`;
 }
 

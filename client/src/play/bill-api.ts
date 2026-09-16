@@ -12,6 +12,11 @@ export type Summary = {
   payableCents: number;
   netCents: number;
 };
+export type GroupLedger = {
+  members: { userId: string; displayName: string; netCents: number }[];
+  suggestions: { fromUserId: string; toUserId: string; amountCents: number }[];
+  incompleteBillIds: string[];
+};
 export type Bill = {
   id: string;
   groupId: string;
@@ -86,7 +91,7 @@ export function useBillApi() {
       summary: (signal?: AbortSignal) =>
         request<{ summary: Summary }>("/summary", "GET", undefined, signal),
       list: (id: string, signal?: AbortSignal) =>
-        request<{ bills: Bill[]; summary: Summary }>(
+        request<{ bills: Bill[]; summary: Summary; ledger: GroupLedger }>(
           `/groups/${encodeURIComponent(id)}/bills`,
           "GET",
           undefined,
