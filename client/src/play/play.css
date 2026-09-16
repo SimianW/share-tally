@@ -761,3 +761,39 @@ h1 {
 .regenerate-confirmation { padding: 14px; background: #fff5e8; border-radius: 12px; }
 .member-row > span { min-width: 0; overflow-wrap: anywhere; }
 .member-row > strong { flex-shrink: 0; }
+
+.group-bills-action {
+  margin-bottom: 24px;
+}
+.group-bills-action > .button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  text-align: left;
+}
+.group-members-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.group-members-toolbar > .dialog-intro {
+  margin: 0;
+}
+.group-members-toolbar > .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 0;
+  font-size: 13px;
+}
+.group-members-toolbar svg,
+.group-bills-action svg {
+  flex-shrink: 0;
+}

@@ -184,7 +184,7 @@ export function GroupBills({ id, selectedRepaymentId }: { id: string; selectedRe
           )}
         </>
       )}
-      {membersOpen && <GroupDetails id={id} api={groups} close={closeMembers} onViewBills={closeMembers} />}
+      {membersOpen && <GroupDetails id={id} api={groups} close={closeMembers} />}
     </section>
   );
 }
