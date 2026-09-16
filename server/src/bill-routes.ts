@@ -1,3 +1,4 @@
+import type { AvatarReader } from "./avatars.js";
 import { Router } from "express";
 import { getGroupUser } from "./users.js";
 import {
@@ -17,8 +18,18 @@ import {
 
 export function createBillsRouter(
   displayName: (id: string) => Promise<string>,
+  avatars: AvatarReader,
 ) {
   const router = Router();
+  const readWithAvatars = async (...args: Parameters<typeof readBills>) => {
+    return withAvatars(await readBills(...args));
+  };
+  const withAvatars = async (bills: Awaited<ReturnType<typeof readBills>>) => {
+    const images = await avatars(bills.flatMap(bill => bill.participants.map(p => p.userId)));
+    return bills.map(bill => ({ ...bill, participants: bill.participants.map(p => ({
+      ...p, ...images.get(p.userId),
+    })) }));
+  };
   const currentUser = (id: string) => getGroupUser(id, displayName);
   for (const param of ["groupId", "billId"])
     router.param(param, (_req, _res, next, id) => {
@@ -30,7 +41,8 @@ export function createBillsRouter(
   });
   router.get("/groups/:groupId/bills", async (req, res) => {
     const user = await currentUser(res.locals.clerkUserId);
-    res.json(await readGroupBills(user.id, req.params.groupId));
+    const result = await readGroupBills(user.id, req.params.groupId);
+    res.json({ ...result, bills: await withAvatars(result.bills) });
   });
   router.post("/groups/:groupId/bills", async (req, res) => {
     const input = parseBill(req.body);
@@ -38,12 +50,12 @@ export function createBillsRouter(
     const id = await createBill(req.params.groupId, user.id, input);
     res
       .status(201)
-      .json({ bill: (await readBills(user.id, undefined, id))[0] });
+      .json({ bill: (await readWithAvatars(user.id, undefined, id))[0] });
   });
   router.get("/bills/:billId", async (req, res) => {
     const user = await currentUser(res.locals.clerkUserId);
     res.json({
-      bill: (await readBills(user.id, undefined, req.params.billId))[0],
+      bill: (await readWithAvatars(user.id, undefined, req.params.billId))[0],
     });
   });
   router.post("/bills/:billId/share", async (req, res) => {
@@ -51,7 +63,7 @@ export function createBillsRouter(
     const user = await currentUser(res.locals.clerkUserId);
     await submitShare(req.params.billId, user.id, amount);
     res.json({
-      bill: (await readBills(user.id, undefined, req.params.billId))[0],
+      bill: (await readWithAvatars(user.id, undefined, req.params.billId))[0],
     });
   });
   router.patch("/bills/:billId", async (req, res) => {
@@ -59,7 +71,7 @@ export function createBillsRouter(
     const user = await currentUser(res.locals.clerkUserId);
     await changeBill(req.params.billId, user.id, { action: "edit", input });
     res.json({
-      bill: (await readBills(user.id, undefined, req.params.billId))[0],
+      bill: (await readWithAvatars(user.id, undefined, req.params.billId))[0],
     });
   });
   router.post("/bills/:billId/cancel", async (req, res) => {
@@ -70,7 +82,7 @@ export function createBillsRouter(
       revision,
     });
     res.json({
-      bill: (await readBills(user.id, undefined, req.params.billId))[0],
+      bill: (await readWithAvatars(user.id, undefined, req.params.billId))[0],
     });
   });
   return router;

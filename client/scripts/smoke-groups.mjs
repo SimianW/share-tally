@@ -178,6 +178,18 @@ try {
   await expect(alice.locator('.difference-card')).toContainText('1/2 confirmed');
   const billUrl = alice.url();
   await bob.goto(billUrl);
+  // The existing mobile layout hides avatars. Check another member's desktop view.
+  await bob.setViewportSize({ width: 1280, height: 900 });
+  const aliceAvatar = bob.locator('.bill-person').filter({ hasText: 'Alice' }).locator('.avatar');
+  await expect(aliceAvatar.locator('img')).toBeVisible();
+  assert.equal(await aliceAvatar.locator('img').evaluate(img => img.complete && img.naturalWidth > 0), true);
+  const bobAvatar = bob.locator('.bill-person').filter({ hasText: 'Bob' }).locator('.avatar');
+  await expect(bobAvatar).toHaveText('B');
+  await expect(bobAvatar).toHaveCSS('display', 'flex');
+  await expect(bobAvatar).toHaveCSS('align-items', 'center');
+  await expect(bobAvatar).toHaveCSS('justify-content', 'center');
+  await bob.setViewportSize({ width: 390, height: 844 });
+
   await bob.getByLabel('My share · CAD', { exact: true }).fill('59.97');
   let shareAttempts = 0;
   await bob.route('**/api/bills/*/share', async route => {

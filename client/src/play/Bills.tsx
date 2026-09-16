@@ -497,7 +497,7 @@ export function BillDetails({ id }: { id: string }) {
           <h2>Everyone's share</h2>
           {bill.participants.map((p) => (
             <div className="bill-person" key={p.userId}>
-              <Avatar name={p.displayName} />
+              <Avatar name={p.displayName} imageUrl={p.imageUrl} fallbackImageUrl={p.fallbackImageUrl} />
               <div>
                 <b>
                   {p.displayName}

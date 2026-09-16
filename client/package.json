@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test:avatar": "node scripts/smoke-avatar.mjs",
     "test:groups": "node scripts/smoke-groups.mjs"
   },
   "dependencies": {

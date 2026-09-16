@@ -1,3 +1,5 @@
+import { profileAvatars } from './avatar-profile.js';
+import { createAvatarReader, type AvatarLookup } from './avatars.js';
 import { createBillsRouter } from './bill-routes.js';
 import { BillError } from './bills.js';
 import express, { type ErrorRequestHandler, type Request, type RequestHandler } from 'express';
@@ -16,12 +18,17 @@ declare global {
 type Authentication = {
   middleware: RequestHandler
   userId: (req: Request) => string | null
+  avatarUrl?: AvatarLookup
   displayName?: (clerkUserId: string) => Promise<string>
 };
 
 // Authentication is the external boundary replaced by the test entry point.
 // Normal startup supplies no override and always uses Clerk verification.
 export function createApp(auth: Authentication = {
+  avatarUrl: async id => {
+    const user = await clerkClient.users.getUser(id);
+    return profileAvatars(user);
+  },
   middleware: clerkMiddleware(),
   userId: (req) => {
     const { isAuthenticated, userId } = getAuth(req);
@@ -32,6 +39,7 @@ export function createApp(auth: Authentication = {
     const user = await clerkClient.users.getUser(id);
     return [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username || 'Member';
   });
+  const avatars = createAvatarReader(auth.avatarUrl ?? (async () => null));
   const app = express();
 
   app.use('/api', (_req, res, next) => {
@@ -50,8 +58,8 @@ export function createApp(auth: Authentication = {
     res.locals.clerkUserId = clerkUserId;
     next();
   });
-  app.use('/api/groups', createGroupsRouter(displayName));
-  app.use('/api', createBillsRouter(displayName));
+  app.use('/api/groups', createGroupsRouter(displayName, avatars));
+  app.use('/api', createBillsRouter(displayName, avatars));
 
   app.get('/api/me', async (req, res) => {
     const user = await getOrCreateUser(res.locals.clerkUserId);

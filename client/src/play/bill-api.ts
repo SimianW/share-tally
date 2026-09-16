@@ -35,6 +35,7 @@ export type Bill = {
   participants: {
     userId: string;
     displayName: string;
+    imageUrl?: string | null; fallbackImageUrl?: string | null;
     isCurrentUser: boolean;
     amountCents: number | null;
     confirmedAt: string | null;

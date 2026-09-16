@@ -8,11 +8,13 @@ export type GroupView = GroupDraft & {
   createdBy: string;
   createdAt: string;
   creatorName: string;
+  creatorImageUrl?: string | null;
+  creatorFallbackImageUrl?: string | null;
   memberCount: number;
   isCreator: boolean;
 };
 export type GroupDetail = GroupView & {
-  members: { id: string; displayName: string; joinedAt: string; isCreator: boolean; isCurrentUser: boolean }[];
+  members: { id: string; displayName: string; imageUrl?: string | null; fallbackImageUrl?: string | null; joinedAt: string; isCreator: boolean; isCurrentUser: boolean }[];
 };
 
 export function useGroupApi() {

@@ -1,15 +1,25 @@
+import type { AvatarReader, AvatarImages } from "./avatars.js";
 import { Router } from 'express';
 import { getGroupUser } from './users.js';
 import { parseGroupIcon } from './group-icon.js';
 import { createGroup, getGroupForMember, groupInvitation, joinGroup, listGroupsForUser } from './groups.js';
 
-export function createGroupsRouter(displayName: (id: string) => Promise<string>) {
+export function createGroupsRouter(displayName: (id: string) => Promise<string>, avatars: AvatarReader) {
   const router = Router();
+  async function withAvatars<T extends { createdBy: string; members?: { id: string }[] }>(group: T, knownImages?: Map<string, AvatarImages | null>) {
+    const images = knownImages ?? await avatars([group.createdBy, ...(group.members ?? []).map(m => m.id)]);
+    return { ...group, creatorImageUrl: images.get(group.createdBy)?.imageUrl ?? null,
+      creatorFallbackImageUrl: images.get(group.createdBy)?.fallbackImageUrl ?? null,
+      ...(group.members ? { members: group.members.map(m => ({ ...m, ...images.get(m.id) })) } : {}),
+    };
+  }
   const currentUser = (clerkUserId: string) => getGroupUser(clerkUserId, displayName);
 
   router.get('/', async (_req, res) => {
     const user = await currentUser(res.locals.clerkUserId);
-    res.json({ groups: await listGroupsForUser(user.id) });
+    const groups = await listGroupsForUser(user.id);
+    const images = await avatars(groups.map(group => group.createdBy));
+    res.json({ groups: await Promise.all(groups.map(group => withAvatars(group, images))) });
   });
 
   router.post('/', async (req, res) => {
@@ -26,7 +36,7 @@ export function createGroupsRouter(displayName: (id: string) => Promise<string>)
     }
     const icon = parseGroupIcon(body.icon);
     const user = await currentUser(res.locals.clerkUserId);
-    res.status(201).json({ group: await createGroup(user.id, { name, icon }) });
+    res.status(201).json({ group: await withAvatars(await createGroup(user.id, { name, icon })) });
   });
 
   router.post('/join', async (req, res) => {
@@ -36,7 +46,7 @@ export function createGroupsRouter(displayName: (id: string) => Promise<string>)
       res.status(404).json({ error: 'This invitation is invalid or has been replaced.' }); return;
     }
     const user = await currentUser(res.locals.clerkUserId);
-    res.json({ group: await joinGroup(body.token, user.id) });
+    res.json({ group: await withAvatars(await joinGroup(body.token, user.id)) });
   });
 
   router.param('groupId', (_req, res, next, id: string) => {
@@ -48,7 +58,7 @@ export function createGroupsRouter(displayName: (id: string) => Promise<string>)
 
   router.get('/:groupId', async (req, res) => {
     const user = await currentUser(res.locals.clerkUserId);
-    res.json({ group: await getGroupForMember(req.params.groupId, user.id) });
+    res.json({ group: await withAvatars(await getGroupForMember(req.params.groupId, user.id)) });
   });
 
   router.get('/:groupId/invitation', async (req, res) => {

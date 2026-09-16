@@ -27,7 +27,7 @@ export function GroupDetails({ id, api, close, onViewBills }: { id: string; api:
         <Button onClick={onViewBills ?? (() => { window.location.hash = `/group-bills/${id}`; })}>View bills and balance</Button>
         <p className="dialog-intro">{group.memberCount} {group.memberCount === 1 ? 'member' : 'members'} · Maximum 16</p>
         {group.members.map(member => <div className="member-row" key={member.id}>
-          <Avatar name={member.displayName} />
+          <Avatar name={member.displayName} imageUrl={member.imageUrl} fallbackImageUrl={member.fallbackImageUrl} />
           <span>{member.displayName}{member.isCurrentUser ? ' · You' : ''}</span>
           {member.isCreator && <strong>Creator</strong>}
         </div>)}

@@ -44,7 +44,7 @@ export function GroupList({
             <h3>{group.name}</h3>
             <p className="group-description">Created by {group.isCreator ? "you" : group.creatorName}</p>
             <div className="group-card-bottom">
-              <Avatar name={group.creatorName} small />
+              <Avatar name={group.creatorName} imageUrl={group.creatorImageUrl} fallbackImageUrl={group.creatorFallbackImageUrl} small />
               <span>{group.memberCount} {group.memberCount === 1 ? "member" : "members"}</span>
             </div>
           </button>

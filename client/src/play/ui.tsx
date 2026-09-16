@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 
 const paths = {
   grid: (
@@ -127,10 +127,16 @@ export function Logo({ compact = false }: { compact?: boolean }) {
 export function Avatar({
   name,
   small = false,
+  imageUrl,
+  fallbackImageUrl,
 }: {
   name: string;
   small?: boolean;
+  imageUrl?: string | null;
+  fallbackImageUrl?: string | null;
 }) {
+  const [failedUrls, setFailedUrls] = useState<string[]>([]);
+  const source = [imageUrl, fallbackImageUrl].find(url => url && !failedUrls.includes(url));
   const colors: Record<string, string> = {
     Simon: "#e5edc5",
     Emma: "#edcee0",
@@ -144,7 +150,9 @@ export function Avatar({
       style={{ "--avatar-color": colors[name] || "#d8dfd0" } as CSSProperties}
       title={name}
     >
-      {name.slice(0, 1).toUpperCase()}
+      {source ? (
+        <img src={source} alt="" referrerPolicy="no-referrer" onError={() => setFailedUrls(urls => [...urls, source])} />
+      ) : name.trim().slice(0, 1).toUpperCase()}
     </span>
   );
 }
