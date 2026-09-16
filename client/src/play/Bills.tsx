@@ -1,3 +1,4 @@
+import { useCached, denied, useCachedRequest, hideProtectedQueries, AccessError } from './query-cache';
 import { AnimatedMoney } from './AnimatedMoney';
 import { useAuth } from '@clerk/react';
 import { startGroupSync } from './group-sync';
@@ -10,19 +11,19 @@ import {
   parseMoney,
   localToday,
   type Bill,
-  type Repayment,
   type BillApi,
   type BillDraft,
   type Summary,
-  type GroupLedger,
 } from "./bill-api";
 import { useGroupApi, errorMessage, type GroupDetail } from "./group-api";
-import { Avatar, Button } from "./ui";
+import { Avatar, Button, Icon } from "./ui";
 import Dialog from "./Dialog";
 import { GroupDetails } from "./GroupDetails";
 import "./bills.css";
 import { GroupBalances } from "./GroupBalances";
 import { InitiatorActions, ShareActions } from "./BillActions";
+
+import { NextTransfer } from './NextTransfer';
 
 export function Balance({
   summary,
@@ -40,14 +41,14 @@ export function Balance({
       <strong className="balance-number">
         {group ? <AnimatedMoney cents={summary.netCents} /> : money(Math.abs(summary.netCents))}
       </strong>
-      <div className="balance-breakdown">
+      {!group && <div className="balance-breakdown">
         <span>
           You are owed <b>{money(summary.receivableCents)}</b>
         </span>
         <span>
           You owe <b>{money(summary.payableCents)}</b>
         </span>
-      </div>
+      </div>}
       <p>
         Completed bills and confirmed repayments.
         {!group && " Repayments are worked out within each group."}
@@ -57,48 +58,30 @@ export function Balance({
 }
 export function OverviewBalance({ revision }: { revision: string }) {
   const api = useBillApi();
-  const [summary, setSummary] = useState<Summary | null>(null);
-  const [error, setError] = useState("");
+  const query = useCached<{ summary: Summary }>('/summary');
   const [retry, setRetry] = useState(0);
-  useEffect(() => {
-    const controller = new AbortController();
-    api
-      .summary(controller.signal)
-      .then((result) => {
-        if (!controller.signal.aborted) {
-          setSummary(result.summary);
-          setError("");
-        }
-      })
-      .catch((error) => {
-        if (!controller.signal.aborted) setError(errorMessage(error));
-      });
-    return () => controller.abort();
-  }, [api, revision, retry]);
-  if (error)
-    return (
-      <div role="alert">
-        <p>{error}</p>
-        <Button onClick={() => setRetry((n) => n + 1)}>Retry balances</Button>
-      </div>
-    );
-  return summary ? (
-    <Balance summary={summary} />
-  ) : (
-    <p role="status">Loading balances...</p>
-  );
+  useEffect(() => { void api.summary().catch(() => {}); }, [api, revision, retry]);
+  return <>
+    {query.error && <div role="alert"><p>{query.data ? "Couldn't refresh your balances." : errorMessage(query.error)}</p><Button onClick={() => setRetry(n => n + 1)}>Retry balances</Button></div>}
+    {query.data ? <Balance summary={query.data.summary} /> : !query.error && <LoadingFinancials label="Loading balances" />}
+  </>;
 }
-export function GroupBills({ id, onSummary }: { id: string; onSummary: (id: string, summary: Summary | null) => void }) {
+
+function LoadingFinancials({ label }: { label: string }) {
+  return <div className="financial-skeleton" role="status" aria-label={label}>
+    <div /><div /><div />
+  </div>;
+}
+export function GroupBills({ id, selectedRepaymentId }: { id: string; selectedRepaymentId?: string }) {
   const [membersOpen, setMembersOpen] = useState(false);
+  const repaymentHistory = useRef<HTMLDivElement>(null);
   const api = useBillApi();
   const groups = useGroupApi();
-  const [data, setData] = useState<{
-    bills: Bill[];
-    repayments: Repayment[];
-    summary: Summary;
-    ledger: GroupLedger;
-    group: GroupDetail;
-  } | null>(null);
+  const cache = useCachedRequest();
+  const billsQuery = useCached<Awaited<ReturnType<typeof api.list>>>(`/groups/${id}/bills`);
+  const groupQuery = useCached<{ group: GroupDetail }>(`/groups/${id}`);
+  const accessError = [billsQuery.error, groupQuery.error].find(denied);
+  const data = !accessError && billsQuery.data && groupQuery.data ? { ...billsQuery.data, ...groupQuery.data } : null;
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
   const [creating, setCreating] = useState(false);
@@ -106,36 +89,56 @@ export function GroupBills({ id, onSummary }: { id: string; onSummary: (id: stri
   useEffect(() => {
     const sync = startGroupSync({
       groupId: id, getToken,
+      invalidateRead: () => {
+        // A response begun before this notification must never replace newer state.
+        void cache.cancelQueries({ queryKey: [`/groups/${id}/bills`], exact: true });
+        void cache.cancelQueries({ queryKey: [`/groups/${id}`], exact: true });
+      },
+      accessDenied: status => hideProtectedQueries(cache, `/groups/${id}`, new AccessError(status, status === 401 ? 'Please sign in again.' : 'Group not found.')),
       read: async signal => {
         const [bills, group] = await Promise.all([api.list(id, signal), groups.detail(id, signal)]);
         return { ...bills, ...group };
       },
-      apply: value => { setData(value); onSummary(id, value.summary); },
+      apply: () => {},
       status: setError,
     });
     return () => sync.stop();
-  }, [api, groups, getToken, id, revision, onSummary]);
+  }, [api, groups, getToken, id, revision, cache]);
   function closeMembers() {
     setMembersOpen(false);
     setRevision(n => n + 1);
   }
   return (
     <section className="bills-page">
-      <div className="bill-heading">
-        <h2>{data?.group.name ?? "Group bills"}</h2>
-        <Button variant="text" onClick={() => setMembersOpen(true)}>Members & invites</Button>
+      <div className="bill-heading group-heading">
+        <div><span className="eyebrow">YOUR SHOPPING CIRCLE</span><h2>{data?.group.name ?? "Group bills"}</h2>
+        {data && <p className="group-member-count">{data.group.memberCount} {data.group.memberCount === 1 ? 'member' : 'members'} · CAD</p>}</div>
+        {data && <div className="group-actions">
+          <Button variant="secondary" onClick={() => setMembersOpen(true)}><Icon name="people" /> Members & invites</Button>
+          <Button onClick={() => setCreating(true)}><Icon name="plus" /> New bill</Button>
+        </div>}
       </div>
-      {error && <div role="alert" className="form-error"><p>{error}</p><Button onClick={() => setRevision(n => n + 1)}>Retry group bills</Button></div>}
+      {!data && (error || accessError) && <div role="alert" className="form-error"><p>{accessError ? errorMessage(accessError) : "Couldn't load this group."}</p><Button onClick={() => setRevision(n => n + 1)}>Try again</Button></div>}
       {!data ? (
-        <p role="status">Loading bills...</p>
+        <LoadingFinancials label="Loading group" />
       ) : (
         <>
-          <div className="workspace-balance"><Balance summary={data.summary} group /><Button onClick={() => setCreating(true)}>New bill</Button></div>
-          <GroupBalances ledger={data.ledger} />
-          <Repayments key={id} group={data.group} records={data.repayments} api={api} refresh={() => setRevision(n => n + 1)} />
+          <div className="workspace-balance">
+            <div className="group-balance-overview"><Balance summary={data.summary} group />
+              <div className="group-member-faces" aria-label={`${data.group.memberCount} group members`}>
+                {data.group.members.slice(0, 5).map(member => <Avatar key={member.id} name={member.displayName} imageUrl={member.imageUrl} fallbackImageUrl={member.fallbackImageUrl} small />)}
+                {data.group.memberCount > 5 && <span>+{data.group.memberCount - 5}</span>}
+                <small>All in it together.</small>
+              </div>
+            </div>
+            <NextTransfer ledger={data.ledger} group={data.group} viewRepayments={() => {
+              repaymentHistory.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
+              repaymentHistory.current?.focus({ preventScroll: true });
+            }} />
+          </div>
           <div className="bill-heading">
             <h2>
-              Bills <small>{data.bills.length}</small>
+              Shared purchases <small>{data.bills.length}</small>
             </h2>
           </div>
           {!data.bills.length && (
@@ -148,19 +151,26 @@ export function GroupBills({ id, onSummary }: { id: string; onSummary: (id: stri
                 href={`#/bills/${bill.id}`}
                 className="bill-list-row"
               >
-                <div>
+                <span className="purchase-icon" aria-hidden="true"><Icon name="basket" /></span>
+                <div className="purchase-description">
                   <strong>{bill.title}</strong>
                   <span>
                     {bill.purchaseDate} · {bill.confirmedCount}/
                     {bill.participants.length} confirmed
                   </span>
                 </div>
-                <div>
+                <div className="purchase-amount">
                   <b>{money(bill.totalCents)}</b>
                   <span>{bill.canceledAt ? "Canceled" : bill.completedAt ? "Complete" : "In progress"}</span>
                 </div>
+                <Icon name="diagonal" />
               </a>
             ))}
+          </div>
+          <p className="purchase-history-note"><Icon name="check" /> Completed purchases stay in your history.</p>
+          <GroupBalances ledger={data.ledger} />
+          <div ref={repaymentHistory} tabIndex={-1} className="repayment-history-anchor">
+            <Repayments key={`${id}:${selectedRepaymentId ?? ""}`} selectedId={selectedRepaymentId} group={data.group} records={data.repayments} api={api} refresh={() => setRevision(n => n + 1)} />
           </div>
           {creating && (
             <CreateBill

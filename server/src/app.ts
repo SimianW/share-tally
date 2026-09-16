@@ -1,3 +1,4 @@
+import { readAttention } from './attention.js';
 import { openGroupEvents } from './group-events.js';
 import { getGroupUser } from './users.js';
 import { getGroupForMember } from './groups.js';
@@ -77,6 +78,11 @@ export function createApp(auth: Authentication = {
   app.use('/api/groups', createGroupsRouter(displayName, avatars));
   app.use('/api', createBillsRouter(displayName, avatars));
   app.use('/api', createRepaymentsRouter(displayName));
+
+  app.get('/api/attention', async (_req, res) => {
+    const user = await getGroupUser(res.locals.clerkUserId, displayName);
+    res.json({ actions: await readAttention(user.id) });
+  });
 
   app.get('/api/me', async (req, res) => {
     const user = await getOrCreateUser(res.locals.clerkUserId);

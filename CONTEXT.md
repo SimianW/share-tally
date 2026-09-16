@@ -26,15 +26,30 @@ A participant's portion of a bill's total cost, including the initiator's own po
 _Avoid_: Payment, which refers to money actually transferred.
 
 **Share confirmation**:
-A participant's acknowledgment of their submitted share for the bill's current revision.
+A participant's acknowledgment of their submitted share. Manual bills require confirmation for the current bill revision; item-based bills also track confirmations of individual item claims.
 _Avoid_: Payment confirmation, which acknowledges received money.
+
+**Bill item**:
+A separately listed purchase entry within an item-based bill, with a cost that participants can claim in full or in fractions.
+
+**Item claim**:
+A participant's declared fraction of a bill item, contributing to that participant's share when confirmed.
+
+**Item confirmation**:
+A participant's acknowledgment of their claim on a bill item at its current price. A price correction invalidates confirmations for that item without invalidating confirmations for other items.
+
+**Claim reservation**:
+A previously claimed fraction held for its claimant after an item-price correction, awaiting their renewed confirmation or release. It is unavailable to other claimants and contributes no confirmed amount until reconfirmed.
+
+**Bill draft**:
+An uninitialized bill visible only to its initiator, who can review and correct it before opening it for participation.
 
 **Complete bill**:
 A finalized bill whose participants have all confirmed their shares and whose permitted difference is accounted for by an initiator adjustment; it cannot be reopened. Completion does not mean the group has finished repaying its debts.
 _Avoid_: Paid bill.
 
 **Initiator adjustment**:
-The small difference between a bill's total and its submitted shares, assigned to the initiator without changing anyone's submitted share. It increases or decreases the initiator's effective cost.
+The difference between a bill's total and its submitted shares, assigned to the initiator without changing anyone's submitted share. It increases or decreases the initiator's effective cost.
 
 **Repayment suggestion**:
 A suggested transfer between group members calculated from their current net balances. Suggestions can change as the group's bills and recorded repayments change.

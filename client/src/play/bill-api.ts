@@ -1,3 +1,4 @@
+import { AccessError, cachedRead, useCachedRequest, refreshFinancialQueries } from './query-cache';
 import { useMemo } from "react";
 import { useAuth } from "@clerk/react";
 export class BillApiError extends Error {
@@ -7,6 +8,10 @@ export class BillApiError extends Error {
     this.status = status;
   }
 }
+export type AttentionAction = { groupId: string; groupName: string } & (
+  | { kind: 'missing-share' | 'confirm-share'; billId: string; title: string; amountCents: number | null }
+  | { kind: 'review-repayment'; repaymentId: string; senderName: string; amountCents: number }
+);
 export type Repayment = {
   id: string; groupId: string; senderId: string; recipientId: string;
   amountCents: number; status: 'pending' | 'confirmed' | 'rejected';
@@ -67,6 +72,7 @@ export type ShareInput = {
 };
 export function useBillApi() {
   const { getToken } = useAuth();
+  const cache = useCachedRequest();
   return useMemo(() => {
     async function request<T>(
       path: string,
@@ -74,27 +80,38 @@ export function useBillApi() {
       body?: unknown,
       signal?: AbortSignal,
     ): Promise<T> {
-      const token = await getToken();
-      if (!token) throw new Error("Please sign in again.");
-      const response = await fetch(`/api${path}`, {
-        method,
-        signal,
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-      });
-      if (!response.ok) {
-        const result = await response.json().catch(() => null);
-        throw new BillApiError(
-          response.status,
-          result?.error ?? "Request failed. Please try again.",
-        );
+      const key = `${path}`;
+      const perform = async (readSignal?: AbortSignal): Promise<T> => {
+        const token = await getToken();
+        if (!token) throw new AccessError(401, "Please sign in again.");
+        const response = await fetch(`/api${path}`, {
+          method,
+          signal: readSignal,
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        });
+        if (!response.ok) {
+          const result = await response.json().catch(() => null);
+          throw new BillApiError(
+            response.status,
+            result?.error ?? "Request failed. Please try again.",
+          );
+        }
+        return response.json();
+      };
+      if (method === 'GET' && key !== '/attention' && !key.startsWith('/bills/') && !key.endsWith('/invitation')) {
+        return cachedRead<T>(cache, key);
       }
-      return response.json();
+      const result = await perform(signal);
+      if (method !== 'GET') await refreshFinancialQueries(cache);
+      return result;
     }
     return {
+      attention: (signal?: AbortSignal) =>
+        request<{ actions: AttentionAction[] }>("/attention", "GET", undefined, signal),
       summary: (signal?: AbortSignal) =>
         request<{ summary: Summary }>("/summary", "GET", undefined, signal),
       list: (id: string, signal?: AbortSignal) =>
@@ -140,7 +157,7 @@ export function useBillApi() {
           input,
         ),
     };
-  }, [getToken]);
+  }, [getToken, cache]);
 }
 export type BillApi = ReturnType<typeof useBillApi>;
 export const money = (cents: number) =>

@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { useCached } from './query-cache';
 import { money, useBillApi, type Summary } from './bill-api';
 import type { GroupView } from './group-api';
 import { GroupBills } from './Bills';
 import { GroupIconView } from './GroupIconView';
-import { Button } from './ui';
+import { Button, Icon } from './ui';
 import './group-workspace.css';
 
 function balanceLabel(summary: Summary | null | undefined) {
@@ -13,48 +14,45 @@ function balanceLabel(summary: Summary | null | undefined) {
   return `${summary.netCents < 0 ? 'You owe' : 'You are owed'} ${money(Math.abs(summary.netCents))}`;
 }
 
-export default function GroupWorkspace({ groups, selectedId, loading, error, retry, onCreate }: {
+export default function GroupWorkspace({ groups, selectedId, selectedRepaymentId, loading, error, retry, onCreate }: {
   groups: GroupView[];
   selectedId?: string;
+  selectedRepaymentId?: string;
   loading: boolean;
   error: string;
   retry: () => void;
   onCreate: () => void;
 }) {
   const activeId = selectedId ?? groups[0]?.id;
-  const api = useBillApi();
-  const [balances, setBalances] = useState<Record<string, Summary | null>>({});
-  const updateBalance = useCallback((id: string, summary: Summary | null) => {
-    setBalances(current => ({ ...current, [id]: summary }));
-  }, []);
-  useEffect(() => {
-    const controller = new AbortController();
-    // The selected group's panel supplies its balance; fetch the other rows.
-    for (const group of groups) {
-      if (group.id === activeId) continue;
-      api.list(group.id, controller.signal).then(({ summary }) => {
-        if (!controller.signal.aborted) updateBalance(group.id, summary);
-      }).catch(() => {
-        if (!controller.signal.aborted) setBalances(current => ({ ...current, [group.id]: null }));
-      });
-    }
-    return () => controller.abort();
-  }, [api, groups, activeId, updateBalance]);
+  if (!activeId && !loading && !error) {
+    return <section className="empty-state workspace-empty" aria-labelledby="empty-groups-title">
+      <Icon name="people" size={32} />
+      <h2 id="empty-groups-title">Your people, together.</h2>
+      <p>Create a group to start recording shared purchases.</p>
+      <Button onClick={onCreate}>Create your first group</Button>
+    </section>;
+  }
   return <div className="group-workspace">
     <nav className="workspace-groups" aria-label="Groups">
       {loading && <p role="status">Loading groups…</p>}
       {error && <div role="alert"><p>{error}</p><Button onClick={retry}>Retry groups</Button></div>}
-      {groups.map(group => <a
-        key={group.id}
-        href={`#/group-bills/${group.id}`}
-        aria-current={group.id === activeId ? 'page' : undefined}
-      >
-        <GroupIconView icon={group.icon} size={24} />
-        <span><b>{group.name}</b><small>{balanceLabel(balances[group.id])}</small></span>
-      </a>)}
+      {groups.map(group => <GroupLink key={group.id} group={group} active={group.id === activeId} />)}
     </nav>
     <div className="workspace-content">
-      {activeId ? <GroupBills key={activeId} id={activeId} onSummary={updateBalance} /> : !loading && !error && <div className="empty-state"><h2>Your people, together.</h2><p>Create a group to start recording shared purchases.</p><Button onClick={onCreate}>Create your first group</Button></div>}
+      {activeId && <GroupBills key={activeId} id={activeId} selectedRepaymentId={selectedRepaymentId} />}
     </div>
   </div>;
+}
+
+function GroupLink({ group, active }: { group: GroupView; active: boolean }) {
+  const api = useBillApi();
+  const query = useCached<Awaited<ReturnType<typeof api.list>>>(`/groups/${group.id}/bills`);
+  useEffect(() => {
+    // The active panel starts its authoritative read once SSE is ready.
+    if (!active) void api.list(group.id).catch(() => {});
+  }, [api, group.id, active]);
+  return <a href={`#/group-bills/${group.id}`} aria-current={active ? 'page' : undefined}>
+    <GroupIconView icon={group.icon} size={24} />
+    <span><b>{group.name}</b><small>{balanceLabel(query.data?.summary ?? (query.error ? null : undefined))}</small></span>
+  </a>;
 }
