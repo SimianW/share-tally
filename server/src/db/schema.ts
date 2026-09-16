@@ -111,8 +111,12 @@ export const bills = pgTable('bills', {
   totalCents: integer('total_cents').notNull(),
   adjustmentCents: integer('adjustment_cents'),
   completedAt: timestamp('completed_at', { withTimezone: true }),
+  canceledAt: timestamp('canceled_at', { withTimezone: true }),
+  revision: integer('revision').notNull().default(1),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, table => [
+  check('bills_revision_positive', sql`${table.revision} > 0`),
+  check('bills_canceled_incomplete', sql`${table.canceledAt} is null or ${table.completedAt} is null`),
   unique('bills_creation_request').on(table.initiatorId, table.requestId),
   index('bills_group_idx').on(table.groupId),
   check('bills_total_range', sql`${table.totalCents} between 1 and 1000000`),
@@ -129,5 +133,5 @@ export const billShares = pgTable('bill_shares', {
 }, table => [
   primaryKey({ columns: [table.billId, table.userId] }),
   check('bill_shares_amount', sql`${table.amountCents} between 0 and 1000000`),
-  check('bill_shares_confirmation', sql`(${table.amountCents} is null) = (${table.confirmedAt} is null)`),
+  check('bill_shares_confirmation', sql`${table.confirmedAt} is null or ${table.amountCents} is not null`),
 ]);

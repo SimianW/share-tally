@@ -25,6 +25,8 @@ export type Bill = {
   confirmedCount: number;
   adjustmentCents: number | null;
   completedAt: string | null;
+  canceledAt: string | null;
+  revision: number;
   participants: {
     userId: string;
     displayName: string;
@@ -42,6 +44,14 @@ export type BillDraft = {
   totalCents: number;
   ownShareCents: number;
   participantIds: string[];
+};
+export type BillEdit = Omit<BillDraft, "requestId" | "ownShareCents"> & {
+  revision: number;
+};
+export type ShareInput = {
+  amountCents: number;
+  expectedAmountCents: number | null;
+  revision: number;
 };
 export function useBillApi() {
   const { getToken } = useAuth();
@@ -95,11 +105,23 @@ export function useBillApi() {
           "POST",
           draft,
         ),
-      submit: (id: string, amountCents: number) =>
+      edit: (id: string, input: BillEdit) =>
+        request<{ bill: Bill }>(
+          `/bills/${encodeURIComponent(id)}`,
+          "PATCH",
+          input,
+        ),
+      cancel: (id: string, revision: number) =>
+        request<{ bill: Bill }>(
+          `/bills/${encodeURIComponent(id)}/cancel`,
+          "POST",
+          { revision },
+        ),
+      submit: (id: string, input: ShareInput) =>
         request<{ bill: Bill }>(
           `/bills/${encodeURIComponent(id)}/share`,
           "POST",
-          { amountCents },
+          input,
         ),
     };
   }, [getToken]);

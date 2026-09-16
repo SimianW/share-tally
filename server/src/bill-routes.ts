@@ -2,6 +2,9 @@ import { Router } from "express";
 import { getGroupUser } from "./users.js";
 import {
   BillError,
+  changeBill,
+  parseAction,
+  parseEdit,
   createBill,
   isUuid,
   parseBill,
@@ -47,6 +50,25 @@ export function createBillsRouter(
     const amount = parseShare(req.body);
     const user = await currentUser(res.locals.clerkUserId);
     await submitShare(req.params.billId, user.id, amount);
+    res.json({
+      bill: (await readBills(user.id, undefined, req.params.billId))[0],
+    });
+  });
+  router.patch("/bills/:billId", async (req, res) => {
+    const input = parseEdit(req.body);
+    const user = await currentUser(res.locals.clerkUserId);
+    await changeBill(req.params.billId, user.id, { action: "edit", input });
+    res.json({
+      bill: (await readBills(user.id, undefined, req.params.billId))[0],
+    });
+  });
+  router.post("/bills/:billId/cancel", async (req, res) => {
+    const revision = parseAction(req.body);
+    const user = await currentUser(res.locals.clerkUserId);
+    await changeBill(req.params.billId, user.id, {
+      action: "cancel",
+      revision,
+    });
     res.json({
       bill: (await readBills(user.id, undefined, req.params.billId))[0],
     });

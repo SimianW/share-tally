@@ -15,6 +15,7 @@ import { Avatar, Button } from "./ui";
 import Dialog from "./Dialog";
 import { GroupDetails } from "./GroupDetails";
 import "./bills.css";
+import { InitiatorActions, ShareActions } from "./BillActions";
 
 export function Balance({
   summary,
@@ -41,7 +42,7 @@ export function Balance({
         </span>
       </div>
       <p>
-        Complete, unsettled bills only.
+        Completed bills only.
         {!group && " Repayments are worked out within each group."}
       </p>
     </section>
@@ -155,7 +156,7 @@ export function GroupBills({ id, onSummary }: { id: string; onSummary: (id: stri
                 </div>
                 <div>
                   <b>{money(bill.totalCents)}</b>
-                  <span>{bill.completedAt ? "Complete" : "In progress"}</span>
+                  <span>{bill.canceledAt ? "Canceled" : bill.completedAt ? "Complete" : "In progress"}</span>
                 </div>
               </a>
             ))}
@@ -348,8 +349,7 @@ function CreateBill({
         </fieldset>
         <p>
           Creating this bill confirms your share. Once everyone confirms, up to
-          $0.05 may be added to or deducted from your cost. Saved bills cannot
-          be edited yet.
+          $0.05 may be added to or deducted from your cost. Editing a saved bill will require everyone to confirm again.
         </p>
         {error && (
           <p role="alert" className="form-error">
@@ -382,6 +382,7 @@ export function BillDetails({ id }: { id: string }) {
   const heading = useRef<HTMLHeadingElement>(null);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
+  const [notice, setNotice] = useState("");
   useEffect(() => {
     const controller = new AbortController();
     api
@@ -410,6 +411,26 @@ export function BillDetails({ id }: { id: string }) {
     (p) => p.userId === bill.initiatorId,
   )!;
   const own = bill.participants.find((p) => p.isCurrentUser);
+  function saved(updated: Bill) {
+    setBill(updated);
+    setRevision((n) => n + 1);
+    setNotice(
+      updated.canceledAt
+        ? "Bill canceled. The record is retained."
+        : updated.completedAt
+          ? "Everyone confirmed. The bill completed automatically."
+          : updated.revision !== bill!.revision
+            ? "Amounts retained. Everyone needs to confirm again."
+            : "Your share is confirmed.",
+    );
+    heading.current?.focus();
+  }
+  function refresh() {
+    setNotice("");
+    setBill(null);
+    setRevision((n) => n + 1);
+  }
+
   return (
     <section className="bills-page">
       <a href={`#/group-bills/${bill.groupId}`}>← Group bills</a>
@@ -422,14 +443,25 @@ export function BillDetails({ id }: { id: string }) {
             {bill.purchaseDate} · Paid by {initiator.displayName} · CAD
           </p>
         </div>
-        <Button variant="secondary" onClick={() => setRevision((n) => n + 1)}>
+        <Button variant="secondary" onClick={refresh}>
           Refresh bill
         </Button>
       </div>
+      {notice && (
+        <p role="status" className="bill-warning">
+          {notice}
+        </p>
+      )}
       <div className="bill-layout">
-        <section className="difference-card">
+        <section
+          className={`difference-card${bill.canceledAt ? " canceled-bill" : ""}`}
+        >
           <span className="bill-status">
-            {bill.completedAt ? "✓ COMPLETE" : "IN PROGRESS"}
+            {bill.canceledAt
+              ? "CANCELED"
+              : bill.completedAt
+                ? "✓ COMPLETE"
+                : "IN PROGRESS"}
           </span>
           <h2>
             {bill.differenceCents > 0
@@ -469,7 +501,11 @@ export function BillDetails({ id }: { id: string }) {
                 </b>
                 <span>
                   {p.userId === bill.initiatorId ? "Initiator · " : ""}
-                  {p.confirmedAt ? "Confirmed" : "Awaiting confirmation"}
+                  {bill.canceledAt
+                    ? "Bill canceled"
+                    : p.confirmedAt
+                      ? "Confirmed"
+                      : "Awaiting confirmation"}
                 </span>
               </div>
               <strong>
@@ -481,7 +517,15 @@ export function BillDetails({ id }: { id: string }) {
           ))}
         </section>
         <div className="bill-adjustment">
-          {bill.completedAt ? (
+          {bill.canceledAt ? (
+            <>
+              <h3>This bill was canceled.</h3>
+              <p>
+                Kept for reference and excluded from financial totals. Shares
+                can no longer be submitted or confirmed.
+              </p>
+            </>
+          ) : bill.completedAt ? (
             <>
               <h3>
                 {bill.adjustmentCents === 0
@@ -510,8 +554,8 @@ export function BillDetails({ id }: { id: string }) {
                 {bill.confirmedCount < bill.participants.length
                   ? "Up to five cents can be assigned to the initiator after everyone confirms."
                   : Math.abs(bill.differenceCents) > 5
-                    ? "The difference exceeds $0.05. Submitted shares are preserved; editing is not available yet."
-                    : "The adjustment would make the initiator’s cost negative. Submitted shares are preserved; editing is not available yet."}
+                    ? "The difference exceeds $0.05. Participants can correct their own amounts below."
+                    : "The adjustment would make the initiator’s cost negative. Participants can correct their own amounts below."}
               </p>
             </>
           )}
@@ -523,17 +567,35 @@ export function BillDetails({ id }: { id: string }) {
           <p>{bill.notes}</p>
         </section>
       )}
-      {own?.amountCents === null && (
-        <SubmitShare
-          key={id}
-          bill={bill}
-          api={api}
-          saved={(updated) => {
-            setBill(updated);
-            heading.current?.focus();
-          }}
-        />
-      )}
+      <div className="bill-action-layout">
+        {!bill.canceledAt &&
+          own &&
+          (!bill.completedAt ? (
+            <ShareActions
+              key={`share:${bill.id}:${revision}:${bill.revision}`}
+              bill={bill}
+              api={api}
+              saved={saved}
+              refresh={refresh}
+            />
+          ) : (
+            <section className="share-form">
+              <h2>All confirmed.</h2>
+              <p>
+                Completed bills are final. Details, participants, and shares can no longer be changed.
+              </p>
+            </section>
+          ))}
+        {own?.userId === bill.initiatorId && (
+          <InitiatorActions
+            key={`initiator:${bill.id}:${revision}:${bill.revision}`}
+            bill={bill}
+            api={api}
+            saved={saved}
+            refresh={refresh}
+          />
+        )}
+      </div>
       {!own && (
         <p>
           You can view this bill as a group member. Only its participants can
@@ -541,73 +603,5 @@ export function BillDetails({ id }: { id: string }) {
         </p>
       )}
     </section>
-  );
-}
-function SubmitShare({
-  bill,
-  api,
-  saved,
-}: {
-  bill: Bill;
-  api: BillApi;
-  saved: (bill: Bill) => void;
-}) {
-  const [amount, setAmount] = useState("");
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  const pending = useRef(false);
-  const [attempt, setAttempt] = useState<number | null>(null);
-  return (
-    <form
-      className="share-form"
-      onSubmit={async (event) => {
-        event.preventDefault();
-        if (pending.current) return;
-        pending.current = true;
-        setBusy(true);
-        setError("");
-        try {
-          const value = attempt ?? parseMoney(amount);
-          if (value > bill.totalCents)
-            throw new Error("Your share cannot exceed the bill total.");
-          setAttempt(value);
-          saved((await api.submit(bill.id, value)).bill);
-        } catch (error) {
-          if (error instanceof BillApiError && error.status === 400)
-            setAttempt(null);
-          setError(errorMessage(error));
-        } finally {
-          pending.current = false;
-          setBusy(false);
-        }
-      }}
-    >
-      <h2>Confirm your share</h2>
-      <p>
-        Include your tax, discounts, and rounding. Enter 0 if you have no cost.
-      </p>
-      <label>
-        My share · CAD
-        <input
-          required
-          inputMode="decimal"
-          value={amount}
-          disabled={busy || attempt !== null}
-          onChange={(e) => setAmount(e.target.value)}
-        />
-      </label>
-      {error && (
-        <p role="alert" className="form-error">
-          {error}
-        </p>
-      )}
-      <Button type="submit" disabled={busy}>
-        {busy
-          ? "Confirming..."
-          : attempt === null
-            ? "Submit and confirm my share"
-            : "Retry confirmation"}
-      </Button>
-    </form>
   );
 }

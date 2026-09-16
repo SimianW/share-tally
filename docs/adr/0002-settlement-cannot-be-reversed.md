@@ -1,4 +1,10 @@
+---
+status: superseded by ADR-0005
+---
+
 # Settlement cannot be reversed once started
+
+Superseded by [continuous group balances](0005-continuous-group-ledger.md). The text below preserves the previous decision and its rationale.
 
 Once a member starts settlement, the group must finish the required repayments and recipient confirmations before returning to bill activity. The owner chose this restriction because edits or reversal could invalidate repayment instructions after money has already moved outside the app; cancellation is unavailable even before the first confirmation.
 

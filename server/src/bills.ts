@@ -31,11 +31,52 @@ function object(value: unknown): Record<string, unknown> {
     throw new BillError(400, "Expected a JSON object.");
   return value as Record<string, unknown>;
 }
+export function parseRevision(value: unknown) {
+  const body = object(value);
+  if (!Number.isSafeInteger(body.revision) || Number(body.revision) < 1)
+    throw new BillError(400, "A positive bill revision is required.");
+  return Number(body.revision);
+}
+export function parseAction(value: unknown) {
+  const body = object(value);
+  if (Object.keys(body).some((key) => key !== "revision"))
+    throw new BillError(400, "Unexpected action field.");
+  return parseRevision(body);
+}
 export function parseShare(value: unknown) {
   const body = object(value);
-  if (Object.keys(body).some((key) => key !== "amountCents"))
-    throw new BillError(400, "Submit only your own amountCents.");
-  return cents(body.amountCents);
+  if (
+    Object.keys(body).some(
+      (key) =>
+        !["amountCents", "expectedAmountCents", "revision"].includes(key),
+    )
+  )
+    throw new BillError(400, "Submit only your own share.");
+  return {
+    amount: cents(body.amountCents),
+    revision: parseRevision(body),
+    expectedAmount:
+      body.expectedAmountCents === null
+        ? null
+        : cents(body.expectedAmountCents),
+  };
+}
+export function parseEdit(value: unknown) {
+  const body = object(value);
+  const revision = parseRevision(body);
+  const { revision: _, ...details } = body;
+  if ("requestId" in details || "ownShareCents" in details)
+    throw new BillError(400, "Bill edits cannot change participant amounts.");
+  const {
+    requestId: _request,
+    ownShareCents: _share,
+    ...input
+  } = parseBill({
+    ...details,
+    requestId: "00000000-0000-4000-8000-000000000000",
+    ownShareCents: 0,
+  });
+  return { ...input, revision };
 }
 export function parseBill(value: unknown) {
   const body = object(value);
@@ -131,7 +172,13 @@ async function complete(tx: Tx, bill: typeof bills.$inferSelect) {
     .select()
     .from(billShares)
     .where(eq(billShares.billId, bill.id));
-  if (shares.some((share) => share.amountCents === null)) return;
+  if (
+    bill.canceledAt ||
+    shares.some(
+      (share) => share.amountCents === null || share.confirmedAt === null,
+    )
+  )
+    return;
   const sum = shares.reduce((n, share) => n + BigInt(share.amountCents!), 0n);
   const difference = BigInt(bill.totalCents) - sum;
   const initiator = shares.find((share) => share.userId === bill.initiatorId)!;
@@ -202,30 +249,128 @@ export async function createBill(
         409,
         "This creation request was already used in another group.",
       );
-    await tx
-      .insert(billShares)
-      .values(
-        input.participantIds.map((id) => ({
-          billId: bill.id,
-          userId: id,
-          amountCents: id === userId ? input.ownShareCents : null,
-          confirmedAt: id === userId ? new Date() : null,
-        })),
-      );
+    await tx.insert(billShares).values(
+      input.participantIds.map((id) => ({
+        billId: bill.id,
+        userId: id,
+        amountCents: id === userId ? input.ownShareCents : null,
+        confirmedAt: id === userId ? new Date() : null,
+      })),
+    );
     await complete(tx, bill);
     return bill.id;
   });
 }
-export async function submitShare(id: string, userId: string, amount: number) {
+async function lockedBill(tx: Tx, id: string, userId: string) {
+  const [bill] = await tx
+    .select()
+    .from(bills)
+    .where(eq(bills.id, id))
+    .for("update");
+  if (!bill) throw new BillError(404, "Bill not found.");
+  await member(tx, bill.groupId, userId);
+  return bill;
+}
+function assertMutableRevision(
+  bill: typeof bills.$inferSelect,
+  revision: number,
+) {
+  if (bill.revision !== revision)
+    throw new BillError(
+      409,
+      "This bill changed. Review the latest bill before trying again.",
+    );
+  if (bill.canceledAt) throw new BillError(409, "This bill is canceled.");
+}
+async function clearConfirmations(tx: Tx, id: string) {
+  await tx
+    .update(billShares)
+    .set({ confirmedAt: null })
+    .where(eq(billShares.billId, id));
+}
+export async function changeBill(
+  id: string,
+  userId: string,
+  command:
+    | { action: "edit"; input: ReturnType<typeof parseEdit> }
+    | { action: "cancel"; revision: number },
+) {
+  const { action } = command;
+  const input = command.action === "edit" ? command.input : undefined;
+  const revision =
+    command.action === "edit" ? command.input.revision : command.revision;
   await db.transaction(async (tx) => {
-    // Every first submission locks this bill before reading or changing its shares.
-    const [bill] = await tx
-      .select()
-      .from(bills)
-      .where(eq(bills.id, id))
-      .for("update");
-    if (!bill) throw new BillError(404, "Bill not found.");
-    await member(tx, bill.groupId, userId);
+    const bill = await lockedBill(tx, id, userId);
+    if (bill.initiatorId !== userId)
+      throw new BillError(403, "Only the initiator can change this bill.");
+    assertMutableRevision(bill, revision);
+    if (bill.completedAt)
+      throw new BillError(409, "Completed bills are final and cannot be changed.");
+    if (action === "cancel") {
+      await tx
+        .update(bills)
+        .set({ canceledAt: new Date(), revision: bill.revision + 1 })
+        .where(eq(bills.id, id));
+      return;
+    }
+    if (input) {
+      if (!input.participantIds.includes(userId))
+        throw new BillError(400, "The initiator must remain a participant.");
+      const members = await tx
+        .select()
+        .from(groupMembers)
+        .where(eq(groupMembers.groupId, bill.groupId));
+      if (
+        input.participantIds.some((id) => !members.some((m) => m.userId === id))
+      )
+        throw new BillError(
+          400,
+          "Every participant must belong to this group.",
+        );
+      const shares = await tx
+        .select()
+        .from(billShares)
+        .where(eq(billShares.billId, id));
+      for (const share of shares)
+        if (!input.participantIds.includes(share.userId))
+          await tx
+            .delete(billShares)
+            .where(
+              and(
+                eq(billShares.billId, id),
+                eq(billShares.userId, share.userId),
+              ),
+            );
+      for (const userId of input.participantIds)
+        if (!shares.some((s) => s.userId === userId))
+          await tx.insert(billShares).values({ billId: id, userId });
+    }
+    await clearConfirmations(tx, id);
+    await tx
+      .update(bills)
+      .set({
+        ...(input
+          ? {
+              title: input.title,
+              notes: input.notes,
+              purchaseDate: input.purchaseDate,
+              totalCents: input.totalCents,
+            }
+          : {}),
+        completedAt: null,
+        adjustmentCents: null,
+        revision: bill.revision + 1,
+      })
+      .where(eq(bills.id, id));
+  });
+}
+export async function submitShare(
+  id: string,
+  userId: string,
+  input: ReturnType<typeof parseShare>,
+) {
+  await db.transaction(async (tx) => {
+    const bill = await lockedBill(tx, id, userId);
     const [share] = await tx
       .select()
       .from(billShares)
@@ -235,21 +380,41 @@ export async function submitShare(id: string, userId: string, amount: number) {
         403,
         "Only selected participants can submit a share.",
       );
-    cents(amount, bill.totalCents);
-    if (share.amountCents !== null) {
-      if (share.amountCents !== amount)
-        throw new BillError(
-          409,
-          "Your share is already confirmed. Editing is not available yet.",
-        );
-      return;
+    assertMutableRevision(bill, input.revision);
+    cents(input.amount, bill.totalCents);
+    // An identical retry is harmless, even if this submission just completed the bill.
+    if (share.amountCents === input.amount && share.confirmedAt) return;
+    if (share.amountCents !== input.expectedAmount)
+      throw new BillError(
+        409,
+        "Your share changed. Review the latest bill before trying again.",
+      );
+    if (bill.completedAt)
+      throw new BillError(
+        409,
+        "Completed bills are final and cannot be changed.",
+      );
+    const changed =
+      share.amountCents !== null && share.amountCents !== input.amount;
+    if (changed) {
+      await clearConfirmations(tx, id);
+      await tx
+        .update(bills)
+        .set({
+          revision: bill.revision + 1,
+          adjustmentCents: null,
+          completedAt: null,
+        })
+        .where(eq(bills.id, id));
     }
-    if (bill.completedAt) throw new BillError(409, "This bill is complete.");
     await tx
       .update(billShares)
-      .set({ amountCents: amount, confirmedAt: new Date() })
+      .set({
+        amountCents: input.amount,
+        confirmedAt: changed ? null : new Date(),
+      })
       .where(and(eq(billShares.billId, id), eq(billShares.userId, userId)));
-    await complete(tx, bill);
+    if (!changed) await complete(tx, bill);
   });
 }
 function safe(value: bigint) {
@@ -334,7 +499,7 @@ export function summarize(
   let receivable = 0n,
     payable = 0n;
   for (const bill of rows) {
-    if (!bill.completedAt) continue;
+    if (!bill.completedAt || bill.canceledAt) continue;
     const own = bill.participants.find((p) => p.userId === userId);
     if (!own) continue;
     if (bill.initiatorId === userId)

@@ -1,5 +1,7 @@
 # Bill implementation
 
+Historical implementation note: the code behavior described below predates ADR-0005 and ADR-0006. Revised #5 removes completed-bill reopening; #7 adds confirmed repayment offsets. No settled-bill exclusion or batch settlement is to be implemented.
+
 Issue #4 follows the owner-approved [design](issue-4-design.md) and [small-difference decision](adr/0004-small-bill-differences-belong-to-initiator.md). The website uses English and the selected A layout.
 
 ## Data and transactions

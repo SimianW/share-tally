@@ -1,5 +1,7 @@
 # Participants own their bill shares
 
+The completed-bill reopening rules below are superseded by [ADR-0006](0006-completed-bills-are-final.md). Participant ownership and confirmation rules for incomplete bills remain in force.
+
 Every selected participant, including the initiator, submits their own share, and the initiator cannot edit another participant's amount. An explicit zero is valid, but a missing submission prevents automatic completion even if the other shares already equal the bill total. The owner chose this collaborative workflow over initiator-entered allocations despite the extra coordination it requires.
 
 Initiator edits reopen the bill and retain previous amounts. Every participant must reconfirm after reopening, including participants whose amounts remain unchanged; balancing retained amounts alone cannot complete a reopened bill.
