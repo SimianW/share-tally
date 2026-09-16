@@ -132,7 +132,7 @@ export function ReceiptItemEditor({
             />
           </div>
           {draftMode && (
-            <label>
+            <label className="receipt-tax-toggle">
               <input
                 type="checkbox"
                 aria-label="Taxable"
