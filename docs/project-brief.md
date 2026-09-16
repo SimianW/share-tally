@@ -4,7 +4,7 @@ ShareTally helps friends split shared purchases and settle group debts. The owne
 
 ## Learning goal
 
-Learn TypeScript, React, and SQL by building an application the owner can explain, modify, test, and debug for backend and full-stack co-op interviews. Backend learning priorities include relational modeling, transactions, multi-user authorization, and financial correctness. AI-assisted receipt extraction is optional and follows a usable manual workflow.
+Learn TypeScript, React, and SQL by building an application the owner can explain, modify, test, and debug for backend and full-stack co-op interviews. Backend learning priorities include relational modeling, transactions, multi-user authorization, and financial correctness. The first release must include AI-assisted receipt extraction and item claiming alongside the manual workflow. A separate receipt specification is being developed in `docs/drafts/receipt-item-claiming-spec.md`; issue #1 remains unchanged.
 
 ## Ownership
 
@@ -14,9 +14,8 @@ Agents may implement core logic when assigned a specified task; the owner does n
 
 ## Delivery constraints
 
-- Target: three to four weeks, normally about five hours per week, potentially five to seven with extra time early in the semester.
-- Maximum total effort: 30 hours.
-- Planning suggestion, not an additional commitment: aim for 20 hours of planned work and reserve the rest for problems, testing, and deployment.
+- The owner retired the earlier time and effort budgets on 2026-09-15 because AI now leads implementation. Do not use the earlier 30-hour cap to limit scope.
+- Receipt extraction and item claiming must be completed before the first release. Their separate specification will state the changes to issue #1's original scope and rules without editing issue #1.
 - Hosting: the owner's existing server, exposed through a public-IP VPS and FRP. Network topology, domain, HTTPS termination, process placement, database backups, and any additional service budget remain to be worked out.
 
 Google sign-in and the deployed friend-group trial are requirements in the specification. The selected stack and its rationale are in [ADR-0003](adr/0003-typescript-relational-backend.md).
