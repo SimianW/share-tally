@@ -63,7 +63,12 @@ export function receiptNameConfig(
     throw new Error(
       "Set RECEIPT_NAME_API_KEY on the API server for receipt name interpretation.",
     );
-  return { baseURL, apiKey, model: env.RECEIPT_NAME_MODEL || "gpt-5.6-luna" };
+  const model = env.RECEIPT_NAME_MODEL?.trim();
+  if (!model)
+    throw new Error(
+      "Set RECEIPT_NAME_MODEL on the API server for receipt name interpretation.",
+    );
+  return { baseURL, apiKey, model };
 }
 
 // Names are a separate boundary: the provider receives no mutable financial fields.

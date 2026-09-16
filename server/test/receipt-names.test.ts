@@ -18,12 +18,20 @@ test("custom name provider uses gateway key and never falls back to the OpenAI k
     receiptNameConfig({
       RECEIPT_NAME_BASE_URL: "http://dev-2a1m:8317/v1/",
       RECEIPT_NAME_API_KEY: "proxy-key",
+      RECEIPT_NAME_MODEL: "model-from-env",
     }),
     {
       baseURL: "http://dev-2a1m:8317/v1",
       apiKey: "proxy-key",
-      model: "gpt-5.6-luna",
+      model: "model-from-env",
     },
+  );
+  assert.throws(
+    () =>
+      receiptNameConfig({
+        RECEIPT_NAME_API_KEY: "provider-key",
+      }),
+    /RECEIPT_NAME_MODEL/,
   );
 });
 test("name requests use Responses with medium reasoning and preserve reordered items", async () => {
