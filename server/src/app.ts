@@ -71,7 +71,7 @@ export function createApp(auth: Authentication = {
     next();
   });
   app.use('/api', (req, res, next) => {
-    const receipt = /^\/(receipt-drafts\/|groups\/[^/]+\/receipt-drafts|bills\/[^/]+\/(items|claims))/.test(req.path);
+    const receipt = /^\/(receipt-drafts\/|groups\/[^/]+\/(receipt-drafts|receipt-preview)|bills\/[^/]+\/(items|claims))/.test(req.path);
     return express.json({ limit: receipt ? '12mb' : '16kb' })(req, res, next);
   });
   app.use('/api', createReceiptRouter(displayName, auth.receiptExtractor, auth.receiptNames));
@@ -135,7 +135,7 @@ export function createApp(auth: Authentication = {
     }
 
     // Database exceptions can contain bound photo bytes; never retain them in logs.
-    console.error('Request failed', _req.path.endsWith('/photo') ? (error instanceof Error ? error.name : 'UnknownError') : error);
+    console.error('Request failed', (_req.path.includes('receipt-drafts') || _req.path.includes('receipt-preview')) ? (error instanceof Error ? error.name : 'UnknownError') : error);
 
     res.status(500).json({
       error: 'Internal Server Error'

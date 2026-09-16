@@ -5,20 +5,33 @@ export function ReceiptPhoto({
   id,
   version = 0,
   expired = false,
+  localPhoto,
 }: {
   id: string;
   version?: number;
   expired?: boolean;
+  localPhoto?: string;
 }) {
   const api = useReceiptApi();
   const [image, setImage] = useState("");
   const [error, setError] = useState("");
   useEffect(() => {
-    if (expired) return;
+    if (expired && !localPhoto) return;
     const controller = new AbortController();
     let url = "";
-    api
-      .photo(id, controller.signal)
+    const photo = localPhoto
+      ? Promise.resolve(
+          new Blob(
+            [
+              Uint8Array.from(atob(localPhoto), (character) =>
+                character.charCodeAt(0),
+              ),
+            ],
+            { type: "image/jpeg" },
+          ),
+        )
+      : api.photo(id, controller.signal);
+    photo
       .then((blob) => {
         if (controller.signal.aborted) return;
         url = URL.createObjectURL(blob);
@@ -33,8 +46,9 @@ export function ReceiptPhoto({
       controller.abort();
       if (url) URL.revokeObjectURL(url);
     };
-  }, [api, id, version, expired]);
-  if (expired)
+  }, [api, id, version, expired, localPhoto]);
+  const source = image;
+  if (expired && !localPhoto)
     return (
       <p>
         Receipt photo expired after six months. Item data and original text are
@@ -44,16 +58,16 @@ export function ReceiptPhoto({
   return (
     <details className="receipt-photo" open>
       <summary>Receipt photo</summary>
-      {error ? (
+      {error && !localPhoto ? (
         <p>{error}</p>
-      ) : image ? (
+      ) : source ? (
         <a
-          href={image}
+          href={source}
           target="_blank"
           rel="noreferrer"
           aria-label="Enlarge receipt photo"
         >
-          <img src={image} alt="Original cropped receipt" />
+          <img src={source} alt="Original cropped receipt" />
         </a>
       ) : (
         <p>Loading photo…</p>
