@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test:avatar": "node scripts/smoke-avatar.mjs",
     "test:receipts": "node scripts/smoke-receipts.mjs",
-    "test:groups": "node scripts/smoke-groups.mjs"
+    "test:groups": "node scripts/smoke-groups.mjs",
+    "prototype:drafts": "vite --host 0.0.0.0 --port 5178"
   },
   "dependencies": {
     "@clerk/react": "^6.15.1",
