@@ -6,6 +6,7 @@ import {
   type ExtractedReceipt,
 } from "../src/receipt-extraction.js";
 import { draftItemInput, itemInput } from "../src/receipt-input.js";
+import { priceDraft } from "../src/receipt-pricing.js";
 
 function receipt(patch: Partial<ExtractedReceipt> = {}): ExtractedReceipt {
   return {
@@ -32,8 +33,32 @@ function receipt(patch: Partial<ExtractedReceipt> = {}): ExtractedReceipt {
 test("tax allocation preserves cents and included tax is not charged twice", () => {
   const exclusive = extractionDefaults(receipt());
   assert.deepEqual(
+    exclusive.items.map((i) => i.taxCents),
+    [2, 2, 1],
+  );
+  assert.deepEqual(
     exclusive.items.map((i) => i.finalCents),
     [102, 102, 101],
+  );
+  const repriced = priceDraft({
+    mode: "items",
+    title: "Shop",
+    notes: "",
+    purchaseDate: "2026-09-16",
+    timeZone: "America/Toronto",
+    totalCents: exclusive.totalCents,
+    ownShareCents: 0,
+    participantIds: [],
+    receipt: exclusive.receipt,
+    items: exclusive.items,
+  });
+  assert.deepEqual(
+    repriced.items.map((i) => [i.taxCents, i.finalCents]),
+    [
+      [2, 102],
+      [2, 102],
+      [1, 101],
+    ],
   );
   const inclusive = extractionDefaults(receipt({ pricesIncludeTax: true }));
   assert.deepEqual(
@@ -60,6 +85,7 @@ test("missing money stays empty, explicit zero is valid, undefined allocation re
   const {
     taxable: _taxable,
     manualFinal: _manualFinal,
+    allocatedTaxCents: _allocatedTaxCents,
     ...zeroItem
   } = explicitZero.items[0]!;
   assert.equal(itemInput.safeParse(zeroItem).success, true);

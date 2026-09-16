@@ -1,8 +1,8 @@
 import { allocate } from "./fractions.js";
 import { draftInput, checked, type ReceiptDraftData } from "./receipt-input.js";
 
-// Stored item breakdowns remain the entered values. Recalculation changes only
-// final costs, so applying receipt-wide adjustments twice never compounds them.
+// Track the receipt-wide part of each displayed item tax separately. This lets
+// recalculation replace the old allocation instead of compounding it.
 export function priceDraft(input: ReceiptDraftData) {
   const data = checked(draftInput, input);
   const receipt = data.receipt;
@@ -49,19 +49,24 @@ export function priceDraft(input: ReceiptDraftData) {
   );
   const extra = spread(receipt?.extraCents ?? 0, net);
   const items = data.items.map((item, index) => {
-    const itemTax = item.taxable === false ? 0 : tax[index];
+    const allocatedTax = item.taxable === false ? 0 : tax[index];
+    const allocatedTaxCents = allocatedTax ?? 0;
+    const itemTaxCents =
+      Math.max(0, item.taxCents - (item.allocatedTaxCents ?? 0)) +
+      allocatedTaxCents;
     const amount = net[index];
     const adjustment = extra[index];
     const final =
-      amount == null || itemTax == null || adjustment == null
+      amount == null || allocatedTax == null || adjustment == null
         ? null
         : amount +
-          itemTax +
           adjustment +
           item.extraCents +
-          (receipt?.pricesIncludeTax ? 0 : item.taxCents);
+          (receipt?.pricesIncludeTax ? 0 : itemTaxCents);
     return {
       ...item,
+      allocatedTaxCents,
+      taxCents: itemTaxCents,
       finalCents: item.manualFinal
         ? item.finalCents
         : final === null || final < 0 || final > 1_000_000

@@ -16,6 +16,7 @@ export const itemInput = z
   })
   .strict();
 export const draftItemInput = itemInput.extend({
+  allocatedTaxCents: amount.optional(),
   manualFinal: z.boolean().default(false),
   name: z.string().max(160),
   amountCents: amount.nullable(),
