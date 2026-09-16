@@ -19,6 +19,7 @@ export type ReceiptDraftItem = Omit<
 > & {
   amountCents: number | null;
   finalCents: number | null;
+  allocatedTaxCents?: number;
   taxable?: boolean | null;
   manualFinal?: boolean;
 };

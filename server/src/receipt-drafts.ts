@@ -287,8 +287,12 @@ export async function initializeDraft(
         ? checked(
             z.array(itemInput).min(1).max(200),
             draftItems.map(
-              ({ taxable: _taxable, manualFinal: _manualFinal, ...item }) =>
-                item,
+              ({
+                taxable: _taxable,
+                manualFinal: _manualFinal,
+                allocatedTaxCents: _allocatedTaxCents,
+                ...item
+              }) => item,
             ),
           )
         : [];

@@ -51,6 +51,7 @@ export function extractionDefaults(data: ExtractedReceipt) {
     amountCents: i.amount === null ? null : cents(i.amount),
     discountCents: cents(i.discount),
     taxCents: cents(i.tax),
+    allocatedTaxCents: 0,
     extraCents: 0,
     finalCents: 0,
   }));
