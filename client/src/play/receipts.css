@@ -55,6 +55,9 @@
   gap: 12px;
   align-items: end;
 }
+.receipt-costs {
+  align-items: start;
+}
 .receipt-costs > label {
   flex: 1 1 140px;
   min-width: 0;
@@ -90,6 +93,18 @@
   border: 1px solid #d8ded3;
   border-radius: 9px;
   background: white;
+}
+.receipt-edit-row .receipt-tax-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.receipt-edit-row .receipt-tax-toggle input {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin: 0;
+  padding: 0;
 }
 .receipt-index {
   display: grid;

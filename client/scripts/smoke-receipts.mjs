@@ -213,6 +213,11 @@ try {
   await alice
     .getByRole("button", { name: "+ Add an item", exact: true })
     .click();
+  const quantityBox = await alice.getByLabel("Quantity", { exact: true }).boundingBox();
+  const finalBox = await alice.getByLabel("Final cost · CAD", { exact: true }).boundingBox();
+  assert.ok(Math.abs(quantityBox.y - finalBox.y) < 2, "Quantity and empty Final cost inputs must align despite validation text");
+  const taxBox = await alice.getByRole("checkbox", { name: "Taxable", exact: true }).boundingBox();
+  assert.ok(taxBox.width <= 24, "Tax checkbox must not inherit full-width input styling");
   await alice.getByLabel("Item name", { exact: true }).fill("Apples");
   await alice.getByText("Original text & price details").click();
   await alice.getByLabel("Printed amount", { exact: true }).fill("3.00");
