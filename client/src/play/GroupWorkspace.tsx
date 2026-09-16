@@ -1,3 +1,4 @@
+import { Notification } from './Notification';
 import { useEffect } from 'react';
 import { useCached } from './query-cache';
 import { money, useBillApi, type Summary } from './bill-api';
@@ -35,7 +36,7 @@ export default function GroupWorkspace({ groups, selectedId, selectedRepaymentId
   return <div className="group-workspace">
     <nav className="workspace-groups" aria-label="Groups">
       {loading && <p role="status">Loading groups…</p>}
-      {error && <div role="alert"><p>{error}</p><Button onClick={retry}>Retry groups</Button></div>}
+      {error && <Notification><p>{error}</p><Button onClick={retry}>Retry groups</Button></Notification>}
       {groups.map(group => <GroupLink key={group.id} group={group} active={group.id === activeId} />)}
     </nav>
     <div className="workspace-content">

@@ -1,3 +1,4 @@
+import { Notification } from './Notification';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, Search, X } from 'lucide-react';
 import { GroupIconView } from './GroupIconView';
@@ -60,7 +61,7 @@ export default function GroupIconPicker({ value, onApply, onCancel }: {
     </div>
     <div className="picker-results" ref={resultsRef}>
       <div className="picker-results-heading"><span>{query ? `Results for “${query}”` : 'Explore the library'}</span><span role="status">{source === 'unicode' && !emojis ? '' : `${results.length} found`}</span></div>
-      {source === 'unicode' && !emojis ? loadError ? <div className="picker-message" role="alert">Could not load the emoji library. You can still paste one below.<button type="button" onClick={() => { setLoadError(false); setRetry(value => value + 1); }}>Try again</button></div> : <p role="status">Loading emoji…</p> : <>
+      {source === 'unicode' && !emojis ? loadError ? <Notification title="Could not load emoji">Could not load the emoji library. You can still paste one below.<button type="button" onClick={() => { setLoadError(false); setRetry(value => value + 1); }}>Try again</button></Notification> : <p role="status">Loading emoji…</p> : <>
         <div className="picker-grid" role="group" aria-label="Search results">
           {results.slice(0, limit).map(item => <button type="button" key={`${item.icon.type}:${item.icon.value}`}
             aria-label={`Select ${item.label}`} title={item.label}
@@ -82,7 +83,7 @@ export default function GroupIconPicker({ value, onApply, onCancel }: {
           const value = event.target.value; setCustom(value);
           if (isUnicodeIcon(value)) { setDraft({ type: 'unicode', value }); setLabel(value); }
         }} />
-      {invalidCustom && <p id={`${id}-error`} role="alert">Enter one visible character or emoji. Combined emoji are supported.</p>}
+      {invalidCustom && <div id={`${id}-error`}><Notification title="Check your icon">Enter one visible character or emoji. Combined emoji are supported.</Notification></div>}
     </div>}
     <footer className="picker-selection">
       <span className="picker-selected-art"><GroupIconView icon={draft} size={28} /></span>

@@ -1,3 +1,4 @@
+import { Notification, SuccessNotification } from './Notification';
 import { ArrowRight, RefreshCw } from 'lucide-react';
 import { useCached } from './query-cache';
 import { useEffect, useRef, useState } from 'react';
@@ -24,7 +25,7 @@ export function GroupDetails({ id, api, close, onViewBills }: { id: string; api:
   return (
     <Dialog title={group?.name ?? 'Group'} kicker="YOUR PEOPLE" close={close}>
       {loading && !group && <p role="status">Loading members…</p>}
-      {error && <p role="alert" className="form-error">{error}</p>}
+      {error && <Notification>{error}</Notification>}
       {group && !error && onViewBills && <div className="group-bills-action">
         <Button onClick={onViewBills}>
           View bills and balance <ArrowRight size={18} aria-hidden="true" />
@@ -75,8 +76,8 @@ function InvitationControls({ id, api }: { id: string; api: GroupApi }) {
   return <section className="invitation-controls">
     <h3>Invite friends</h3>
     <p>Anyone with this link can sign in and join while the group has fewer than 16 members. Only you can get or replace it here.</p>
-    {error && <p role="alert" className="form-error">{error}</p>}
-    {message && <p role="status">{message}</p>}
+    {error && <Notification>{error}</Notification>}
+    {message && (message.startsWith("Select") ? <Notification tone="info" title="Copy the link manually">{message}</Notification> : <SuccessNotification message={message} />)}
     {link ? <>
       <label>Invitation link<input readOnly value={link} onFocus={event => event.target.select()} /></label>
       <Button onClick={copy} disabled={busy}>Copy invitation link</Button>
@@ -106,7 +107,7 @@ export function JoinGroup({ token, api, joined, close }: {
   }
   return <Dialog title="Join your friends" kicker="YOU'RE INVITED" close={() => { if (!pending.current) close(); }}>
     <p>Join this group to see its members and shared purchases.</p>
-    {error && <p role="alert" className="form-error">{error}</p>}
+    {error && <Notification>{error}</Notification>}
     <div className="dialog-actions">
       <Button onClick={() => void join()} disabled={busy}>{busy ? 'Joining…' : 'Join group'}</Button>
       <Button variant="secondary" onClick={close} disabled={busy}>Cancel</Button>

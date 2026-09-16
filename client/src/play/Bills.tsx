@@ -1,3 +1,4 @@
+import { Notification } from './Notification';
 import { useCached, denied, useCachedRequest, hideProtectedQueries, AccessError } from './query-cache';
 import { AnimatedMoney } from './AnimatedMoney';
 import { useAuth } from '@clerk/react';
@@ -62,7 +63,7 @@ export function OverviewBalance({ revision }: { revision: string }) {
   const [retry, setRetry] = useState(0);
   useEffect(() => { void api.summary().catch(() => {}); }, [api, revision, retry]);
   return <>
-    {query.error && <div role="alert"><p>{query.data ? "Couldn't refresh your balances." : errorMessage(query.error)}</p><Button onClick={() => setRetry(n => n + 1)}>Retry balances</Button></div>}
+    {query.error && <Notification><p>{query.data ? "Couldn't refresh your balances." : errorMessage(query.error)}</p><Button onClick={() => setRetry(n => n + 1)}>Retry balances</Button></Notification>}
     {query.data ? <Balance summary={query.data.summary} /> : !query.error && <LoadingFinancials label="Loading balances" />}
   </>;
 }
@@ -118,7 +119,7 @@ export function GroupBills({ id, selectedRepaymentId }: { id: string; selectedRe
           <Button onClick={() => setCreating(true)}><Icon name="plus" /> New bill</Button>
         </div>}
       </div>
-      {!data && (error || accessError) && <div role="alert" className="form-error"><p>{accessError ? errorMessage(accessError) : "Couldn't load this group."}</p><Button onClick={() => setRevision(n => n + 1)}>Try again</Button></div>}
+      {!data && (error || accessError) && <Notification><p>{accessError ? errorMessage(accessError) : "Couldn't load this group."}</p><Button onClick={() => setRevision(n => n + 1)}>Try again</Button></Notification>}
       {!data ? (
         <LoadingFinancials label="Loading group" />
       ) : (
@@ -363,11 +364,11 @@ function CreateBill({
           $0.05 may be added to or deducted from your cost. Editing a saved bill will require everyone to confirm again.
         </p>
         {error && (
-          <p role="alert" className="form-error">
+          <Notification>
             {error}
             {request &&
               " Retry sends the same bill details. You can close this form and return to retry."}
-          </p>
+          </Notification>
         )}
         <div className="dialog-actions">
           <Button type="submit" disabled={busy}>
@@ -419,7 +420,7 @@ export function BillDetails({ id }: { id: string }) {
     });
     return () => { controller.abort(); sync?.stop(); live.current = null; };
   }, [api, getToken, id, revision]);
-  if (!bill) return <div role="status">{error || 'Loading bill...'}{error && <Button onClick={() => setRevision(n => n + 1)}>Retry bill</Button>}</div>;
+  if (!bill) return error ? <Notification title="Could not load this bill">{error}<Button onClick={() => setRevision(n => n + 1)}>Retry bill</Button></Notification> : <div role="status">Loading bill...</div>;
   const initiator = bill.participants.find(
     (p) => p.userId === bill.initiatorId,
   )!;
@@ -464,19 +465,12 @@ export function BillDetails({ id }: { id: string }) {
         </div>
 
       </div>
-      {error && <div role="alert"><p>{error}</p><Button onClick={refresh}>Retry bill</Button></div>}
-      {notice && (
-        <p role="status" className="bill-warning">
-          {notice}
-        </p>
-      )}
+      {error && <Notification><p>{error}</p><Button onClick={refresh}>Retry bill</Button></Notification>}
+      {notice && !needsAmountCorrection && <Notification tone="success" title="Bill updated" onDismiss={() => setNotice("")}>{notice}</Notification>}
       {needsAmountCorrection && (
-        <div role="alert" className="bill-warning bill-correction">
-          <h2>Adjust shares before this bill can complete.</h2>
+        <Notification tone="warning" title={`Shares are ${money(Math.abs(bill.differenceCents))} ${bill.differenceCents < 0 ? "over" : "under"} the total`}>
           <p>
-            Submitted shares are {money(Math.abs(bill.differenceCents))}{" "}
-            {bill.differenceCents < 0 ? "over" : "under"} the bill total.
-            Check your amount and correct it if needed. The combined shares must
+            This bill cannot complete yet. Check your amount and correct it if needed. The combined shares must
             be within $0.05 of the bill total.
           </p>
           <p>
@@ -489,7 +483,7 @@ export function BillDetails({ id }: { id: string }) {
               Edit my share
             </Button>
           )}
-        </div>
+        </Notification>
       )}
       <div className="bill-layout">
         <section
@@ -557,7 +551,7 @@ export function BillDetails({ id }: { id: string }) {
             </div>
           ))}
         </section>
-        <div className="bill-adjustment">
+        {!needsAmountCorrection && <div className={`bill-adjustment${!bill.completedAt && !bill.canceledAt ? " bill-adjustment-pending" : ""}`}>
           {bill.canceledAt ? (
             <>
               <h3>This bill was canceled.</h3>
@@ -586,12 +580,10 @@ export function BillDetails({ id }: { id: string }) {
               </p>
             </>
           ) : (
-            <>
-              <h3>
-                {bill.confirmedCount < bill.participants.length
-                  ? "Waiting for everyone to confirm."
-                  : "This bill cannot complete yet."}
-              </h3>
+            <Notification
+              tone={bill.confirmedCount < bill.participants.length ? "info" : "warning"}
+              title={bill.confirmedCount < bill.participants.length ? "Waiting for everyone to confirm." : "This bill cannot complete yet."}
+            >
               <p>
                 {bill.confirmedCount < bill.participants.length
                   ? "Up to five cents can be assigned to the initiator after everyone confirms."
@@ -599,9 +591,9 @@ export function BillDetails({ id }: { id: string }) {
                     ? "The difference exceeds $0.05. Participants can correct their own amounts below."
                     : "The adjustment would make the initiator’s cost negative. Participants can correct their own amounts below."}
               </p>
-            </>
+            </Notification>
           )}
-        </div>
+        </div>}
       </div>
       {bill.notes && (
         <section className="bill-notes">

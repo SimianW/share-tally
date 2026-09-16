@@ -144,7 +144,7 @@ try {
 
   const carol = await pageFor('carol-token', { width: 1280, height: 900 });
   await carol.goto(groupUrl);
-  await expect(carol.getByRole('alert')).toHaveText('Group not found.');
+  await expect(carol.getByRole('alert')).toContainText('Group not found.');
   await carol.goto(oldLink);
   await carol.getByRole('button', { name: 'Join group', exact: true }).click();
   await expect(carol.getByRole('alert')).toContainText('invalid or has been replaced');
@@ -332,6 +332,12 @@ try {
     await bobAgain.getByLabel('My share · CAD', { exact: true }).fill('59.00');
     await bobAgain.getByRole('button', { name: 'Submit and confirm my share' }).click();
     await expect(bobAgain.locator('.difference-card')).toContainText('2/2 confirmed');
+    const correction = bobAgain.getByRole('alert').filter({ hasText: 'Shares are $1.00 under the total' });
+    await expect(correction).toBeVisible();
+    await expect(correction).toContainText('within $0.05');
+    await expect(correction.getByRole('button', { name: 'Dismiss notification' })).toHaveCount(0);
+    await correction.getByRole('button', { name: 'Edit my share' }).click();
+    await expect(bobAgain.getByLabel('My share · CAD', { exact: true })).toBeFocused();
 
   }
   await incompleteBill('Correctable groceries');
@@ -348,7 +354,7 @@ try {
   await alice.getByRole('dialog').getByLabel('Notes').fill('Corrected purchase notes');
   await alice.getByRole('button', { name: 'Save & request confirmations' }).click();
   await expect(alice.getByRole('dialog')).toHaveCount(0);
-  await expect(bobAgain.getByRole('alert')).toContainText('This bill changed');
+  await expect(bobAgain.getByRole('alert').filter({ hasText: 'This bill changed' })).toBeVisible();
   await expect(bobAgain.getByRole('button', { name: 'Save changed amount', exact: true })).toBeDisabled();
   await expect(bobAgain.getByLabel('My share · CAD', { exact: true })).toHaveValue('60.00');
   await bobAgain.getByRole('button', { name: 'Review latest bill' }).click();
