@@ -93,7 +93,7 @@ after(async () => {
 beforeEach(async () => {
   // Clear only this suite's isolated database, including dependent bill tables.
   await pool.query(
-    "TRUNCATE TABLE bill_shares, bills, group_members, groups, users",
+    "TRUNCATE TABLE repayments, bill_shares, bills, group_members, groups, users",
   );
 });
 
@@ -1115,4 +1115,182 @@ test("initiator-only correction completes immediately when the amount matches", 
   assert.ok(done.completedAt);
   assert.equal(done.adjustmentCents, 3);
   await shareAt(created.id, done.revision, 9997, 9996, "alice-token", 409);
+});
+
+test("actual partial repayments affect balances only after recipient confirmation", async () => {
+  const { group, ids, path, draft } = await setup(false);
+  const bill = await billCreate(path, draft);
+  await submit(bill.id, 6000);
+  const { repayment } = await json(await api(`/groups/${group.id}/repayments`, "bob-token", "POST", {
+    requestId: crypto.randomUUID(), recipientId: ids.Alice, amountCents: 2000,
+  }), 201);
+  assert.equal(repayment.status, "pending");
+  assert.equal((await json(await api(path))).summary.netCents, 6000);
+  await json(await api(`/repayments/${repayment.id}/decision`, "alice-token", "POST", { decision: "confirmed" }));
+  const result = await json(await api(path));
+  assert.equal(result.summary.netCents, 4000);
+  assert.equal(result.ledger.suggestions[0].amountCents, 4000);
+  assert.equal(result.repayments[0].status, "confirmed");
+  assert.equal(result.bills.length, 1);
+  assert.deepEqual((await json(await api("/summary"))).summary, {
+    receivableCents: 4000, payableCents: 0, netCents: 4000,
+  });
+});
+
+async function recordRepayment(groupId: string, recipientId: string, amountCents: number, token = 'bob-token', requestId = crypto.randomUUID()) {
+  return (await json(await api(`/groups/${groupId}/repayments`, token, 'POST', { requestId, recipientId, amountCents }), 201)).repayment;
+}
+async function decide(id: string, decision = 'confirmed', token = 'alice-token', status = 200) {
+  return json(await api(`/repayments/${id}/decision`, token, 'POST', { decision }), status);
+}
+
+test('repayment permissions, strict amounts, and group isolation are enforced', async () => {
+  const { group, ids, path } = await setup();
+  const other = await create('carol-token');
+  const body = { requestId: crypto.randomUUID(), recipientId: ids.Alice, amountCents: 100 };
+  const endpoint = `/groups/${group.id}/repayments`;
+  await json(await api(endpoint, 'invalid-token', 'POST', body), 401);
+  await json(await api(`/groups/${other.id}/repayments`, 'bob-token', 'POST', body), 404);
+  for (const amountCents of [0, -1, 1.5, 1000001, '100', null])
+    await json(await api(endpoint, 'bob-token', 'POST', { ...body, amountCents }), 400);
+  await json(await api(endpoint, 'bob-token', 'POST', { ...body, senderId: ids.Carol }), 400);
+  await json(await api(endpoint, 'bob-token', 'POST', { ...body, recipientId: ids.Bob }), 400);
+  await json(await api(endpoint, 'bob-token', 'POST', { ...body, recipientId: crypto.randomUUID() }), 400);
+  const record = await recordRepayment(group.id, ids.Alice, 1000000);
+  for (const actor of ['bob-token', 'carol-token']) {
+    await decide(record.id, 'confirmed', actor, 403);
+    await decide(record.id, 'rejected', actor, 403);
+  }
+  await json(await api('/groups', 'member-1-token', 'POST', { name: 'Outsider', icon: { type: 'lucide', value: 'coffee' } }), 201);
+  await decide(record.id, 'confirmed', 'member-1-token', 404);
+  await json(await api(path, 'member-1-token'), 404);
+  assert.equal((await json(await api(path, 'carol-token'))).repayments[0].amountCents, 1000000);
+  await decide(record.id, 'rejected');
+  await decide(record.id, 'confirmed', 'alice-token', 409);
+  const result = await json(await api(path));
+  assert.equal(result.summary.netCents, 0);
+  assert.deepEqual(result.ledger.suggestions, []);
+  assert.equal(result.repayments[0].status, 'rejected');
+  assert.deepEqual((await json(await api(`/groups/${other.id}/bills`, 'carol-token'))).repayments, []);
+});
+
+test('overpayments and transfers without suggestions create reverse balances and preserve records', async () => {
+  const { group, ids, path, draft } = await setup();
+  const bill = await billCreate(path, draft);
+  await submit(bill.id, 6000);
+  await submit(bill.id, 0, 'carol-token');
+  const extra = await recordRepayment(group.id, ids.Alice, 7000);
+  await decide(extra.id);
+  let view = await json(await api(path));
+  assert.deepEqual(view.summary, { receivableCents: 0, payableCents: 1000, netCents: -1000 });
+  assert.deepEqual(view.ledger.suggestions, [{ fromUserId: ids.Alice, toUserId: ids.Bob, amountCents: 1000 }]);
+  // Carol has no current debt and Bob is not a suggested recipient for Carol.
+  const unrelated = await recordRepayment(group.id, ids.Bob, 500, 'carol-token');
+  await decide(unrelated.id, 'confirmed', 'bob-token');
+  view = await json(await api(path));
+  const balances = Object.fromEntries(view.ledger.members.map((m: { userId: string; netCents: number }) => [m.userId, m.netCents]));
+  assert.deepEqual(balances, { [ids.Alice]: -1000, [ids.Bob]: 500, [ids.Carol]: 500 });
+  assert.equal(view.bills.length, 1);
+  assert.equal(view.repayments.length, 2);
+  assert.deepEqual((await json(await api('/summary', 'carol-token'))).summary, { receivableCents: 500, payableCents: 0, netCents: 500 });
+  await stopServer();
+  await startServer();
+  assert.deepEqual(await json(await api(path)), view);
+});
+
+test('record retries and competing decisions have one durable outcome', async () => {
+  const { group, ids, path } = await setup(false);
+  const requestId = crypto.randomUUID();
+  const records = await Promise.all(Array.from({ length: 5 }, () => recordRepayment(group.id, ids.Alice, 1234, 'bob-token', requestId)));
+  assert.equal(new Set(records.map(r => r.id)).size, 1);
+  const record = records[0];
+  await json(await api(`/groups/${group.id}/repayments`, 'bob-token', 'POST', { requestId, recipientId: ids.Alice, amountCents: 1235 }), 409);
+  const results = await Promise.all(['confirmed', 'rejected'].map(decision => api(`/repayments/${record.id}/decision`, 'alice-token', 'POST', { decision })));
+  assert.deepEqual(results.map(r => r.status).sort(), [200, 409]);
+  const winner = (await (results.find(r => r.status === 200)!).json()).repayment;
+  await decide(record.id, winner.status);
+  await recordRepayment(group.id, ids.Alice, 1234, 'bob-token', requestId);
+  const view = await json(await api(path));
+  assert.equal(view.repayments.length, 1);
+  assert.equal(view.summary.netCents, winner.status === 'confirmed' ? -1234 : 0);
+  assert.equal(view.repayments[0].decidedAt, winner.decidedAt);
+});
+
+test('confirmation uses recorded amounts after suggestions change; zero balances do not close a group', async () => {
+  const { group, ids, path, draft } = await setup(false);
+  const first = await billCreate(path, draft);
+  await submit(first.id, 6000);
+  const record = await recordRepayment(group.id, ids.Alice, 6000);
+  const second = await billCreate(path, { ...draft, requestId: crypto.randomUUID() });
+  await submit(second.id, 6000);
+  await decide(record.id);
+  assert.equal((await json(await api(path))).summary.netCents, 6000);
+  const remaining = await recordRepayment(group.id, ids.Alice, 6000);
+  await decide(remaining.id);
+  const zero = await json(await api(path));
+  assert.deepEqual(zero.ledger.suggestions, []);
+  assert.equal(zero.bills.length, 2);
+  assert.equal(zero.repayments.length, 2);
+  const next = await billCreate(path, { ...draft, requestId: crypto.randomUUID() });
+  await submit(next.id, 6000);
+  const invite = await json(await api(`/groups/${group.id}/invitation`));
+  await json(await api('/groups/join', 'carol-token', 'POST', { token: invite.path.split('/').at(-1) }));
+  assert.equal((await json(await api(path))).summary.netCents, 6000);
+});
+
+test('concurrent confirmations and bill completion yield consistent ledger snapshots', async () => {
+  const { group, ids, path, draft } = await setup(false);
+  const bill = await billCreate(path, draft);
+  const records = await Promise.all([1000, 2000].map(n => recordRepayment(group.id, ids.Alice, n)));
+  const mutations = Promise.all([
+    submit(bill.id, 6000), ...records.flatMap(r => [decide(r.id), decide(r.id)]),
+  ]);
+  const views = await Promise.all(Array.from({ length: 15 }, () => api(path).then(r => json(r))));
+  await mutations;
+  for (const view of views) {
+    const eligible = view.bills[0].completedAt ? 6000 : 0;
+    const confirmed = view.repayments.filter((r: { status: string }) => r.status === 'confirmed').reduce((sum: number, r: { amountCents: number }) => sum + r.amountCents, 0);
+    assert.equal(view.summary.netCents, eligible - confirmed);
+    assert.equal(view.ledger.members.find((m: { userId: string }) => m.userId === ids.Alice).netCents, view.summary.netCents);
+  }
+  const view = await json(await api(path));
+  assert.equal(view.summary.netCents, 3000);
+  assert.equal(view.ledger.suggestions[0].amountCents, 3000);
+});
+
+test('a sender request key cannot create transfers in two groups concurrently', async () => {
+  const first = await setup(false);
+  const second = await setup(false);
+  const requestId = crypto.randomUUID();
+  const body = { requestId, recipientId: first.ids.Alice, amountCents: 100 };
+  const responses = await Promise.all([first, second].map(({ group }) => api(`/groups/${group.id}/repayments`, 'bob-token', 'POST', body)));
+  assert.deepEqual(responses.map(r => r.status).sort(), [201, 409]);
+  const views = await Promise.all([first, second].map(({ path }) => api(path).then(r => json(r))));
+  assert.equal(views[0].repayments.length + views[1].repayments.length, 1);
+});
+
+test('pending repayments leave bill corrections and invitation joins available', async () => {
+  const { group, ids, path, draft } = await setup(false);
+  await recordRepayment(group.id, ids.Alice, 100);
+  const bill = await billCreate(path, draft);
+  await shareAt(bill.id, bill.revision, 4000, 4100, 'alice-token');
+  const invite = await json(await api(`/groups/${group.id}/invitation`));
+  await json(await api('/groups/join', 'carol-token', 'POST', { token: invite.path.split('/').at(-1) }));
+  const view = await json(await api(path));
+  assert.equal(view.repayments[0].status, 'pending');
+  assert.equal(view.ledger.members.length, 3);
+  assert.equal(view.bills[0].revision, 2);
+  assert.equal(view.summary.netCents, 0);
+});
+
+test('overview keeps confirmed repayment effects within each group including groups without bills', async () => {
+  const first = await setup(false);
+  const second = await setup(false);
+  const outgoing = await recordRepayment(first.group.id, first.ids.Bob, 1000, 'alice-token');
+  const incoming = await recordRepayment(second.group.id, second.ids.Alice, 600);
+  await decide(outgoing.id, 'confirmed', 'bob-token');
+  await decide(incoming.id);
+  assert.deepEqual((await json(await api('/summary'))).summary, { receivableCents: 1000, payableCents: 600, netCents: 400 });
+  assert.deepEqual((await json(await api(first.path))).ledger.suggestions, [{ fromUserId: first.ids.Bob, toUserId: first.ids.Alice, amountCents: 1000 }]);
+  assert.deepEqual((await json(await api(second.path))).ledger.suggestions, [{ fromUserId: second.ids.Alice, toUserId: second.ids.Bob, amountCents: 600 }]);
 });

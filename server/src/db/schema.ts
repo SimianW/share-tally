@@ -135,3 +135,21 @@ export const billShares = pgTable('bill_shares', {
   check('bill_shares_amount', sql`${table.amountCents} between 0 and 1000000`),
   check('bill_shares_confirmation', sql`${table.confirmedAt} is null or ${table.amountCents} is not null`),
 ]);
+
+export const repayments = pgTable('repayments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  groupId: uuid('group_id').notNull().references(() => groups.id),
+  senderId: uuid('sender_id').notNull().references(() => users.id),
+  recipientId: uuid('recipient_id').notNull().references(() => users.id),
+  requestId: uuid('request_id').notNull(),
+  amountCents: integer('amount_cents').notNull(),
+  status: text('status').$type<'pending' | 'confirmed' | 'rejected'>().notNull().default('pending'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  decidedAt: timestamp('decided_at', { withTimezone: true }),
+}, table => [
+  unique('repayments_creation_request').on(table.senderId, table.requestId),
+  index('repayments_group_idx').on(table.groupId),
+  check('repayments_distinct_members', sql`${table.senderId} <> ${table.recipientId}`),
+  check('repayments_amount_range', sql`${table.amountCents} between 1 and 1000000`),
+  check('repayments_state', sql`(${table.status} = 'pending' and ${table.decidedAt} is null) or (${table.status} in ('confirmed', 'rejected') and ${table.decidedAt} is not null)`),
+]);
