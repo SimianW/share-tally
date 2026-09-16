@@ -318,3 +318,10 @@
 .ledger-rows strong { flex-shrink: 0; font-variant-numeric: tabular-nums; }
 .ledger-unresolved { font-weight: 600; }
 @media (max-width: 720px) { .group-ledger { grid-template-columns: 1fr; } }
+
+.repayments { margin-block: 1.5rem; padding: 1.25rem; border: 1px solid var(--line); border-radius: 1rem; }
+.repayment-list { list-style: none; padding: 0; }
+.repayment-list li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-block: 1rem; border-bottom: 1px solid var(--line); }
+.repayment-list li > div { display: grid; gap: .35rem; min-width: 0; overflow-wrap: anywhere; }
+.bill-form select { width: 100%; padding: .75rem; border: 1px solid var(--line); border-radius: .5rem; font: inherit; background: var(--paper, white); color: inherit; }
+@media (max-width: 720px) { .repayment-list li { align-items: stretch; flex-direction: column; } }

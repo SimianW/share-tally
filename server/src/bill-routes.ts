@@ -13,7 +13,7 @@ import {
   readBills,
   readGroupBills,
   submitShare,
-  summarize,
+  readSummary,
 } from "./bills.js";
 
 export function createBillsRouter(
@@ -37,7 +37,7 @@ export function createBillsRouter(
     });
   router.get("/summary", async (_req, res) => {
     const user = await currentUser(res.locals.clerkUserId);
-    res.json({ summary: summarize(await readBills(user.id), user.id) });
+    res.json({ summary: await readSummary(user.id) });
   });
   router.get("/groups/:groupId/bills", async (req, res) => {
     const user = await currentUser(res.locals.clerkUserId);

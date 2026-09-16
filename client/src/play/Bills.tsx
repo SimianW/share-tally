@@ -1,5 +1,6 @@
 import { useAuth } from '@clerk/react';
 import { startGroupSync } from './group-sync';
+import { Repayments } from './Repayments';
 import { useEffect, useRef, useState } from "react";
 import {
   useBillApi,
@@ -8,6 +9,7 @@ import {
   parseMoney,
   localToday,
   type Bill,
+  type Repayment,
   type BillApi,
   type BillDraft,
   type Summary,
@@ -46,7 +48,7 @@ export function Balance({
         </span>
       </div>
       <p>
-        Completed bills only.
+        Completed bills and confirmed repayments.
         {!group && " Repayments are worked out within each group."}
       </p>
     </section>
@@ -91,6 +93,7 @@ export function GroupBills({ id, onSummary }: { id: string; onSummary: (id: stri
   const groups = useGroupApi();
   const [data, setData] = useState<{
     bills: Bill[];
+    repayments: Repayment[];
     summary: Summary;
     ledger: GroupLedger;
     group: GroupDetail;
@@ -128,6 +131,7 @@ export function GroupBills({ id, onSummary }: { id: string; onSummary: (id: stri
         <>
           <div className="workspace-balance"><Balance summary={data.summary} group /><Button onClick={() => setCreating(true)}>New bill</Button></div>
           <GroupBalances ledger={data.ledger} />
+          <Repayments key={id} group={data.group} records={data.repayments} api={api} refresh={() => setRevision(n => n + 1)} />
           <div className="bill-heading">
             <h2>
               Bills <small>{data.bills.length}</small>

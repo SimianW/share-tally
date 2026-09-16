@@ -93,6 +93,7 @@ export function startGroupSync<T>(options: {
   }
   function visible() { if (document.visibilityState === 'visible') retry(); }
   window.addEventListener('online', retry);
+  window.addEventListener('focus', visible);
   document.addEventListener('visibilitychange', visible);
   void connect();
   return {
@@ -102,6 +103,7 @@ export function startGroupSync<T>(options: {
       clearTimeout(reconnect);
       active?.abort();
       window.removeEventListener('online', retry);
+      window.removeEventListener('focus', visible);
       document.removeEventListener('visibilitychange', visible);
     },
   };

@@ -1,6 +1,7 @@
 import { openGroupEvents } from './group-events.js';
 import { getGroupUser } from './users.js';
 import { getGroupForMember } from './groups.js';
+import { createRepaymentsRouter } from './repayment-routes.js';
 import { profileAvatars } from './avatar-profile.js';
 import { createAvatarReader, type AvatarLookup } from './avatars.js';
 import { createBillsRouter } from './bill-routes.js';
@@ -75,6 +76,7 @@ export function createApp(auth: Authentication = {
   });
   app.use('/api/groups', createGroupsRouter(displayName, avatars));
   app.use('/api', createBillsRouter(displayName, avatars));
+  app.use('/api', createRepaymentsRouter(displayName));
 
   app.get('/api/me', async (req, res) => {
     const user = await getOrCreateUser(res.locals.clerkUserId);
