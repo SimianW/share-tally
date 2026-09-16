@@ -24,9 +24,9 @@ const app = createApp({
     if (++scans === 1) throw new BillError(502, 'Test extraction unavailable. Your draft is safe.');
     return { merchant: 'Test shop', currency: 'CAD', total: 3, pricesIncludeTax: false, items: [{ description: 'APPLE', plainEnglish: null, quantity: '1', amount: 3, discount: null, tax: null, taxable: null }], discountTotal: null, taxTotal: null, otherCharges: null, warnings: [] };
   },
-  receiptNames: async items => {
+  receiptNames: async (items, _config, _request, context) => {
     if (items.some(i => i.originalText === 'FAIL-NAMES')) throw new Error('Test name failure');
-    return items.map(i => ({ id: i.id, name: 'Apples' }));
+    return items.map(i => ({ id: i.id, name: 'Apples', ...(context ? { taxable: true } : {}) }));
   },
   avatarUrl: async id => id === 'user_test_alice'
     ? { fallbackImageUrl: null, imageUrl: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40"%3E%3Crect width="40" height="40" fill="green"/%3E%3C/svg%3E' }

@@ -5,6 +5,7 @@ import type { DraftItemInput } from "./receipt-input.js";
 const money = z.number().min(0).max(10000);
 export const extractedReceipt = z.object({
   merchant: z.string().nullable(),
+  text: z.string().max(100000).optional(),
   currency: z.string().nullable(),
   total: money.nullable(),
   items: z

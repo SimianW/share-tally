@@ -63,7 +63,7 @@ export function normalizeAzure(result: AnalyzeResult) {
     items: rows.map((row) => {
       const item = row.valueObject ?? {};
       return {
-        description: string(item.Description) || row.content || "Unclear Item",
+        description: row.content || string(item.Description) || "Unclear Item",
         quantity: amount(item.Quantity),
         unitPrice: amount(item.Price),
         totalPrice: amount(item.TotalPrice),
@@ -190,6 +190,7 @@ export function createAzureExtractor(
       const { data, content } = await azureReceipt(image, request, wait, env);
       return extractedReceipt.parse({
         merchant: data.merchant,
+        text: content?.slice(0, 100000),
         currency: data.currency,
         total: data.total,
         subtotal: data.subtotal,

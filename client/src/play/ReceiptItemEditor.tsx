@@ -133,30 +133,13 @@ export function ReceiptItemEditor({
           </div>
           {draftMode && (
             <label>
-              Tax applicability
-              <select
-                value={
-                  item.taxable === false
-                    ? "no"
-                    : item.taxable === true
-                      ? "yes"
-                      : "unknown"
-                }
-                onChange={(e) =>
-                  update(item.id, {
-                    taxable:
-                      e.target.value === "unknown"
-                        ? null
-                        : e.target.value === "yes",
-                  })
-                }
-              >
-                <option value="unknown">
-                  Unknown, include in tax allocation
-                </option>
-                <option value="yes">Taxable</option>
-                <option value="no">Not taxable</option>
-              </select>
+              <input
+                type="checkbox"
+                aria-label="Taxable"
+                checked={item.taxable !== false}
+                onChange={(e) => update(item.id, { taxable: e.target.checked })}
+              />
+              {item.taxable === false ? "Not taxable" : "Taxable"}
             </label>
           )}
           {item.manualFinal && draftMode && (
@@ -223,6 +206,7 @@ export function ReceiptItemEditor({
               name: "",
               originalText: "",
               quantity: "1",
+              taxable: true,
               amountCents: null,
               taxCents: 0,
               discountCents: 0,

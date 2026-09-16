@@ -10,7 +10,9 @@ The three original designs and their runnable snapshot are archived on [`demo/ne
 
 New bill offers the existing manual workflow and receipt/item entry. Receipt drafts save to the server and stay private to their initiator. The group page lists resumable drafts. Camera and file inputs share a crop editor; only the cropped JPEG is uploaded. Scanning replaces edited items only after an explicit replacement action.
 
-Azure Document Intelligence reads items and receipt totals. A separate request sends only item IDs and original descriptions to the configured Luna name service. Name failure preserves the receipt and permits initiation. A late name response changes only names that the user has not edited. It never merges provider amounts into the draft.
+Azure Document Intelligence reads items and receipt totals. One processing request then sends item OCR rows and receipt context to Luna for names and initial tax applicability before calculating costs. Explicit labels and code legends printed on the receipt take precedence; unrecognized codes are not assigned universal meanings. The selected Azure schema has no structured item tax-code field, so the adapter retains row content and receipt text. Schema reference: https://github.com/Azure-Samples/document-intelligence-code-samples/blob/main/schema/2024-11-30-ga/receipt.md.
+
+A failed interpretation preserves OCR and permits initiation. Missing classifications default to taxable with a warning. New processing results contain boolean applicability; older null values remain compatible and display as checked. The checkbox changes the allocation eligibility on the next Apply adjustments action. Name retries change only unchanged names and never reclassify saved tax edits. Classification provenance is not persisted separately; receipt OCR remains available for review. The owner-approved amendment in the local specification supersedes issue #26's names-only boundary.
 
 Receipt tax, discount and other charges are separate from item-specific amounts. Recalculation uses largest remainders with item order breaking ties. The tax-inclusion setting excludes receipt and item tax from added costs. Explicit final-cost corrections take precedence. Missing prices and totals stay null until entered. Initialization validates prices, final costs, participants and paid total again on the server.
 
@@ -20,7 +22,7 @@ Initiation publishes the bill but confirms no item claims. Participants submit e
 
 A bill has one photo. The server strips metadata and normalizes uploaded image bytes with Sharp. Draft photos require the initiator's identity; initialized photos require group membership. Access expires six calendar months after upload. Startup and hourly cleanup erase the stored bytes, retaining expiry metadata and all accounting data.
 
-`deploy/nginx.conf` permits 12 MB JSON uploads and waits 150 seconds for extraction. The image limit is 8 MB before server normalization; supported formats are JPEG, PNG and WebP. Azure requests have a 120-second timeout and name requests have a 30-second timeout. `deploy/.env.production.example` lists the required provider settings. Credentials remain server-side. The development gateway must receive its own key rather than an implicit production OpenAI key.
+`deploy/nginx.conf` permits 12 MB JSON uploads and waits 180 seconds for extraction. The image limit is 8 MB before server normalization; supported formats are JPEG, PNG and WebP. Azure requests have a 120-second timeout and name requests have a 30-second timeout. `deploy/.env.production.example` lists the required provider settings. Credentials remain server-side. The development gateway must receive its own key rather than an implicit production OpenAI key.
 
 The in-memory provider request limit applies per authenticated user per server process and resets on restart. It is a local cost guard, not a persistent or distributed quota.
 
