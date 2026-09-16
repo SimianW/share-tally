@@ -227,9 +227,9 @@ export function InitiatorActions({ bill, api, saved, refresh }: Props) {
         Edit details & participants
       </Button>
       {!terminal && (
-        <button className="bill-danger" onClick={() => setPanel("cancel")}>
+        <Button variant="secondary" className="bill-danger" onClick={() => setPanel("cancel")}>
           Cancel this bill
-        </button>
+        </Button>
       )}
       {panel === "edit" && (
         <EditBill
