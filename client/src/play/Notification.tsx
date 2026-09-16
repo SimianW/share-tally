@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { AlertTriangle, CheckCircle2, CircleAlert, Info, X } from 'lucide-react';
 import './notification.css';
 
@@ -24,10 +24,4 @@ export function Notification({ tone = 'error', title, children, onDismiss }: {
     </div>
     {onDismiss && <button className="notification-dismiss" type="button" aria-label="Dismiss notification" onClick={onDismiss}><X size={18} aria-hidden="true" /></button>}
   </div>;
-}
-
-export function SuccessNotification({ message }: { message: string }) {
-  const [dismissed, setDismissed] = useState<string | null>(null);
-  if (dismissed === message) return null;
-  return <Notification tone="success" onDismiss={() => setDismissed(message)}>{message}</Notification>;
 }

@@ -425,9 +425,12 @@ export function BillDetails({ id }: { id: string }) {
     (p) => p.userId === bill.initiatorId,
   )!;
   const own = bill.participants.find((p) => p.isCurrentUser);
+  const adjustmentWouldBeNegative = initiator.amountCents !== null &&
+    initiator.amountCents + bill.differenceCents < 0;
   const needsAmountCorrection = !bill.completedAt && !bill.canceledAt &&
-    Math.abs(bill.differenceCents) > 5 &&
-    (bill.differenceCents < 0 || bill.participants.every(p => p.amountCents !== null));
+    ((Math.abs(bill.differenceCents) > 5 &&
+      (bill.differenceCents < 0 || bill.participants.every(p => p.amountCents !== null))) ||
+      (adjustmentWouldBeNegative && bill.confirmedCount === bill.participants.length));
   function saved(updated: Bill) {
     resetEditors.current = true;
     live.current?.retry();
@@ -472,6 +475,7 @@ export function BillDetails({ id }: { id: string }) {
           <p>
             This bill cannot complete yet. Check your amount and correct it if needed. The combined shares must
             be within $0.05 of the bill total.
+            {adjustmentWouldBeNegative && " The difference would reduce the initiator’s final cost below $0.00, so the shares need correcting even within that tolerance."}
           </p>
           <p>
             Changing a saved amount requires everyone to confirm again.

@@ -1,4 +1,4 @@
-import { Notification, SuccessNotification } from './Notification';
+import { Notification } from './Notification';
 import { ArrowRight, RefreshCw } from 'lucide-react';
 import { useCached } from './query-cache';
 import { useEffect, useRef, useState } from 'react';
@@ -77,7 +77,7 @@ function InvitationControls({ id, api }: { id: string; api: GroupApi }) {
     <h3>Invite friends</h3>
     <p>Anyone with this link can sign in and join while the group has fewer than 16 members. Only you can get or replace it here.</p>
     {error && <Notification>{error}</Notification>}
-    {message && (message.startsWith("Select") ? <Notification tone="info" title="Copy the link manually">{message}</Notification> : <SuccessNotification message={message} />)}
+    {message && (message.startsWith("Select") ? <Notification tone="info" title="Copy the link manually">{message}</Notification> : <Notification tone="success" onDismiss={() => setMessage('')}>{message}</Notification>)}
     {link ? <>
       <label>Invitation link<input readOnly value={link} onFocus={event => event.target.select()} /></label>
       <Button onClick={copy} disabled={busy}>Copy invitation link</Button>
