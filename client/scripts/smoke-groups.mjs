@@ -23,6 +23,7 @@ const clientRoot = fileURLToPath(new URL('../', import.meta.url));
 const serverRoot = fileURLToPath(new URL('../../server/', import.meta.url));
 let container, pool, child, vite, browser;
 const errors = [];
+const networkChangeFailures = new Map();
 try {
   container = await new PostgreSqlContainer('postgres:17.6-alpine').start();
   pool = new Pool({ connectionString: container.getConnectionUri() });
@@ -65,7 +66,13 @@ try {
     const page = await context.newPage();
     page.setDefaultTimeout(10_000);
     page.on('pageerror', error => errors.push(error.message));
-    page.on('console', message => { if (message.type() === 'error') { console.error('Browser console:', message.text()); if (message.text().includes('Encountered two children')) errors.push(message.text()); } });
+    page.on('requestfailed', request => {
+      if (request.failure()?.errorText !== 'net::ERR_NETWORK_CHANGED') return;
+      // Report resource paths only, never authorization headers or query strings.
+      const resource = `${request.resourceType()} ${new URL(request.url()).pathname}`;
+      networkChangeFailures.set(resource, (networkChangeFailures.get(resource) ?? 0) + 1);
+    });
+    page.on('console', message => { if (message.text().includes('net::ERR_NETWORK_CHANGED')) return; if (message.type() === 'error') { console.error('Browser console:', message.text()); if (message.text().includes('Encountered two children')) errors.push(message.text()); } });
     return page;
   }
   await checkGroupRefresh(pageFor, base);
@@ -571,6 +578,10 @@ try {
   assert.deepEqual(errors, []);
   console.log('Group and bill browser smoke passed: creation, Unicode icon, persistence, sign-in return, membership, invitation permissions, rotation, invalid links, repeat joining, mobile layout, sign-out, bill creation and confirmation, response-loss retries, initiator adjustment, balances, completed-bill finality, stale confirmation, correction, reconfirmation, removal, and cancellation.');
 } catch (error) {
+  if (networkChangeFailures.size) {
+    console.error('Browser resource loading was interrupted by ERR_NETWORK_CHANGED. Host network changes, including concurrent Docker container startup/shutdown, can leave the app blank before UI assertions run. Run browser smoke separately from container-changing jobs; the assertion still fails.');
+    console.error('Affected resource samples:', [...networkChangeFailures.entries()].slice(0, 8));
+  }
   if (browser) {
     for (const context of browser.contexts()) for (const page of context.pages()) {
       console.error('Failed browser page:', page.url(), (await page.locator('body').innerText()).slice(0, 3000));
