@@ -92,7 +92,7 @@ export async function listGroupsForUser(userId: string) {
 }
 
 export class GroupAccessError extends Error {
-  constructor(public status: 403 | 404, message: string) { super(message); }
+  constructor(public status: 403 | 404 | 409, message: string) { super(message); }
 }
 
 export async function getGroupForMember(groupId: string, userId: string) {
@@ -143,10 +143,16 @@ export async function joinGroup(token: string, userId: string) {
     const [group] = await tx.select({ id: groups.id }).from(groups)
       .where(eq(groups.invitationToken, token)).for('update');
     if (!group) throw new GroupAccessError(404, 'This invitation is invalid or has been replaced.');
+    // The group row lock makes the capacity check and insertion one operation
+    // relative to every other join. Existing members may retry even at capacity.
+    const members = await tx.select({ userId: groupMembers.userId }).from(groupMembers)
+      .where(eq(groupMembers.groupId, group.id));
+    if (members.some(member => member.userId === userId)) return group.id;
+    if (members.length >= 16)
+      throw new GroupAccessError(409, 'This group is full. Groups can have up to 16 members.');
     // The composite primary key also protects against simultaneous repeat joins.
     await tx.insert(groupMembers).values({ groupId: group.id, userId })
       .onConflictDoNothing({ target: [groupMembers.groupId, groupMembers.userId] });
-    // Active-settlement restrictions belong to issue #6 when settlements exist.
     return group.id;
   });
   return getGroupForMember(groupId, userId);

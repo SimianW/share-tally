@@ -10,6 +10,7 @@ import {
   parseBill,
   parseShare,
   readBills,
+  readGroupBills,
   submitShare,
   summarize,
 } from "./bills.js";
@@ -29,8 +30,7 @@ export function createBillsRouter(
   });
   router.get("/groups/:groupId/bills", async (req, res) => {
     const user = await currentUser(res.locals.clerkUserId);
-    const bills = await readBills(user.id, req.params.groupId);
-    res.json({ bills, summary: summarize(bills, user.id) });
+    res.json(await readGroupBills(user.id, req.params.groupId));
   });
   router.post("/groups/:groupId/bills", async (req, res) => {
     const input = parseBill(req.body);

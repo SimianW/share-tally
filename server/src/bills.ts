@@ -1,15 +1,12 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
+import { safeCents } from "./money.js";
+import { groupLedger } from "./group-ledger.js";
 import { db } from "./db/index.js";
 import { bills, billShares, groupMembers, groups, users } from "./db/schema.js";
 
-export class BillError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
+import { BillError } from "./bill-error.js";
+export { BillError } from "./bill-error.js";
+
 export const isUuid = (value: unknown): value is string =>
   typeof value === "string" &&
   /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value);
@@ -417,80 +414,82 @@ export async function submitShare(
     if (!changed) await complete(tx, bill);
   });
 }
-function safe(value: bigint) {
-  const number = Number(value);
-  if (!Number.isSafeInteger(number))
-    throw new BillError(422, "Balance exceeds the supported range.");
-  return number;
+async function readBillsInSnapshot(tx: Tx, userId: string, groupId?: string, id?: string) {
+  if (groupId) await member(tx, groupId, userId);
+  const rows = await tx
+    .select({ bill: bills })
+    .from(bills)
+    .innerJoin(
+      groupMembers,
+      and(
+        eq(groupMembers.groupId, bills.groupId),
+        eq(groupMembers.userId, userId),
+      ),
+    )
+    .where(
+      and(
+        groupId ? eq(bills.groupId, groupId) : undefined,
+        id ? eq(bills.id, id) : undefined,
+      ),
+    )
+    .orderBy(desc(bills.createdAt), bills.id);
+  if (id && !rows.length) throw new BillError(404, "Bill not found.");
+  if (!rows.length) return [];
+  const shares = await tx
+    .select({
+      userId: billShares.userId,
+      billId: billShares.billId,
+      amountCents: billShares.amountCents,
+      confirmedAt: billShares.confirmedAt,
+      displayName: users.displayName,
+    })
+    .from(billShares)
+    .innerJoin(users, eq(users.id, billShares.userId))
+    .where(
+      inArray(
+        billShares.billId,
+        rows.map((row) => row.bill.id),
+      ),
+    )
+    .orderBy(users.id);
+  return rows.map(({ bill }) => {
+    const participants = shares
+      .filter((s) => s.billId === bill.id)
+      .map((s) => ({
+        ...s,
+        displayName: s.displayName ?? "Member",
+        isCurrentUser: s.userId === userId,
+      }));
+    const submittedCents = safeCents(
+      participants.reduce((n, s) => n + BigInt(s.amountCents ?? 0), 0n),
+    );
+    const {
+      requestId: _requestId,
+      requestPayload: _payload,
+      ...fields
+    } = bill;
+    return {
+      ...fields,
+      participants,
+      submittedCents,
+      differenceCents: bill.totalCents - submittedCents,
+      confirmedCount: participants.filter((s) => s.confirmedAt !== null)
+        .length,
+    };
+  });
 }
 export async function readBills(userId: string, groupId?: string, id?: string) {
-  return db.transaction(
-    async (tx) => {
-      if (groupId) await member(tx, groupId, userId);
-      const rows = await tx
-        .select({ bill: bills })
-        .from(bills)
-        .innerJoin(
-          groupMembers,
-          and(
-            eq(groupMembers.groupId, bills.groupId),
-            eq(groupMembers.userId, userId),
-          ),
-        )
-        .where(
-          and(
-            groupId ? eq(bills.groupId, groupId) : undefined,
-            id ? eq(bills.id, id) : undefined,
-          ),
-        )
-        .orderBy(desc(bills.createdAt), bills.id);
-      if (id && !rows.length) throw new BillError(404, "Bill not found.");
-      if (!rows.length) return [];
-      const shares = await tx
-        .select({
-          userId: billShares.userId,
-          billId: billShares.billId,
-          amountCents: billShares.amountCents,
-          confirmedAt: billShares.confirmedAt,
-          displayName: users.displayName,
-        })
-        .from(billShares)
-        .innerJoin(users, eq(users.id, billShares.userId))
-        .where(
-          inArray(
-            billShares.billId,
-            rows.map((row) => row.bill.id),
-          ),
-        )
-        .orderBy(users.id);
-      return rows.map(({ bill }) => {
-        const participants = shares
-          .filter((s) => s.billId === bill.id)
-          .map((s) => ({
-            ...s,
-            displayName: s.displayName ?? "Member",
-            isCurrentUser: s.userId === userId,
-          }));
-        const submittedCents = safe(
-          participants.reduce((n, s) => n + BigInt(s.amountCents ?? 0), 0n),
-        );
-        const {
-          requestId: _requestId,
-          requestPayload: _payload,
-          ...fields
-        } = bill;
-        return {
-          ...fields,
-          participants,
-          submittedCents,
-          differenceCents: bill.totalCents - submittedCents,
-          confirmedCount: participants.filter((s) => s.confirmedAt !== null)
-            .length,
-        };
-      });
-    },
-    { isolationLevel: "repeatable read", accessMode: "read only" },
-  );
+  return db.transaction(tx => readBillsInSnapshot(tx, userId, groupId, id),
+    { isolationLevel: "repeatable read", accessMode: "read only" });
+}
+export async function readGroupBills(userId: string, groupId: string) {
+  return db.transaction(async tx => {
+    const rows = await readBillsInSnapshot(tx, userId, groupId);
+    const members = await tx.select({ userId: users.id, displayName: users.displayName })
+      .from(groupMembers).innerJoin(users, eq(users.id, groupMembers.userId))
+      .where(eq(groupMembers.groupId, groupId)).orderBy(users.id);
+    return { bills: rows, summary: summarize(rows, userId), ledger: groupLedger(rows, members) };
+  }, { isolationLevel: "repeatable read", accessMode: "read only" });
 }
 export function summarize(
   rows: Awaited<ReturnType<typeof readBills>>,
@@ -509,8 +508,8 @@ export function summarize(
     else payable += BigInt(own.amountCents!);
   }
   return {
-    receivableCents: safe(receivable),
-    payableCents: safe(payable),
-    netCents: safe(receivable - payable),
+    receivableCents: safeCents(receivable),
+    payableCents: safeCents(payable),
+    netCents: safeCents(receivable - payable),
   };
 }

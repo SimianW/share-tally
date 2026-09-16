@@ -264,3 +264,26 @@ test('a join waiting behind invitation regeneration cannot use the old token', a
     await pool.query('DROP TRIGGER pause_rotation ON groups; DROP FUNCTION pause_rotation()');
   }
 });
+
+
+test('membership cap serializes competing joins and permits repeats at capacity', async () => {
+  const group = (await json(await api('/groups', 'alice-token', 'POST', {
+    name: 'Capacity', icon: { type: 'lucide', value: 'shopping-basket' },
+  }), 201)).group;
+  const invitation = await json(await api(`/groups/${group.id}/invitation`));
+  const token = invitation.path.split('/').at(-1);
+  for (let i = 1; i <= 14; i++)
+    await json(await api('/groups/join', `member-${i}-token`, 'POST', { token }));
+  const competing = await Promise.all([15, 16].map(i =>
+    api('/groups/join', `member-${i}-token`, 'POST', { token })));
+  assert.deepEqual(competing.map(r => r.status).sort(), [200, 409]);
+  const rejected = competing.find(r => r.status === 409)!;
+  assert.match((await rejected.json()).error, /full.*16/i);
+  await json(await api('/groups/join', 'member-17-token', 'POST', { token }), 409);
+  const repeats = await Promise.all([1, 1].map(i =>
+    api('/groups/join', `member-${i}-token`, 'POST', { token })));
+  for (const response of repeats) assert.equal((await json(response)).group.memberCount, 16);
+  const detail = (await json(await api(`/groups/${group.id}`))).group;
+  assert.equal(detail.members.length, 16);
+  assert.equal(new Set(detail.members.map((m: { id: string }) => m.id)).size, 16);
+});

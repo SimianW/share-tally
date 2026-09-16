@@ -250,7 +250,10 @@ test("five-cent boundaries retain submitted shares and balance financial summari
   assert.equal(alice.receivableCents, 30001);
   assert.equal(bob.payableCents, alice.receivableCents);
   assert.equal(alice.netCents + bob.netCents, 0);
-  assert.deepEqual((await json(await api(path))).summary, alice);
+  const groupView = await json(await api(path));
+  assert.deepEqual(groupView.summary, alice);
+  assert.equal(groupView.ledger.members.find((m: { displayName: string }) => m.displayName === 'Alice').netCents, 30001);
+  assert.equal(groupView.ledger.members.find((m: { displayName: string }) => m.displayName === 'Bob').netCents, -30001);
 });
 test("adjustment cannot make initiator cost negative; effective zero is valid", async () => {
   const { path, draft } = await setup();
@@ -933,4 +936,153 @@ test("completion racing with edits or cancellation leaves one valid final state"
       assert.equal(after.confirmedCount, mutation === "cancel" ? 1 : 0);
     }
   }
+});
+
+test('group ledger nets complete bills across dates, includes adjustments and excludes unresolved bills', async () => {
+  const { group, path, draft, ids } = await setup();
+  const first = await billCreate(path, { ...draft, totalCents: 2000, ownShareCents: 0, participantIds: [ids.Alice, ids.Bob] });
+  await submit(first.id, 1997);
+  const second = (await json(await api(path, 'carol-token', 'POST', {
+    ...draft, requestId: crypto.randomUUID(), purchaseDate: '2026-02-01',
+    totalCents: 1997, ownShareCents: 0, participantIds: [ids.Bob, ids.Carol],
+  }), 201)).bill;
+  await submit(second.id, 1997);
+  const incomplete = await billCreate(path, { ...draft, requestId: crypto.randomUUID() });
+  const canceled = await billCreate(path, { ...draft, requestId: crypto.randomUUID() });
+  await json(await api(`/bills/${canceled.id}/cancel`, 'alice-token', 'POST', { revision: 1 }));
+  const result = await json(await api(path));
+  const balances = Object.fromEntries(result.ledger.members.map((m: { displayName: string; netCents: number }) => [m.displayName, m.netCents]));
+  assert.deepEqual(balances, { Alice: 1997, Bob: -3994, Carol: 1997 });
+  assert.equal(result.ledger.suggestions.length, 2);
+  assert.deepEqual(new Set(result.ledger.suggestions.map((s: { fromUserId: string; toUserId: string; amountCents: number }) => JSON.stringify(s))), new Set([
+    JSON.stringify({ fromUserId: ids.Bob, toUserId: ids.Alice, amountCents: 1997 }),
+    JSON.stringify({ fromUserId: ids.Bob, toUserId: ids.Carol, amountCents: 1997 }),
+  ]));
+  assert.deepEqual(result.ledger.incompleteBillIds, [incomplete.id]);
+  assert.equal(result.bills.length, 4);
+  assert.deepEqual((await json(await api(path))).ledger, result.ledger);
+  const other = await create('bob-token');
+  await json(await api(`/groups/${other.id}/bills`), 404);
+  assert.equal((await json(await api(`/groups/${other.id}/bills`, 'bob-token'))).ledger.suggestions.length, 0);
+  await json(await api(`/groups/${group.id}/bills`, 'invalid-token'), 401);
+});
+
+async function ledgerWithBalances(amounts: number[]) {
+  const group = await create();
+  const invitation = await json(await api(`/groups/${group.id}/invitation`));
+  const token = invitation.path.split('/').at(-1);
+  const tokens = new Map<string, string>();
+  const alice = (await json(await api(`/groups/${group.id}`))).group.members[0];
+  tokens.set(alice.id, 'alice-token');
+  for (let i = 1; i < amounts.length; i++) {
+    const joined = (await json(await api('/groups/join', `member-${i}-token`, 'POST', { token }))).group;
+    tokens.set(joined.members.find((m: { isCurrentUser: boolean }) => m.isCurrentUser).id, `member-${i}-token`);
+  }
+  const ids = [...tokens.keys()].sort();
+  const remaining = [...amounts];
+  const path = `/groups/${group.id}/bills`;
+  for (let i = 0; i < ids.length; i++) for (let j = 0; j < ids.length; j++) {
+    if (remaining[i] >= 0 || remaining[j] <= 0) continue;
+    const amount = Math.min(-remaining[i], remaining[j]);
+    const bill = (await json(await api(path, tokens.get(ids[j]), 'POST', {
+      requestId: crypto.randomUUID(), title: 'Shared purchase', purchaseDate: '2026-01-01', timeZone: 'UTC',
+      totalCents: amount, ownShareCents: 0, participantIds: [ids[i], ids[j]],
+    }), 201)).bill;
+    await submit(bill.id, amount, tokens.get(ids[i]));
+    remaining[i] += amount;
+    remaining[j] -= amount;
+  }
+  return { path, ids };
+}
+
+test('suggestions achieve the exact minimum for the greedy counterexample and skip zero balances', async () => {
+  const { path, ids } = await ledgerWithBalances([-800, -700, -500, 1200, 800, 0]);
+  const { ledger } = await json(await api(path));
+  assert.deepEqual(ledger.members.map((m: { netCents: number }) => m.netCents), [-800, -700, -500, 1200, 800, 0]);
+  assert.equal(ledger.suggestions.length, 3);
+  assert.deepEqual(new Set(ledger.suggestions.map((s: unknown) => JSON.stringify(s))), new Set([
+    JSON.stringify({ fromUserId: ids[0], toUserId: ids[4], amountCents: 800 }),
+    JSON.stringify({ fromUserId: ids[1], toUserId: ids[3], amountCents: 700 }),
+    JSON.stringify({ fromUserId: ids[2], toUserId: ids[3], amountCents: 500 }),
+  ]));
+  assert.deepEqual((await json(await api(path))).ledger, ledger);
+});
+
+test('transitive netting reaches every-member-zero without removing bills or blocking new activity', async () => {
+  const { group, ids, path, draft } = await setup();
+  async function purchase(initiator: string, debtor: string, token: string, debtorToken: string) {
+    const bill = (await json(await api(path, token, 'POST', {
+      ...draft, requestId: crypto.randomUUID(), totalCents: 2000, ownShareCents: 0,
+      participantIds: [initiator, debtor],
+    }), 201)).bill;
+    await submit(bill.id, 2000, debtorToken);
+  }
+  await purchase(ids.Bob, ids.Alice, 'bob-token', 'alice-token');
+  await purchase(ids.Carol, ids.Bob, 'carol-token', 'bob-token');
+  const netted = await json(await api(path));
+  assert.deepEqual(netted.ledger.suggestions, [{ fromUserId: ids.Alice, toUserId: ids.Carol, amountCents: 2000 }]);
+  await purchase(ids.Alice, ids.Carol, 'alice-token', 'carol-token');
+  const zero = await json(await api(path));
+  assert.deepEqual(zero.ledger.members.map((m: { netCents: number }) => m.netCents), [0, 0, 0]);
+  assert.deepEqual(zero.ledger.suggestions, []);
+  assert.equal(zero.bills.length, 3);
+  assert.ok(zero.bills.every((b: { completedAt: string }) => b.completedAt));
+  assert.deepEqual(await json(await api(path)), zero);
+  const newBill = await billCreate(path, { ...draft, requestId: crypto.randomUUID() });
+  await json(await api(`/bills/${newBill.id}`, 'alice-token', 'PATCH', {
+    revision: 1, title: 'Still editable', purchaseDate: draft.purchaseDate, timeZone: draft.timeZone,
+    notes: '', totalCents: draft.totalCents, participantIds: draft.participantIds,
+  }));
+  await json(await api(`/bills/${newBill.id}/cancel`, 'alice-token', 'POST', { revision: 2 }));
+  const invitation = await json(await api(`/groups/${group.id}/invitation`));
+  await json(await api('/groups/join', 'member-1-token', 'POST', { token: invitation.path.split('/').at(-1) }));
+});
+
+test('reads during completion see a whole ledger snapshot and retries create no bills', async () => {
+  const { path, draft, ids } = await setup(false);
+  const bill = await billCreate(path, { ...draft, totalCents: 100, ownShareCents: 40 });
+  // Hold the write on the isolated test database to exercise the old committed state.
+  const blocker = await pool.connect();
+  try {
+    await blocker.query('BEGIN');
+    await blocker.query('SELECT id FROM bills WHERE id = $1 FOR UPDATE', [bill.id]);
+    const completion = submit(bill.id, 60);
+    const before = await json(await api(path));
+    assert.deepEqual(before.ledger.suggestions, []);
+    assert.deepEqual(before.ledger.incompleteBillIds, [bill.id]);
+    await blocker.query('COMMIT');
+    const reads = await Promise.all(Array.from({ length: 12 }, () => api(path).then(r => json(r))));
+    await completion;
+    for (const view of reads) {
+      const complete = Boolean(view.bills[0].completedAt);
+      assert.deepEqual(view.ledger.suggestions, complete ? [{ fromUserId: ids.Bob, toUserId: ids.Alice, amountCents: 60 }] : []);
+      assert.deepEqual(view.ledger.incompleteBillIds, complete ? [] : [bill.id]);
+      assert.equal(view.summary.netCents, complete ? 60 : 0);
+      assert.equal(view.bills.length, 1);
+    }
+    const after = await json(await api(path));
+    assert.equal(after.ledger.suggestions[0].amountCents, 60);
+    assert.deepEqual(await json(await api(path)), after);
+  } finally {
+    await blocker.query('ROLLBACK');
+    blocker.release();
+  }
+});
+
+test('16 nonzero members receive a minimum plan within the measured API runtime', async t => {
+  const { path, ids } = await ledgerWithBalances([-1, -2, -4, -8, -16, -32, -64, -128, -256, -512, -1024, -2048, -4096, -8192, -16384, 32767]);
+  const start = performance.now();
+  const view = await json(await api(path));
+  const elapsed = performance.now() - start;
+  t.diagnostic(`16-member ledger API, including SQL and exact solver: ${elapsed.toFixed(1)} ms`);
+  assert.ok(elapsed < 2000, 'maximum-size ledger read should finish within two seconds');
+  assert.equal(view.ledger.suggestions.length, 15);
+  const remaining = new Map<string, number>(view.ledger.members.map((m: { userId: string; netCents: number }) => [m.userId, m.netCents]));
+  for (const suggestion of view.ledger.suggestions) {
+    assert.ok(Number.isSafeInteger(suggestion.amountCents) && suggestion.amountCents > 0);
+    assert.equal(suggestion.toUserId, ids[15]);
+    remaining.set(suggestion.fromUserId, remaining.get(suggestion.fromUserId)! + suggestion.amountCents);
+    remaining.set(suggestion.toUserId, remaining.get(suggestion.toUserId)! - suggestion.amountCents);
+  }
+  assert.ok([...remaining.values()].every(n => n === 0));
 });

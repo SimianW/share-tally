@@ -223,7 +223,7 @@ try {
   await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$59.97');
   const selectedBillsPattern = '**/api/groups/' + alice.url().split('/').pop() + '/bills';
   await alice.route(selectedBillsPattern, route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Temporarily unavailable' }) }));
-  await alice.getByRole('button', { name: 'Refresh bills', exact: true }).click();
+  await alice.getByRole('button', { name: 'Refresh bills & balances', exact: true }).click();
   await expect(alice.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: /Costco friends/ })).toContainText('Balance unavailable');
   await alice.unroute(selectedBillsPattern);
   await alice.getByRole('button', { name: 'Retry group bills', exact: true }).click();
@@ -319,6 +319,31 @@ try {
   await alice.getByRole('link', { name: 'Group bills', exact: false }).click();
   await expect(alice.locator('.bill-list-row').filter({ hasText: 'Canceled groceries' })).toContainText('Canceled');
   await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$119.97');
+  // Issue #6: balances, minimum suggestions, manual refresh, and capacity errors.
+  const ledger = alice.getByRole('region', { name: 'Group balances and repayment suggestions' });
+  await expect(ledger).toContainText('Bob → Alice');
+  await expect(ledger).toContainText('$119.97');
+  await expect(ledger).toContainText('Carol');
+  await expect(ledger).toContainText('$0.00');
+  await alice.setViewportSize({ width: 390, height: 844 });
+  assert.equal(await alice.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await alice.screenshot({ path: `${clientRoot}/test-results/ledger-mobile.png`, fullPage: true });
+  await alice.setViewportSize({ width: 1280, height: 900 });
+  await alice.screenshot({ path: `${clientRoot}/test-results/ledger-desktop.png`, fullPage: true });
+  const invitationToken = newLink.split('/').pop();
+  for (let i = 1; i <= 13; i++) {
+    const response = await fetch(`http://127.0.0.1:${port}/api/groups/join`, {
+      method: 'POST', headers: { Authorization: `Bearer member-${i}-token`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: invitationToken }),
+    });
+    assert.equal(response.status, 200);
+  }
+  const extra = await pageFor('member-14-token', { width: 390, height: 844 });
+  await extra.goto(newLink);
+  await extra.getByRole('button', { name: 'Join group', exact: true }).click();
+  await expect(extra.getByRole('alert')).toContainText('This group is full. Groups can have up to 16 members.');
+  await alice.getByRole('button', { name: 'Refresh bills & balances', exact: true }).click();
+  await expect(ledger.locator('.ledger-rows').first().locator('li')).toHaveCount(16);
   assert.deepEqual(errors, []);
   console.log('Group and bill browser smoke passed: creation, Unicode icon, persistence, sign-in return, membership, invitation permissions, rotation, invalid links, repeat joining, mobile layout, sign-out, bill creation and confirmation, response-loss retries, initiator adjustment, balances, completed-bill finality, stale confirmation, correction, reconfirmation, removal, and cancellation.');
 } catch (error) {

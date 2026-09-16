@@ -9,12 +9,14 @@ import {
   type BillApi,
   type BillDraft,
   type Summary,
+  type GroupLedger,
 } from "./bill-api";
 import { useGroupApi, errorMessage, type GroupDetail } from "./group-api";
 import { Avatar, Button } from "./ui";
 import Dialog from "./Dialog";
 import { GroupDetails } from "./GroupDetails";
 import "./bills.css";
+import { GroupBalances } from "./GroupBalances";
 import { InitiatorActions, ShareActions } from "./BillActions";
 
 export function Balance({
@@ -88,6 +90,7 @@ export function GroupBills({ id, onSummary }: { id: string; onSummary: (id: stri
   const [data, setData] = useState<{
     bills: Bill[];
     summary: Summary;
+    ledger: GroupLedger;
     group: GroupDetail;
   } | null>(null);
   const [error, setError] = useState("");
@@ -123,7 +126,7 @@ export function GroupBills({ id, onSummary }: { id: string; onSummary: (id: stri
       <div className="bill-heading">
         <h2>{data?.group.name ?? "Group bills"}</h2>
         <Button variant="text" onClick={() => setMembersOpen(true)}>Members & invites</Button>
-        <Button onClick={() => setRevision((n) => n + 1)}>Refresh bills</Button>
+        <Button onClick={() => setRevision((n) => n + 1)}>Refresh bills & balances</Button>
       </div>
       {error ? (
         <div role="alert" className="form-error"><p>{error}</p><Button onClick={() => setRevision(n => n + 1)}>Retry group bills</Button></div>
@@ -132,6 +135,7 @@ export function GroupBills({ id, onSummary }: { id: string; onSummary: (id: stri
       ) : (
         <>
           <div className="workspace-balance"><Balance summary={data.summary} group /><Button onClick={() => setCreating(true)}>New bill</Button></div>
+          <GroupBalances ledger={data.ledger} />
           <div className="bill-heading">
             <h2>
               Bills <small>{data.bills.length}</small>
