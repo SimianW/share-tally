@@ -1,4 +1,5 @@
 import { db } from "./db/index.js";
+import { processReceipt } from "./receipt-processing.js";
 import { interpretReceiptNames } from "./receipt-names.js";
 import { priceDraft } from "./receipt-pricing.js";
 import { Router } from "express";
@@ -17,10 +18,7 @@ import {
   photoBytes,
   initializeDraft,
 } from "./receipt-drafts.js";
-import {
-  extractionDefaults,
-  type ReceiptExtractor,
-} from "./receipt-extraction.js";
+import { type ReceiptExtractor } from "./receipt-extraction.js";
 import { azureExtract } from "./azure-receipt.js";
 import { confirmClaims, editItems } from "./item-bills.js";
 export function createReceiptRouter(
@@ -106,7 +104,7 @@ export function createReceiptRouter(
               );
             bytes = await photoBytes(input.draftId, u.id, true);
           }
-          const extraction = extractionDefaults(await extract(bytes));
+          const extraction = await processReceipt(await extract(bytes), names);
           if ("draftId" in input) {
             const latest = await readDraft(input.draftId, u.id);
             if (latest.billId || latest.revision !== input.revision)
@@ -170,8 +168,9 @@ export function createReceiptRouter(
     consumeRequest(u.id);
     active.add(u.id);
     try {
-      const data = extractionDefaults(
+      const data = await processReceipt(
         await extract(await photoBytes(req.params.draftId, u.id, true)),
+        names,
       );
       const latest = await readDraft(req.params.draftId, u.id);
       if (latest.revision !== revision || latest.billId)

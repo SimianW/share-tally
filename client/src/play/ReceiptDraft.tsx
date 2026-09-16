@@ -239,7 +239,9 @@ export function ReceiptDraftForm({
   const api = useReceiptApi();
   const me = group.members.find((m) => m.isCurrentUser)!;
   const createdRef = useRef(created);
-  createdRef.current = created;
+  useEffect(() => {
+    createdRef.current = created;
+  }, [created]);
   const key = `receipt-draft:${me.id}:${group.id}:${id ?? "new"}`;
   const [draft, setDraft] = useState<ReceiptDraft>(() => {
     try {
@@ -413,7 +415,7 @@ export function ReceiptDraftForm({
   async function scan() {
     const saved = await prepare();
     const { extraction } = await api.previewExtract(group.id, saved);
-    const next = await prepare({
+    await prepare({
       ...saved,
       data: {
         ...saved.data,
@@ -427,7 +429,7 @@ export function ReceiptDraftForm({
     setWarnings(extraction.warnings);
     setReplace(false);
     setStep(1);
-    void nameItems(next);
+    setNameError("");
   }
   async function nameItems(snapshot: ReceiptDraft) {
     setNaming(true);
@@ -1122,7 +1124,7 @@ export function ReceiptDraftForm({
       )}
       {deleting && (
         <DeleteDraftDialog
-          title={baseline.current?.data.title || ""}
+          title={draft.data.title || ""}
           busy={!!busy}
           cancel={() => setDeleting(false)}
           remove={() =>

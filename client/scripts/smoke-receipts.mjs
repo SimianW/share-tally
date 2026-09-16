@@ -369,6 +369,7 @@ try {
   await alice
     .getByText("Tax, discounts & receipt adjustments", { exact: true })
     .click();
+  await expect(alice.getByRole("checkbox", { name: "Taxable", exact: true })).toBeChecked();
   await alice.getByLabel("Receipt tax", { exact: true }).fill("0.30");
   await alice
     .getByRole("button", {
@@ -410,6 +411,7 @@ try {
   await expect(
     alice.getByLabel("Final cost · CAD", { exact: true }),
   ).toHaveValue("2.70");
+  await alice.getByRole("checkbox", { name: "Taxable", exact: true }).uncheck();
   await alice.getByLabel("Final cost · CAD", { exact: true }).fill("2.80");
   await alice.getByRole("button", { name: "Save draft & close" }).click();
   await expect(alice.locator(".draft-list-row").filter({ hasText: "Scanned receipt" })).toBeVisible();
@@ -428,6 +430,7 @@ try {
   await expect(
     alice.getByLabel("Final cost · CAD", { exact: true }),
   ).toHaveValue("2.80");
+  await expect(alice.getByRole("checkbox", { name: "Taxable", exact: true })).not.toBeChecked();
   await alice.getByRole("button", { name: "Continue to sharing" }).click();
   await alice
     .getByLabel("Bill title", { exact: true })
