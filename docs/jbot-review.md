@@ -1,6 +1,6 @@
 # J-Bot Code Review
 
-This workflow is based on the DevRecall review configuration: GLM-5.3 through the mainland BigModel Coding Plan endpoint, one review pass, one shard/session at a time, finding verification and guideline review enabled, P0-P3 findings capped at ten, documentation reviews enabled, and no automatic approval.
+This workflow is based on the DevRecall review configuration: GLM-5.3 through the mainland BigModel Coding Plan endpoint, one review pass, one main-review shard and up to three concurrent model sessions, finding verification and guideline review enabled, P0-P3 findings capped at ten, documentation reviews enabled, and no automatic approval.
 
 ## Credentials and variables
 
@@ -28,3 +28,7 @@ The setup PR can validate credentials and review posting before merge. This is a
 Checkout and github-script use the same pinned SHAs as DevRecall. J-Bot's upstream `slim@v0` action uses a floating Docker image; pinning only its action SHA would not freeze the runtime. This setup retains the same upstream-update behavior as DevRecall. Extra permissions for thread resolution are not configured; addressed-thread resolution can be limited by GitHub's token permissions.
 
 The gate has a five-minute timeout, the review job a forty-minute timeout, and the reviewer a thirty-minute target budget. The action may pull its Docker image before executing the credential check.
+
+The three-session limit lets the main review and auxiliary checks run concurrently when the provider supports it. It does not split the main review into multiple shards.
+
+The upstream action has no separate guideline-check timeout input. Its current timeout implementation gives auxiliary checks a ten-minute runway from launch, or five minutes after the main review finishes, whichever ends later, capped by the remaining overall budget and reserves for verification and posting. Queueing can consume that runway, so allowing concurrent sessions avoids the previous one-session bottleneck. This is not a guaranteed ten minutes of provider execution or an extra ten minutes after the main review. The thirty-minute target budget remains unchanged. See the [upstream timeout implementation](https://github.com/pgup-ai/jbot-review/blob/main/src/shared/time-budget.ts).
