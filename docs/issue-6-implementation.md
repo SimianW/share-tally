@@ -33,3 +33,7 @@ Issue #7 will add actual repayment records and confirmed repayment effects to th
 API tests use isolated PostgreSQL and test-only authentication. They cover cross-group access, transitive netting, cross-month bills, adjustments of both signs, incomplete/canceled exclusion, all-zero balances with retained bills, the greedy counterexample, zero-balance members, consistent completion reads, and the 16-member boundary with concurrent and repeated joins.
 
 Browser smoke covers member balances, suggestions, mobile overflow, manual refresh after joins, and a real full-group error. It retains the prior bill correction and completed-bill finality checks. Google OAuth and production session lifetime are outside these controlled-authentication tests.
+
+Validation completed: all 45 backend tests, server typecheck/build, migration consistency check, client build/lint, and browser smoke passed. Standards review found two maintenance concerns, duplicate safe-number conversion and unclear DP array names; both were corrected and verified in review. Spec review reported no findings. After the shared conversion and naming changes, typecheck and all six affected API scenarios passed again.
+
+Review baseline: `dfa480859ff40dc7edc9254cbeafcc736da7ecbb`, the merged issue #5 implementation. The original development workspace and its uncommitted work were preserved; implementation lives on `feat/issue-6-group-balances` in an isolated worktree.

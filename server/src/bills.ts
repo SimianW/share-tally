@@ -1,4 +1,5 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
+import { safeCents } from "./money.js";
 import { groupLedger } from "./group-ledger.js";
 import { db } from "./db/index.js";
 import { bills, billShares, groupMembers, groups, users } from "./db/schema.js";
@@ -413,12 +414,6 @@ export async function submitShare(
     if (!changed) await complete(tx, bill);
   });
 }
-function safe(value: bigint) {
-  const number = Number(value);
-  if (!Number.isSafeInteger(number))
-    throw new BillError(422, "Balance exceeds the supported range.");
-  return number;
-}
 async function readBillsInSnapshot(tx: Tx, userId: string, groupId?: string, id?: string) {
   if (groupId) await member(tx, groupId, userId);
   const rows = await tx
@@ -465,7 +460,7 @@ async function readBillsInSnapshot(tx: Tx, userId: string, groupId?: string, id?
         displayName: s.displayName ?? "Member",
         isCurrentUser: s.userId === userId,
       }));
-    const submittedCents = safe(
+    const submittedCents = safeCents(
       participants.reduce((n, s) => n + BigInt(s.amountCents ?? 0), 0n),
     );
     const {
@@ -513,8 +508,8 @@ export function summarize(
     else payable += BigInt(own.amountCents!);
   }
   return {
-    receivableCents: safe(receivable),
-    payableCents: safe(payable),
-    netCents: safe(receivable - payable),
+    receivableCents: safeCents(receivable),
+    payableCents: safeCents(payable),
+    netCents: safeCents(receivable - payable),
   };
 }

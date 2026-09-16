@@ -1,4 +1,5 @@
 import type { readBills } from './bills.js';
+import { safeCents } from './money.js';
 import { BillError } from './bill-error.js';
 
 type MemberBalance = { userId: string; displayName: string; netCents: number };
@@ -18,8 +19,7 @@ export function groupLedger(
     }
   }
   const result = members.map(member => {
-    const netCents = Number(balances.get(member.userId)!);
-    if (!Number.isSafeInteger(netCents)) throw new BillError(422, 'Balance exceeds the supported range.');
+    const netCents = safeCents(balances.get(member.userId)!);
     return { userId: member.userId, displayName: member.displayName ?? 'Member', netCents };
   });
   return {
@@ -36,30 +36,30 @@ export function minimumRepayments(members: MemberBalance[]): Suggestion[] {
   const active = members.filter(member => member.netCents !== 0)
     .sort((a, b) => a.userId < b.userId ? -1 : a.userId > b.userId ? 1 : 0);
   if (members.length > 16) throw new BillError(422, 'Groups can have up to 16 members.');
-  const size = 1 << active.length;
-  const sums: bigint[] = Array(size).fill(0n);
-  const counts = new Uint8Array(size);
-  const last = new Uint8Array(size);
-  for (let mask = 1; mask < size; mask++) {
+  const subsetCount = 1 << active.length;
+  const subsetSums: bigint[] = Array(subsetCount).fill(0n);
+  const maxComponentCounts = new Uint8Array(subsetCount);
+  const removedMemberIndex = new Uint8Array(subsetCount);
+  for (let mask = 1; mask < subsetCount; mask++) {
     const bit = mask & -mask;
-    sums[mask] = sums[mask ^ bit] + BigInt(active[31 - Math.clz32(bit)].netCents);
+    subsetSums[mask] = subsetSums[mask ^ bit] + BigInt(active[31 - Math.clz32(bit)].netCents);
     let best = -1;
     // Strict improvement preserves the first member-ID choice on equal optima.
     for (let i = 0; i < active.length; i++) {
       if (!(mask & (1 << i))) continue;
-      const count = counts[mask ^ (1 << i)];
-      if (count > best) { best = count; last[mask] = i; }
+      const count = maxComponentCounts[mask ^ (1 << i)];
+      if (count > best) { best = count; removedMemberIndex[mask] = i; }
     }
-    counts[mask] = best + (sums[mask] === 0n ? 1 : 0);
+    maxComponentCounts[mask] = best + (subsetSums[mask] === 0n ? 1 : 0);
   }
-  if (sums[size - 1] !== 0n) throw new Error('Group balances must sum to zero.');
+  if (subsetSums[subsetCount - 1] !== 0n) throw new Error('Group balances must sum to zero.');
   const result: Suggestion[] = [];
   let component: MemberBalance[] = [];
-  for (let mask = size - 1; mask;) {
-    const index = last[mask];
+  for (let mask = subsetCount - 1; mask;) {
+    const index = removedMemberIndex[mask];
     component.push(active[index]);
     mask ^= 1 << index;
-    if (sums[mask] === 0n) {
+    if (subsetSums[mask] === 0n) {
       result.push(...clearComponent(component));
       component = [];
     }
