@@ -253,14 +253,35 @@ try {
   await alice.screenshot({ path: `${clientRoot}/test-results/groups-desktop.png`, fullPage: true });
   await carol.setViewportSize({ width: 390, height: 844 });
   await carol.screenshot({ path: `${clientRoot}/test-results/groups-mobile.png`, fullPage: true });
-  // Issue #5: chosen layout A, correction, stale confirmation, removal and cancellation.
+  // Issue #5: completed bills are final; corrections start from incomplete bills.
   const bobAgain = await pageFor('bob-token', { width: 390, height: 844 });
   await alice.goto(billUrl);
-  await alice.getByRole('button', { name: 'Reopen bill', exact: true }).click();
-  await alice.getByRole('button', { name: 'Reopen & clear confirmations' }).click();
-  await expect(alice.locator('.difference-card')).toContainText('0/2 confirmed');
-  await expect(alice.getByLabel('My share · CAD', { exact: true })).toHaveValue('40.00');
-  await bobAgain.goto(billUrl);
+  await expect(alice.getByText('Completed bills are final.', { exact: false })).toBeVisible();
+  await expect(alice.locator('.bill-controls')).toHaveCount(0);
+  await expect(alice.getByLabel('My share · CAD', { exact: true })).toHaveCount(0);
+  async function incompleteBill(title) {
+    await alice.getByRole('link', { name: 'Group bills', exact: false }).click();
+    await alice.getByRole('button', { name: 'New bill', exact: true }).click();
+    await alice.getByLabel('Bill title', { exact: true }).fill(title);
+    await alice.getByLabel('Bill total · CAD', { exact: true }).fill('100.00');
+    await alice.getByLabel('My share · CAD', { exact: true }).fill('40.00');
+    await alice.getByRole('checkbox', { name: 'Bob', exact: true }).check();
+    await alice.getByRole('button', { name: 'Create bill and confirm my share' }).click();
+    await expect(alice.getByRole('heading', { name: title })).toBeVisible();
+    await bobAgain.goto(alice.url());
+    await bobAgain.getByLabel('My share · CAD', { exact: true }).fill('59.00');
+    await bobAgain.getByRole('button', { name: 'Submit and confirm my share' }).click();
+    await expect(bobAgain.locator('.difference-card')).toContainText('2/2 confirmed');
+    await alice.getByRole('button', { name: 'Refresh bill', exact: true }).click();
+  }
+  await incompleteBill('Correctable groceries');
+  // Clear confirmations, then leave Bob viewing the old revision during another edit.
+  await alice.getByRole('button', { name: 'Edit details & participants' }).click();
+  await alice.getByRole('dialog').getByLabel('Notes').fill('Initial correction');
+  await alice.getByRole('button', { name: 'Save & request confirmations' }).click();
+  await expect(alice.getByRole('dialog')).toHaveCount(0);
+  await bobAgain.reload();
+  await expect(bobAgain.getByRole('button', { name: 'Confirm my share', exact: true })).toBeVisible();
   await alice.getByRole('button', { name: 'Edit details & participants' }).click();
   await alice.getByRole('dialog').getByLabel('Notes').fill('Corrected purchase notes');
   await alice.getByRole('button', { name: 'Save & request confirmations' }).click();
@@ -278,8 +299,8 @@ try {
   await alice.getByRole('button', { name: 'Confirm my share', exact: true }).click();
   await expect(alice.locator('.bill-status')).toContainText('COMPLETE');
   await alice.screenshot({ path: `${clientRoot}/test-results/bill-corrected-desktop.png`, fullPage: true });
-  await alice.getByRole('button', { name: 'Reopen bill', exact: true }).click();
-  await alice.getByRole('button', { name: 'Reopen & clear confirmations' }).click();
+  await expect(alice.locator('.bill-controls')).toHaveCount(0);
+  await incompleteBill('Canceled groceries');
   await alice.getByRole('button', { name: 'Edit details & participants' }).click();
   await expect(alice.getByRole('dialog').getByRole('checkbox', { name: /Alice/ })).toBeDisabled();
   await alice.getByRole('dialog').getByRole('checkbox', { name: 'Bob', exact: true }).uncheck();
@@ -296,10 +317,10 @@ try {
   assert.equal(await bobAgain.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await bobAgain.screenshot({ path: `${clientRoot}/test-results/bill-canceled-mobile.png`, fullPage: true });
   await alice.getByRole('link', { name: 'Group bills', exact: false }).click();
-  await expect(alice.locator('.bill-list-row')).toContainText('Canceled');
-  await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$0.00');
+  await expect(alice.locator('.bill-list-row').filter({ hasText: 'Canceled groceries' })).toContainText('Canceled');
+  await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$119.97');
   assert.deepEqual(errors, []);
-  console.log('Group and bill browser smoke passed: creation, Unicode icon, persistence, sign-in return, membership, invitation permissions, rotation, invalid links, repeat joining, mobile layout, sign-out, bill creation and confirmation, response-loss retries, initiator adjustment, balances, reopening, stale confirmation, correction, reconfirmation, removal, and cancellation.');
+  console.log('Group and bill browser smoke passed: creation, Unicode icon, persistence, sign-in return, membership, invitation permissions, rotation, invalid links, repeat joining, mobile layout, sign-out, bill creation and confirmation, response-loss retries, initiator adjustment, balances, completed-bill finality, stale confirmation, correction, reconfirmation, removal, and cancellation.');
 } catch (error) {
   if (browser) {
     for (const context of browser.contexts()) for (const page of context.pages()) {

@@ -6,7 +6,7 @@ ShareTally helps groups record shared purchases, submit individual shares, and s
 
 **Initiator**:
 The person who paid for the purchase and created its bill. The initiator is also a participant in that bill.
-_Avoid_: Payer, which can also mean someone making a settlement repayment.
+_Avoid_: Payer, which can also mean someone making a repayment.
 
 **Participant**:
 A person selected to declare their portion of a bill, including the initiator.
@@ -16,7 +16,7 @@ _Avoid_: Debtor, since participation does not necessarily mean the person owes m
 A record of a purchase paid for by its initiator and shared among its selected participants.
 
 **Group**:
-A collection of members who record shared bills and settle their debts together.
+A collection of distinct members who record shared bills and settle their debts together. Each group's debts are calculated independently of other groups.
 
 **Member**:
 A user who belongs to a group. Membership does not make the user a participant in every bill.
@@ -27,32 +27,35 @@ _Avoid_: Payment, which refers to money actually transferred.
 
 **Share confirmation**:
 A participant's acknowledgment of their submitted share for the bill's current revision.
-_Avoid_: Payment confirmation, which acknowledges received money during settlement.
+_Avoid_: Payment confirmation, which acknowledges received money.
 
 **Complete bill**:
-A bill for which every participant has confirmed their share for the current revision and any permitted difference is accounted for by an initiator adjustment. Completion does not mean the group has finished repaying its debts.
+A finalized bill whose participants have all confirmed their shares and whose permitted difference is accounted for by an initiator adjustment; it cannot be reopened. Completion does not mean the group has finished repaying its debts.
 _Avoid_: Paid bill.
 
 **Initiator adjustment**:
 The small difference between a bill's total and its submitted shares, assigned to the initiator without changing anyone's submitted share. It increases or decreases the initiator's effective cost.
 
-**Settlement**:
-A group process that calculates repayments from member net balances and finishes when recipients confirm the required payments.
+**Repayment suggestion**:
+A suggested transfer between group members calculated from their current net balances. Suggestions can change as the group's bills and recorded repayments change.
 
 **Repayment**:
-Money sent outside ShareTally from one member to another to satisfy a settlement instruction.
+Money sent outside ShareTally from one group member to another to reduce a debt within that group.
+
+**Repayment record**:
+A sender's record of an actual transfer to another group member, with a pending, confirmed, or rejected receipt status. Its amount may repay part of a debt or exceed it, creating a reverse balance after confirmation.
+
+**Rejected repayment**:
+A repayment record declined by its recipient, with no effect on group balances.
 
 **Payment confirmation**:
-A recipient's acknowledgment that they received the full amount of a required settlement repayment.
-
-**Settled bill**:
-A bill included in a finished settlement and retained as history.
+A recipient's acknowledgment that they received a repayment.
 
 **Canceled bill**:
 A bill withdrawn by its initiator and retained as a canceled record.
 
 **Net balance**:
-The amount a member is owed or owes after combining the bills included in a settlement. Every member having a zero net balance means no repayments are needed.
+The amount a member is currently owed or owes within a group after accounting for eligible bills and repayments. Every member having a zero net balance means no repayments are needed at that moment.
 
 **Group creator**:
 The member who created a group. This role is distinct from a bill's initiator.

@@ -111,9 +111,9 @@ export function useBillApi() {
           "PATCH",
           input,
         ),
-      change: (id: string, action: "reopen" | "cancel", revision: number) =>
+      cancel: (id: string, revision: number) =>
         request<{ bill: Bill }>(
-          `/bills/${encodeURIComponent(id)}/${action}`,
+          `/bills/${encodeURIComponent(id)}/cancel`,
           "POST",
           { revision },
         ),

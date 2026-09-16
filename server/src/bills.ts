@@ -293,7 +293,7 @@ export async function changeBill(
   userId: string,
   command:
     | { action: "edit"; input: ReturnType<typeof parseEdit> }
-    | { action: "reopen" | "cancel"; revision: number },
+    | { action: "cancel"; revision: number },
 ) {
   const { action } = command;
   const input = command.action === "edit" ? command.input : undefined;
@@ -304,17 +304,15 @@ export async function changeBill(
     if (bill.initiatorId !== userId)
       throw new BillError(403, "Only the initiator can change this bill.");
     assertMutableRevision(bill, revision);
+    if (bill.completedAt)
+      throw new BillError(409, "Completed bills are final and cannot be changed.");
     if (action === "cancel") {
-      if (bill.completedAt)
-        throw new BillError(409, "Reopen this bill before canceling it.");
       await tx
         .update(bills)
         .set({ canceledAt: new Date(), revision: bill.revision + 1 })
         .where(eq(bills.id, id));
       return;
     }
-    if (action === "reopen" && !bill.completedAt)
-      throw new BillError(409, "This bill is already open.");
     if (input) {
       if (!input.participantIds.includes(userId))
         throw new BillError(400, "The initiator must remain a participant.");
@@ -394,7 +392,7 @@ export async function submitShare(
     if (bill.completedAt)
       throw new BillError(
         409,
-        "Ask the initiator to reopen this bill before editing.",
+        "Completed bills are final and cannot be changed.",
       );
     const changed =
       share.amountCents !== null && share.amountCents !== input.amount;

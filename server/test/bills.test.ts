@@ -505,7 +505,7 @@ function editBody(bill: Awaited<ReturnType<typeof readBill>>, changes = {}) {
 }
 async function action(
   id: string,
-  name: "reopen" | "cancel",
+  name: "cancel",
   revision: number,
   token = "alice-token",
   status = 200,
@@ -537,22 +537,32 @@ async function shareAt(
   ).bill;
 }
 
-test("reopening preserves amounts, clears every confirmation and balances, then reconfirmation completes", async () => {
+test("incomplete bill corrections retain amounts, clear confirmations, and reconfirmation completes", async () => {
   const { path, draft } = await setup(false);
   const created = await billCreate(path, draft);
-  const done = await submit(created.id, 5997);
-  assert.ok(done.completedAt);
-  assert.equal(done.adjustmentCents, 3);
-  await action(done.id, "reopen", done.revision, "bob-token", 403);
-  const open = await action(done.id, "reopen", done.revision);
+  const before = await submit(created.id, 5900);
+  assert.equal(before.completedAt, null);
+  const open = (
+    await json(
+      await api(
+        `/bills/${created.id}`,
+        "alice-token",
+        "PATCH",
+        editBody(before, { totalCents: 9903 }),
+      ),
+    )
+  ).bill;
   assert.equal(open.completedAt, null);
   assert.equal(open.adjustmentCents, null);
   assert.equal(open.confirmedCount, 0);
-  assert.equal(open.submittedCents, done.submittedCents);
+  assert.equal(open.submittedCents, before.submittedCents);
   assert.equal((await json(await api("/summary"))).summary.netCents, 0);
-  await action(done.id, "reopen", done.revision, "alice-token", 409);
-  await shareAt(open.id, done.revision, 5997, 5997, "bob-token", 409);
-  const one = await shareAt(open.id, open.revision, 5997, 5997);
+  await json(
+    await api(`/bills/${open.id}`, "alice-token", "PATCH", editBody(before)),
+    409,
+  );
+  await shareAt(open.id, before.revision, 5900, 5900, "bob-token", 409);
+  const one = await shareAt(open.id, open.revision, 5900, 5900);
   const bobTime = one.participants.find(
     (p: { displayName: string }) => p.displayName === "Bob",
   ).confirmedAt;
@@ -572,10 +582,10 @@ test("reopening preserves amounts, clears every confirmation and balances, then 
     bobTime,
   );
   assert.deepEqual(
-    await shareAt(open.id, open.revision, 5997, 5997),
+    await shareAt(open.id, open.revision, 5900, 5900),
     await readBill(open.id, "bob-token"),
   );
-  assert.equal((await json(await api("/summary"))).summary.netCents, 5997);
+  assert.equal((await json(await api("/summary"))).summary.netCents, 5900);
 });
 
 test("amount changes clear all confirmations and old requests never reconfirm a newer revision", async () => {
@@ -606,7 +616,7 @@ test("descriptive edits, participant replacement, removal permissions and cancel
   const { path, draft, ids, group } = await setup();
   const created = await billCreate(path, draft);
   await submit(created.id, 3000);
-  await submit(created.id, 3000, "carol-token");
+  await submit(created.id, 2900, "carol-token");
   const before = await readBill(created.id);
   const changed = (
     await json(
@@ -621,7 +631,7 @@ test("descriptive edits, participant replacement, removal permissions and cancel
   assert.equal(changed.notes, "Corrected note");
   assert.equal(changed.confirmedCount, 0);
   assert.equal(changed.completedAt, null);
-  assert.equal(changed.submittedCents, 10000);
+  assert.equal(changed.submittedCents, 9900);
   const removed = (
     await json(
       await api(
@@ -658,7 +668,6 @@ test("descriptive edits, participant replacement, removal permissions and cancel
   const canceled = await action(created.id, "cancel", added.revision);
   assert.ok(canceled.canceledAt);
   await action(created.id, "cancel", added.revision, "alice-token", 409);
-  await action(created.id, "reopen", canceled.revision, "alice-token", 409);
   await shareAt(created.id, canceled.revision, 3000, 3000, "bob-token", 409);
   await json(
     await api(
@@ -676,7 +685,7 @@ test("descriptive edits, participant replacement, removal permissions and cancel
 test("bill mutation validation and permissions cannot alter other participants shares or remove initiator", async () => {
   const { path, draft, ids } = await setup(false);
   const bill = await billCreate(path, draft);
-  for (const name of ["reopen", "cancel"]) {
+  for (const name of ["cancel"]) {
     await json(
       await api(`/bills/${bill.id}/${name}`, "carol-token", "POST", {
         revision: 1,
@@ -768,8 +777,17 @@ test("concurrent initiator edits and share edits serialize and reject the losing
 test("a confirmation racing with an edit cannot survive that edit", async () => {
   const { path, draft } = await setup(false);
   const created = await billCreate(path, draft);
-  const completed = await submit(created.id, 6000);
-  const open = await action(created.id, "reopen", completed.revision);
+  await submit(created.id, 5900);
+  const open = (
+    await json(
+      await api(
+        `/bills/${created.id}`,
+        "alice-token",
+        "PATCH",
+        editBody(created, { totalCents: 9900 }),
+      ),
+    )
+  ).bill;
   const [edit, confirm] = await Promise.all([
     api(
       `/bills/${open.id}`,
@@ -779,8 +797,8 @@ test("a confirmation racing with an edit cannot survive that edit", async () => 
     ),
     api(`/bills/${open.id}/share`, "bob-token", "POST", {
       revision: open.revision,
-      expectedAmountCents: 6000,
-      amountCents: 6000,
+      expectedAmountCents: 5900,
+      amountCents: 5900,
     }),
   ]);
   assert.equal(edit.status, 200);
@@ -810,12 +828,21 @@ test("competing first amounts on an incomplete bill require the original persona
 test("simultaneous unchanged reconfirmations and retries finish once and preserve confirmations", async () => {
   const { path, draft } = await setup(false);
   const bill = await billCreate(path, draft);
-  const done = await submit(bill.id, 6000);
-  const open = await action(bill.id, "reopen", done.revision);
+  await submit(bill.id, 5900);
+  const open = (
+    await json(
+      await api(
+        `/bills/${bill.id}`,
+        "alice-token",
+        "PATCH",
+        editBody(bill, { totalCents: 9900 }),
+      ),
+    )
+  ).bill;
   await Promise.all([
-    shareAt(bill.id, open.revision, 6000, 6000),
+    shareAt(bill.id, open.revision, 5900, 5900),
     shareAt(bill.id, open.revision, 4000, 4000, "alice-token"),
-    shareAt(bill.id, open.revision, 6000, 6000),
+    shareAt(bill.id, open.revision, 5900, 5900),
   ]);
   const after = await readBill(bill.id);
   assert.ok(after.completedAt);
@@ -824,4 +851,86 @@ test("simultaneous unchanged reconfirmations and retries finish once and preserv
   await stopServer();
   await startServer();
   assert.deepEqual(await readBill(bill.id), after);
+});
+
+test("completed bills reject direct edits, participant changes, cancellation and share changes", async () => {
+  const { path, draft, ids } = await setup(false);
+  const bill = await billCreate(path, draft);
+  await submit(bill.id, 5997);
+  const done = await readBill(bill.id);
+  for (const changes of [
+    { notes: "Changed" },
+    { participantIds: [ids.Alice] },
+    { totalCents: 10001 },
+  ]) {
+    await json(
+      await api(
+        `/bills/${bill.id}`,
+        "alice-token",
+        "PATCH",
+        editBody(done, changes),
+      ),
+      409,
+    );
+  }
+  await action(bill.id, "cancel", done.revision, "alice-token", 409);
+  await shareAt(bill.id, done.revision, 5997, 6000, "bob-token", 409);
+  await shareAt(bill.id, done.revision, 4000, 4001, "alice-token", 409);
+  assert.equal(
+    (
+      await api(`/bills/${bill.id}/reopen`, "alice-token", "POST", {
+        revision: done.revision,
+      })
+    ).status,
+    404,
+  );
+  assert.deepEqual(await readBill(bill.id), done);
+  assert.equal((await json(await api(path))).summary.netCents, 5997);
+});
+
+test("completion racing with edits or cancellation leaves one valid final state", async () => {
+  const { path, draft } = await setup(false);
+  for (const mutation of ["edit", "cancel", "share"] as const) {
+    const bill = await billCreate(path, {
+      ...draft,
+      requestId: crypto.randomUUID(),
+    });
+    const [confirmation, change] = await Promise.all([
+      api(`/bills/${bill.id}/share`, "bob-token", "POST", {
+        revision: bill.revision,
+        expectedAmountCents: null,
+        amountCents: 6000,
+      }),
+      mutation === "edit"
+        ? api(
+            `/bills/${bill.id}`,
+            "alice-token",
+            "PATCH",
+            editBody(bill, { notes: "Correction" }),
+          )
+        : mutation === "cancel"
+          ? api(`/bills/${bill.id}/cancel`, "alice-token", "POST", {
+              revision: bill.revision,
+            })
+          : api(`/bills/${bill.id}/share`, "alice-token", "POST", {
+              revision: bill.revision,
+              expectedAmountCents: 4000,
+              amountCents: 3999,
+            }),
+    ]);
+    assert.deepEqual([confirmation.status, change.status].sort(), [200, 409]);
+    const after = await readBill(bill.id);
+    if (confirmation.ok) {
+      assert.ok(after.completedAt);
+      assert.equal(after.canceledAt, null);
+      assert.equal(after.revision, bill.revision);
+      assert.equal(after.notes, bill.notes);
+      assert.equal(after.submittedCents, 10000);
+    } else {
+      assert.equal(after.completedAt, null);
+      assert.equal(after.revision, bill.revision + 1);
+      assert.equal(Boolean(after.canceledAt), mutation === "cancel");
+      assert.equal(after.confirmedCount, mutation === "cancel" ? 1 : 0);
+    }
+  }
 });

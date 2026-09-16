@@ -582,9 +582,7 @@ export function BillDetails({ id }: { id: string }) {
             <section className="share-form">
               <h2>All confirmed.</h2>
               <p>
-                {own.userId === bill.initiatorId
-                  ? "Reopen this bill to correct amounts and ask everyone to confirm again."
-                  : "Ask the initiator to reopen this bill if your amount needs correcting."}
+                Completed bills are final. Details, participants, and shares can no longer be changed.
               </p>
             </section>
           ))}

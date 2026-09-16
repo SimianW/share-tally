@@ -1,5 +1,7 @@
 # Issue #4 design decisions
 
+Subsequent decisions: ADR-0005 replaces unsettled-bill accounting with continuous balances including confirmed repayment offsets. ADR-0006 makes completed bills final. The notes below preserve the original issue-4 design.
+
 These owner-approved decisions supplement [issue #4](https://github.com/SimianW/share-tally/issues/4). The design interview is complete, and the owner selected prototype A for implementation.
 
 ## Confirmed decisions

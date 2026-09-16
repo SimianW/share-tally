@@ -171,7 +171,7 @@ export function ShareActions({ bill, api, saved, refresh }: Props) {
 }
 
 export function InitiatorActions({ bill, api, saved, refresh }: Props) {
-  const [panel, setPanel] = useState<"edit" | "reopen" | "cancel" | null>(null);
+  const [panel, setPanel] = useState<"edit" | "cancel" | null>(null);
   function updated(next: Bill) {
     setPanel(null);
     saved(next);
@@ -180,13 +180,10 @@ export function InitiatorActions({ bill, api, saved, refresh }: Props) {
     setPanel(null);
     refresh();
   }
-  if (bill.canceledAt) return null;
+  if (bill.canceledAt || bill.completedAt) return null;
   return (
     <section className="bill-controls">
       <span className="eyebrow">INITIATOR CONTROLS</span>
-      {bill.completedAt && (
-        <Button onClick={() => setPanel("reopen")}>Reopen bill</Button>
-      )}
       <Button variant="secondary" onClick={() => setPanel("edit")}>
         Edit details & participants
       </Button>
@@ -204,46 +201,43 @@ export function InitiatorActions({ bill, api, saved, refresh }: Props) {
           close={() => setPanel(null)}
         />
       )}
-      {(panel === "reopen" || panel === "cancel") && (
-        <ChangeBill
+      {panel === "cancel" && (
+        <CancelBill
           bill={bill}
           api={api}
           saved={updated}
           refresh={review}
-          action={panel}
           close={() => setPanel(null)}
         />
       )}
     </section>
   );
 }
-function ChangeBill({
+function CancelBill({
   bill,
   api,
   saved,
   refresh,
-  action,
   close,
-}: Props & { action: "reopen" | "cancel"; close: () => void }) {
+}: Props & { close: () => void }) {
   const mutation = useMutation(saved);
   return (
     <Dialog
-      title={action === "reopen" ? "Reopen this bill?" : "Cancel this bill?"}
+      title="Cancel this bill?"
       kicker={bill.title}
       close={() => {
         if (!mutation.busy) close();
       }}
     >
       <p>
-        {action === "reopen"
-          ? "Everyone’s amounts stay. All confirmations will be cleared. The bill leaves financial totals until everyone confirms and it completes again."
-          : "This bill will stay visible as canceled and be excluded from financial totals. Participants can no longer submit or confirm shares."}
+        This bill will stay visible as canceled and be excluded from financial
+        totals. Participants can no longer submit or confirm shares.
       </p>
       <MutationError mutation={mutation} refresh={refresh} />
       <div className="dialog-actions">
         <Button
           onClick={() =>
-            void mutation.run(() => api.change(bill.id, action, bill.revision))
+            void mutation.run(() => api.cancel(bill.id, bill.revision))
           }
           disabled={mutation.busy || mutation.conflict}
         >
@@ -251,9 +245,7 @@ function ChangeBill({
             ? "Saving..."
             : mutation.retry
               ? "Retry request"
-              : action === "reopen"
-                ? "Reopen & clear confirmations"
-                : "Yes, cancel bill"}
+              : "Yes, cancel bill"}
         </Button>
         <Button variant="secondary" onClick={close} disabled={mutation.busy}>
           Keep current bill
@@ -331,8 +323,8 @@ function EditBill({
         }}
       >
         <p className="bill-warning">
-          Saving any edit reopens this bill and clears everyone’s confirmation,
-          even if you only change its description. Existing amounts stay.
+          Saving any edit clears everyone’s confirmation, even if you only
+          change its description. Existing amounts stay.
         </p>
         <fieldset disabled={mutation.locked}>
           <label>
