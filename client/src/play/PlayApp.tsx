@@ -1,3 +1,4 @@
+import { Notification } from './Notification';
 import { useCached } from './query-cache';
 import { AttentionList } from './AttentionList';
 import { BillDetails, OverviewBalance } from './Bills';
@@ -150,10 +151,10 @@ export default function PlayApp({
               {view === "overview" && <OverviewBalance revision={`${route}:${revision}`} />}
               <AttentionList revision={`${route}:${revision}`} />
               {loading && <p role="status">Loading groups…</p>}
-              {error && <div role="alert" className="form-error">
+              {error && <Notification>
                 <p>{error}</p>
                 <Button onClick={() => { setRevision(value => value + 1); }} disabled={loading}>Try again</Button>
-              </div>}
+              </Notification>}
               <SectionHeading title="Your people" count={groups.length} action="Refresh" onAction={() => { setRevision(value => value + 1); }} />
               {!loading && groupQuery.data && <GroupList
                 groups={groups}

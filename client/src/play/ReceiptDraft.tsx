@@ -10,6 +10,7 @@ import {
 import { ReceiptItemEditor, ReceiptAmount } from "./ReceiptItemEditor";
 import { ReceiptCrop, ReceiptPhoto } from "./ReceiptPhoto";
 import Dialog from "./Dialog";
+import { Notification } from "./Notification";
 import { Button } from "./ui";
 import {
   ArrowLeft,
@@ -793,12 +794,12 @@ export function ReceiptDraftForm({
             )}
           </fieldset>
           {warnings.map((w, i) => (
-            <p className="bill-warning" key={i}>
+            <Notification tone="warning" title="Check the receipt" key={i}>
               {w}
-            </p>
+            </Notification>
           ))}
           {error && (
-            <div role="alert">
+            <Notification tone="error" title="Draft needs attention">
               <p>{error}</p>
               <Button
                 variant="text"
@@ -811,7 +812,7 @@ export function ReceiptDraftForm({
               >
                 Reload saved draft, discarding local edits
               </Button>
-            </div>
+            </Notification>
           )}
           <p role="status">{busy || notice}</p>
           {draft.initializationRevision && (

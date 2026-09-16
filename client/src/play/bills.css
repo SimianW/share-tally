@@ -54,6 +54,9 @@
 .bill-heading p {
   color: #626a63;
 }
+#my-share-amount {
+  scroll-margin-block: 100px;
+}
 .bill-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
@@ -128,7 +131,19 @@
 .bill-adjustment p {
   margin-bottom: 0;
 }
+.bill-notes {
+  margin-top: 24px;
+  padding: 20px 26px;
+  border: 1px solid #e2e5dc;
+  border-radius: 20px;
+  background: white;
+}
+.bill-notes h2 {
+  margin: 0 0 8px;
+  font-size: 1.3rem;
+}
 .bill-notes p {
+  margin: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -278,12 +293,6 @@
 .bill-danger {
   color: #963c31;
 }
-.bill-warning {
-  background: #fff3d8;
-  color: #644e20;
-  padding: 16px;
-  border-radius: 12px;
-}
 .difference-card.canceled-bill {
   background: #e9ece5;
   border-color: #c4cbbd;
@@ -322,3 +331,6 @@
 .repayment-list li > div { display: grid; gap: .35rem; min-width: 0; overflow-wrap: anywhere; }
 .bill-form select { width: 100%; padding: .75rem; border: 1px solid var(--line); border-radius: .5rem; font: inherit; background: var(--paper, white); color: inherit; }
 @media (max-width: 720px) { .repayment-list li { align-items: stretch; flex-direction: column; } }
+
+.bill-adjustment-pending { background: transparent; padding: 0; }
+.bill-adjustment-pending > .notification { margin: 0; }

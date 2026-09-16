@@ -116,6 +116,12 @@ try {
   const oldLink = await alice.getByLabel('Invitation link', { exact: true }).inputValue();
   await alice.getByRole('button', { name: 'Copy invitation link' }).click();
   assert.equal(await alice.evaluate(() => navigator.clipboard.readText()), oldLink);
+  const copiedNotice = alice.getByRole('status').filter({ hasText: 'Invitation link copied.' });
+  await expect(copiedNotice).toBeVisible();
+  await copiedNotice.getByRole('button', { name: 'Dismiss notification' }).click();
+  await expect(copiedNotice).toHaveCount(0);
+  await alice.getByRole('button', { name: 'Copy invitation link' }).click();
+  await expect(copiedNotice).toBeVisible();
   const groupUrl = alice.url();
 
   // A signed-out mobile visitor keeps the invitation across the sign-in boundary.
@@ -144,7 +150,7 @@ try {
 
   const carol = await pageFor('carol-token', { width: 1280, height: 900 });
   await carol.goto(groupUrl);
-  await expect(carol.getByRole('alert')).toHaveText('Group not found.');
+  await expect(carol.getByRole('alert')).toContainText('Group not found.');
   await carol.goto(oldLink);
   await carol.getByRole('button', { name: 'Join group', exact: true }).click();
   await expect(carol.getByRole('alert')).toContainText('invalid or has been replaced');
@@ -332,6 +338,12 @@ try {
     await bobAgain.getByLabel('My share · CAD', { exact: true }).fill('59.00');
     await bobAgain.getByRole('button', { name: 'Submit and confirm my share' }).click();
     await expect(bobAgain.locator('.difference-card')).toContainText('2/2 confirmed');
+    const correction = bobAgain.getByRole('alert').filter({ hasText: 'Shares are $1.00 under the total' });
+    await expect(correction).toBeVisible();
+    await expect(correction).toContainText('within $0.05');
+    await expect(correction.getByRole('button', { name: 'Dismiss notification' })).toHaveCount(0);
+    await correction.getByRole('button', { name: 'Edit my share' }).click();
+    await expect(bobAgain.getByLabel('My share · CAD', { exact: true })).toBeFocused();
 
   }
   await incompleteBill('Correctable groceries');
@@ -348,7 +360,7 @@ try {
   await alice.getByRole('dialog').getByLabel('Notes').fill('Corrected purchase notes');
   await alice.getByRole('button', { name: 'Save & request confirmations' }).click();
   await expect(alice.getByRole('dialog')).toHaveCount(0);
-  await expect(bobAgain.getByRole('alert')).toContainText('This bill changed');
+  await expect(bobAgain.getByRole('alert').filter({ hasText: 'This bill changed' })).toBeVisible();
   await expect(bobAgain.getByRole('button', { name: 'Save changed amount', exact: true })).toBeDisabled();
   await expect(bobAgain.getByLabel('My share · CAD', { exact: true })).toHaveValue('60.00');
   await bobAgain.getByRole('button', { name: 'Review latest bill' }).click();
@@ -490,6 +502,26 @@ try {
   }
   const liveGroup = (await liveApi(`/groups/${liveGroupId}`, 'alice-token')).group;
   const liveIds = Object.fromEntries(liveGroup.members.map(member => [member.displayName, member.id]));
+  // Even an overage within tolerance cannot make the initiator's cost negative.
+  const { bill: negativeAdjustment } = await liveApi(`/groups/${liveGroupId}/bills`, 'alice-token', 'POST', {
+    requestId: crypto.randomUUID(), title: 'Small overage', purchaseDate: '2026-01-01',
+    timeZone: 'America/Toronto', notes: '', totalCents: 10000, ownShareCents: 0,
+    participantIds: [liveIds.Alice, liveIds.Bob, liveIds.Carol],
+  });
+  await liveApi(`/bills/${negativeAdjustment.id}/share`, 'bob-token', 'POST', { revision: 1, expectedAmountCents: null, amountCents: 5000 });
+  await carol.goto(`${base}#/bills/${negativeAdjustment.id}`);
+  await carol.getByLabel('My share · CAD', { exact: true }).fill('50.03');
+  await carol.getByRole('button', { name: 'Submit and confirm my share' }).click();
+  await expect(carol.locator('.difference-card')).toContainText('3/3 confirmed');
+  const negativeWarning = carol.getByRole('alert').filter({ hasText: 'Shares are $0.03 over the total' });
+  await expect(negativeWarning).toBeVisible();
+  await expect(negativeWarning).toContainText('below $0.00');
+  await expect(carol.locator('.notification-success')).toHaveCount(0);
+  await expect(negativeWarning.getByRole('button', { name: 'Dismiss notification' })).toHaveCount(0);
+  await negativeWarning.getByRole('button', { name: 'Edit my share' }).click();
+  await expect(carol.getByLabel('My share · CAD', { exact: true })).toBeFocused();
+  // Cancel the fixture so it does not affect subsequent attention checks.
+  await liveApi(`/bills/${negativeAdjustment.id}/cancel`, 'alice-token', 'POST', { revision: 1 });
   const { bill: liveBill } = await liveApi(`/groups/${liveGroupId}/bills`, 'alice-token', 'POST', {
     requestId: crypto.randomUUID(), title: 'Live draft protection', purchaseDate: '2026-01-01',
     timeZone: 'America/Toronto', notes: '', totalCents: 10000, ownShareCents: 4000,

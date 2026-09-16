@@ -4,6 +4,10 @@ Implementation lives on `feat/receipt-item-claiming-v2`. Issue #26 remains the r
 
 ## User flow
 
+The owner selected prototype A on 2026-09-16: one draft form with three navigable steps (receipt input, item editing, sharing and paid total). The selected flow replaces the initial long form. Step changes retain edits; saving and reopening in the same browser session restores the step. Other sessions infer a useful step from the saved content. Only the final step can initiate; receipt extraction never submits the bill. Manual fallback, zero-priced items and initiator adjustments remain supported without a new exact-total or approval gate.
+
+The three original designs and their runnable snapshot are archived on [`demo/new-bill-layouts`](https://github.com/SimianW/share-tally/tree/demo/new-bill-layouts), commit `408dcba78b005e43c19d607729883ab359cf6f44`. Run `cd client && pnpm prototype:new-bill`, then open `/?variant=A#/prototype/new-bill`. The implementation branch contains only the selected flow, with no prototype routes or switcher.
+
 New bill offers the existing manual workflow and receipt/item entry. Receipt drafts save to the server and stay private to their initiator. The group page lists resumable drafts. Camera and file inputs share a crop editor; only the cropped JPEG is uploaded. Scanning replaces edited items only after an explicit replacement action.
 
 Azure Document Intelligence reads items and receipt totals. A separate request sends only item IDs and original descriptions to the configured Luna name service. Name failure preserves the receipt and permits initiation. A late name response changes only names that the user has not edited. It never merges provider amounts into the draft.
@@ -26,7 +30,7 @@ The backup command in `issue-8-attention-and-trial.md` excludes receipt photo by
 
 - `cd server && pnpm typecheck && pnpm test` runs the HTTP suite against isolated PostgreSQL containers and provider unit tests. No paid provider calls are required.
 - `cd client && pnpm build && pnpm lint` checks the UI.
-- `cd client && pnpm test:receipts` runs the actual UI, Express and isolated PostgreSQL with only authentication and receipt providers replaced. It uses a non-loopback HTTP origin to catch browser APIs restricted to secure contexts, including UUID generation. It covers draft recovery, crop/upload, extraction failure/retry, tax inclusion, discounts, manual cost overrides, three fractional claimants, reservations, reconfirmation, completion, a lost initialization response and mobile overflow checks.
+- `cd client && pnpm test:receipts` runs the actual UI, Express and isolated PostgreSQL with only authentication and receipt providers replaced. It uses a non-loopback HTTP origin to catch browser APIs restricted to secure contexts, including UUID generation. It covers guided navigation, final-step-only submission, manual fallback, zero-priced items, draft recovery, crop/upload, extraction failure/retry, tax inclusion, discounts, manual cost overrides, three fractional claimants, reservations, reconfirmation, completion, a lost initialization response and mobile overflow checks.
 - `cd client && pnpm test:groups` retains the existing manual bill and repayment browser checks.
 
 One real call through the new Azure extraction adapter and the configured Luna gateway succeeded on the existing public receipt `000.jpg`. Azure returned one item and a total of 900 minor units in MYR; naming preserved the financial data. This verifies the provider wiring, not Canadian receipt accuracy or currency conversion. Non-CAD receipts display a warning and are never converted automatically.

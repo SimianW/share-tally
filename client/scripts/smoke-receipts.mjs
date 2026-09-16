@@ -446,6 +446,51 @@ try {
     ).length,
     1,
   );
+  // The guided entry still supports switching an unfinished receipt to manual shares.
+  await alice.goto(`${base}#/group-bills/${group.id}`);
+  await alice.getByRole("button", { name: "New bill", exact: true }).click();
+  await alice
+    .getByRole("button", { name: "Use a receipt or enter items" })
+    .click();
+  await alice
+    .getByRole("button", { name: "Enter items myself", exact: true })
+    .click();
+  await alice
+    .getByRole("button", { name: "+ Add an item", exact: true })
+    .click();
+  await alice.getByLabel("Item name", { exact: true }).fill("Free sample");
+  await alice
+    .getByText("Original text & price details", { exact: true })
+    .click();
+  await alice.getByLabel("Printed amount", { exact: true }).fill("0.00");
+  await alice.getByLabel("Item name", { exact: true }).press("Enter");
+  await expect(
+    alice.getByRole("heading", { name: "Check your items", exact: true }),
+  ).toBeVisible();
+  await alice.getByRole("button", { name: "Continue to sharing" }).click();
+  await expect(
+    alice.getByRole("button", { name: "Initiate bill", exact: true }),
+  ).toBeDisabled();
+  await alice.getByLabel("Bill title", { exact: true }).fill("Manual fallback");
+  await alice
+    .getByLabel("Actual paid total · CAD", { exact: true })
+    .fill("1.00");
+  // Zero-cost items are valid; a difference does not impose a new approval gate.
+  await expect(
+    alice.getByRole("button", { name: "Initiate bill", exact: true }),
+  ).toBeEnabled();
+  await alice.getByLabel("Allocation mode").selectOption("manual");
+  await alice.getByLabel("My share · CAD", { exact: true }).fill("1.00");
+  await alice
+    .getByRole("button", { name: "Initiate bill", exact: true })
+    .click();
+  await expect(
+    alice.getByText("Completed bills are final.", { exact: false }),
+  ).toBeVisible();
+  assert.equal(
+    (await api(`/bills/${alice.url().split("/").at(-1)}`)).bill.mode,
+    "manual",
+  );
   assert.deepEqual(errors, []);
   console.log(
     "Receipt browser smoke passed: private draft recovery, item entry, exact thirds, mobile claims, price correction, reservations, reconfirmation, automatic completion and adjustment.",

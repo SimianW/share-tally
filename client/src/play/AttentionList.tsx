@@ -1,3 +1,4 @@
+import { Notification } from './Notification';
 import { useEffect, useState } from 'react';
 import { money, useBillApi, type AttentionAction } from './bill-api';
 import { errorMessage } from './group-api';
@@ -44,7 +45,7 @@ export function AttentionList({ revision }: { revision: string }) {
     </div>
     <p>Your shares to confirm and incoming transfers to review.</p>
     {loading && <p role="status">Checking your actions…</p>}
-    {error && <p role="alert" className="form-error">Could not load your actions. {error} Use Refresh actions to try again.</p>}
+    {error && <Notification>Could not load your actions. {error} Use Refresh actions to try again.</Notification>}
     {!loading && actions?.length === 0 && <p>No actions waiting for you.</p>}
     {actions && actions.length > 0 && <ul className="attention-list">
       {actions.map(action => {

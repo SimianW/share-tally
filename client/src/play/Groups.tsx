@@ -1,3 +1,4 @@
+import { Notification } from './Notification';
 import { lazy, Suspense, useRef, useState } from "react";
 import Dialog from "./Dialog";
 import { GroupIconView } from "./GroupIconView";
@@ -112,7 +113,7 @@ export function CreateGroupDialog({
             data-autofocus
           />
         </label>
-        {error && <p role="alert" className="form-error">{error}</p>}
+        {error && <Notification>{error}</Notification>}
         <Button type="submit" disabled={busy || pickingIcon || !name.trim()}>
           {busy ? 'Creating…' : 'Create group'}
           <Icon name="arrow" size={18} />

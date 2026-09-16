@@ -1,3 +1,4 @@
+import { Notification } from './Notification';
 import { useEffect, useRef, useState } from "react";
 import {
   BillApiError,
@@ -69,7 +70,7 @@ function MutationError({
 }) {
   if (!mutation.error) return null;
   return (
-    <div role="alert" className="form-error">
+    <Notification>
       <p>{mutation.error}</p>
       {mutation.conflict ? (
         <Button variant="secondary" onClick={refresh}>
@@ -78,7 +79,7 @@ function MutationError({
       ) : mutation.retry ? (
         <p>The response was not received. Retry sends the same request.</p>
       ) : null}
-    </div>
+    </Notification>
   );
 }
 
@@ -95,14 +96,14 @@ function useDraftReview(bill: Bill, signature: string, mutation: ReturnType<type
 }
 function DraftNotice({ bill, review }: { bill: Bill; review: ReturnType<typeof useDraftReview> }) {
   if (!review.notice) return null;
-  return <div role="alert" className="bill-warning">
+  return <Notification tone="warning" title="Review the latest bill">
     <p>{review.notice}</p>
     {!review.terminal && <>
       <p>Latest: {bill.title} · {bill.purchaseDate} · CAD {(bill.totalCents / 100).toFixed(2)} · {bill.participants.map(p => p.displayName).join(', ')}</p>
       {bill.notes && <p>{bill.notes}</p>}
       <Button variant="secondary" onClick={review.review}>Review latest bill</Button>
     </>}
-  </div>;
+  </Notification>;
 }
 
 export function ShareActions(props: Props) {
@@ -156,7 +157,7 @@ function ShareEditor({ bill, api, saved, refresh }: Props) {
       }}
     >
       <DraftNotice bill={bill} review={review} />
-      {!currentOwn && <p role="alert">You are no longer a participant. Your draft is retained; submission is disabled.</p>}
+      {!currentOwn && <Notification tone="warning" title="Participation changed">You are no longer a participant. Your draft is retained; submission is disabled.</Notification>}
       <span className="eyebrow">YOUR SHARE</span>
       <h2>
         {own.confirmedAt
@@ -168,6 +169,7 @@ function ShareEditor({ bill, api, saved, refresh }: Props) {
       <label>
         My share · CAD
         <input
+          id="my-share-amount"
           required
           inputMode="decimal"
           value={amount}
@@ -177,18 +179,22 @@ function ShareEditor({ bill, api, saved, refresh }: Props) {
         />
       </label>
       <p>
-        {changed
+        {review.terminal
+          ? "This bill is final. Your share can no longer be changed."
+          : changed
           ? isInitiator
             ? "Saving confirms your new amount. Other participants will need to confirm again."
             : "Changing your amount clears everyone’s confirmation, including yours. Review and confirm again after saving."
           : own.amountCents === null
             ? "Include your tax, discounts, and rounding. Enter 0 if you have no cost."
-            : "Confirming the same amount keeps everyone else’s confirmation."}
+            : own.confirmedAt
+              ? "You can still edit your amount above. Saving a change will require renewed confirmations."
+              : "Confirming the same amount keeps everyone else’s confirmation."}
       </p>
       {validation && (
-        <p role="alert" className="form-error">
+        <Notification>
           {validation}
-        </p>
+        </Notification>
       )}
       <MutationError mutation={mutation} refresh={() => { review.review(); refresh(); }} />
       <Button
@@ -365,10 +371,10 @@ function EditBill({
           void mutation.run(() => api.edit(bill.id, input));
         }}
       >
-        <p className="bill-warning">
+        <Notification tone="warning" title="Everyone will need to confirm again">
           Saving any edit clears everyone’s confirmation, even if you only
           change its description. Existing amounts stay.
-        </p>
+        </Notification>
         <fieldset disabled={mutation.busy}>
           <label>
             Title
@@ -440,7 +446,7 @@ function EditBill({
           </p>
         </fieldset>
         {loadError ? (
-          <div role="alert">
+          <Notification>
             <p>{loadError}</p>
             <Button
               variant="secondary"
@@ -448,14 +454,14 @@ function EditBill({
             >
               Retry participants
             </Button>
-          </div>
+          </Notification>
         ) : !group ? (
           <p role="status">Loading participants...</p>
         ) : null}
         {validation && (
-          <p role="alert" className="form-error">
+          <Notification>
             {validation}
-          </p>
+          </Notification>
         )}
         <DraftNotice bill={bill} review={review} />
         <MutationError mutation={mutation} refresh={() => { review.review(); refresh(); }} />
