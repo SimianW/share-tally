@@ -332,7 +332,7 @@ try {
   await alice.getByRole('link', { name: 'Group bills', exact: false }).click();
   await expect(alice.locator('.bill-list-row').filter({ hasText: 'Canceled groceries' })).toContainText('Canceled');
   await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$119.97');
-  // Issue #6: balances, minimum suggestions, manual refresh, and capacity errors.
+  // Issue #6: balances, minimum suggestions, and capacity errors.
   const ledger = alice.getByRole('region', { name: 'Group balances and repayment suggestions' });
   await expect(ledger).toContainText('Bob → Alice');
   await expect(ledger).toContainText('$119.97');
@@ -343,6 +343,75 @@ try {
   await alice.screenshot({ path: `${clientRoot}/test-results/ledger-mobile.png`, fullPage: true });
   await alice.setViewportSize({ width: 1280, height: 900 });
   await alice.screenshot({ path: `${clientRoot}/test-results/ledger-desktop.png`, fullPage: true });
+  // Issue #7: record through the UI, lose the response, reload and retry once.
+  const ledgerUrl = alice.url();
+  await bobAgain.goto(ledgerUrl);
+  let repaymentAttempts = 0;
+  await bobAgain.route('**/api/groups/*/repayments', async route => {
+    const response = await route.fetch();
+    repaymentAttempts++;
+    if (repaymentAttempts === 1) return route.abort('failed');
+    return route.fulfill({ response });
+  });
+  await bobAgain.getByRole('button', { name: 'Record repayment', exact: true }).click();
+  await bobAgain.getByLabel('Recipient', { exact: true }).selectOption({ label: 'Alice' });
+  await bobAgain.getByLabel('Amount sent · CAD').fill('20.001');
+  await bobAgain.getByRole('button', { name: 'Record transfer', exact: true }).click();
+  await expect(bobAgain.getByRole('alert')).toContainText('at most two decimal');
+  await bobAgain.getByLabel('Amount sent · CAD').fill('20.00');
+  await bobAgain.getByRole('button', { name: 'Record transfer', exact: true }).click();
+  await expect(bobAgain.getByRole('button', { name: 'Retry recording' })).toBeVisible();
+  await bobAgain.reload();
+  await bobAgain.getByRole('button', { name: 'Record repayment', exact: true }).click();
+  await expect(bobAgain.getByLabel('Amount sent · CAD')).toHaveValue('20.00');
+  await expect(bobAgain.getByLabel('Amount sent · CAD')).toBeDisabled();
+  await bobAgain.getByRole('button', { name: 'Retry recording' }).click();
+  await expect(bobAgain.getByRole('dialog')).toHaveCount(0);
+  assert.equal(repaymentAttempts, 2);
+  await expect(bobAgain.locator('.repayment-list li')).toHaveCount(1);
+  await expect(bobAgain.getByRole('button', { name: 'Review repayment' })).toHaveCount(0);
+  await alice.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect(alice.locator('.repayment-list')).toContainText('Pending');
+  await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$119.97');
+  await alice.getByRole('button', { name: 'Review repayment' }).click();
+  await expect(alice.getByRole('dialog')).toContainText('Bob');
+  await expect(alice.getByRole('dialog')).toContainText('$20.00');
+  let decisionAttempts = 0;
+  await alice.route('**/api/repayments/*/decision', async route => {
+    const response = await route.fetch();
+    decisionAttempts++;
+    if (decisionAttempts === 1) return route.abort('failed');
+    return route.fulfill({ response });
+  });
+  await alice.getByRole('button', { name: 'Confirm receipt' }).click();
+  await expect(alice.getByRole('dialog').getByRole('alert')).toBeVisible();
+  await alice.getByRole('button', { name: 'Confirm receipt' }).click();
+  await expect(alice.getByRole('dialog')).toHaveCount(0);
+  await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$99.97');
+  await expect(alice.locator('.repayment-list')).toContainText('Confirmed');
+  await bobAgain.getByRole('button', { name: 'Record repayment', exact: true }).click();
+  await bobAgain.getByLabel('Recipient', { exact: true }).selectOption({ label: 'Alice' });
+  await bobAgain.getByLabel('Amount sent · CAD').fill('5.00');
+  await bobAgain.getByRole('button', { name: 'Record transfer', exact: true }).click();
+  await expect(bobAgain.getByRole('dialog')).toHaveCount(0);
+  await alice.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await alice.getByRole('button', { name: 'Review repayment' }).click();
+  await alice.getByRole('button', { name: 'Reject record' }).click();
+  await expect(alice.locator('.repayment-list')).toContainText('Rejected');
+  await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$99.97');
+  await bobAgain.reload();
+  assert.equal(await bobAgain.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await bobAgain.screenshot({ path: `${clientRoot}/test-results/repayments-mobile.png`, fullPage: true });
+  // A new bill remains available after repayment decisions. It completes immediately.
+  await alice.getByRole('button', { name: 'New bill', exact: true }).click();
+  await alice.getByLabel('Bill title', { exact: true }).fill('After repayment');
+  await alice.getByLabel('Bill total · CAD', { exact: true }).fill('10.00');
+  await alice.getByLabel('My share · CAD', { exact: true }).fill('10.00');
+  await alice.getByRole('button', { name: 'Create bill and confirm my share' }).click();
+  await expect(alice.locator('.bill-status')).toContainText('COMPLETE');
+  await alice.getByRole('link', { name: 'Group bills', exact: false }).click();
+  await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$99.97');
+  await expect(alice.locator('.bill-list-row').filter({ hasText: 'Weekend groceries' })).toContainText('Complete');
   const invitationToken = newLink.split('/').pop();
   for (let i = 1; i <= 13; i++) {
     const response = await fetch(`http://127.0.0.1:${port}/api/groups/join`, {
@@ -355,7 +424,7 @@ try {
   await extra.goto(newLink);
   await extra.getByRole('button', { name: 'Join group', exact: true }).click();
   await expect(extra.getByRole('alert')).toContainText('This group is full. Groups can have up to 16 members.');
-  await alice.getByRole('button', { name: 'Refresh bills & balances', exact: true }).click();
+  await alice.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(ledger.locator('.ledger-rows').first().locator('li')).toHaveCount(16);
   assert.deepEqual(errors, []);
   console.log('Group and bill browser smoke passed: creation, Unicode icon, persistence, sign-in return, membership, invitation permissions, rotation, invalid links, repeat joining, mobile layout, sign-out, bill creation and confirmation, response-loss retries, initiator adjustment, balances, completed-bill finality, stale confirmation, correction, reconfirmation, removal, and cancellation.');

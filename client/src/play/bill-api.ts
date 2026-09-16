@@ -7,6 +7,12 @@ export class BillApiError extends Error {
     this.status = status;
   }
 }
+export type Repayment = {
+  id: string; groupId: string; senderId: string; recipientId: string;
+  amountCents: number; status: 'pending' | 'confirmed' | 'rejected';
+  createdAt: string; decidedAt: string | null;
+};
+export type RepaymentDraft = { requestId: string; recipientId: string; amountCents: number };
 export type Summary = {
   receivableCents: number;
   payableCents: number;
@@ -92,12 +98,16 @@ export function useBillApi() {
       summary: (signal?: AbortSignal) =>
         request<{ summary: Summary }>("/summary", "GET", undefined, signal),
       list: (id: string, signal?: AbortSignal) =>
-        request<{ bills: Bill[]; summary: Summary; ledger: GroupLedger }>(
+        request<{ bills: Bill[]; repayments: Repayment[]; summary: Summary; ledger: GroupLedger }>(
           `/groups/${encodeURIComponent(id)}/bills`,
           "GET",
           undefined,
           signal,
         ),
+      recordRepayment: (id: string, draft: RepaymentDraft) =>
+        request<{ repayment: Repayment }>(`/groups/${encodeURIComponent(id)}/repayments`, "POST", draft),
+      decideRepayment: (id: string, decision: 'confirmed' | 'rejected') =>
+        request<{ repayment: Repayment }>(`/repayments/${encodeURIComponent(id)}/decision`, "POST", { decision }),
       detail: (id: string, signal?: AbortSignal) =>
         request<{ bill: Bill }>(
           `/bills/${encodeURIComponent(id)}`,

@@ -1,3 +1,7 @@
+import { cents, isUuid } from "./input-validation.js";
+export { isUuid } from "./input-validation.js";
+import { confirmedRepaymentEntries } from "./repayment-accounting.js";
+import { readRepayments, type Repayment } from './repayments.js';
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { safeCents } from "./money.js";
 import { groupLedger } from "./group-ledger.js";
@@ -7,22 +11,6 @@ import { bills, billShares, groupMembers, groups, users } from "./db/schema.js";
 import { BillError } from "./bill-error.js";
 export { BillError } from "./bill-error.js";
 
-export const isUuid = (value: unknown): value is string =>
-  typeof value === "string" &&
-  /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value);
-export function cents(value: unknown, max = 1000000): number {
-  if (
-    typeof value !== "number" ||
-    !Number.isSafeInteger(value) ||
-    value < 0 ||
-    value > max
-  )
-    throw new BillError(
-      400,
-      `Amount must be integer cents between 0 and ${max}.`,
-    );
-  return value;
-}
 function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw new BillError(400, "Expected a JSON object.");
@@ -488,28 +476,39 @@ export async function readGroupBills(userId: string, groupId: string) {
     const members = await tx.select({ userId: users.id, displayName: users.displayName })
       .from(groupMembers).innerJoin(users, eq(users.id, groupMembers.userId))
       .where(eq(groupMembers.groupId, groupId)).orderBy(users.id);
-    return { bills: rows, summary: summarize(rows, userId), ledger: groupLedger(rows, members) };
+    const repayments = await readRepayments(tx, userId, groupId);
+    return { bills: rows, repayments, summary: summarize(rows, userId, repayments), ledger: groupLedger(rows, members, repayments) };
+  }, { isolationLevel: "repeatable read", accessMode: "read only" });
+}
+export async function readSummary(userId: string) {
+  return db.transaction(async tx => {
+    const rows = await readBillsInSnapshot(tx, userId);
+    const repayments = await readRepayments(tx, userId);
+    return summarize(rows, userId, repayments);
   }, { isolationLevel: "repeatable read", accessMode: "read only" });
 }
 export function summarize(
   rows: Awaited<ReturnType<typeof readBills>>,
   userId: string,
+  repayments: Repayment[] = [],
 ) {
-  let receivable = 0n,
-    payable = 0n;
+  const balances = new Map<string, bigint>();
+  const add = (groupId: string, amount: bigint) => balances.set(groupId, (balances.get(groupId) ?? 0n) + amount);
   for (const bill of rows) {
     if (!bill.completedAt || bill.canceledAt) continue;
-    const own = bill.participants.find((p) => p.userId === userId);
+    const own = bill.participants.find(p => p.userId === userId);
     if (!own) continue;
-    if (bill.initiatorId === userId)
-      receivable += BigInt(
-        bill.totalCents - own.amountCents! - bill.adjustmentCents!,
-      );
-    else payable += BigInt(own.amountCents!);
+    add(bill.groupId, bill.initiatorId === userId
+      ? BigInt(bill.totalCents) - BigInt(own.amountCents!) - BigInt(bill.adjustmentCents!)
+      : -BigInt(own.amountCents!));
   }
-  return {
-    receivableCents: safeCents(receivable),
-    payableCents: safeCents(payable),
-    netCents: safeCents(receivable - payable),
-  };
+  for (const entry of confirmedRepaymentEntries(repayments)) {
+    if (entry.userId === userId) add(entry.groupId, entry.amountCents);
+  }
+  let receivable = 0n, payable = 0n;
+  for (const balance of balances.values()) {
+    if (balance > 0n) receivable += balance;
+    else payable -= balance;
+  }
+  return { receivableCents: safeCents(receivable), payableCents: safeCents(payable), netCents: safeCents(receivable - payable) };
 }

@@ -1,3 +1,5 @@
+import { confirmedRepaymentEntries } from "./repayment-accounting.js";
+import type { Repayment } from './repayments.js';
 import type { readBills } from './bills.js';
 import { safeCents } from './money.js';
 import { BillError } from './bill-error.js';
@@ -8,6 +10,7 @@ type Suggestion = { fromUserId: string; toUserId: string; amountCents: number };
 export function groupLedger(
   bills: Awaited<ReturnType<typeof readBills>>,
   members: { userId: string; displayName: string | null }[],
+  repayments: Repayment[] = [],
 ) {
   const balances = new Map(members.map(member => [member.userId, 0n]));
   for (const bill of bills) {
@@ -17,6 +20,9 @@ export function groupLedger(
       const cost = BigInt(share.amountCents!) + (share.userId === bill.initiatorId ? BigInt(bill.adjustmentCents!) : 0n);
       balances.set(share.userId, balances.get(share.userId)! - cost);
     }
+  }
+  for (const entry of confirmedRepaymentEntries(repayments)) {
+    balances.set(entry.userId, balances.get(entry.userId)! + entry.amountCents);
   }
   const result = members.map(member => {
     const netCents = safeCents(balances.get(member.userId)!);
