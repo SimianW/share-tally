@@ -1384,3 +1384,33 @@ test('overview keeps confirmed repayment effects within each group including gro
   assert.deepEqual((await json(await api(first.path))).ledger.suggestions, [{ fromUserId: first.ids.Bob, toUserId: first.ids.Alice, amountCents: 1000 }]);
   assert.deepEqual((await json(await api(second.path))).ledger.suggestions, [{ fromUserId: second.ids.Alice, toUserId: second.ids.Bob, amountCents: 600 }]);
 });
+
+test('SSE repayment decisions publish after commit and refresh the complete financial snapshot', async () => {
+  const { group, ids, path, draft } = await setup(false);
+  const bill = await billCreate(path, draft);
+  await submit(bill.id, 6000);
+  const watching = await stream(group.id);
+  try {
+    await eventually(() => watching.frames.length === 1);
+    const repayment = await recordRepayment(group.id, ids.Alice, 2000);
+    await eventually(() => watching.frames.length === 2);
+    assert.equal((await json(await api(path))).summary.netCents, 6000);
+    await pool.query(`CREATE FUNCTION reject_stream_decision() RETURNS trigger LANGUAGE plpgsql AS $$
+      BEGIN RAISE EXCEPTION 'forced repayment rollback'; END; $$;
+      CREATE TRIGGER reject_stream_decision AFTER UPDATE ON repayments
+      FOR EACH ROW EXECUTE FUNCTION reject_stream_decision();`);
+    try { await decide(repayment.id, 'confirmed', 'alice-token', 500); }
+    finally { await pool.query('DROP TRIGGER reject_stream_decision ON repayments; DROP FUNCTION reject_stream_decision()'); }
+    assert.equal((await json(await api(path))).repayments[0].status, 'pending');
+    await decide(repayment.id);
+    await eventually(() => watching.frames.length === 3);
+    const view = await json(await api(path));
+    assert.equal(view.summary.netCents, 4000);
+    assert.equal(view.ledger.members.find((m: { userId: string }) => m.userId === ids.Alice).netCents, 4000);
+    assert.deepEqual(view.ledger.suggestions, [{ fromUserId: ids.Bob, toUserId: ids.Alice, amountCents: 4000 }]);
+    assert.equal(view.repayments[0].status, 'confirmed');
+    await decide(repayment.id);
+    await eventually(() => watching.frames.length === 4);
+    assert.deepEqual(await json(await api(path)), view);
+  } finally { await watching.close(); }
+});

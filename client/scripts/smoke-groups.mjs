@@ -143,6 +143,8 @@ try {
   await expect(carol.getByRole('dialog')).toContainText('3 members');
 
   await carol.getByRole('button', { name: 'View bills and balance' }).click();
+  // Wait for an actual subscribed snapshot; an empty selector also matches the loading screen.
+  await expect(carol.locator('.workspace-content .balance-number')).toHaveText('$0.00');
   await expect(carol.locator('.bill-list-row')).toHaveCount(0);
   // Hold an obsolete empty snapshot while another user commits a bill.
   // The notification during that read must cause a second authoritative read.
@@ -222,11 +224,12 @@ try {
   await expect(carol.getByRole('region', { name: 'Group balances and repayment suggestions' })).toContainText('$59.97');
   console.log(`Live completion observed within ${Date.now() - liveStarted} ms of the submit click`);
   await expect(bob.getByRole('button', { name: 'Retry confirmation' })).toBeVisible();
-  await bob.getByRole('button', { name: 'Retry confirmation' }).click();
+  // The committed stream snapshot resolves the uncertain response without replaying the write.
+  await expect(bob.locator('.share-form button[type=submit]')).toBeDisabled();
   await expect(bob.locator('.bill-status')).toContainText('COMPLETE');
   await expect(bob.locator('.difference-number')).toHaveText('$0.03');
   await expect(bob.locator('.bill-adjustment')).toContainText('$40.03 effective cost');
-  await alice.getByRole('button', { name: 'Refresh bill', exact: true }).click();
+
   await expect(alice.locator('.bill-status')).toContainText('COMPLETE');
   await carol.goto(billUrl);
   await expect(carol.getByText('Only its participants can submit shares.', { exact: false })).toBeVisible();
@@ -311,22 +314,24 @@ try {
     await bobAgain.getByLabel('My share · CAD', { exact: true }).fill('59.00');
     await bobAgain.getByRole('button', { name: 'Submit and confirm my share' }).click();
     await expect(bobAgain.locator('.difference-card')).toContainText('2/2 confirmed');
-    await alice.getByRole('button', { name: 'Refresh bill', exact: true }).click();
+
   }
   await incompleteBill('Correctable groceries');
-  // Clear confirmations, then leave Bob viewing the old revision during another edit.
+  // Clear confirmations, then preserve Bob's draft while a new revision arrives.
   await alice.getByRole('button', { name: 'Edit details & participants' }).click();
   await alice.getByRole('dialog').getByLabel('Notes').fill('Initial correction');
   await alice.getByRole('button', { name: 'Save & request confirmations' }).click();
   await expect(alice.getByRole('dialog')).toHaveCount(0);
   await bobAgain.reload();
   await expect(bobAgain.getByRole('button', { name: 'Confirm my share', exact: true })).toBeVisible();
+  await bobAgain.getByLabel('My share · CAD', { exact: true }).fill('60.00');
   await alice.getByRole('button', { name: 'Edit details & participants' }).click();
   await alice.getByRole('dialog').getByLabel('Notes').fill('Corrected purchase notes');
   await alice.getByRole('button', { name: 'Save & request confirmations' }).click();
   await expect(alice.getByRole('dialog')).toHaveCount(0);
-  await bobAgain.getByRole('button', { name: 'Confirm my share', exact: true }).click();
   await expect(bobAgain.getByRole('alert')).toContainText('This bill changed');
+  await expect(bobAgain.getByRole('button', { name: 'Save changed amount', exact: true })).toBeDisabled();
+  await expect(bobAgain.getByLabel('My share · CAD', { exact: true })).toHaveValue('60.00');
   await bobAgain.getByRole('button', { name: 'Review latest bill' }).click();
   await expect(bobAgain.getByText('Corrected purchase notes', { exact: true })).toBeVisible();
   await bobAgain.getByLabel('My share · CAD', { exact: true }).fill('60.00');
@@ -334,7 +339,8 @@ try {
   await expect(bobAgain.locator('.difference-card')).toContainText('0/2 confirmed');
   await bobAgain.getByRole('button', { name: 'Confirm my share', exact: true }).click();
   await expect(bobAgain.locator('.difference-card')).toContainText('1/2 confirmed');
-  await alice.getByRole('button', { name: 'Refresh bill', exact: true }).click();
+
+  await alice.getByRole('button', { name: 'Review latest bill' }).click();
   await alice.getByRole('button', { name: 'Confirm my share', exact: true }).click();
   await expect(alice.locator('.bill-status')).toContainText('COMPLETE');
   await alice.screenshot({ path: `${clientRoot}/test-results/bill-corrected-desktop.png`, fullPage: true });
@@ -396,7 +402,6 @@ try {
   assert.equal(repaymentAttempts, 2);
   await expect(bobAgain.locator('.repayment-list li')).toHaveCount(1);
   await expect(bobAgain.getByRole('button', { name: 'Review repayment' })).toHaveCount(0);
-  await alice.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(alice.locator('.repayment-list')).toContainText('Pending');
   await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$119.97');
   await alice.getByRole('button', { name: 'Review repayment' }).click();
@@ -411,16 +416,19 @@ try {
   });
   await alice.getByRole('button', { name: 'Confirm receipt' }).click();
   await expect(alice.getByRole('dialog').getByRole('alert')).toBeVisible();
-  await alice.getByRole('button', { name: 'Confirm receipt' }).click();
-  await expect(alice.getByRole('dialog')).toHaveCount(0);
+  await expect(alice.getByRole('dialog')).toContainText('already confirmed');
+  await alice.getByRole('button', { name: 'Close dialog' }).click();
   await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$99.97');
   await expect(alice.locator('.repayment-list')).toContainText('Confirmed');
+  await expect(bobAgain.locator('.workspace-content .balance-number')).toHaveText('$99.97');
+  await expect(bobAgain.locator('.repayment-list')).toContainText('Confirmed');
+  await expect(bobAgain.getByRole('region', { name: 'Group balances and repayment suggestions' })).toContainText('$99.97');
+  await expect(bobAgain.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: /Costco friends/ })).toContainText('You owe $99.97');
   await bobAgain.getByRole('button', { name: 'Record repayment', exact: true }).click();
   await bobAgain.getByLabel('Recipient', { exact: true }).selectOption({ label: 'Alice' });
   await bobAgain.getByLabel('Amount sent · CAD').fill('5.00');
   await bobAgain.getByRole('button', { name: 'Record transfer', exact: true }).click();
   await expect(bobAgain.getByRole('dialog')).toHaveCount(0);
-  await alice.evaluate(() => window.dispatchEvent(new Event('focus')));
   await alice.getByRole('button', { name: 'Review repayment' }).click();
   await alice.getByRole('button', { name: 'Reject record' }).click();
   await expect(alice.locator('.repayment-list')).toContainText('Rejected');
@@ -451,6 +459,55 @@ try {
   await extra.getByRole('button', { name: 'Join group', exact: true }).click();
   await expect(extra.getByRole('alert')).toContainText('This group is full. Groups can have up to 16 members.');
   await expect(ledger.locator('.ledger-rows').first().locator('li')).toHaveCount(16);
+  // Live drafts remain mounted through progress updates and terminal changes.
+  const liveGroupId = ledgerUrl.split('/').pop();
+  async function liveApi(path, token, method = 'GET', body) {
+    const response = await fetch(`http://127.0.0.1:${port}/api${path}`, {
+      method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+    assert.ok(response.ok, await response.clone().text());
+    return response.json();
+  }
+  const liveGroup = (await liveApi(`/groups/${liveGroupId}`, 'alice-token')).group;
+  const liveIds = Object.fromEntries(liveGroup.members.map(member => [member.displayName, member.id]));
+  const { bill: liveBill } = await liveApi(`/groups/${liveGroupId}/bills`, 'alice-token', 'POST', {
+    requestId: crypto.randomUUID(), title: 'Live draft protection', purchaseDate: '2026-01-01',
+    timeZone: 'America/Toronto', notes: '', totalCents: 10000, ownShareCents: 4000,
+    participantIds: [liveIds.Alice, liveIds.Bob, liveIds.Carol],
+  });
+  await alice.goto(`${base}#/bills/${liveBill.id}`);
+  await alice.getByRole('button', { name: 'Edit details & participants' }).click();
+  await alice.getByRole('dialog').getByLabel('Title', { exact: true }).fill('Keep this unsent title');
+  await liveApi(`/bills/${liveBill.id}/share`, 'bob-token', 'POST', { revision: 1, expectedAmountCents: null, amountCents: 6000 });
+  await expect(alice.locator('.difference-card')).toContainText('2/3 confirmed');
+  await expect(alice.getByRole('dialog').getByLabel('Title', { exact: true })).toHaveValue('Keep this unsent title');
+  await expect(alice.getByRole('button', { name: 'Save & request confirmations' })).toBeEnabled();
+  await liveApi(`/bills/${liveBill.id}/share`, 'carol-token', 'POST', { revision: 1, expectedAmountCents: null, amountCents: 0 });
+  await expect(alice.getByRole('dialog')).toContainText('This bill is complete. Your draft is retained');
+  await expect(alice.getByRole('dialog').getByLabel('Title', { exact: true })).toHaveValue('Keep this unsent title');
+  await expect(alice.getByRole('button', { name: 'Save & request confirmations' })).toBeDisabled();
+  await alice.getByRole('button', { name: 'Close dialog' }).click();
+  await alice.goto(ledgerUrl);
+  const liveView = await liveApi(`/groups/${liveGroupId}/bills`, 'alice-token');
+  await expect(alice.locator('.workspace-content .balance-number')).toHaveText(`$${(liveView.summary.netCents / 100).toFixed(2)}`);
+  assert.equal(await alice.locator('[data-animating]').count(), 0, 'First load displays real amounts');
+  await alice.emulateMedia({ reducedMotion: 'reduce' });
+  const { repayment: reverse } = await liveApi(`/groups/${liveGroupId}/repayments`, 'bob-token', 'POST', {
+    requestId: crypto.randomUUID(), recipientId: liveIds.Alice, amountCents: liveView.summary.netCents + 1000,
+  });
+  await liveApi(`/repayments/${reverse.id}/decision`, 'alice-token', 'POST', { decision: 'confirmed' });
+  await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$10.00');
+  await expect(alice.locator('.balance-card h2')).toHaveText('You owe, net');
+  assert.equal(await alice.locator('[data-animating]').count(), 0, 'Reduced motion skips rolling amounts');
+  await alice.emulateMedia({ reducedMotion: 'no-preference' });
+  const { repayment: zero } = await liveApi(`/groups/${liveGroupId}/repayments`, 'alice-token', 'POST', {
+    requestId: crypto.randomUUID(), recipientId: liveIds.Bob, amountCents: 1000,
+  });
+  await liveApi(`/repayments/${zero.id}/decision`, 'bob-token', 'POST', { decision: 'confirmed' });
+  await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$0.00');
+  await expect(alice.getByRole('region', { name: 'Group balances and repayment suggestions' })).toContainText('No repayments needed.');
+  await expect(alice.locator('[data-animating]')).toHaveCount(0);
   assert.deepEqual(errors, []);
   console.log('Group and bill browser smoke passed: creation, Unicode icon, persistence, sign-in return, membership, invitation permissions, rotation, invalid links, repeat joining, mobile layout, sign-out, bill creation and confirmation, response-loss retries, initiator adjustment, balances, completed-bill finality, stale confirmation, correction, reconfirmation, removal, and cancellation.');
 } catch (error) {

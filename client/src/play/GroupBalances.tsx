@@ -1,6 +1,23 @@
+import { useLayoutEffect, useRef } from 'react';
+import { AnimatedMoney } from './AnimatedMoney';
 import { money, type GroupLedger } from './bill-api';
 
 export function GroupBalances({ ledger }: { ledger: GroupLedger }) {
+  const rows = useRef<HTMLUListElement>(null);
+  const previous = useRef(ledger.suggestions);
+  useLayoutEffect(() => {
+    const old = previous.current;
+    previous.current = ledger.suggestions;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const animations: Animation[] = [];
+    ledger.suggestions.forEach((suggestion, index) => {
+      if (!old.some(row => row.fromUserId === suggestion.fromUserId && row.toUserId === suggestion.toUserId && row.amountCents === suggestion.amountCents)) {
+        const node = rows.current?.children[index];
+        if (node) animations.push(node.animate([{ backgroundColor: '#f5df9b' }, { backgroundColor: 'transparent' }], { duration: 450 }));
+      }
+    });
+    return () => animations.forEach(animation => animation.cancel());
+  }, [ledger.suggestions]);
   const names = new Map(ledger.members.map(member => [member.userId, member.displayName]));
   return <section className="group-ledger" aria-label="Group balances and repayment suggestions">
     <div>
@@ -9,15 +26,15 @@ export function GroupBalances({ ledger }: { ledger: GroupLedger }) {
       <ul className="ledger-rows">
         {ledger.members.map(member => <li key={member.userId}>
           <span>{member.displayName}</span>
-          <strong>{member.netCents > 0 ? '+' : member.netCents < 0 ? '−' : ''}{money(Math.abs(member.netCents))}</strong>
+          <strong>{member.netCents > 0 ? '+' : member.netCents < 0 ? '−' : ''}<AnimatedMoney cents={member.netCents} /></strong>
         </li>)}
       </ul>
     </div>
     <div>
       <h3>Repayment suggestions</h3>
       <p>The fewest transfers to clear these balances. Suggestions are guidance, not payment records. ShareTally moves no money.</p>
-      {ledger.suggestions.length ? <ul className="ledger-rows">
-        {ledger.suggestions.map((suggestion, index) => <li key={index}>
+      {ledger.suggestions.length ? <ul ref={rows} className="ledger-rows">
+        {ledger.suggestions.map((suggestion) => <li key={`${suggestion.fromUserId}:${suggestion.toUserId}`}>
           <span>{names.get(suggestion.fromUserId)} → {names.get(suggestion.toUserId)}</span>
           <strong>{money(suggestion.amountCents)}</strong>
         </li>)}

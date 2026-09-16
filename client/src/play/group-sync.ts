@@ -45,7 +45,11 @@ export function startGroupSync<T>(options: {
     }
     try {
       alive();
-      const token = await options.getToken();
+      const token = await Promise.race([
+        options.getToken(),
+        new Promise<never>((_resolve, reject) => controller.signal.addEventListener('abort',
+          () => reject(new Error('Connection timed out')), { once: true })),
+      ]);
       if (controller.signal.aborted) return;
       if (!token) throw new Error('Authentication required');
       const response = await fetch(`/api/groups/${encodeURIComponent(options.groupId)}/events`, {

@@ -1,3 +1,4 @@
+import { AnimatedMoney } from './AnimatedMoney';
 import { useAuth } from '@clerk/react';
 import { startGroupSync } from './group-sync';
 import { Repayments } from './Repayments';
@@ -37,7 +38,7 @@ export function Balance({
       </span>
       <h2>{summary.netCents < 0 ? "You owe, net" : "You are owed, net"}</h2>
       <strong className="balance-number">
-        {money(Math.abs(summary.netCents))}
+        {group ? <AnimatedMoney cents={summary.netCents} /> : money(Math.abs(summary.netCents))}
       </strong>
       <div className="balance-breakdown">
         <span>
@@ -383,37 +384,39 @@ export function BillDetails({ id }: { id: string }) {
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
   const [notice, setNotice] = useState("");
+  const { getToken } = useAuth();
+  const [savedVersion, setSavedVersion] = useState(0);
+  const resetEditors = useRef(false);
+  const live = useRef<ReturnType<typeof startGroupSync> | null>(null);
   useEffect(() => {
     const controller = new AbortController();
-    api
-      .detail(id, controller.signal)
-      .then(({ bill }) => {
-        if (!controller.signal.aborted) {
-          setBill(bill);
-          setError("");
-        }
-      })
-      .catch((error) => {
-        if (!controller.signal.aborted) setError(errorMessage(error));
+    let sync: ReturnType<typeof startGroupSync> | undefined;
+    // This lookup only identifies the group. Display comes from the read after ready.
+    api.detail(id, controller.signal).then(({ bill: located }) => {
+      if (controller.signal.aborted) return;
+      sync = startGroupSync({
+        groupId: located.groupId, getToken,
+        read: signal => api.detail(id, signal),
+        apply: ({ bill: latest }) => {
+          setBill(latest);
+          if (resetEditors.current) { resetEditors.current = false; setSavedVersion(n => n + 1); }
+        },
+        status: setError,
       });
-    return () => controller.abort();
-  }, [api, id, revision]);
-  if (error)
-    return (
-      <div role="alert">
-        <p>{error}</p>
-        <Button onClick={() => setRevision((n) => n + 1)}>Retry bill</Button>
-        <a href="#">Back to overview</a>
-      </div>
-    );
-  if (!bill) return <p role="status">Loading bill...</p>;
+      live.current = sync;
+    }).catch(error => {
+      if (!controller.signal.aborted) setError(errorMessage(error));
+    });
+    return () => { controller.abort(); sync?.stop(); live.current = null; };
+  }, [api, getToken, id, revision]);
+  if (!bill) return <div role="status">{error || 'Loading bill...'}{error && <Button onClick={() => setRevision(n => n + 1)}>Retry bill</Button>}</div>;
   const initiator = bill.participants.find(
     (p) => p.userId === bill.initiatorId,
   )!;
   const own = bill.participants.find((p) => p.isCurrentUser);
   function saved(updated: Bill) {
-    setBill(updated);
-    setRevision((n) => n + 1);
+    resetEditors.current = true;
+    live.current?.retry();
     setNotice(
       updated.canceledAt
         ? "Bill canceled. The record is retained."
@@ -431,7 +434,6 @@ export function BillDetails({ id }: { id: string }) {
   }
   function refresh() {
     setNotice("");
-    setBill(null);
     setRevision((n) => n + 1);
   }
 
@@ -447,10 +449,9 @@ export function BillDetails({ id }: { id: string }) {
             {bill.purchaseDate} · Paid by {initiator.displayName} · CAD
           </p>
         </div>
-        <Button variant="secondary" onClick={refresh}>
-          Refresh bill
-        </Button>
+
       </div>
+      {error && <div role="alert"><p>{error}</p><Button onClick={refresh}>Retry bill</Button></div>}
       {notice && (
         <p role="status" className="bill-warning">
           {notice}
@@ -531,6 +532,7 @@ export function BillDetails({ id }: { id: string }) {
             </>
           ) : bill.completedAt ? (
             <>
+              <p>Completed bills are final. Details, participants, and shares can no longer be changed.</p>
               <h3>
                 {bill.adjustmentCents === 0
                   ? "Everything matches."
@@ -572,31 +574,14 @@ export function BillDetails({ id }: { id: string }) {
         </section>
       )}
       <div className="bill-action-layout">
-        {!bill.canceledAt &&
-          own &&
-          (!bill.completedAt ? (
-            <ShareActions
-              key={`share:${bill.id}:${revision}:${bill.revision}`}
-              bill={bill}
-              api={api}
-              saved={saved}
-              refresh={refresh}
-            />
-          ) : (
-            <section className="share-form">
-              <h2>All confirmed.</h2>
-              <p>
-                Completed bills are final. Details, participants, and shares can no longer be changed.
-              </p>
-            </section>
-          ))}
+        <ShareActions
+          key={`share:${bill.id}:${savedVersion}`}
+          bill={bill} api={api} saved={saved} refresh={refresh}
+        />
         {own?.userId === bill.initiatorId && (
           <InitiatorActions
-            key={`initiator:${bill.id}:${revision}:${bill.revision}`}
-            bill={bill}
-            api={api}
-            saved={saved}
-            refresh={refresh}
+            key={`initiator:${bill.id}:${savedVersion}`}
+            bill={bill} api={api} saved={saved} refresh={refresh}
           />
         )}
       </div>
