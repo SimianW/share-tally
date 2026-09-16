@@ -1,3 +1,4 @@
+import { AttentionList } from './AttentionList';
 import { BillDetails, OverviewBalance } from './Bills';
 import GroupWorkspace from './GroupWorkspace';
 import { useRoute } from './route';
@@ -46,7 +47,7 @@ export default function PlayApp({
   const route = useRoute();
   const selectedId = route.startsWith('#/groups/') ? route.slice('#/groups/'.length) : null;
   const billId = route.startsWith('#/bills/') ? route.slice('#/bills/'.length) : null;
-  const billGroupId = route.startsWith('#/group-bills/') ? route.slice('#/group-bills/'.length) : null;
+  const billGroupId = route.startsWith('#/group-bills/') ? route.slice('#/group-bills/'.length).split('?')[0] : null;
   const invitationToken = route.startsWith('#/join/') ? route.slice('#/join/'.length) : null;
   const [groups, setGroups] = useState<GroupView[]>([]);
   const [creating, setCreating] = useState(false);
@@ -145,13 +146,14 @@ export default function PlayApp({
               </Button>
             )}
           </header>}
-          {billId ? <BillDetails key={billId} id={billId} /> : (billGroupId || view === "groups") ? <GroupWorkspace key={billGroupId ?? "groups"} groups={groups} selectedId={billGroupId ?? undefined} loading={loading} error={error} retry={() => setRevision(value => value + 1)} onCreate={() => setCreating(true)} /> : view === "account" ? (
+          {billId ? <BillDetails key={billId} id={billId} /> : (billGroupId || view === "groups") ? <GroupWorkspace key={billGroupId ?? "groups"} groups={groups} selectedId={billGroupId ?? undefined} selectedRepaymentId={new URLSearchParams(route.split('?')[1]).get('repayment') ?? undefined} loading={loading} error={error} retry={() => setRevision(value => value + 1)} onCreate={() => setCreating(true)} /> : view === "account" ? (
             <section className="account-panel">
               <AccountCheck />
             </section>
           ) : (
             <section>
               {view === "overview" && <OverviewBalance revision={`${route}:${revision}`} />}
+              <AttentionList revision={`${route}:${revision}`} />
               {loading && <p role="status">Loading groups…</p>}
               {error && <div role="alert" className="form-error">
                 <p>{error}</p>

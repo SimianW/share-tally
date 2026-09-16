@@ -1414,3 +1414,63 @@ test('SSE repayment decisions publish after commit and refresh the complete fina
     assert.deepEqual(await json(await api(path)), view);
   } finally { await watching.close(); }
 });
+
+test('attention lists only the signed-in participant’s missing shares and reconfirmations', async () => {
+  const { path, draft, ids } = await setup();
+  const bill = await billCreate(path, draft);
+  const attention = async (token: string) => (await json(await api('/attention', token))).actions;
+  await json(await api('/attention', 'invalid-token'), 401);
+  assert.deepEqual(await attention('alice-token'), []);
+  assert.deepEqual(await attention('bob-token'), [{
+    kind: 'missing-share', billId: bill.id, groupId: bill.groupId,
+    groupName: 'Costco', title: 'Costco run', amountCents: null,
+  }]);
+  await submit(bill.id, 0);
+  assert.deepEqual(await attention('bob-token'), []);
+  await submit(bill.id, 5000, 'alice-token');
+  assert.deepEqual(await attention('bob-token'), [{
+    kind: 'confirm-share', billId: bill.id, groupId: bill.groupId,
+    groupName: 'Costco', title: 'Costco run', amountCents: 0,
+  }]);
+  assert.equal((await attention('carol-token'))[0].kind, 'missing-share');
+  const current = (await json(await api(`/bills/${bill.id}`))).bill;
+  await json(await api(`/bills/${bill.id}`, 'alice-token', 'PATCH', {
+    title: draft.title, purchaseDate: draft.purchaseDate, timeZone: draft.timeZone,
+    notes: draft.notes, totalCents: draft.totalCents, revision: current.revision, participantIds: [ids.Alice, ids.Carol],
+  }));
+  assert.deepEqual(await attention('bob-token'), []);
+});
+
+test('attention includes incoming pending repayments across groups, never another member’s actions', async () => {
+  const { group, ids } = await setup(false);
+  const other = await setup();
+  const first = await recordRepayment(group.id, ids.Alice, 2000);
+  const second = await recordRepayment(other.group.id, ids.Alice, 1234);
+  const outgoing = await recordRepayment(group.id, ids.Bob, 500, 'alice-token');
+  const attention = async (token: string) => (await json(await api('/attention', token))).actions;
+  assert.deepEqual(await attention('alice-token'), [first, second].map(record => ({
+    kind: 'review-repayment', repaymentId: record.id, groupId: record.groupId,
+    groupName: 'Costco', senderName: 'Bob', amountCents: record.amountCents,
+  })));
+  assert.deepEqual(await attention('carol-token'), []);
+  assert.equal((await attention('bob-token'))[0].repaymentId, outgoing.id);
+  await decide(first.id);
+  await decide(second.id, 'rejected');
+  assert.deepEqual(await attention('alice-token'), []);
+});
+
+test('attention drops canceled and completed bills and excludes group nonparticipants', async () => {
+  const { path, draft, ids } = await setup();
+  const bill = await billCreate(path, { ...draft, participantIds: [ids.Alice, ids.Bob] });
+  const attention = async (token: string) => (await json(await api('/attention', token))).actions;
+  assert.deepEqual(await attention('carol-token'), []);
+  const outsider = await create('carol-token');
+  await billCreate(`/groups/${outsider.id}/bills`, draft, 404);
+  assert.equal((await attention('bob-token')).length, 1);
+  await submit(bill.id, 6000);
+  assert.deepEqual(await attention('bob-token'), []);
+  const canceled = await billCreate(path, { ...draft, requestId: crypto.randomUUID() });
+  await json(await api(`/bills/${canceled.id}/cancel`, 'alice-token', 'POST', { revision: 1 }));
+  assert.deepEqual(await attention('bob-token'), []);
+  assert.deepEqual(await attention('carol-token'), []);
+});

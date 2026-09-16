@@ -6,11 +6,11 @@ import { Button } from './ui';
 
 const statusLabel = { pending: 'Pending', confirmed: 'Confirmed', rejected: 'Rejected' };
 
-export function Repayments({ group, records, api, refresh }: {
-  group: GroupDetail; records: Repayment[]; api: BillApi; refresh: () => void;
+export function Repayments({ group, records, api, refresh, selectedId }: {
+  selectedId?: string; group: GroupDetail; records: Repayment[]; api: BillApi; refresh: () => void;
 }) {
   const [creating, setCreating] = useState(false);
-  const [selected, setSelected] = useState<Repayment | null>(null);
+  const [selected, setSelected] = useState<Repayment | null>(() => records.find(record => record.id === selectedId && record.recipientId === group.members.find(member => member.isCurrentUser)?.id) ?? null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);

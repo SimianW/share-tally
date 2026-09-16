@@ -7,6 +7,10 @@ export class BillApiError extends Error {
     this.status = status;
   }
 }
+export type AttentionAction = { groupId: string; groupName: string } & (
+  | { kind: 'missing-share' | 'confirm-share'; billId: string; title: string; amountCents: number | null }
+  | { kind: 'review-repayment'; repaymentId: string; senderName: string; amountCents: number }
+);
 export type Repayment = {
   id: string; groupId: string; senderId: string; recipientId: string;
   amountCents: number; status: 'pending' | 'confirmed' | 'rejected';
@@ -95,6 +99,8 @@ export function useBillApi() {
       return response.json();
     }
     return {
+      attention: (signal?: AbortSignal) =>
+        request<{ actions: AttentionAction[] }>("/attention", "GET", undefined, signal),
       summary: (signal?: AbortSignal) =>
         request<{ summary: Summary }>("/summary", "GET", undefined, signal),
       list: (id: string, signal?: AbortSignal) =>

@@ -198,7 +198,13 @@ try {
   await expect(alice.locator('.difference-number')).toHaveText('$60.00');
   await expect(alice.locator('.difference-card')).toContainText('1/2 confirmed');
   const billUrl = alice.url();
-  await bob.goto(billUrl);
+  await bob.goto(base);
+  const bobAttention = bob.getByRole('region', { name: 'Needs your attention' });
+  await expect(bobAttention.getByRole('link', { name: /Enter your share.*Weekend groceries/ })).toBeVisible();
+  assert.equal(await bob.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await bob.screenshot({ path: `${clientRoot}/test-results/attention-mobile.png`, fullPage: true });
+  await bobAttention.getByRole('link', { name: /Enter your share.*Weekend groceries/ }).click();
+  await expect(bob).toHaveURL(billUrl);
   // The existing mobile layout hides avatars. Check another member's desktop view.
   await bob.setViewportSize({ width: 1280, height: 900 });
   const aliceAvatar = bob.locator('.bill-person').filter({ hasText: 'Alice' }).locator('.avatar');
@@ -322,7 +328,8 @@ try {
   await alice.getByRole('dialog').getByLabel('Notes').fill('Initial correction');
   await alice.getByRole('button', { name: 'Save & request confirmations' }).click();
   await expect(alice.getByRole('dialog')).toHaveCount(0);
-  await bobAgain.reload();
+  await bobAgain.goto(base);
+  await bobAgain.getByRole('region', { name: 'Needs your attention' }).getByRole('link', { name: /Confirm your share.*Correctable groceries/ }).click();
   await expect(bobAgain.getByRole('button', { name: 'Confirm my share', exact: true })).toBeVisible();
   await bobAgain.getByLabel('My share · CAD', { exact: true }).fill('60.00');
   await alice.getByRole('button', { name: 'Edit details & participants' }).click();
@@ -508,6 +515,54 @@ try {
   await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$0.00');
   await expect(alice.getByRole('region', { name: 'Group balances and repayment suggestions' })).toContainText('No repayments needed.');
   await expect(alice.locator('[data-animating]')).toHaveCount(0);
+  // Attention refresh, direct repayment review, stale links, and account isolation.
+  await alice.goto(base);
+  const attention = alice.getByRole('region', { name: 'Needs your attention' });
+  await expect(attention).toContainText('No actions waiting for you.');
+  const { repayment: incoming } = await liveApi(`/groups/${liveGroupId}/repayments`, 'bob-token', 'POST', {
+    requestId: crypto.randomUUID(), recipientId: liveIds.Alice, amountCents: 321,
+  });
+  await attention.getByRole('button', { name: 'Refresh actions' }).click();
+  const incomingLink = attention.getByRole('link', { name: /Review incoming transfer.*From Bob/ });
+  await expect(incomingLink).toContainText('$3.21');
+  const incomingHref = await incomingLink.getAttribute('href');
+  await alice.route('**/api/attention', route => route.fulfill({ status: 503, json: { error: 'Temporarily unavailable' } }));
+  await attention.getByRole('button', { name: 'Refresh actions' }).click();
+  await expect(attention.getByRole('alert')).toContainText('Could not load your actions');
+  await expect(incomingLink).toHaveCount(0);
+  await alice.unroute('**/api/attention');
+  await attention.getByRole('button', { name: 'Refresh actions' }).click();
+  await incomingLink.click();
+  await expect(alice.getByRole('dialog', { name: 'Review repayment' })).toContainText('$3.21');
+  await alice.getByRole('button', { name: 'Confirm receipt', exact: true }).click();
+  await expect(alice.getByRole('dialog')).toHaveCount(0);
+  await alice.getByRole('button', { name: 'Overview', exact: true }).click();
+  await expect(attention).toContainText('No actions waiting for you.');
+  await alice.goto(`${base}${incomingHref}`);
+  await expect(alice.getByRole('dialog')).toContainText('already confirmed');
+  await expect(alice.getByRole('button', { name: 'Confirm receipt', exact: true })).toHaveCount(0);
+  await alice.getByRole('button', { name: 'Close dialog' }).click();
+  const { repayment: rejected } = await liveApi(`/groups/${liveGroupId}/repayments`, 'bob-token', 'POST', {
+    requestId: crypto.randomUUID(), recipientId: liveIds.Alice, amountCents: 123,
+  });
+  await alice.getByRole('button', { name: 'Overview', exact: true }).click();
+  await incomingLink.click();
+  await alice.getByRole('button', { name: 'Reject record', exact: true }).click();
+  await expect(alice.getByRole('dialog')).toHaveCount(0);
+  await alice.getByRole('button', { name: 'Overview', exact: true }).click();
+  await expect(attention).toContainText('No actions waiting for you.');
+  assert.equal((await liveApi(`/groups/${liveGroupId}/bills`, 'alice-token')).repayments.find(r => r.id === rejected.id).status, 'rejected');
+  assert.equal((await liveApi(`/groups/${liveGroupId}/bills`, 'alice-token')).repayments.find(r => r.id === incoming.id).status, 'confirmed');
+  await liveApi(`/groups/${liveGroupId}/repayments`, 'bob-token', 'POST', {
+    requestId: crypto.randomUUID(), recipientId: liveIds.Alice, amountCents: 456,
+  });
+  await attention.getByRole('button', { name: 'Refresh actions' }).click();
+  await expect(incomingLink).toContainText('$4.56');
+  await alice.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await expect(alice.getByRole('region', { name: 'Needs your attention' })).toHaveCount(0);
+  await alice.getByRole('button', { name: 'Sign in', exact: true }).click(); // Bob in the test boundary.
+  await expect(alice.getByRole('region', { name: 'Needs your attention' })).toContainText('No actions waiting for you.');
+  console.log('Attention smoke passed: mobile missing shares, reconfirmation links, refresh recovery, receipt decisions, stale links, and account isolation.');
   assert.deepEqual(errors, []);
   console.log('Group and bill browser smoke passed: creation, Unicode icon, persistence, sign-in return, membership, invitation permissions, rotation, invalid links, repeat joining, mobile layout, sign-out, bill creation and confirmation, response-loss retries, initiator adjustment, balances, completed-bill finality, stale confirmation, correction, reconfirmation, removal, and cancellation.');
 } catch (error) {

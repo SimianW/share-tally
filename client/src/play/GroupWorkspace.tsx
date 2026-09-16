@@ -13,9 +13,10 @@ function balanceLabel(summary: Summary | null | undefined) {
   return `${summary.netCents < 0 ? 'You owe' : 'You are owed'} ${money(Math.abs(summary.netCents))}`;
 }
 
-export default function GroupWorkspace({ groups, selectedId, loading, error, retry, onCreate }: {
+export default function GroupWorkspace({ groups, selectedId, selectedRepaymentId, loading, error, retry, onCreate }: {
   groups: GroupView[];
   selectedId?: string;
+  selectedRepaymentId?: string;
   loading: boolean;
   error: string;
   retry: () => void;
@@ -54,7 +55,7 @@ export default function GroupWorkspace({ groups, selectedId, loading, error, ret
       </a>)}
     </nav>
     <div className="workspace-content">
-      {activeId ? <GroupBills key={activeId} id={activeId} onSummary={updateBalance} /> : !loading && !error && <div className="empty-state"><h2>Your people, together.</h2><p>Create a group to start recording shared purchases.</p><Button onClick={onCreate}>Create your first group</Button></div>}
+      {activeId ? <GroupBills key={activeId} id={activeId} selectedRepaymentId={selectedRepaymentId} onSummary={updateBalance} /> : !loading && !error && <div className="empty-state"><h2>Your people, together.</h2><p>Create a group to start recording shared purchases.</p><Button onClick={onCreate}>Create your first group</Button></div>}
     </div>
   </div>;
 }
