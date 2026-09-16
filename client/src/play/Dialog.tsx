@@ -21,11 +21,32 @@ export default function Dialog({
     const previous = document.activeElement;
     dialog.showModal();
     dialog.querySelector<HTMLElement>("[data-autofocus]")?.focus();
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const body = document.body;
+    const root = document.documentElement;
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+    const previousBody = {
+      overflow: body.style.overflow,
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      width: body.style.width,
+    };
+    const rootOverflow = root.style.overflow;
+    // Mobile Safari can still pan the page behind a modal with overflow alone.
+    root.style.overflow = "hidden";
+    Object.assign(body.style, {
+      overflow: "hidden",
+      position: "fixed",
+      top: `-${scrollY}px`,
+      left: `-${scrollX}px`,
+      width: "100%",
+    });
     return () => {
       dialog.close();
-      document.body.style.overflow = overflow;
+      Object.assign(body.style, previousBody);
+      root.style.overflow = rootOverflow;
+      window.scrollTo({ left: scrollX, top: scrollY, behavior: "instant" });
       if (previous instanceof HTMLElement && previous.isConnected)
         previous.focus({ preventScroll: true });
     };
@@ -35,7 +56,10 @@ export default function Dialog({
       ref={ref}
       className={`play-dialog ${className}`}
       aria-labelledby={id}
-      onCancel={(event) => { event.preventDefault(); close(); }}
+      onCancel={(event) => {
+        event.preventDefault();
+        close();
+      }}
       onClick={(e) => {
         const r = e.currentTarget.getBoundingClientRect();
         if (

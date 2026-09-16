@@ -44,6 +44,9 @@ A previously claimed fraction held for its claimant after an item-price correcti
 **Bill draft**:
 An uninitialized bill visible only to its initiator, who can review and correct it before opening it for participation.
 
+**Bill initiation**:
+The initiator's publication of a reviewed bill draft, making it visible to the group and opening it to its selected participants. For item-based bills, initiation does not itself confirm any item claims.
+
 **Complete bill**:
 A finalized bill whose participants have all confirmed their shares and whose permitted difference is accounted for by an initiator adjustment; it cannot be reopened. Completion does not mean the group has finished repaying its debts.
 _Avoid_: Paid bill.

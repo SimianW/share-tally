@@ -1,0 +1,325 @@
+.play-dialog.receipt-dialog {
+  width: min(1040px, calc(100vw - 32px));
+  max-width: 1040px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-x: none;
+  touch-action: pan-y pinch-zoom;
+  overflow-wrap: anywhere;
+}
+.receipt-review-layout {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.7fr) minmax(0, 1.3fr);
+  gap: 24px;
+  align-items: start;
+}
+.receipt-photo {
+  position: sticky;
+  top: 0;
+}
+.receipt-photo img {
+  width: 100%;
+  max-height: 65vh;
+  object-fit: contain;
+  border-radius: 12px;
+}
+.receipt-photo summary,
+.receipt-edit-row summary {
+  cursor: pointer;
+  padding: 8px 0;
+}
+.receipt-edit-row {
+  padding: 18px;
+  margin: 12px 0;
+  border: 1px solid #e3e7df;
+  background: #fbfcf9;
+  border-radius: 18px;
+}
+.receipt-edit-row h3 {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.receipt-edit-row label {
+  display: grid;
+  gap: 6px;
+}
+.receipt-costs,
+.receipt-item-title,
+.receipt-upload {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+}
+.receipt-costs > label,
+.receipt-item-title > label {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+.receipt-costs input,
+.receipt-edit-row input,
+.receipt-edit-row select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px;
+  border: 1px solid #d8ded3;
+  border-radius: 9px;
+  background: white;
+}
+.receipt-index {
+  padding: 12px;
+  border-radius: 50%;
+  background: #e8efdc;
+}
+.receipt-crop-preview {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+  margin: auto;
+}
+.receipt-crop-preview img {
+  display: block;
+  max-width: 100%;
+  max-height: 400px;
+}
+.receipt-crop-preview > div {
+  position: absolute;
+  border: 3px solid #6a872f;
+  background: #6a872f11;
+  pointer-events: none;
+}
+.receipt-crop-sliders {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.receipt-drafts {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.receipt-drafts h3 {
+  width: 100%;
+}
+.item-claims {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.field-error {
+  color: #a13427;
+  font-size: 0.85rem;
+}
+.receipt-upload .receipt-camera-button {
+  display: none;
+}
+@media (max-width: 700px) {
+  .receipt-upload .receipt-camera-button {
+    display: inline-flex;
+  }
+  .receipt-review-layout {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .receipt-photo {
+    position: static;
+  }
+  .receipt-photo img {
+    max-height: 260px;
+  }
+  .play-dialog.receipt-dialog {
+    width: calc(100vw - 20px);
+  }
+}
+
+.receipt-review-layout > div {
+  min-width: 0;
+}
+.receipt-dialog input[type="file"] {
+  max-width: 100%;
+}
+
+.receipt-dialog :is(input, select, textarea, label) {
+  min-width: 0;
+  max-width: 100%;
+}
+.receipt-dialog .button {
+  max-width: 100%;
+}
+@media (max-width: 700px) {
+  .play-dialog.receipt-dialog .bill-form :is(input, select, textarea) {
+    font-size: 16px;
+  }
+}
+
+/* A guided form; all steps edit the same private receipt draft. */
+.receipt-wizard .receipt-steps {
+  display: flex;
+  gap: 16px;
+  padding: 0 0 22px;
+  border-bottom: 1px solid #e3e8dc;
+  margin-bottom: 24px;
+}
+.receipt-steps button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 1;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: #77826b;
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.receipt-steps button > span {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #eef2e7;
+  font-size: 11px;
+}
+.receipt-steps button[aria-current="step"] {
+  color: #344522;
+  font-weight: 700;
+}
+.receipt-steps button[aria-current="step"] > span {
+  background: #c4ef7b;
+}
+.receipt-steps button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.receipt-wizard .receipt-step-title {
+  font-size: 24px;
+  letter-spacing: -0.5px;
+  margin: 0 0 8px;
+}
+.receipt-step-description {
+  color: #6d795f;
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0 0 22px;
+}
+.receipt-source {
+  max-width: 650px;
+  margin: 0 auto;
+  border: 1px dashed #c7d5b7;
+  border-radius: 18px;
+  background: #f7faf2;
+  padding: 24px;
+  text-align: center;
+}
+.receipt-source > svg {
+  color: #688644;
+  margin-bottom: 10px;
+}
+.receipt-source h4 {
+  font-size: 20px;
+  margin: 0 0 8px;
+}
+.receipt-source > p {
+  color: #75836a;
+  font-size: 13px;
+  margin: 0 0 20px;
+}
+.receipt-source .receipt-upload {
+  justify-content: center;
+  margin-bottom: 16px;
+  align-items: center;
+}
+.receipt-source .receipt-photo {
+  position: static;
+  text-align: left;
+  margin: 16px 0;
+}
+.receipt-source .receipt-photo img {
+  max-height: 230px;
+}
+.receipt-entry-alternative {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  margin-top: 16px;
+}
+.receipt-entry-alternative > span {
+  color: #89947d;
+  font-size: 12px;
+}
+.receipt-without-photo {
+  grid-template-columns: 1fr;
+}
+.receipt-review-layout .receipt-photo {
+  margin-bottom: 14px;
+}
+.receipt-adjustments {
+  margin: 24px 0 16px;
+  padding: 16px 0;
+  border-top: 1px solid #e2e8d9;
+  border-bottom: 1px solid #e2e8d9;
+}
+.receipt-adjustments > summary {
+  cursor: pointer;
+  font-weight: 650;
+  padding: 6px 0;
+}
+.receipt-adjustments > fieldset {
+  margin-top: 16px;
+}
+.receipt-sharing {
+  max-width: 690px;
+  margin: auto;
+}
+.receipt-wizard-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  border-top: 1px solid #e3e8dc;
+  padding: 18px 0;
+  margin-top: 24px;
+}
+.receipt-wizard-actions > div {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.receipt-wizard-actions .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+@media (max-width: 700px) {
+  .receipt-wizard .receipt-steps {
+    gap: 10px;
+  }
+  .receipt-steps button {
+    flex-direction: column;
+    align-items: flex-start;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .receipt-source {
+    padding: 20px 14px;
+  }
+  .receipt-wizard .receipt-step-title {
+    font-size: 22px;
+  }
+  .receipt-wizard-actions {
+    flex-wrap: wrap;
+  }
+  .receipt-wizard-actions > div {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .receipt-wizard-actions > .button {
+    width: 100%;
+  }
+}

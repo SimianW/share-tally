@@ -29,6 +29,9 @@ export type GroupLedger = {
   incompleteBillIds: string[];
 };
 export type Bill = {
+  mode: 'manual' | 'items';
+  items?: import('./receipt-api').BillItem[];
+  photo?: { draftId: string; expiresAt: string; expired?: boolean } | null;
   id: string;
   groupId: string;
   initiatorId: string;

@@ -1,3 +1,6 @@
+import { requestId } from "./request-id";
+import { ReceiptDraftForm, ReceiptDrafts } from './ReceiptDraft';
+import { ItemClaims } from './ItemClaims';
 import { Notification } from './Notification';
 import { useCached, denied, useCachedRequest, hideProtectedQueries, AccessError } from './query-cache';
 import { AnimatedMoney } from './AnimatedMoney';
@@ -86,6 +89,7 @@ export function GroupBills({ id, selectedRepaymentId }: { id: string; selectedRe
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
   const [creating, setCreating] = useState(false);
+  const [receiptDraft, setReceiptDraft] = useState<string | null>(null);
   const { getToken } = useAuth();
   useEffect(() => {
     const sync = startGroupSync({
@@ -145,6 +149,7 @@ export function GroupBills({ id, selectedRepaymentId }: { id: string; selectedRe
           {!data.bills.length && (
             <p>No bills yet. Record a purchase you paid for to get started.</p>
           )}
+          <ReceiptDrafts key={`${id}:${revision}:${receiptDraft}`} groupId={id} open={setReceiptDraft} />
           <div className="bill-list">
             {data.bills.map((bill) => (
               <a
@@ -173,8 +178,10 @@ export function GroupBills({ id, selectedRepaymentId }: { id: string; selectedRe
           <div ref={repaymentHistory} tabIndex={-1} className="repayment-history-anchor">
             <Repayments key={`${id}:${selectedRepaymentId ?? ""}`} selectedId={selectedRepaymentId} group={data.group} records={data.repayments} api={api} refresh={() => setRevision(n => n + 1)} />
           </div>
+          {receiptDraft !== null && <ReceiptDraftForm key={receiptDraft} group={data.group} id={receiptDraft || undefined} close={() => { setReceiptDraft(null); setRevision(n => n + 1); }} created={bill => { window.location.hash = `/bills/${bill.id}`; }} />}
           {creating && (
             <CreateBill
+              receipt={() => { setCreating(false); setReceiptDraft(''); }}
               group={data.group}
               api={api}
               close={() => setCreating(false)}
@@ -190,11 +197,13 @@ export function GroupBills({ id, selectedRepaymentId }: { id: string; selectedRe
   );
 }
 function CreateBill({
+  receipt,
   group,
   api,
   close,
   created,
 }: {
+  receipt: () => void;
   group: GroupDetail;
   api: BillApi;
   close: () => void;
@@ -231,7 +240,7 @@ function CreateBill({
     setError("");
     try {
       const draft = request ?? {
-        requestId: crypto.randomUUID(),
+        requestId: requestId(),
         title,
         purchaseDate: date,
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -282,6 +291,7 @@ function CreateBill({
         }}
         className="bill-form"
       >
+        {!request && <Button variant="secondary" disabled={busy} onClick={receipt}>Use a receipt or enter items</Button>}
         <fieldset disabled={busy || request !== null}>
           <fieldset>
             <legend>Who shared this purchase?</legend>
@@ -427,11 +437,12 @@ export function BillDetails({ id }: { id: string }) {
   const own = bill.participants.find((p) => p.isCurrentUser);
   const adjustmentWouldBeNegative = initiator.amountCents !== null &&
     initiator.amountCents + bill.differenceCents < 0;
-  const needsAmountCorrection = !bill.completedAt && !bill.canceledAt &&
+  const needsAmountCorrection = bill.mode !== 'items' && !bill.completedAt && !bill.canceledAt &&
     ((Math.abs(bill.differenceCents) > 5 &&
       (bill.differenceCents < 0 || bill.participants.every(p => p.amountCents !== null))) ||
       (adjustmentWouldBeNegative && bill.confirmedCount === bill.participants.length));
   function saved(updated: Bill) {
+    setBill(updated);
     resetEditors.current = true;
     live.current?.retry();
     setNotice(
@@ -439,7 +450,7 @@ export function BillDetails({ id }: { id: string }) {
         ? "Bill canceled. The record is retained."
         : updated.completedAt
           ? "Everyone confirmed. The bill completed automatically."
-          : updated.revision !== bill!.revision
+          : updated.mode === 'items' ? 'Saved. Item confirmations and reservations are shown below.' : updated.revision !== bill!.revision
             ? updated.participants.some((p) => p.isCurrentUser && p.confirmedAt)
               ? updated.participants.length > 1
                 ? "Your share is confirmed. Other participants need to confirm again."
@@ -503,14 +514,14 @@ export function BillDetails({ id }: { id: string }) {
                   : "IN PROGRESS"}
           </span>
           <h2>
-            {bill.differenceCents > 0
+            {bill.mode === 'items' ? "Initiator adjustment" : bill.differenceCents > 0
               ? "Left to match"
               : bill.differenceCents < 0
                 ? "Over the total"
                 : "Exact match"}
           </h2>
           <strong className="difference-number">
-            {money(Math.abs(bill.differenceCents))}
+            {money(bill.mode === 'items' ? bill.differenceCents : Math.abs(bill.differenceCents))}
           </strong>
           <p>
             {bill.confirmedCount}/{bill.participants.length} confirmed
@@ -570,7 +581,7 @@ export function BillDetails({ id }: { id: string }) {
               <h3>
                 {bill.adjustmentCents === 0
                   ? "Everything matches."
-                  : "Small difference assigned to the initiator."}
+                  : "Difference assigned to the initiator."}
               </h3>
               <p>
                 {initiator.displayName}: {money(initiator.amountCents!)}{" "}
@@ -588,8 +599,9 @@ export function BillDetails({ id }: { id: string }) {
               tone={bill.confirmedCount < bill.participants.length ? "info" : "warning"}
               title={bill.confirmedCount < bill.participants.length ? "Waiting for everyone to confirm." : "This bill cannot complete yet."}
             >
+              {bill.mode === 'items' && <p>Based on current confirmed claims: {initiator.displayName}'s effective cost is {money((initiator.amountCents ?? 0) + bill.differenceCents)}. {(initiator.amountCents ?? 0) + bill.differenceCents < 0 && 'This is negative. The initiator must correct item prices or the paid total, then obtain the required confirmations.'}</p>}
               <p>
-                {bill.confirmedCount < bill.participants.length
+                {bill.mode === 'items' ? 'Every item must be fully claimed and confirmed, and everyone must respond. The difference goes to the initiator; a negative effective cost prevents completion.' : bill.confirmedCount < bill.participants.length
                   ? "Up to five cents can be assigned to the initiator after everyone confirms."
                   : Math.abs(bill.differenceCents) > 5
                     ? "The difference exceeds $0.05. Participants can correct their own amounts below."
@@ -606,10 +618,10 @@ export function BillDetails({ id }: { id: string }) {
         </section>
       )}
       <div className="bill-action-layout">
-        <ShareActions
+        {bill.mode === 'items' ? <ItemClaims key={`items:${bill.id}`} bill={bill} saved={saved} refresh={refresh} /> : <ShareActions
           key={`share:${bill.id}:${savedVersion}`}
           bill={bill} api={api} saved={saved} refresh={refresh}
-        />
+        />}
         {own?.userId === bill.initiatorId && (
           <InitiatorActions
             key={`initiator:${bill.id}:${savedVersion}`}

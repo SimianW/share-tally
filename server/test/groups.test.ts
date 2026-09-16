@@ -69,7 +69,7 @@ beforeEach(async () => {
   // 三张表一起清空，避免外键引用阻止 TRUNCATE。
   // 不要把这条语句拿去开发或生产数据库手动执行。
   await pool.query(
-    'TRUNCATE TABLE repayments, bill_shares, bills, group_members, groups, users',
+    'TRUNCATE TABLE item_claims, bill_items, receipt_photos, receipt_drafts, repayments, bill_shares, bills, group_members, groups, users',
   )
 })
 

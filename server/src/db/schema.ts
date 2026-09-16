@@ -1,5 +1,6 @@
 import {
   check,
+  jsonb,
   date,
   integer,
   unique,
@@ -105,6 +106,7 @@ export const bills = pgTable('bills', {
   initiatorId: uuid('initiator_id').notNull().references(() => users.id),
   requestId: uuid('request_id').notNull(),
   requestPayload: text('request_payload').notNull(),
+  mode: text('mode').$type<'manual' | 'items'>().notNull().default('manual'),
   title: text('title').notNull(),
   purchaseDate: date('purchase_date').notNull(),
   notes: text('notes').notNull().default(''),
@@ -115,6 +117,7 @@ export const bills = pgTable('bills', {
   revision: integer('revision').notNull().default(1),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, table => [
+  check('bills_mode', sql`${table.mode} in ('manual', 'items')`),
   check('bills_revision_positive', sql`${table.revision} > 0`),
   check('bills_canceled_incomplete', sql`${table.canceledAt} is null or ${table.completedAt} is null`),
   unique('bills_creation_request').on(table.initiatorId, table.requestId),
@@ -122,7 +125,7 @@ export const bills = pgTable('bills', {
   check('bills_total_range', sql`${table.totalCents} between 1 and 1000000`),
   check('bills_title_length', sql`char_length(btrim(${table.title})) between 1 and 120`),
   check('bills_notes_length', sql`char_length(${table.notes}) <= 2000`),
-  check('bills_completion', sql`(${table.completedAt} is null and ${table.adjustmentCents} is null) or (${table.completedAt} is not null and ${table.adjustmentCents} is not null and ${table.adjustmentCents} between -5 and 5)`),
+  check('bills_completion', sql`(${table.completedAt} is null and ${table.adjustmentCents} is null) or (${table.completedAt} is not null and ${table.adjustmentCents} is not null and (${table.mode} = 'items' or ${table.adjustmentCents} between -5 and 5))`),
 ]);
 
 export const billShares = pgTable('bill_shares', {
@@ -153,3 +156,40 @@ export const repayments = pgTable('repayments', {
   check('repayments_amount_range', sql`${table.amountCents} between 1 and 1000000`),
   check('repayments_state', sql`(${table.status} = 'pending' and ${table.decidedAt} is null) or (${table.status} in ('confirmed', 'rejected') and ${table.decidedAt} is not null)`),
 ]);
+
+
+export const receiptDrafts = pgTable('receipt_drafts', {
+  id: uuid('id').primaryKey(),
+  groupId: uuid('group_id').notNull().references(() => groups.id),
+  initiatorId: uuid('initiator_id').notNull().references(() => users.id),
+  data: jsonb('data').$type<import('../receipt-input.js').ReceiptDraftData>().notNull(),
+  revision: integer('revision').notNull().default(1),
+  billId: uuid('bill_id').references(() => bills.id),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, table => [index('receipt_drafts_owner_idx').on(table.initiatorId, table.groupId)]);
+
+export const receiptPhotos = pgTable('receipt_photos', {
+  draftId: uuid('draft_id').primaryKey().references(() => receiptDrafts.id, { onDelete: 'cascade' }),
+  base64: text('base64').notNull(),
+  uploadedAt: timestamp('uploaded_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+});
+
+export const billItems = pgTable('bill_items', {
+  id: uuid('id').primaryKey(),
+  billId: uuid('bill_id').notNull().references(() => bills.id),
+  position: integer('position').notNull(),
+  name: text('name').notNull(), originalText: text('original_text').notNull(),
+  quantity: text('quantity').notNull(),
+  amountCents: integer('amount_cents').notNull(), taxCents: integer('tax_cents').notNull(),
+  discountCents: integer('discount_cents').notNull(), extraCents: integer('extra_cents').notNull(),
+  finalCents: integer('final_cents').notNull(),
+}, table => [index('bill_items_bill_idx').on(table.billId), check('bill_items_cost', sql`${table.finalCents} between 0 and 1000000`)]);
+
+export const itemClaims = pgTable('item_claims', {
+  itemId: uuid('item_id').notNull().references(() => billItems.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id),
+  numerator: integer('numerator').notNull(), denominator: integer('denominator').notNull(),
+  confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+}, table => [primaryKey({ columns: [table.itemId, table.userId] }),
+  check('item_claims_fraction', sql`${table.numerator} between 1 and ${table.denominator} and ${table.denominator} between 1 and 10000`)]);

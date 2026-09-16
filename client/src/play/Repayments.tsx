@@ -1,3 +1,4 @@
+import { requestId } from "./request-id";
 import { Notification } from './Notification';
 import { useRef, useState } from 'react';
 import { BillApiError, money, parseMoney, type BillApi, type Repayment, type RepaymentDraft } from './bill-api';
@@ -80,7 +81,7 @@ function RecordRepayment({ group, api, close, saved }: {
     setBusy(true);
     setError('');
     try {
-      const draft = request ?? { requestId: crypto.randomUUID(), recipientId, amountCents: parseMoney(amount) };
+      const draft = request ?? { requestId: requestId(), recipientId, amountCents: parseMoney(amount) };
       if (!draft.recipientId || draft.recipientId === me.id || draft.amountCents <= 0) throw new Error('Choose another member and enter a positive amount.');
       // Save before sending: closing or reloading after response loss preserves the request.
       sessionStorage.setItem(storageKey, JSON.stringify(draft));
