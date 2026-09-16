@@ -31,7 +31,7 @@ Source: https://github.com/SimianW/share-tally/issues/6
 Suggested title: **View current group balances and repayment suggestions**.
 
 - Calculate every member's balance within one group, including the accepted initiator adjustment. Support current bill eligibility rules; add effective repayment offsets when #7 introduces them.
-- Produce valid payer-to-recipient suggestions without requiring mathematically minimal transfer counts. Suggestions are derived results, not evidence that money moved.
+- Produce valid repayment suggestions between group members without requiring mathematically minimal transfer counts. Suggestions are derived results, not evidence that money moved.
 - Refresh the results when eligible bill data changes. Explain that suggestions may change and identify unresolved bills without treating them as a group-wide payment lock.
 - Show zero balances as nothing currently owed. Do not archive bills or create a completed settlement.
 - Remove frozen bill selection, persisted batch instructions, irreversible start, membership locks, and all settlement-start race tests.
