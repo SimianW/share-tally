@@ -13,9 +13,13 @@
   gap: 24px;
   align-items: start;
 }
-.receipt-photo {
+.receipt-photo,
+.receipt-photo-panel {
   position: sticky;
   top: 0;
+}
+.receipt-photo-panel .receipt-photo {
+  position: static;
 }
 .receipt-photo img {
   width: 100%;
@@ -145,7 +149,8 @@
     grid-template-columns: 1fr;
     gap: 12px;
   }
-  .receipt-photo {
+  .receipt-photo,
+  .receipt-photo-panel {
     position: static;
   }
   .receipt-photo img {
@@ -256,6 +261,15 @@
   justify-content: center;
   margin-bottom: 16px;
   align-items: center;
+}
+.receipt-scan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.receipt-source .receipt-scan-actions {
+  justify-content: center;
 }
 .receipt-source .receipt-photo {
   position: static;
