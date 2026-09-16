@@ -115,6 +115,7 @@ export function ReceiptDraftForm({
       },
     };
   });
+  const recoveredDraft = useRef(draft.revision > 0 ? draft : null);
   const [loading, setLoading] = useState(!!id);
   const stepKey = `receipt-step:${me.id}:${draft.id}`;
   const [step, setStep] = useState(() => {
@@ -156,7 +157,20 @@ export function ReceiptDraftForm({
               .then((result) => createdRef.current(result.bill))
               .catch((e) => setError(errorMessage(e)));
           } else {
-            setDraft(r.draft);
+            const local = recoveredDraft.current;
+            if (
+              local?.id === r.draft.id &&
+              (local.initializationRevision ||
+                JSON.stringify(local.data) !== JSON.stringify(r.draft.data))
+            ) {
+              // Keep the base revision so a newer server edit still triggers the save conflict check.
+              setDraft({ ...local, photo: r.draft.photo });
+              setNotice(
+                local.revision === r.draft.revision
+                  ? "Recovered your unsaved changes."
+                  : "Recovered your local changes. The saved draft has changed elsewhere; saving will check for a conflict.",
+              );
+            } else setDraft(r.draft);
             if (sessionStorage.getItem(stepKey) === null)
               setStep(
                 r.draft.data.mode === "manual"
@@ -619,6 +633,7 @@ export function ReceiptDraftForm({
                         ).map((field, i) => (
                           <ReceiptAmount
                             key={field}
+                            emptyAsZero
                             label={
                               [
                                 "Receipt tax",
@@ -755,6 +770,7 @@ export function ReceiptDraftForm({
                 {data.mode === "manual" ? (
                   <ReceiptAmount
                     label="My share · CAD"
+                    emptyAsZero
                     value={data.ownShareCents}
                     change={(ownShareCents) => {
                       if (ownShareCents !== null) update({ ownShareCents });

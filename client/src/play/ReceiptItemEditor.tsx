@@ -8,11 +8,13 @@ export function ReceiptAmount({
   value,
   change,
   signed = false,
+  emptyAsZero = false,
 }: {
   label: string;
   value: number | null;
   change: (n: number | null) => void;
   signed?: boolean;
+  emptyAsZero?: boolean;
 }) {
   const [input, setInput] = useState({
     value,
@@ -28,7 +30,7 @@ export function ReceiptAmount({
     <label>
       {label}
       <input
-        required
+        required={!emptyAsZero}
         aria-label={label}
         inputMode="decimal"
         value={text}
@@ -36,8 +38,9 @@ export function ReceiptAmount({
           const text = e.target.value;
           if (!text.trim()) {
             e.target.setCustomValidity("");
-            setInput({ value, text });
-            change(null);
+            const next = emptyAsZero ? 0 : null;
+            setInput({ value: next, text });
+            change(next);
             return;
           }
           try {
@@ -180,6 +183,7 @@ export function ReceiptItemEditor({
               />
               <ReceiptAmount
                 label="Tax"
+                emptyAsZero
                 value={item.taxCents}
                 change={(taxCents) => {
                   if (taxCents !== null) update(item.id, { taxCents }, true);
@@ -187,6 +191,7 @@ export function ReceiptItemEditor({
               />
               <ReceiptAmount
                 label="Discount"
+                emptyAsZero
                 value={item.discountCents}
                 change={(discountCents) => {
                   if (discountCents !== null)
@@ -195,6 +200,7 @@ export function ReceiptItemEditor({
               />
               <ReceiptAmount
                 label="Other adjustment"
+                emptyAsZero
                 value={item.extraCents}
                 signed
                 change={(extraCents) => {

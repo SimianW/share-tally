@@ -340,6 +340,17 @@ try {
   await expect(
     alice.getByLabel("Final cost · CAD", { exact: true }),
   ).toHaveValue("3.30");
+  await alice.getByLabel("Receipt tax", { exact: true }).fill("");
+  await alice
+    .getByRole("button", {
+      name: "Apply adjustments to final costs",
+      exact: true,
+    })
+    .click();
+  await expect(
+    alice.getByLabel("Final cost · CAD", { exact: true }),
+  ).toHaveValue("3.00");
+  await alice.getByLabel("Receipt tax", { exact: true }).fill("0.30");
   await alice.getByLabel("Printed prices include tax", { exact: true }).check();
   await alice
     .getByRole("button", {
@@ -366,6 +377,20 @@ try {
   await expect(
     alice.getByLabel("Final cost · CAD", { exact: true }),
   ).toHaveValue("2.80");
+  await alice.getByRole("button", { name: "Continue to sharing" }).click();
+  await alice
+    .getByLabel("Bill title", { exact: true })
+    .fill("Recovered local title");
+  await alice.reload();
+  await alice.getByRole("button", { name: "Continue Scanned receipt" }).click();
+  await expect(
+    alice.getByText("Recovered your unsaved changes.", { exact: true }),
+  ).toBeVisible();
+  await expect(alice.getByLabel("Bill title", { exact: true })).toHaveValue(
+    "Recovered local title",
+  );
+  await alice.getByLabel("Bill title", { exact: true }).fill("Scanned receipt");
+  await alice.getByRole("button", { name: "Back", exact: true }).click();
   await expect(alice.getByAltText("Original cropped receipt")).toBeVisible();
   await alice.screenshot({
     path: "/tmp/share-tally-receipt-smoke/receipt-editor.png",
