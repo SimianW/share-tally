@@ -1,3 +1,5 @@
+import { useAuth } from '@clerk/react';
+import { startGroupSync } from './group-sync';
 import { useEffect, useRef, useState } from "react";
 import {
   useBillApi,
@@ -96,47 +98,19 @@ export function GroupBills({ id, onSummary }: { id: string; onSummary: (id: stri
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
   const [creating, setCreating] = useState(false);
+  const { getToken } = useAuth();
   useEffect(() => {
-    const controller = new AbortController();
-    let inFlight = false;
-    async function refresh() {
-      if (inFlight || controller.signal.aborted) return;
-      inFlight = true;
-      try {
-        const [bills, group] = await Promise.all([
-          api.list(id, controller.signal),
-          groups.detail(id, controller.signal),
-        ]);
-        if (!controller.signal.aborted) {
-          setData({ ...bills, ...group });
-          onSummary(id, bills.summary);
-          setError("");
-        }
-      } catch (error) {
-        if (!controller.signal.aborted) {
-          setError(errorMessage(error));
-          onSummary(id, null);
-        }
-      } finally {
-        inFlight = false;
-      }
-    }
-    function refreshIfVisible() {
-      if (document.visibilityState === "visible") void refresh();
-    }
-    void refresh();
-    const timer = window.setInterval(refreshIfVisible, 15_000);
-    window.addEventListener("focus", refreshIfVisible);
-    window.addEventListener("online", refreshIfVisible);
-    document.addEventListener("visibilitychange", refreshIfVisible);
-    return () => {
-      controller.abort();
-      window.clearInterval(timer);
-      window.removeEventListener("focus", refreshIfVisible);
-      window.removeEventListener("online", refreshIfVisible);
-      document.removeEventListener("visibilitychange", refreshIfVisible);
-    };
-  }, [api, groups, id, revision, onSummary]);
+    const sync = startGroupSync({
+      groupId: id, getToken,
+      read: async signal => {
+        const [bills, group] = await Promise.all([api.list(id, signal), groups.detail(id, signal)]);
+        return { ...bills, ...group };
+      },
+      apply: value => { setData(value); onSummary(id, value.summary); },
+      status: setError,
+    });
+    return () => sync.stop();
+  }, [api, groups, getToken, id, revision, onSummary]);
   function closeMembers() {
     setMembersOpen(false);
     setRevision(n => n + 1);
@@ -147,9 +121,8 @@ export function GroupBills({ id, onSummary }: { id: string; onSummary: (id: stri
         <h2>{data?.group.name ?? "Group bills"}</h2>
         <Button variant="text" onClick={() => setMembersOpen(true)}>Members & invites</Button>
       </div>
-      {error ? (
-        <div role="alert" className="form-error"><p>{error}</p><Button onClick={() => setRevision(n => n + 1)}>Retry group bills</Button></div>
-      ) : !data ? (
+      {error && <div role="alert" className="form-error"><p>{error}</p><Button onClick={() => setRevision(n => n + 1)}>Retry group bills</Button></div>}
+      {!data ? (
         <p role="status">Loading bills...</p>
       ) : (
         <>

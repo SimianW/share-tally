@@ -1,3 +1,6 @@
+import { openGroupEvents } from './group-events.js';
+import { getGroupUser } from './users.js';
+import { getGroupForMember } from './groups.js';
 import { profileAvatars } from './avatar-profile.js';
 import { createAvatarReader, type AvatarLookup } from './avatars.js';
 import { createBillsRouter } from './bill-routes.js';
@@ -18,6 +21,7 @@ declare global {
 type Authentication = {
   middleware: RequestHandler
   userId: (req: Request) => string | null
+  expiresAt?: (req: Request) => number
   avatarUrl?: AvatarLookup
   displayName?: (clerkUserId: string) => Promise<string>
 };
@@ -30,6 +34,7 @@ export function createApp(auth: Authentication = {
     return profileAvatars(user);
   },
   middleware: clerkMiddleware(),
+  expiresAt: req => (getAuth(req).sessionClaims?.exp ?? 0) * 1000,
   userId: (req) => {
     const { isAuthenticated, userId } = getAuth(req);
     return isAuthenticated ? userId : null;
@@ -57,6 +62,16 @@ export function createApp(auth: Authentication = {
     if (!clerkUserId) { res.status(401).json({ error: 'Unauthorized' }); return; }
     res.locals.clerkUserId = clerkUserId;
     next();
+  });
+  app.get('/api/groups/:groupId/events', async (req, res) => {
+    if (!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(req.params.groupId)) {
+      res.status(404).json({ error: 'Group not found.' }); return;
+    }
+    const user = await getGroupUser(res.locals.clerkUserId, displayName);
+    await getGroupForMember(req.params.groupId, user.id);
+    const expiresAt = Math.min(auth.expiresAt?.(req) ?? Infinity, Date.now() + 30_000);
+    if (expiresAt <= Date.now()) { res.status(401).end(); return; }
+    if (!res.destroyed) openGroupEvents(req.params.groupId, res, expiresAt);
   });
   app.use('/api/groups', createGroupsRouter(displayName, avatars));
   app.use('/api', createBillsRouter(displayName, avatars));

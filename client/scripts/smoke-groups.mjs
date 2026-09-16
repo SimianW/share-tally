@@ -142,6 +142,23 @@ try {
   await carol.getByRole('button', { name: 'Join group', exact: true }).click();
   await expect(carol.getByRole('dialog')).toContainText('3 members');
 
+  await carol.getByRole('button', { name: 'View bills and balance' }).click();
+  await expect(carol.locator('.bill-list-row')).toHaveCount(0);
+  // Hold an obsolete empty snapshot while another user commits a bill.
+  // The notification during that read must cause a second authoritative read.
+  let releaseSnapshot;
+  const heldSnapshot = new Promise(resolve => { releaseSnapshot = resolve; });
+  let capturedSnapshot = false;
+  const carolBillsPattern = '**/api/groups/' + carol.url().split('/').pop() + '/bills';
+  await carol.route(carolBillsPattern, async route => {
+    const response = await route.fetch();
+    capturedSnapshot = true;
+    await heldSnapshot;
+    await route.fulfill({ response });
+  }, { times: 1 });
+  await carol.evaluate(() => window.dispatchEvent(new Event('online')));
+  await expect.poll(() => capturedSnapshot).toBe(true);
+
   // Issue #4: real bill creation, response-loss retry, share confirmation, and balances.
   await alice.getByRole('button', { name: 'View bills and balance' }).click();
   await alice.getByRole('button', { name: 'New bill', exact: true }).click();
@@ -168,6 +185,8 @@ try {
   });
   await alice.getByRole('button', { name: 'Create bill and confirm my share' }).click();
   await expect(alice.getByRole('button', { name: 'Retry creation' })).toBeVisible();
+  releaseSnapshot();
+  await expect(carol.locator('.bill-list-row')).toContainText('Weekend groceries', { timeout: 3000 });
   await alice.reload();
   await alice.getByRole('button', { name: 'New bill', exact: true }).click();
   await expect(alice.getByLabel('Bill title', { exact: true })).toHaveValue('Weekend groceries');
@@ -197,7 +216,11 @@ try {
     if (shareAttempts === 1) return route.abort('failed');
     return route.fulfill({ response });
   });
+  const liveStarted = Date.now();
   await bob.getByRole('button', { name: 'Submit and confirm my share' }).click();
+  await expect(carol.locator('.bill-list-row')).toContainText('Complete', { timeout: 3000 });
+  await expect(carol.getByRole('region', { name: 'Group balances and repayment suggestions' })).toContainText('$59.97');
+  console.log(`Live completion observed within ${Date.now() - liveStarted} ms of the submit click`);
   await expect(bob.getByRole('button', { name: 'Retry confirmation' })).toBeVisible();
   await bob.getByRole('button', { name: 'Retry confirmation' }).click();
   await expect(bob.locator('.bill-status')).toContainText('COMPLETE');
@@ -235,10 +258,13 @@ try {
   const selectedBillsPattern = '**/api/groups/' + alice.url().split('/').pop() + '/bills';
   await alice.route(selectedBillsPattern, route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Temporarily unavailable' }) }));
   await expect(alice.getByRole('button', { name: 'Refresh bills', exact: true })).toHaveCount(0);
-  await alice.evaluate(() => window.dispatchEvent(new Event('focus')));
-  await expect(alice.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: /Costco friends/ })).toContainText('Balance unavailable');
+  await alice.evaluate(() => window.dispatchEvent(new Event('online')));
+  await expect(alice.getByRole('alert')).toContainText('Displayed data may be out of date.');
+  await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$59.97');
+  await expect(alice.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: /Costco friends/ })).toContainText('You are owed $59.97');
   await alice.unroute(selectedBillsPattern);
-  // The visible group recovers on the next automatic poll without a manual retry.
+  // The visible group recovers through automatic reconnection without a manual retry.
+  await expect(alice.getByRole('alert')).toHaveCount(0, { timeout: 20_000 });
   await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$59.97', { timeout: 20_000 });
   await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$59.97');
   await expect(alice.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: /Costco friends/ })).toContainText('You are owed $59.97');
@@ -332,7 +358,7 @@ try {
   await alice.getByRole('link', { name: 'Group bills', exact: false }).click();
   await expect(alice.locator('.bill-list-row').filter({ hasText: 'Canceled groceries' })).toContainText('Canceled');
   await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$119.97');
-  // Issue #6: balances, minimum suggestions, manual refresh, and capacity errors.
+  // Issue #6: balances, minimum suggestions, live membership updates, and capacity errors.
   const ledger = alice.getByRole('region', { name: 'Group balances and repayment suggestions' });
   await expect(ledger).toContainText('Bob → Alice');
   await expect(ledger).toContainText('$119.97');
@@ -355,7 +381,6 @@ try {
   await extra.goto(newLink);
   await extra.getByRole('button', { name: 'Join group', exact: true }).click();
   await expect(extra.getByRole('alert')).toContainText('This group is full. Groups can have up to 16 members.');
-  await alice.getByRole('button', { name: 'Refresh bills & balances', exact: true }).click();
   await expect(ledger.locator('.ledger-rows').first().locator('li')).toHaveCount(16);
   assert.deepEqual(errors, []);
   console.log('Group and bill browser smoke passed: creation, Unicode icon, persistence, sign-in return, membership, invitation permissions, rotation, invalid links, repeat joining, mobile layout, sign-out, bill creation and confirmation, response-loss retries, initiator adjustment, balances, completed-bill finality, stale confirmation, correction, reconfirmation, removal, and cancellation.');

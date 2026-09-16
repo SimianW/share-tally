@@ -22,7 +22,7 @@ export function GroupBalances({ ledger }: { ledger: GroupLedger }) {
           <strong>{money(suggestion.amountCents)}</strong>
         </li>)}
       </ul> : <p>No repayments needed. Every member's balance is zero.</p>}
-      <p>Suggestions can change as bills complete. Use Refresh bills &amp; balances for other members' updates.</p>
+      <p>Suggestions update automatically as bills complete.</p>
       {ledger.incompleteBillIds.length > 0 && <p className="ledger-unresolved">
         {ledger.incompleteBillIds.length} incomplete {ledger.incompleteBillIds.length === 1 ? 'bill is' : 'bills are'} excluded. You can repay the completed bills now.
       </p>}
