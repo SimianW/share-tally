@@ -14,6 +14,6 @@ The floating switcher and left/right arrow keys cycle variants. Reset restores f
 
 All variants support delete confirmation, keep draft, continuing a saved draft, explicit save, and unsaved-change confirmation on close. Discard preserves the previous saved version. New blank drafts close without saving. Uploaded images are represented by fixture metadata only.
 
-Related requirements: GitHub issue #26; follow-up user request on 2026-09-16 to unify New bill entry, make draft saves explicit, and add deletion. This artifact explores the draft list only. No winning variant selected yet. Recommendation: A for a short draft list.
+Related requirements: GitHub issue #26; follow-up user request on 2026-09-16 to unify New bill entry, make draft saves explicit, and add deletion. This artifact explores the draft list only. The owner selected A on 2026-09-16. The chosen layout keeps Continue and delete directly visible on compact rows. Production implementation lives on feat/explicit-drafts; the other variants remain here as design evidence.
 
 Verified: client TypeScript; browser checks at 390px for A/B/C, delete dialogs, save and discard behavior; no browser exceptions. Production persistence/API changes are not implemented by this prototype.
