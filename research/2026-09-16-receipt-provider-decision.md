@@ -26,7 +26,7 @@ If Azure is selected, use server-only `AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT` and
 
 The owner selected `http://dev-2a1m:8317/` for development model calls. A read-only probe returned the CLI Proxy API Server endpoints `POST /v1/chat/completions`, `POST /v1/completions` and `GET /v1/models`. The models endpoint returned HTTP 401, `Missing API key`; model availability and a real generation have not been verified.
 
-The isolated name interpreter in `server/src/receipt-names.ts` now supports this Chat Completions provider. Local `server/.env` has `RECEIPT_NAME_BASE_URL=http://dev-2a1m:8317/v1` and `RECEIPT_NAME_MODEL=gpt-5.6-luna`; the owner must supply `RECEIPT_NAME_API_KEY`. `server/receipt.env.example` documents the settings. Custom gateways do not fall back to an OpenAI production key. Tests use a mocked HTTP response and verify item identity, order, strict output and exclusion of financial fields.
+The isolated name interpreter in `server/src/receipt-names.ts` uses the Responses API with medium reasoning. The model remains selected by `RECEIPT_NAME_MODEL`; it is not fixed in the request code. Custom gateways do not fall back to an OpenAI production key. Tests use a mocked HTTP response and verify the Responses payload, item identity, order, strict output and exclusion of financial fields.
 
 This module is not yet wired into the paused receipt extraction flow. Azure integration and the full OCR feature remain unfinished; no provider switch has been deployed.
 

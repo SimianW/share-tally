@@ -26,33 +26,55 @@ test("custom name provider uses gateway key and never falls back to the OpenAI k
     },
   );
 });
-test("name requests use Chat Completions and preserve item order despite reordered responses", async () => {
+test("name requests use Responses with medium reasoning and preserve reordered items", async () => {
   const config = {
     baseURL: "http://example.test/v1",
     apiKey: "proxy-key",
-    model: "gpt-5.6-luna",
+    model: "model-from-env",
   };
   const items = [
     { id: "a", originalText: "GF-table lamp/switch-I", amountCents: 1200 },
     { id: "b", originalText: "???", amountCents: 1300 },
   ];
   const request: typeof fetch = async (url, init) => {
-    assert.equal(url, "http://example.test/v1/chat/completions");
+    assert.equal(url, "http://example.test/v1/responses");
     const body = JSON.parse(String(init?.body));
-    assert.equal(body.model, "gpt-5.6-luna");
+    assert.equal(body.model, "model-from-env");
+    assert.deepEqual(body.reasoning, { effort: "medium" });
+    assert.equal(body.text.format.type, "json_schema");
+    assert.equal(body.text.format.name, "receipt_item_names");
+    assert.equal(body.text.format.strict, true);
+    assert.deepEqual(body.text.format.schema.required, ["items"]);
+    assert.equal(body.text.format.schema.additionalProperties, false);
+    assert.deepEqual(
+      body.text.format.schema.properties.items.items.required,
+      ["id", "name"],
+    );
+    assert.equal(
+      body.text.format.schema.properties.items.items.additionalProperties,
+      false,
+    );
+    assert.equal(body.store, false);
+    assert.equal(body.max_output_tokens, 8192);
+    assert.match(body.input, /Return JSON only/);
     assert.equal(JSON.stringify(body).includes("amountCents"), false);
     assert.equal(init?.redirect, "error");
     return Response.json({
-      choices: [
+      output: [
+        { type: "reasoning" },
         {
-          message: {
-            content: JSON.stringify({
-              items: [
-                { id: "b", name: "Unclear Item" },
-                { id: "a", name: "Table lamp" },
-              ],
-            }),
-          },
+          type: "message",
+          content: [
+            {
+              type: "output_text",
+              text: JSON.stringify({
+                items: [
+                  { id: "b", name: "Unclear Item" },
+                  { id: "a", name: "Table lamp" },
+                ],
+              }),
+            },
+          ],
         },
       ],
     });
@@ -75,7 +97,13 @@ test("mismatched names and added financial fields are rejected", async () => {
   ]) {
     const request: typeof fetch = async () =>
       Response.json({
-        choices: [{ message: { content: JSON.stringify({ items }) } }],
+        output: [
+          {
+            content: [
+              { type: "output_text", text: JSON.stringify({ items }) },
+            ],
+          },
+        ],
       });
     await assert.rejects(
       interpretReceiptNames(
@@ -85,4 +113,20 @@ test("mismatched names and added financial fields are rejected", async () => {
       ),
     );
   }
+});
+test("a Responses result without output text is rejected", async () => {
+  const request: typeof fetch = async () =>
+    Response.json({ output: [{ type: "reasoning" }] });
+  await assert.rejects(
+    interpretReceiptNames(
+      [{ id: "a", originalText: "lamp" }],
+      {
+        baseURL: "http://example.test/v1",
+        apiKey: "key",
+        model: "configured-model",
+      },
+      request,
+    ),
+    /no text output/,
+  );
 });
