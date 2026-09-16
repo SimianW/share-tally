@@ -1,6 +1,6 @@
 # Add receipt extraction and fraction-based item claiming before first release
 
-Status: product decisions recorded; awaiting the final accounting decision and owner confirmation before publication as a GitHub issue. This is a specification, not an implementation report.
+Status: product decisions confirmed by the owner and published as [GitHub issue #26](https://github.com/SimianW/share-tally/issues/26). This is a specification, not an implementation report. The GitHub issue is the canonical requirements record.
 
 ## Purpose and precedence
 
@@ -20,20 +20,23 @@ Related work: #11 concerns unclaimed/overclaimed detection, covered here for ite
 
 1. Open a group and choose New Bill. Offer manual entry and receipt capture/upload.
 2. Support one receipt photo per bill, from a mobile camera or an existing image. Provide cropping before upload, replacement, and a preview. Save only the cropped photo. Multi-photo stitching is out of scope.
-3. Use the AI SDK + vision approach from `demo/receipt-extraction`. Start with its configurable Google Gemini integration, whose experimental default is `gemini-2.5-flash`; this does not establish a permanent model commitment. Keep provider credentials on the server.
-4. Extract purchased items, original descriptions, quantities and printed amounts, taxes, discounts, other adjustments and the paid total. Retain receipt summary values for review; payment, subtotal and tax summary rows must not become duplicate purchasable items.
-5. Give each item a short plain-English name. Use `Unclear Item` when the product cannot be identified. Preserve the original OCR text separately and allow viewers to reveal it. The initiator may edit the friendly name.
-6. Display original amounts, final tax-inclusive item costs, the paid total and the difference between item costs and the paid total. AI output is editable default data. The initiator always reviews it before initialization; do not add a separate uncertainty approval workflow.
+3. Use Azure Document Intelligence `prebuilt-receipt`, API version `2024-11-30`, to extract receipt items and amounts. Use `gpt-5.6-luna` separately to interpret product names. In development, name interpretation uses the configured OpenAI-compatible provider at `http://dev-2a1m:8317/v1`. Keep all provider credentials on the server. Gemini is comparison evidence, not the selected production extraction provider.
+4. Extract purchased items, original descriptions, quantities, printed amounts, available tax/summary fields and the paid total with Azure. Its standard receipt schema does not supply structured discounts; the initiator can enter missing discounts and other adjustments on the same form. Retain receipt summary values for review; payment, subtotal and tax summary rows must not become duplicate purchasable items.
+5. Give each item a short plain-English name using Luna. Name interpretation must not change item identities, quantities, prices or taxes. Use `Unclear Item` when the product cannot be identified. Preserve the original OCR text separately and allow viewers to reveal it. The initiator may edit the friendly name. If Luna times out or fails, keep successful Azure extraction and show the original item text with a name-service-unavailable message. Allow retry, manual naming or initiation without waiting for Luna; name interpretation is not a prerequisite for initialization.
+6. Display original amounts, final tax-inclusive item costs, the paid total and the difference between item costs and the paid total. AI output is editable default data. The initiator reviews and edits these defaults on the same bill form, then clicks Initiate. Do not add a separate review screen, review checkbox or uncertainty approval workflow. Successful extraction never initiates the bill automatically.
 7. Only the initiator can change prices, the paid total, item details and participants. Before initialization, allow adding and deleting items and correcting quantities, taxes, discounts and final costs.
 8. Show extraction progress and a recoverable error on failure. Allow retry, photo replacement, manual item entry or switching back to manual mode. Do not initialize a bill merely because extraction succeeded. Preserve saved edits across failures; replacing existing edited extraction results must be explicit.
 
 ## Tax and discount defaults
 
-- Use explicit item-level tax and discount information where available. AI may suggest tax applicability and extracted amounts for human review.
-- Attribute item-specific charges or discounts to their item. Allocate receipt-wide tax, discounts and other charges proportionally to the applicable items' pre-tax net amounts. If the applicable set cannot be identified, default to all purchase items.
+- Provide editable receipt-wide and per-item discounts. The initiator enters discounts Azure did not extract. Display the difference between item costs and the actual paid total, but never interpret that difference automatically as a discount. Do not expand Luna's responsibility beyond names.
+- Provide a "Printed prices include tax" setting on the same review form. Default it from recognizable receipt information and let the initiator change it. When printed amounts include tax, display the tax summary for reference without adding that tax to item prices again.
+- Use explicit tax applicability and item-specific charges or discounts where recognizable or entered by the initiator. Luna must not infer or edit financial fields.
+- Attribute item-specific charges or discounts to their item. For tax-exclusive printed amounts, allocate receipt-wide tax proportionally to the applicable items' pre-tax net amounts. Allocate receipt-wide discounts and other charges proportionally to the applicable item amounts; included tax is never an additional charge. If the applicable set cannot be identified, default to all purchase items.
 - Show these defaults and allow the initiator to correct each final tax-inclusive item amount directly. Claiming uses that reviewed amount and does not call AI to recalculate money.
 - Use deterministic cent arithmetic for allocation. Resolve allocation remainders consistently so allocated charges sum to their source amounts. If proportional allocation is undefined, require a usable manually corrected result rather than fabricating a divisor.
-- Validate persisted values and supported CAD amount limits. Human review does not permit malformed, nonfinite or invalid money values.
+- Missing required item prices and a missing actual paid total remain empty in the draft, not zero. Show an inline required-field message and block Initiate until the initiator fills them in. This is ordinary form validation, not another approval step. An explicitly entered zero item cost is valid; the actual paid total must remain positive.
+- Validate persisted values and supported CAD amount limits. Human review does not permit malformed, nonfinite or invalid money values. There is no automatic currency conversion.
 
 ## Draft and photo lifecycle
 
@@ -56,11 +59,11 @@ Related work: #11 concerns unclaimed/overclaimed detection, covered here for ite
 
 ## Completion and accounting
 
-Item bills automatically complete once every item is fully claimed and confirmed and all selected participants have responded. Do not impose the manual mode's CAD 0.05 difference gate.
+Item bills automatically complete once every item is fully claimed and confirmed, all selected participants have responded, and the initiator's effective cost after adjustment is nonnegative. Do not impose the manual mode's CAD 0.05 difference gate.
 
 Let T be the actual paid total and S the sum of rounded submitted personal shares. Record T minus S as a separate initiator adjustment, without changing submitted shares. Item mode has no CAD 0.05 limit on this adjustment. Explain and show the difference during review and show the adjustment with the resulting initiator effective cost, including after completion. For example, a paid total of CAD 100 and submitted shares totaling CAD 98 gives the initiator a CAD 2 adjustment.
 
-**Final decision pending:** a sufficiently negative adjustment can make the initiator's effective cost negative. Decide whether item mode preserves the current nonnegative-cost invariant, and at what point to reject inconsistent item allocations. No decision to allow reimbursement exceeding actual expenditure has been recorded.
+Preserve the existing nonnegative effective initiator-cost invariant. If the initiator's submitted share plus the adjustment is negative, keep the bill incomplete and explain that the initiator must correct item prices or the paid total. Do not clamp the adjustment, change other participants' submitted shares, or post the bill to the ledger. Apply the corresponding reconfirmation rules after a correction. For example, CAD 100 paid, CAD 110 claimed by others and a zero initiator share must not complete; CAD 100 paid, CAD 98 claimed by others and a zero initiator share may complete with a CAD 2 initiator adjustment.
 
 Completion contributes exactly the finalized shares and adjustment to the existing continuous group ledger. Draft, incomplete and canceled bills remain excluded. Completed bills cannot be edited, reopened or canceled. Repayments continue through the existing workflow; completion does not mean money has been repaid.
 
@@ -88,9 +91,13 @@ Verify:
 - Private draft save/reopen, camera and file input, cropping, extraction, review and initialization work together. An extraction error permits retry and manual fallback without losing saved work.
 - One photo is enforced; draft/group access applies to the photo itself, not just the page. Six-month expiry removes photo access and schedules deletion without deleting accounting data.
 - Plain-English names, `Unclear Item`, original OCR text and reviewed tax-inclusive costs are visible as specified.
-- Item tax and discount defaults avoid duplicate amounts and preserve charge totals when dividing cents; manual corrections take precedence.
+- Receipt-wide and per-item discounts can be entered manually when Azure omits them. A discrepancy between items and paid total is displayed, never automatically labeled or allocated as a discount.
+- The editable tax-inclusion setting prevents already-included tax from being charged again. Tax-exclusive allocation and cent remainders preserve charge totals; manual corrections take precedence.
+- Missing item prices or paid total remain empty and block initialization until filled; explicit zero-cost items remain valid.
+- A Luna failure preserves Azure items and amounts, displays original descriptions and permits retries, manual names and initialization. A name retry cannot overwrite edited financial fields or item identities.
 - Three exact `1/3` claims fully allocate an item; underclaiming, overclaiming, unanswered participants and unconfirmed reservations prevent completion.
 - Rounding occurs after summing a participant's fractional costs. Item-mode adjustments greater than CAD 0.05 are accounted for without changing confirmed submitted shares.
+- A negative effective initiator cost prevents completion and ledger inclusion even when all items are claimed. A zero effective cost is valid. Correcting prices or the total and obtaining the required new confirmations allows completion when the invariant holds.
 - Only an initiator edits prices; only the owning participant submits their claims. Item-price corrections invalidate the affected item's confirmations and preserve reservations and unrelated confirmations.
 - Total, item addition/deletion, description and participant changes follow the table above.
 - Competing claims cannot overallocate. Stale-price confirmations fail. Retries do not duplicate bills, claims, initialization or accounting effects. Competing edits and completion preserve finality.
@@ -99,10 +106,13 @@ Verify:
 
 ## Experiment evidence
 
-The `demo/receipt-extraction` experiment recorded 11 receipts: all 11 final totals matched, and 9 samples matched all applicable scored fields. This is a small experimental result, not a production accuracy guarantee. Known mistakes included a faint price and a currency token. The demo does not persist photos or integrate with bill/share accounting; its code is a starting point, not production authorization or storage infrastructure.
+The original `demo/receipt-extraction` experiment used Gemini on 11 receipts. The subsequent `demo/azure-receipt-comparison` experiment on 2026-09-16 reran the same original scans once with each provider. Both returned 11 usable results and 11 correct final totals. Azure matched all core printed fields on 11/11 receipts, versus Gemini's 9/11, with median end-to-end times of 4.478 and 11.186 seconds respectively. Including discount, tax and currency checks, the full scores were Azure 7/11 and Gemini 8/11. Azure omitted structured discounts and misidentified one currency; Gemini changed printed gross prices in one receipt and added unpriced meal components in another.
+
+These Malaysian/Moroccan public scans are a small experiment, not a production accuracy guarantee for Canadian receipts. The comparison informed the owner's choice of Azure for item extraction and Luna for names. Raw outputs and the report live on `demo/azure-receipt-comparison` in `server/demo/results/comparison-2026-09-16/` and `research/2026-09-16-azure-gemini-receipt-comparison.md`. The demo does not establish production authorization, storage or bill accounting.
 
 ## Related decisions
 
 - ADR-0007 records item-scoped price invalidation and reserved claims.
+- ADR-0008 records allocation-based completion and the nonnegative effective initiator-cost invariant.
 - ADR-0004 continues to govern manual-mode small differences. This specification extends initiator adjustment beyond CAD 0.05 for item mode.
 - ADR-0006's completed-bill finality and ADR-0005's continuous ledger remain in force.

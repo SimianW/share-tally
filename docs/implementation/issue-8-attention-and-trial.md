@@ -54,9 +54,11 @@ On the authorized backup host, create a protected custom-format dump:
 ```sh
 umask 077
 backup_file="/secure/backups/share-tally-$(date -u +%Y%m%dT%H%M%SZ).dump"
-pg_dump --dbname='service=share_tally_production' --format=custom --no-owner --no-acl --file="$backup_file"
+pg_dump --dbname='service=share_tally_production' --format=custom --exclude-table-data=public.receipt_photos --no-owner --no-acl --file="$backup_file"
 pg_restore --list "$backup_file"
 ```
+
+Receipt photos are excluded from backups so expired image bytes cannot survive in archived dumps. A restore preserves bills, OCR text, reviewed items and claims, but photos are unavailable. Do not use physical database snapshots or WAL archives containing receipt photos beyond their expiry. The production backup job must use this exclusion before enabling receipt uploads.
 
 Copy the dump to the owner's protected storage outside the database host. Agree the schedule, retention, and responsible person before real purchase data is entered. `pg_restore --list` alone is not a restore test.
 

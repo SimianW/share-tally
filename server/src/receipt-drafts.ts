@@ -1,0 +1,353 @@
+import { isDeepStrictEqual } from "node:util";
+import { and, eq, isNull, lte, ne } from "drizzle-orm";
+import sharp from "sharp";
+import { z } from "zod";
+import { db } from "./db/index.js";
+import {
+  receiptDrafts,
+  receiptPhotos,
+  groupMembers,
+  groups,
+  bills,
+  billShares,
+  billItems,
+} from "./db/schema.js";
+import {
+  checked,
+  draftInput,
+  itemInput,
+  revisionInput,
+} from "./receipt-input.js";
+import { BillError, parseBill } from "./bills.js";
+import type { Tx } from "./item-accounting.js";
+import { notifyGroupChanged } from "./group-events.js";
+export async function requireMember(tx: Tx, groupId: string, userId: string) {
+  const [m] = await tx
+    .select()
+    .from(groupMembers)
+    .where(
+      and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)),
+    );
+  if (!m) throw new BillError(404, "Group not found.");
+}
+export async function ownDraft(
+  tx: Tx,
+  id: string,
+  userId: string,
+  lock = false,
+) {
+  const query = tx
+    .select()
+    .from(receiptDrafts)
+    .where(
+      and(eq(receiptDrafts.id, id), eq(receiptDrafts.initiatorId, userId)),
+    );
+  const [row] = await (lock ? query.for("update") : query);
+  if (!row) throw new BillError(404, "Draft not found.");
+  await requireMember(tx, row.groupId, userId);
+  return row;
+}
+function editable(row: typeof receiptDrafts.$inferSelect, revision: number) {
+  if (row.billId)
+    throw new BillError(409, "This draft has already been initialized.");
+  if (row.revision !== revision)
+    throw new BillError(
+      409,
+      "This draft changed in another window. Reopen it to review the saved version.",
+    );
+}
+export async function saveDraft(
+  groupId: string,
+  userId: string,
+  id: string,
+  body: unknown,
+) {
+  const input = checked(
+    z.object({ revision: z.number().int().min(0), data: draftInput }).strict(),
+    body,
+  );
+  if (
+    new Set(input.data.items.map((i) => i.id)).size !== input.data.items.length
+  )
+    throw new BillError(400, "Item IDs must be unique.");
+  return db.transaction(async (tx) => {
+    await tx.select().from(groups).where(eq(groups.id, groupId)).for("update");
+    await requireMember(tx, groupId, userId);
+    const [old] = await tx
+      .select()
+      .from(receiptDrafts)
+      .where(eq(receiptDrafts.id, id))
+      .for("update");
+    if (old) {
+      if (old.initiatorId !== userId || old.groupId !== groupId)
+        throw new BillError(404, "Draft not found.");
+      if (!old.billId && isDeepStrictEqual(old.data, input.data)) return old;
+      editable(old, input.revision);
+      const [updated] = await tx
+        .update(receiptDrafts)
+        .set({
+          data: input.data,
+          revision: old.revision + 1,
+          updatedAt: new Date(),
+        })
+        .where(eq(receiptDrafts.id, id))
+        .returning();
+      return updated!;
+    }
+    if (input.revision !== 0)
+      throw new BillError(409, "Draft not found. Start a new draft.");
+    const [row] = await tx
+      .insert(receiptDrafts)
+      .values({ id, groupId, initiatorId: userId, data: input.data })
+      .onConflictDoNothing()
+      .returning();
+    if (!row)
+      throw new BillError(409, "Draft ID already used. Start a new draft.");
+    return row;
+  });
+}
+export async function listDrafts(groupId: string, userId: string) {
+  return db.transaction(async (tx) => {
+    await requireMember(tx, groupId, userId);
+    return tx
+      .select({
+        id: receiptDrafts.id,
+        data: receiptDrafts.data,
+        revision: receiptDrafts.revision,
+        updatedAt: receiptDrafts.updatedAt,
+      })
+      .from(receiptDrafts)
+      .where(
+        and(
+          eq(receiptDrafts.groupId, groupId),
+          eq(receiptDrafts.initiatorId, userId),
+          isNull(receiptDrafts.billId),
+        ),
+      )
+      .orderBy(receiptDrafts.updatedAt);
+  });
+}
+export async function readDraft(id: string, userId: string) {
+  return db.transaction(async (tx) => {
+    const draft = await ownDraft(tx, id, userId);
+    const [photo] = await tx
+      .select({ expiresAt: receiptPhotos.expiresAt })
+      .from(receiptPhotos)
+      .where(eq(receiptPhotos.draftId, id));
+    return {
+      ...draft,
+      photo: photo
+        ? { ...photo, expired: photo.expiresAt <= new Date() }
+        : null,
+    };
+  });
+}
+export async function uploadPhoto(id: string, userId: string, body: unknown) {
+  const input = checked(
+    z
+      .object({ revision: revisionInput, base64: z.string().max(11_184_812) })
+      .strict(),
+    body,
+  );
+  // Check ownership before decoding image bytes.
+  await db.transaction(async (tx) =>
+    editable(await ownDraft(tx, id, userId), input.revision),
+  );
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(input.base64))
+    throw new BillError(400, "Invalid image data.");
+  const source = Buffer.from(input.base64, "base64");
+  if (source.length > 8 * 1024 * 1024)
+    throw new BillError(413, "Choose a photo smaller than 8 MB.");
+  let bytes: Buffer;
+  try {
+    const image = sharp(source, { limitInputPixels: 40_000_000 });
+    const metadata = await image.metadata();
+    if (
+      !["jpeg", "png", "webp"].includes(metadata.format || "") ||
+      (metadata.pages ?? 1) > 1
+    )
+      throw new Error();
+    bytes = await image
+      .rotate()
+      .resize({
+        width: 2400,
+        height: 6000,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .jpeg({ quality: 90 })
+      .toBuffer();
+  } catch {
+    throw new BillError(400, "Choose a valid JPEG, PNG or WebP receipt photo.");
+  }
+  return db.transaction(async (tx) => {
+    const draft = await ownDraft(tx, id, userId, true);
+    editable(draft, input.revision);
+    const expiresAt = new Date();
+    const day = expiresAt.getUTCDate();
+    expiresAt.setUTCDate(1);
+    expiresAt.setUTCMonth(expiresAt.getUTCMonth() + 6);
+    const lastDay = new Date(
+      Date.UTC(expiresAt.getUTCFullYear(), expiresAt.getUTCMonth() + 1, 0),
+    ).getUTCDate();
+    expiresAt.setUTCDate(Math.min(day, lastDay));
+    await tx
+      .insert(receiptPhotos)
+      .values({ draftId: id, base64: bytes.toString("base64"), expiresAt })
+      .onConflictDoUpdate({
+        target: receiptPhotos.draftId,
+        set: {
+          base64: bytes.toString("base64"),
+          uploadedAt: new Date(),
+          expiresAt,
+        },
+      });
+    await tx
+      .update(receiptDrafts)
+      .set({ revision: draft.revision + 1, updatedAt: new Date() })
+      .where(eq(receiptDrafts.id, id));
+  });
+}
+export async function photoBytes(
+  id: string,
+  userId: string,
+  ownerOnly = false,
+) {
+  return db.transaction(async (tx) => {
+    const [draft] = await tx
+      .select()
+      .from(receiptDrafts)
+      .where(eq(receiptDrafts.id, id));
+    if (
+      !draft ||
+      ((!draft.billId || ownerOnly) && draft.initiatorId !== userId)
+    )
+      throw new BillError(404, "Photo not found.");
+    await requireMember(tx, draft.groupId, userId);
+    const [photo] = await tx
+      .select()
+      .from(receiptPhotos)
+      .where(eq(receiptPhotos.draftId, id));
+    if (!photo || !photo.base64 || photo.expiresAt <= new Date())
+      throw new BillError(
+        404,
+        "No photo is available. Receipt photos expire after six months.",
+      );
+    return Buffer.from(photo.base64, "base64");
+  });
+}
+export async function initializeDraft(
+  id: string,
+  userId: string,
+  body: unknown,
+) {
+  const { revision } = checked(
+    z.object({ revision: revisionInput }).strict(),
+    body,
+  );
+  const result = await db.transaction(async (tx) => {
+    const draft = await ownDraft(tx, id, userId, true);
+    if (draft.billId) return { id: draft.billId, groupId: draft.groupId };
+    editable(draft, revision);
+    const {
+      mode,
+      items: draftItems,
+      receipt: _receipt,
+      ...data
+    } = checked(draftInput, draft.data);
+    const items =
+      mode === "items"
+        ? checked(
+            z.array(itemInput).min(1).max(200),
+            draftItems.map(
+              ({ taxable: _taxable, manualFinal: _manualFinal, ...item }) =>
+                item,
+            ),
+          )
+        : [];
+    const input = parseBill({
+      ...data,
+      ownShareCents: mode === "items" ? 0 : data.ownShareCents,
+      requestId: id,
+    });
+    if (!input.participantIds.includes(userId))
+      throw new BillError(400, "The initiator must be included.");
+    const members = await tx
+      .select()
+      .from(groupMembers)
+      .where(eq(groupMembers.groupId, draft.groupId));
+    if (
+      input.participantIds.some((id) => !members.some((m) => m.userId === id))
+    )
+      throw new BillError(400, "Select members of this group.");
+    if (
+      mode === "items" &&
+      (!items.length || items.reduce((s, i) => s + i.finalCents, 0) > 1_000_000)
+    )
+      throw new BillError(
+        400,
+        "Add at least one item. The item total must not exceed CAD 10,000.",
+      );
+    const [bill] = await tx
+      .insert(bills)
+      .values({
+        ...input,
+        groupId: draft.groupId,
+        initiatorId: userId,
+        mode,
+        requestPayload: JSON.stringify(draft.data),
+      })
+      .returning();
+    await tx
+      .insert(billShares)
+      .values(
+        input.participantIds.map((uid) => ({
+          billId: bill!.id,
+          userId: uid,
+          amountCents:
+            mode === "manual" && uid === userId ? input.ownShareCents : null,
+          confirmedAt: mode === "manual" && uid === userId ? new Date() : null,
+        })),
+      );
+    if (mode === "items")
+      await tx
+        .insert(billItems)
+        .values(
+          items.map((item, position) => ({
+            ...item,
+            billId: bill!.id,
+            position,
+          })),
+        );
+    if (
+      mode === "manual" &&
+      input.participantIds.length === 1 &&
+      input.totalCents - input.ownShareCents <= 5
+    )
+      await tx
+        .update(bills)
+        .set({
+          completedAt: new Date(),
+          adjustmentCents: input.totalCents - input.ownShareCents,
+        })
+        .where(eq(bills.id, bill!.id));
+    await tx
+      .update(receiptDrafts)
+      .set({ billId: bill!.id, revision: draft.revision + 1 })
+      .where(eq(receiptDrafts.id, id));
+    return { id: bill!.id, groupId: draft.groupId };
+  });
+  notifyGroupChanged(result.groupId);
+  return result.id;
+}
+export async function purgeExpiredPhotos() {
+  await db
+    .update(receiptPhotos)
+    .set({ base64: "" })
+    .where(
+      and(
+        lte(receiptPhotos.expiresAt, new Date()),
+        ne(receiptPhotos.base64, ""),
+      ),
+    );
+}

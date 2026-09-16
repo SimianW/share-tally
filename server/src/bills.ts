@@ -1,3 +1,4 @@
+import { itemDetails, recalculateItemBill } from './item-accounting.js';
 import { notifyGroupChanged } from './group-events.js';
 import { cents, isUuid } from "./input-validation.js";
 export { isUuid } from "./input-validation.js";
@@ -7,7 +8,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { safeCents } from "./money.js";
 import { groupLedger } from "./group-ledger.js";
 import { db } from "./db/index.js";
-import { bills, billShares, groupMembers, groups, users } from "./db/schema.js";
+import { bills, billShares, groupMembers, groups, users, billItems, itemClaims } from "./db/schema.js";
 
 import { BillError } from "./bill-error.js";
 export { BillError } from "./bill-error.js";
@@ -319,6 +320,15 @@ export async function changeBill(
         .select()
         .from(billShares)
         .where(eq(billShares.billId, id));
+      if (bill.mode === 'items') {
+        const items = await tx.select().from(billItems).where(eq(billItems.billId, id));
+        if (items.length) {
+          const itemIds = items.map(i => i.id);
+          for (const share of shares) if (!input.participantIds.includes(share.userId))
+            await tx.delete(itemClaims).where(and(inArray(itemClaims.itemId, itemIds), eq(itemClaims.userId, share.userId)));
+          await tx.update(itemClaims).set({ confirmedAt: null }).where(inArray(itemClaims.itemId, itemIds));
+        }
+      }
       for (const share of shares)
         if (!input.participantIds.includes(share.userId))
           await tx
@@ -350,6 +360,7 @@ export async function changeBill(
         revision: bill.revision + 1,
       })
       .where(eq(bills.id, id));
+    if (bill.mode === 'items') await recalculateItemBill(tx, { ...bill, totalCents: input?.totalCents ?? bill.totalCents, completedAt: null });
     return bill.groupId;
   });
   notifyGroupChanged(groupId);
@@ -370,6 +381,7 @@ export async function submitShare(
         403,
         "Only selected participants can submit a share.",
       );
+    if (bill.mode === 'items') throw new BillError(400, 'Claim items to calculate your share on this bill.');
     assertMutableRevision(bill, input.revision);
     cents(input.amount, bill.totalCents);
     // An identical retry is harmless, even if this submission just completed the bill.
@@ -447,7 +459,7 @@ async function readBillsInSnapshot(tx: Tx, userId: string, groupId?: string, id?
       ),
     )
     .orderBy(users.id);
-  return rows.map(({ bill }) => {
+  return Promise.all(rows.map(async ({ bill }) => {
     const participants = shares
       .filter((s) => s.billId === bill.id)
       .map((s) => ({
@@ -465,13 +477,14 @@ async function readBillsInSnapshot(tx: Tx, userId: string, groupId?: string, id?
     } = bill;
     return {
       ...fields,
+      ...(bill.mode === 'items' ? await itemDetails(tx, bill.id) : {}),
       participants,
       submittedCents,
       differenceCents: bill.totalCents - submittedCents,
       confirmedCount: participants.filter((s) => s.confirmedAt !== null)
         .length,
     };
-  });
+  }));
 }
 export async function readBills(userId: string, groupId?: string, id?: string) {
   return db.transaction(tx => readBillsInSnapshot(tx, userId, groupId, id),

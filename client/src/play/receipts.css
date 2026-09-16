@@ -1,0 +1,154 @@
+.play-dialog.receipt-dialog {
+  width: min(1040px, calc(100vw - 32px));
+  max-width: 1040px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-x: none;
+  touch-action: pan-y pinch-zoom;
+  overflow-wrap: anywhere;
+}
+.receipt-review-layout {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.7fr) minmax(0, 1.3fr);
+  gap: 24px;
+  align-items: start;
+}
+.receipt-photo {
+  position: sticky;
+  top: 0;
+}
+.receipt-photo img {
+  width: 100%;
+  max-height: 65vh;
+  object-fit: contain;
+  border-radius: 12px;
+}
+.receipt-photo summary,
+.receipt-edit-row summary {
+  cursor: pointer;
+  padding: 8px 0;
+}
+.receipt-edit-row {
+  padding: 18px;
+  margin: 12px 0;
+  border: 1px solid #e3e7df;
+  background: #fbfcf9;
+  border-radius: 18px;
+}
+.receipt-edit-row h3 {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.receipt-edit-row label {
+  display: grid;
+  gap: 6px;
+}
+.receipt-costs,
+.receipt-item-title,
+.receipt-upload {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+}
+.receipt-costs > label,
+.receipt-item-title > label {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+.receipt-costs input,
+.receipt-edit-row input,
+.receipt-edit-row select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px;
+  border: 1px solid #d8ded3;
+  border-radius: 9px;
+  background: white;
+}
+.receipt-index {
+  padding: 12px;
+  border-radius: 50%;
+  background: #e8efdc;
+}
+.receipt-crop-preview {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+  margin: auto;
+}
+.receipt-crop-preview img {
+  display: block;
+  max-width: 100%;
+  max-height: 400px;
+}
+.receipt-crop-preview > div {
+  position: absolute;
+  border: 3px solid #6a872f;
+  background: #6a872f11;
+  pointer-events: none;
+}
+.receipt-crop-sliders {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.receipt-drafts {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.receipt-drafts h3 {
+  width: 100%;
+}
+.item-claims {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.field-error {
+  color: #a13427;
+  font-size: 0.85rem;
+}
+.receipt-upload .receipt-camera-button {
+  display: none;
+}
+@media (max-width: 700px) {
+  .receipt-upload .receipt-camera-button {
+    display: inline-flex;
+  }
+  .receipt-review-layout {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .receipt-photo {
+    position: static;
+  }
+  .receipt-photo img {
+    max-height: 260px;
+  }
+  .play-dialog.receipt-dialog {
+    width: calc(100vw - 20px);
+  }
+}
+
+.receipt-review-layout > div {
+  min-width: 0;
+}
+.receipt-dialog input[type="file"] {
+  max-width: 100%;
+}
+
+.receipt-dialog :is(input, select, textarea, label) {
+  min-width: 0;
+  max-width: 100%;
+}
+.receipt-dialog .button {
+  max-width: 100%;
+}
+@media (max-width: 700px) {
+  .play-dialog.receipt-dialog .bill-form :is(input, select, textarea) {
+    font-size: 16px;
+  }
+}

@@ -9,7 +9,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test:avatar": "node scripts/smoke-avatar.mjs",
-    "test:groups": "node scripts/smoke-groups.mjs"
+    "test:receipts": "node scripts/smoke-receipts.mjs",
+    "test:groups": "node scripts/smoke-groups.mjs",
+    "prototype:new-bill": "vite --host 0.0.0.0 --port 5173 --open /?variant=A#/prototype/new-bill"
   },
   "dependencies": {
     "@clerk/react": "^6.15.1",

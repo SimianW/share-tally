@@ -1,3 +1,6 @@
+import { createReceiptRouter } from './receipt-routes.js';
+import type { interpretReceiptNames } from './receipt-names.js';
+import type { ReceiptExtractor } from './receipt-extraction.js';
 import { readAttention } from './attention.js';
 import { openGroupEvents } from './group-events.js';
 import { getGroupUser } from './users.js';
@@ -25,6 +28,8 @@ type Authentication = {
   userId: (req: Request) => string | null
   expiresAt?: (req: Request) => number
   avatarUrl?: AvatarLookup
+  receiptNames?: typeof interpretReceiptNames
+  receiptExtractor?: ReceiptExtractor
   displayName?: (clerkUserId: string) => Promise<string>
 };
 
@@ -53,7 +58,7 @@ export function createApp(auth: Authentication = {
     res.setHeader('Cache-Control', 'no-store');
     next();
   });
-  app.use(express.json({ limit: '16kb' }));
+
 
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok' });
@@ -65,6 +70,11 @@ export function createApp(auth: Authentication = {
     res.locals.clerkUserId = clerkUserId;
     next();
   });
+  app.use('/api', (req, res, next) => {
+    const receipt = /^\/(receipt-drafts\/|groups\/[^/]+\/receipt-drafts|bills\/[^/]+\/(items|claims))/.test(req.path);
+    return express.json({ limit: receipt ? '12mb' : '16kb' })(req, res, next);
+  });
+  app.use('/api', createReceiptRouter(displayName, auth.receiptExtractor, auth.receiptNames));
   app.get('/api/groups/:groupId/events', async (req, res) => {
     if (!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(req.params.groupId)) {
       res.status(404).json({ error: 'Group not found.' }); return;
@@ -124,7 +134,8 @@ export function createApp(auth: Authentication = {
       }
     }
 
-    console.error('Request failed', error);
+    // Database exceptions can contain bound photo bytes; never retain them in logs.
+    console.error('Request failed', _req.path.endsWith('/photo') ? (error instanceof Error ? error.name : 'UnknownError') : error);
 
     res.status(500).json({
       error: 'Internal Server Error'
