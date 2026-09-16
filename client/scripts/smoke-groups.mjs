@@ -1,3 +1,5 @@
+import { checkGroupRefresh } from './smoke-group-refresh.mjs';
+import { checkNavigation } from './smoke-navigation.mjs';
 // Run after installing both client and server dependencies and Chromium:
 // cd client && pnpm exec playwright install chromium && pnpm test:groups
 // Real UI + Express + temporary PostgreSQL. Only Clerk is replaced; this does
@@ -66,6 +68,7 @@ try {
     page.on('console', message => { if (message.type() === 'error') { console.error('Browser console:', message.text()); if (message.text().includes('Encountered two children')) errors.push(message.text()); } });
     return page;
   }
+  await checkGroupRefresh(pageFor, base);
   const alice = await pageFor('alice-token', { width: 1280, height: 900 });
   await alice.goto(base);
   await alice.getByRole('button', { name: 'New group', exact: true }).click();
@@ -262,13 +265,14 @@ try {
   await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$59.97');
   await expect(alice.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: /Costco friends/ })).toContainText('You are owed $59.97');
   await expect(alice.getByRole('dialog')).toHaveCount(0);
+  await checkNavigation(alice, pageFor);
   await alice.reload();
   await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$59.97');
   const selectedBillsPattern = '**/api/groups/' + alice.url().split('/').pop() + '/bills';
   await alice.route(selectedBillsPattern, route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Temporarily unavailable' }) }));
   await expect(alice.getByRole('button', { name: 'Refresh bills', exact: true })).toHaveCount(0);
   await alice.evaluate(() => window.dispatchEvent(new Event('online')));
-  await expect(alice.getByRole('alert')).toContainText('Displayed data may be out of date.');
+  await expect(alice.getByRole('alert')).toHaveCount(0);
   await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$59.97');
   await expect(alice.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: /Costco friends/ })).toContainText('You are owed $59.97');
   await alice.unroute(selectedBillsPattern);

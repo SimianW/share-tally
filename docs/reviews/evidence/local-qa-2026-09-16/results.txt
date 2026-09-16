@@ -1,0 +1,98 @@
+✔ Clerk Google provider image precedes a different Clerk profile image (3.056998ms)
+✔ other Clerk avatars are used when Google has no image (0.346711ms)
+✔ Clerk generated initials do not replace the local fallback (0.225533ms)
+✔ the same image is not retried as a fallback (0.22303ms)
+✔ atomic creation, missing versus zero, immutable confirmations, and persistence (7200.058302ms)
+✔ five-cent boundaries retain submitted shares and balance financial summaries (391.029604ms)
+✔ adjustment cannot make initiator cost negative; effective zero is valid (237.305778ms)
+✔ simultaneous creation retries and first submissions produce one complete bill (206.735117ms)
+✔ group visibility and participant-owned writes use authenticated identity (137.994101ms)
+✔ amount, text, date, and participant validation rejects invalid requests without records (167.38921ms)
+✔ a share insertion failure rolls back the entire creation and permits retry (79.588385ms)
+✔ summary combines groups without including incomplete or nonparticipant bills (135.042052ms)
+✔ competing first amounts cannot overwrite each other (84.607595ms)
+✔ a creation UUID cannot create bills in two groups concurrently (79.068445ms)
+✔ incomplete bill corrections retain amounts, clear confirmations, and reconfirmation completes (108.540655ms)
+✔ amount changes clear all confirmations and old requests never reconfirm a newer revision (124.260657ms)
+✔ descriptive edits, participant replacement, removal permissions and cancellation (156.036021ms)
+✔ bill mutation validation and permissions cannot alter other participants shares or remove initiator (106.04476ms)
+✔ concurrent initiator edits and share edits serialize and reject the losing revision (86.096335ms)
+✔ a confirmation racing with an edit cannot survive that edit (81.763767ms)
+✔ competing first amounts on an incomplete bill require the original personal amount (78.252971ms)
+✔ simultaneous unchanged reconfirmations and retries finish once and preserve confirmations (880.500414ms)
+✔ completed bills reject direct edits, participant changes, cancellation and share changes (140.951321ms)
+✔ completion racing with edits or cancellation leaves one valid final state (108.812527ms)
+✔ group ledger nets complete bills across dates, includes adjustments and excludes unresolved bills (145.796211ms)
+✔ suggestions achieve the exact minimum for the greedy counterexample and skip zero balances (168.056032ms)
+✔ transitive netting reaches every-member-zero without removing bills or blocking new activity (165.064784ms)
+✔ reads during completion see a whole ledger snapshot and retries create no bills (118.43825ms)
+✔ 16 nonzero members receive a minimum plan within the measured API runtime (488.341086ms)
+ℹ 16-member ledger API, including SQL and exact solver: 19.6 ms
+✔ initiator amount correction confirms their share while others must reconfirm (78.481761ms)
+✔ initiator-only correction completes immediately when the amount matches (69.240996ms)
+✔ SSE requires membership, isolates groups, and announces committed bills only (145.370232ms)
+✔ SSE heartbeats, bounded authentication lifetime, and reconnects do not write finances (30079.027778ms)
+✔ actual partial repayments affect balances only after recipient confirmation (80.091615ms)
+✔ repayment permissions, strict amounts, and group isolation are enforced (118.055087ms)
+✔ overpayments and transfers without suggestions create reverse balances and preserve records (789.11746ms)
+✔ record retries and competing decisions have one durable outcome (108.933794ms)
+✔ confirmation uses recorded amounts after suggestions change; zero balances do not close a group (162.909642ms)
+✔ concurrent confirmations and bill completion yield consistent ledger snapshots (116.815462ms)
+✔ a sender request key cannot create transfers in two groups concurrently (74.192353ms)
+✔ pending repayments leave bill corrections and invitation joins available (81.945499ms)
+✔ overview keeps confirmed repayment effects within each group including groups without bills (91.635115ms)
+✔ SSE repayment decisions publish after commit and refresh the complete financial snapshot (161.072549ms)
+✔ attention lists only the signed-in participant’s missing shares and reconfirmations (111.980819ms)
+✔ attention includes incoming pending repayments across groups, never another member’s actions (109.494002ms)
+✔ attention drops canceled and completed bills and excludes group nonparticipants (105.355991ms)
+✔ accepts real Lucide names and complete Unicode characters (18.322039ms)
+✔ rejects malformed input and unknown Lucide names (2.072798ms)
+✔ rejects empty, invisible, control and multiple Unicode characters (2.135033ms)
+✔ POST /api/groups rejects invalid icons with 400 before database access (2113.359317ms)
+✔ creating a group persists its creator membership and returns the same icon contract (6736.712288ms)
+✔ creator invites a friend, repeated joins preserve membership, and outsiders see no group data (224.964966ms)
+✔ anonymous and forged identities cannot read groups or manage invitations (61.934579ms)
+✔ invalid bodies and links grant no membership or group (72.570736ms)
+✔ Lucide and visible Unicode icons survive persistence (92.833106ms)
+✔ membership failure rolls back group creation (143.384958ms)
+✔ concurrent invitation retrieval and repeated joins produce one token and one membership (145.247647ms)
+✔ a join waiting behind invitation regeneration cannot use the old token (87.147044ms)
+✔ membership cap serializes competing joins and permits repeats at capacity (306.439691ms)
+✔ unauthenticated requests return 401 and create no users (5264.031802ms)
+✔ first authenticated request persists an application identity (69.355302ms)
+✔ repeated requests preserve the identity and creation time (63.488386ms)
+✔ concurrent first requests return one identity despite an uncommitted competing insert (88.087376ms)
+✔ different authenticated users receive separate application identities (28.04107ms)
+✔ application identity survives a backend process restart (1434.109949ms)
+✔ query and header identities cannot override the authenticated user (31.252623ms)
+ℹ tests 66
+ℹ suites 0
+ℹ pass 66
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 46799.58465
+
+
+> client@0.0.0 test:groups /home/simon/Dev/share-tally/client
+> node scripts/smoke-groups.mjs
+
+Browser console: Failed to load resource: the server responded with a status of 404 (Not Found)
+Browser console: Failed to load resource: the server responded with a status of 404 (Not Found)
+Browser console: Failed to load resource: net::ERR_FAILED
+Browser console: Failed to load resource: net::ERR_FAILED
+Live completion observed within 107 ms of the submit click
+Browser console: Failed to load resource: the server responded with a status of 503 (Service Unavailable)
+Browser console: Failed to load resource: net::ERR_FAILED
+Browser console: Failed to load resource: net::ERR_FAILED
+Browser console: Failed to load resource: the server responded with a status of 409 (Conflict)
+Browser console: Failed to load resource: the server responded with a status of 503 (Service Unavailable)
+Attention smoke passed: mobile missing shares, reconfirmation links, refresh recovery, receipt decisions, stale links, and account isolation.
+Group and bill browser smoke passed: creation, Unicode icon, persistence, sign-in return, membership, invitation permissions, rotation, invalid links, repeat joining, mobile layout, sign-out, bill creation and confirmation, response-loss retries, initiator adjustment, balances, completed-bill finality, stale confirmation, correction, reconfirmation, removal, and cancellation.
+
+
+> client@0.0.0 test:avatar /home/simon/Dev/share-tally/client
+> node scripts/smoke-avatar.mjs
+
+Avatar image, fallback, and bill centering passed
