@@ -8,9 +8,9 @@ Learn TypeScript, React, and SQL by building an application the owner can explai
 
 ## Ownership
 
-The owner writes the schema, business rules, processing workflows, queries, and transaction boundaries. With Drizzle Kit, this includes reviewing and understanding generated migrations and writing custom migration SQL when needed.
+AI is the primary implementation contributor, including schema, business rules, processing workflows, queries, transaction boundaries, and tests. The owner directs requirements and product decisions, reviews the resulting changes, and learns through explanations, review, and debugging.
 
-The owner attempts small pieces of core logic first and requests help when stuck. AI may provide boilerplate, non-core code, high-level design help, and debugging assistance. Do not assign the core implementation to an unattended agent by default. Test coverage is agreed in the specification; the division of test-writing work remains undecided.
+Agents may implement core logic when assigned a specified task; the owner does not need to attempt it manually first. Explain important financial and concurrency decisions and run the agreed checks. This division of work replaces the earlier owner-first coding requirement. Test coverage and public test boundaries remain defined by the specification.
 
 ## Delivery constraints
 
