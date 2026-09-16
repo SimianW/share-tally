@@ -189,7 +189,6 @@ try {
   await expect(bobAvatar).toHaveCSS('align-items', 'center');
   await expect(bobAvatar).toHaveCSS('justify-content', 'center');
   await bob.setViewportSize({ width: 390, height: 844 });
-
   await bob.getByLabel('My share · CAD', { exact: true }).fill('59.97');
   let shareAttempts = 0;
   await bob.route('**/api/bills/*/share', async route => {
@@ -235,10 +234,12 @@ try {
   await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$59.97');
   const selectedBillsPattern = '**/api/groups/' + alice.url().split('/').pop() + '/bills';
   await alice.route(selectedBillsPattern, route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Temporarily unavailable' }) }));
-  await alice.getByRole('button', { name: 'Refresh bills & balances', exact: true }).click();
+  await expect(alice.getByRole('button', { name: 'Refresh bills', exact: true })).toHaveCount(0);
+  await alice.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(alice.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: /Costco friends/ })).toContainText('Balance unavailable');
   await alice.unroute(selectedBillsPattern);
-  await alice.getByRole('button', { name: 'Retry group bills', exact: true }).click();
+  // The visible group recovers on the next automatic poll without a manual retry.
+  await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$59.97', { timeout: 20_000 });
   await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$59.97');
   await expect(alice.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: /Costco friends/ })).toContainText('You are owed $59.97');
   await alice.screenshot({ path: `${clientRoot}/test-results/workspace-desktop.png`, fullPage: true });

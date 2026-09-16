@@ -1086,3 +1086,33 @@ test('16 nonzero members receive a minimum plan within the measured API runtime'
   }
   assert.ok([...remaining.values()].every(n => n === 0));
 });
+
+
+test("initiator amount correction confirms their share while others must reconfirm", async () => {
+  const { path, draft } = await setup(false);
+  const created = await billCreate(path, draft);
+  await submit(created.id, 5900);
+  const changed = await shareAt(created.id, created.revision, 4000, 4100, "alice-token");
+  assert.equal(changed.confirmedCount, 1);
+  assert.ok(changed.participants.find((p: { isCurrentUser: boolean }) => p.isCurrentUser).confirmedAt);
+  assert.equal(changed.participants.find((p: { displayName: string }) => p.displayName === "Bob").confirmedAt, null);
+  assert.equal(changed.revision, created.revision + 1);
+  assert.equal(changed.completedAt, null);
+  await shareAt(created.id, created.revision, 4000, 4100, "alice-token", 409);
+  const done = await shareAt(created.id, changed.revision, 5900, 5900);
+  assert.ok(done.completedAt);
+  assert.equal(done.adjustmentCents, 0);
+});
+
+test("initiator-only correction completes immediately when the amount matches", async () => {
+  const { path, draft, ids } = await setup(false);
+  const created = await billCreate(path, { ...draft, participantIds: [ids.Alice] });
+  const changed = await shareAt(created.id, created.revision, 4000, 4100, "alice-token");
+  assert.equal(changed.confirmedCount, 1);
+  assert.equal(changed.completedAt, null);
+  const done = await shareAt(created.id, changed.revision, 4100, 9997, "alice-token");
+  assert.equal(done.confirmedCount, 1);
+  assert.ok(done.completedAt);
+  assert.equal(done.adjustmentCents, 3);
+  await shareAt(created.id, done.revision, 9997, 9996, "alice-token", 409);
+});

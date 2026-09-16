@@ -408,10 +408,10 @@ export async function submitShare(
       .update(billShares)
       .set({
         amountCents: input.amount,
-        confirmedAt: changed ? null : new Date(),
+        confirmedAt: changed && userId !== bill.initiatorId ? null : new Date(),
       })
       .where(and(eq(billShares.billId, id), eq(billShares.userId, userId)));
-    if (!changed) await complete(tx, bill);
+    if (!changed || userId === bill.initiatorId) await complete(tx, bill);
   });
 }
 async function readBillsInSnapshot(tx: Tx, userId: string, groupId?: string, id?: string) {

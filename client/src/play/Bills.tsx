@@ -98,24 +98,44 @@ export function GroupBills({ id, onSummary }: { id: string; onSummary: (id: stri
   const [creating, setCreating] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
-    Promise.all([
-      api.list(id, controller.signal),
-      groups.detail(id, controller.signal),
-    ])
-      .then(([bills, group]) => {
+    let inFlight = false;
+    async function refresh() {
+      if (inFlight || controller.signal.aborted) return;
+      inFlight = true;
+      try {
+        const [bills, group] = await Promise.all([
+          api.list(id, controller.signal),
+          groups.detail(id, controller.signal),
+        ]);
         if (!controller.signal.aborted) {
           setData({ ...bills, ...group });
           onSummary(id, bills.summary);
           setError("");
         }
-      })
-      .catch((error) => {
+      } catch (error) {
         if (!controller.signal.aborted) {
           setError(errorMessage(error));
           onSummary(id, null);
         }
-      });
-    return () => controller.abort();
+      } finally {
+        inFlight = false;
+      }
+    }
+    function refreshIfVisible() {
+      if (document.visibilityState === "visible") void refresh();
+    }
+    void refresh();
+    const timer = window.setInterval(refreshIfVisible, 15_000);
+    window.addEventListener("focus", refreshIfVisible);
+    window.addEventListener("online", refreshIfVisible);
+    document.addEventListener("visibilitychange", refreshIfVisible);
+    return () => {
+      controller.abort();
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshIfVisible);
+      window.removeEventListener("online", refreshIfVisible);
+      document.removeEventListener("visibilitychange", refreshIfVisible);
+    };
   }, [api, groups, id, revision, onSummary]);
   function closeMembers() {
     setMembersOpen(false);
@@ -126,7 +146,6 @@ export function GroupBills({ id, onSummary }: { id: string; onSummary: (id: stri
       <div className="bill-heading">
         <h2>{data?.group.name ?? "Group bills"}</h2>
         <Button variant="text" onClick={() => setMembersOpen(true)}>Members & invites</Button>
-        <Button onClick={() => setRevision((n) => n + 1)}>Refresh bills & balances</Button>
       </div>
       {error ? (
         <div role="alert" className="form-error"><p>{error}</p><Button onClick={() => setRevision(n => n + 1)}>Retry group bills</Button></div>
@@ -424,7 +443,11 @@ export function BillDetails({ id }: { id: string }) {
         : updated.completedAt
           ? "Everyone confirmed. The bill completed automatically."
           : updated.revision !== bill!.revision
-            ? "Amounts retained. Everyone needs to confirm again."
+            ? updated.participants.some((p) => p.isCurrentUser && p.confirmedAt)
+              ? updated.participants.length > 1
+                ? "Your share is confirmed. Other participants need to confirm again."
+                : "Your share is confirmed."
+              : "Amounts retained. Everyone needs to confirm again."
             : "Your share is confirmed.",
     );
     heading.current?.focus();

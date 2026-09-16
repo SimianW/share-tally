@@ -1,0 +1,129 @@
+<style>
+#st-icon-concept { --st-bg: light-dark(#fff,#242b23); --st-fg: light-dark(#293424,#edf2e6); --st-muted: light-dark(#69735f,#b4beac); --st-border: light-dark(#e3e8dc,#46513f); --st-soft: light-dark(#f7f9f3,#30392c); --st-lime: #ccf383; font-family: 'Nunito',system-ui,sans-serif; color:var(--st-fg); max-width:530px; margin:12px auto; }
+#st-icon-concept * { box-sizing:border-box; }
+#st-icon-concept .st-modal { background:var(--st-bg); border:1px solid var(--st-border); border-radius:24px; padding:25px; }
+#st-icon-concept button,#st-icon-concept input { font:inherit; color:inherit; }
+#st-icon-concept button { cursor:pointer; }
+#st-icon-concept .st-eyebrow { color:var(--st-muted); font-size:11px; letter-spacing:2px; font-weight:700; }
+#st-icon-concept h2 { margin:8px 0 24px; font-size:26px; font-weight:800; line-height:1.2; }
+#st-icon-concept .st-identity { display:flex; align-items:end; gap:14px; }
+#st-icon-concept .st-trigger { background:var(--st-lime); border:1px solid #a1c76a; color:#293424; border-radius:17px; width:68px; height:68px; flex-shrink:0; display:grid; place-items:center; position:relative; }
+#st-icon-concept .st-trigger svg { width:30px; height:30px; }
+#st-icon-concept .st-edit { position:absolute; right:-5px; bottom:-5px; background:var(--st-bg); color:var(--st-fg); border:1px solid var(--st-border); border-radius:20px; padding:4px; display:flex; }
+#st-icon-concept .st-edit svg { width:13px; height:13px; }
+#st-icon-concept label { display:grid; gap:8px; font-size:13px; font-weight:700; flex:1; min-width:0; }
+#st-icon-concept input { border:1px solid var(--st-border); border-radius:11px; background:var(--st-soft); width:100%; min-width:0; padding:12px; font-size:16px; }
+#st-icon-concept .st-picker { margin:22px 0 0; border:1px solid var(--st-border); border-radius:16px; padding:14px; background:var(--st-bg); }
+#st-icon-concept .st-tabs { display:flex; gap:6px; border-bottom:1px solid var(--st-border); padding-bottom:10px; margin-bottom:12px; }
+#st-icon-concept .st-tabs button { border:0; border-radius:8px; padding:10px 17px; background:transparent; font-size:14px; font-weight:700; }
+#st-icon-concept .st-tabs button[aria-pressed=true] { background:var(--st-lime); color:#293424; }
+#st-icon-concept .st-caption { font-size:12px; color:var(--st-muted); margin:13px 0 9px; display:flex; justify-content:space-between; }
+#st-icon-concept .st-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:5px; }
+#st-icon-concept .st-choice { width:100%; min-height:44px; border:1px solid transparent; border-radius:10px; display:grid; place-items:center; background:var(--st-soft); padding:8px 0; font-size:24px; }
+#st-icon-concept .st-choice svg { width:23px; height:23px; }
+#st-icon-concept .st-choice:hover { border-color:var(--st-muted); }
+#st-icon-concept .st-choice[aria-pressed=true] { background:var(--st-lime); border-color:#8fac64; color:#293424; }
+#st-icon-concept .st-footer { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:13px; }
+#st-icon-concept .st-secondary { padding:9px 12px; min-height:40px; border:1px solid var(--st-border); background:var(--st-bg); border-radius:9px; font-size:13px; font-weight:700; }
+#st-icon-concept button:disabled { opacity:.4; cursor:default; }
+#st-icon-concept .st-selected { font-size:12px; color:var(--st-muted); overflow-wrap:anywhere; }
+#st-icon-concept .st-primary { width:100%; background:var(--st-lime); color:#293424; border:1px solid #afd773; border-radius:12px; padding:13px; font-weight:800; margin-top:20px; }
+#st-icon-concept .st-emoji-entry { margin-top:15px; }
+#st-icon-concept .st-emoji-entry input { margin-top:6px; }
+#st-icon-concept [hidden] { display:none !important; }
+@media(max-width:390px){#st-icon-concept .st-modal{padding:18px}#st-icon-concept .st-grid{grid-template-columns:repeat(5,minmax(0,1fr))}#st-icon-concept h2{font-size:23px}#st-icon-concept .st-trigger{width:56px;height:56px}}
+</style>
+<div id="st-icon-concept" aria-label="Group icon picker concept">
+  <section class="st-modal">
+    <div class="st-eyebrow">BETTER TOGETHER</div>
+    <h2>A group for your people</h2>
+    <div class="st-identity">
+      <button class="st-trigger" type="button" aria-label="Change group icon" aria-expanded="true"><span class="st-current"><i data-lucide="shopping-basket" aria-hidden="true"></i></span><span class="st-edit"><i data-lucide="pencil" aria-hidden="true"></i></span></button>
+      <label>Group name<input class="st-name" value="Costco friends" maxlength="40"></label>
+    </div>
+    <section class="st-picker" aria-label="Choose group icon">
+      <div class="st-tabs" aria-label="Icon source">
+        <button type="button" data-mode="icons" aria-pressed="true">Icons</button>
+        <button type="button" data-mode="emoji" aria-pressed="false">Emoji</button>
+      </div>
+      <input class="st-search" aria-label="Search icons" placeholder="Search icons… e.g. coffee, plane">
+      <div class="st-caption"><span class="st-library">Lucide icons</span><span class="st-count"></span></div>
+      <div class="st-grid" aria-label="Icon choices"></div>
+      <label class="st-emoji-entry" hidden>Paste any emoji or symbol<input class="st-custom" placeholder="🛒  👍🏽  👨‍👩‍👧‍👦" aria-label="Custom emoji or symbol"></label>
+      <div class="st-footer"><span class="st-selected" aria-live="polite">Shopping basket</span><div><button class="st-secondary st-prev" type="button" aria-label="Previous icons">←</button> <button class="st-secondary st-next" type="button" aria-label="Next icons">→</button> <button class="st-secondary st-done" type="button">Done</button></div></div>
+    </section>
+    <button class="st-primary" type="button">Create group →</button>
+  </section>
+</div>
+<script>
+(() => {
+  const root = document.getElementById('st-icon-concept');
+  const grid = root.querySelector('.st-grid');
+  const picker = root.querySelector('.st-picker');
+  const search = root.querySelector('.st-search');
+  const current = root.querySelector('.st-current');
+  const selected = root.querySelector('.st-selected');
+  const trigger = root.querySelector('.st-trigger');
+  const custom = root.querySelector('.st-custom');
+  const config = { closeOnPick: false, compact: false };
+  const favorites = ['shopping-basket','shopping-cart','house','coffee','pizza','utensils','plane','car','train-front','bike','tent','mountain','sun','moon','palm-tree','heart','users','dog','cat','music','gamepad-2','camera','gift','party-popper','flower-2','book-open','wallet','graduation-cap'];
+  const library = Object.keys(globalThis.lucide?.icons || {}).map(name => name.replace(/([a-z0-9])([A-Z])/g,'$1-$2').toLowerCase());
+  const icons = Array.from(new Set([...favorites,...library])).filter(name=>/^[a-z0-9-]+$/.test(name));
+  const emojis = [ ['🛒','shopping groceries cart'],['🧺','basket laundry'],['🏠','home house'],['☕','coffee'],['🍕','pizza food'],['🍜','noodles food'],['🍰','cake food'],['✈️','plane travel'],['🚗','car travel'],['🚆','train travel'],['🚲','bike'],['⛺','camp tent'],['🏔️','mountain'],['🌴','palm beach'],['☀️','sun'],['🌙','moon'],['❤️','heart'],['👨‍👩‍👧‍👦','family friends'],['🐶','dog'],['🐱','cat'],['🎵','music'],['🎮','game'],['📷','camera'],['🎁','gift'],['🎉','party'],['🌻','flower'],['📚','books'],['🎓','graduation'],['👍🏽','thumbs up'],['🇨🇦','canada flag'],['🥑','avocado'],['🦋','butterfly'],['🍓','strawberry'],['🌈','rainbow'],['🧋','bubble tea'],['🦄','unicorn'] ];
+  let mode='icons', page=0, chosen={mode:'icons',value:'shopping-basket'};
+  const pretty=name=>name.replaceAll('-',' ').replace(/^./,s=>s.toUpperCase());
+  function iconMarkup(name) { return '<i data-lucide="'+name+'" aria-hidden="true"></i>'; }
+  function refreshIcons() { globalThis.lucide?.createIcons({attrs:{width:23,height:23}}); }
+  function setOpen(open) { picker.hidden=!open;trigger.setAttribute('aria-expanded',String(open)); }
+  function choose(value, kind) {
+    chosen={mode:kind,value};
+    if(kind==='icons') current.innerHTML=iconMarkup(value); else current.textContent=value;
+    selected.textContent=kind==='icons'?pretty(value):value;
+    if(config.closeOnPick) setOpen(false);
+    render();
+  }
+  function render() {
+    const query=search.value.toLowerCase().trim();
+    const list=mode==='icons'?icons.filter(name=>name.replaceAll('-',' ').includes(query.replaceAll('-',' '))).map(name=>[name,pretty(name)]):emojis.filter(([emoji,name])=>name.includes(query)||emoji.includes(query));
+    const size=config.compact?35:28;
+    page=Math.min(page,Math.max(0,Math.ceil(list.length/size)-1));
+    grid.replaceChildren();
+    list.slice(page*size,(page+1)*size).forEach(([value,label])=>{
+      const button=document.createElement('button');button.type='button';button.className='st-choice';
+      button.setAttribute('aria-label',label);button.setAttribute('data-tooltip',label);
+      button.setAttribute('aria-pressed',String(chosen.mode===mode&&chosen.value===value));
+      if(mode==='icons')button.innerHTML=iconMarkup(value);else button.textContent=value;
+      button.onclick=()=>choose(value,mode);grid.append(button);
+    });
+    if(!list.length) grid.textContent='No matches';
+    root.querySelector('.st-count').textContent=list.length?' '+(page*size+1)+'–'+Math.min((page+1)*size,list.length)+' / '+list.length:'';
+    root.querySelector('.st-library').textContent=mode==='icons'?'Lucide icons':'Browse emoji';
+    root.querySelector('.st-emoji-entry').hidden=mode!=='emoji';
+    root.querySelector('.st-prev').disabled=page===0;
+    root.querySelector('.st-next').disabled=(page+1)*size>=list.length;
+    refreshIcons();
+  }
+  root.querySelectorAll('[data-mode]').forEach(button=>button.onclick=()=>{
+    mode=button.dataset.mode;page=0;search.value='';
+    root.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));
+    search.placeholder=mode==='icons'?'Search icons… e.g. coffee, plane':'Search emoji… e.g. food, travel';
+    search.setAttribute('aria-label',mode==='icons'?'Search icons':'Search emoji');render();
+  });
+  trigger.onclick=()=>setOpen(picker.hidden);
+  root.querySelector('.st-done').onclick=()=>{setOpen(false);trigger.focus()};
+  root.querySelector('.st-prev').onclick=()=>{page--;render()};
+  root.querySelector('.st-next').onclick=()=>{page++;render()};
+  search.oninput=()=>{page=0;render()};
+  custom.oninput=()=>{
+    const value=custom.value;
+    const valid=/[\p{L}\p{N}\p{P}\p{S}]/u.test(value)&&! /\p{Cc}/u.test(value)&&Array.from(new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(value)).length===1;
+    custom.setCustomValidity(valid||!value?'':'Enter one visible emoji or symbol.');
+    if(valid)choose(value,'emoji');else custom.reportValidity();
+  };
+  const create=root.querySelector('.st-primary');
+  root.querySelector('.st-name').oninput=()=>{create.disabled=!root.querySelector('.st-name').value.trim();create.textContent='Create group →'};
+  create.onclick=()=>{setOpen(false);create.textContent='✓ '+root.querySelector('.st-name').value.trim()};
+  render();
+  if(globalThis.Tweak){const tweak=new Tweak({container:root,onChange:render});tweak.addToggle(config,'closeOnPick',{label:'Close picker after selection'});tweak.addToggle(config,'compact',{label:'Show more icons'});}
+})();
+</script>

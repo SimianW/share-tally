@@ -94,6 +94,7 @@ export function ShareActions({ bill, api, saved, refresh }: Props) {
   } catch {
     /* Show validation on submit. */
   }
+  const isInitiator = own.userId === bill.initiatorId;
   const changed = own.amountCents !== null && parsedAmount !== own.amountCents;
   return (
     <form
@@ -139,7 +140,9 @@ export function ShareActions({ bill, api, saved, refresh }: Props) {
       </label>
       <p>
         {changed
-          ? "Changing your amount clears everyone’s confirmation, including yours. Review and confirm again after saving."
+          ? isInitiator
+            ? "Saving confirms your new amount. Other participants will need to confirm again."
+            : "Changing your amount clears everyone’s confirmation, including yours. Review and confirm again after saving."
           : own.amountCents === null
             ? "Include your tax, discounts, and rounding. Enter 0 if you have no cost."
             : "Confirming the same amount keeps everyone else’s confirmation."}
