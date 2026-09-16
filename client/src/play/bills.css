@@ -261,3 +261,12 @@
     padding: 20px;
   }
 }
+
+.bill-action-layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.bill-controls { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; padding-top: 30px; }
+.bill-danger { color: #963c31; text-decoration: underline; background: transparent; padding: 8px 0; }
+.bill-warning { background: #fff3d8; color: #644e20; padding: 16px; border-radius: 12px; }
+.difference-card.canceled-bill { background: #e9ece5; border-color: #c4cbbd; }
+.bill-action-layout .share-form { width: 100%; max-width: none; box-sizing: border-box; }
+.bill-controls .dialog-actions { flex-wrap: wrap; }
+@media (max-width: 760px) { .bill-action-layout { grid-template-columns: 1fr; } .bill-controls { padding-top: 0; } }
