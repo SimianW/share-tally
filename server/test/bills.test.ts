@@ -1117,6 +1117,96 @@ test("initiator-only correction completes immediately when the amount matches", 
   await shareAt(created.id, done.revision, 9997, 9996, "alice-token", 409);
 });
 
+async function stream(groupId: string, token = 'bob-token') {
+  const controller = new AbortController();
+  const response = await fetch(`${baseUrl}/api/groups/${groupId}/events`, {
+    headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
+  });
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('content-type') ?? '', /text\/event-stream/);
+  assert.equal(response.headers.get('x-accel-buffering'), 'no');
+  const frames: string[] = [];
+  const reader = response.body!.getReader();
+  const reading = (async () => {
+    let buffer = '';
+    const decoder = new TextDecoder();
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) return;
+        buffer += decoder.decode(value, { stream: true });
+        let end;
+        while ((end = buffer.indexOf('\n\n')) >= 0) {
+          frames.push(buffer.slice(0, end));
+          buffer = buffer.slice(end + 2);
+        }
+      }
+    } catch (error) { if (!controller.signal.aborted) throw error; }
+    finally { reader.releaseLock(); }
+  })();
+  return { frames, reading, async close() { controller.abort(); await reading; } };
+}
+async function eventually(check: () => boolean, timeout = 3000) {
+  const deadline = Date.now() + timeout;
+  while (!check()) {
+    assert.ok(Date.now() < deadline, 'Expected stream event before deadline');
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+}
+
+test('SSE requires membership, isolates groups, and announces committed bills only', async () => {
+  const { group, path, draft, ids } = await setup(false);
+  assert.equal((await api(`/groups/${group.id}/events`, 'unknown')).status, 401);
+  assert.equal((await api(`/groups/${group.id}/events`, 'carol-token')).status, 404);
+  assert.equal((await api('/groups/not-a-uuid/events')).status, 404);
+  const other = await create();
+  const watching = await stream(group.id);
+  const isolated = await stream(other.id, 'alice-token');
+  try {
+    await eventually(() => watching.frames.length === 1 && isolated.frames.length === 1);
+    assert.match(watching.frames[0]!, /event: ready/);
+    // Fail after writes have started, so the transaction must roll back.
+    await pool.query(`CREATE FUNCTION reject_stream_bill() RETURNS trigger LANGUAGE plpgsql AS $$
+      BEGIN RAISE EXCEPTION 'forced rollback'; END; $$;
+      CREATE TRIGGER reject_stream_bill AFTER INSERT ON bill_shares
+      FOR EACH ROW EXECUTE FUNCTION reject_stream_bill();`);
+    try { await billCreate(path, draft, 500); }
+    finally { await pool.query('DROP TRIGGER reject_stream_bill ON bill_shares; DROP FUNCTION reject_stream_bill()'); }
+    assert.equal((await pool.query('SELECT count(*)::int AS n FROM bills')).rows[0].n, 0);
+    const bill = await billCreate(path, draft);
+    await eventually(() => watching.frames.length === 2);
+    assert.equal(watching.frames.filter(f => f.includes('event: changed')).length, 1);
+    assert.equal(isolated.frames.length, 1);
+    const snapshot = await json(await api(path, 'bob-token'));
+    assert.equal(snapshot.bills[0].id, bill.id);
+    await submit(bill.id, 6000);
+    await eventually(() => watching.frames.length === 3);
+    const completed = await json(await api(path, 'bob-token'));
+    assert.ok(completed.bills[0].completedAt);
+    assert.equal(completed.ledger.members.find((m: { userId: string }) => m.userId === ids.Bob).netCents, -6000);
+    await submit(bill.id, 6000); // Duplicate invalidation is safe; no duplicate financial effect.
+    await eventually(() => watching.frames.length === 4);
+    assert.deepEqual((await json(await api(path, 'bob-token'))).ledger, completed.ledger);
+    assert.equal(isolated.frames.length, 1);
+  } finally { await watching.close(); await isolated.close(); }
+});
+
+test('SSE heartbeats, bounded authentication lifetime, and reconnects do not write finances', async () => {
+  const { group } = await setup(false);
+  const watching = await stream(group.id);
+  try {
+    await eventually(() => watching.frames.some(f => f === ': heartbeat'), 12_000);
+    await Promise.race([watching.reading, new Promise((_, reject) => {
+      const timer = setTimeout(() => reject(new Error('Stream did not expire')), 22_000);
+      timer.unref();
+    })]);
+    const again = await stream(group.id);
+    try { await eventually(() => again.frames.some(f => f.includes('event: ready'))); }
+    finally { await again.close(); }
+    assert.equal((await pool.query('SELECT count(*)::int AS n FROM bills')).rows[0].n, 0);
+  } finally { await watching.close(); }
+});
+
 test("actual partial repayments affect balances only after recipient confirmation", async () => {
   const { group, ids, path, draft } = await setup(false);
   const bill = await billCreate(path, draft);
@@ -1293,4 +1383,34 @@ test('overview keeps confirmed repayment effects within each group including gro
   assert.deepEqual((await json(await api('/summary'))).summary, { receivableCents: 1000, payableCents: 600, netCents: 400 });
   assert.deepEqual((await json(await api(first.path))).ledger.suggestions, [{ fromUserId: first.ids.Bob, toUserId: first.ids.Alice, amountCents: 1000 }]);
   assert.deepEqual((await json(await api(second.path))).ledger.suggestions, [{ fromUserId: second.ids.Alice, toUserId: second.ids.Bob, amountCents: 600 }]);
+});
+
+test('SSE repayment decisions publish after commit and refresh the complete financial snapshot', async () => {
+  const { group, ids, path, draft } = await setup(false);
+  const bill = await billCreate(path, draft);
+  await submit(bill.id, 6000);
+  const watching = await stream(group.id);
+  try {
+    await eventually(() => watching.frames.length === 1);
+    const repayment = await recordRepayment(group.id, ids.Alice, 2000);
+    await eventually(() => watching.frames.length === 2);
+    assert.equal((await json(await api(path))).summary.netCents, 6000);
+    await pool.query(`CREATE FUNCTION reject_stream_decision() RETURNS trigger LANGUAGE plpgsql AS $$
+      BEGIN RAISE EXCEPTION 'forced repayment rollback'; END; $$;
+      CREATE TRIGGER reject_stream_decision AFTER UPDATE ON repayments
+      FOR EACH ROW EXECUTE FUNCTION reject_stream_decision();`);
+    try { await decide(repayment.id, 'confirmed', 'alice-token', 500); }
+    finally { await pool.query('DROP TRIGGER reject_stream_decision ON repayments; DROP FUNCTION reject_stream_decision()'); }
+    assert.equal((await json(await api(path))).repayments[0].status, 'pending');
+    await decide(repayment.id);
+    await eventually(() => watching.frames.length === 3);
+    const view = await json(await api(path));
+    assert.equal(view.summary.netCents, 4000);
+    assert.equal(view.ledger.members.find((m: { userId: string }) => m.userId === ids.Alice).netCents, 4000);
+    assert.deepEqual(view.ledger.suggestions, [{ fromUserId: ids.Bob, toUserId: ids.Alice, amountCents: 4000 }]);
+    assert.equal(view.repayments[0].status, 'confirmed');
+    await decide(repayment.id);
+    await eventually(() => watching.frames.length === 4);
+    assert.deepEqual(await json(await api(path)), view);
+  } finally { await watching.close(); }
 });

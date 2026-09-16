@@ -1,3 +1,6 @@
+import { AnimatedMoney } from './AnimatedMoney';
+import { useAuth } from '@clerk/react';
+import { startGroupSync } from './group-sync';
 import { Repayments } from './Repayments';
 import { useEffect, useRef, useState } from "react";
 import {
@@ -35,7 +38,7 @@ export function Balance({
       </span>
       <h2>{summary.netCents < 0 ? "You owe, net" : "You are owed, net"}</h2>
       <strong className="balance-number">
-        {money(Math.abs(summary.netCents))}
+        {group ? <AnimatedMoney cents={summary.netCents} /> : money(Math.abs(summary.netCents))}
       </strong>
       <div className="balance-breakdown">
         <span>
@@ -99,47 +102,19 @@ export function GroupBills({ id, onSummary }: { id: string; onSummary: (id: stri
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
   const [creating, setCreating] = useState(false);
+  const { getToken } = useAuth();
   useEffect(() => {
-    const controller = new AbortController();
-    let inFlight = false;
-    async function refresh() {
-      if (inFlight || controller.signal.aborted) return;
-      inFlight = true;
-      try {
-        const [bills, group] = await Promise.all([
-          api.list(id, controller.signal),
-          groups.detail(id, controller.signal),
-        ]);
-        if (!controller.signal.aborted) {
-          setData({ ...bills, ...group });
-          onSummary(id, bills.summary);
-          setError("");
-        }
-      } catch (error) {
-        if (!controller.signal.aborted) {
-          setError(errorMessage(error));
-          onSummary(id, null);
-        }
-      } finally {
-        inFlight = false;
-      }
-    }
-    function refreshIfVisible() {
-      if (document.visibilityState === "visible") void refresh();
-    }
-    void refresh();
-    const timer = window.setInterval(refreshIfVisible, 15_000);
-    window.addEventListener("focus", refreshIfVisible);
-    window.addEventListener("online", refreshIfVisible);
-    document.addEventListener("visibilitychange", refreshIfVisible);
-    return () => {
-      controller.abort();
-      window.clearInterval(timer);
-      window.removeEventListener("focus", refreshIfVisible);
-      window.removeEventListener("online", refreshIfVisible);
-      document.removeEventListener("visibilitychange", refreshIfVisible);
-    };
-  }, [api, groups, id, revision, onSummary]);
+    const sync = startGroupSync({
+      groupId: id, getToken,
+      read: async signal => {
+        const [bills, group] = await Promise.all([api.list(id, signal), groups.detail(id, signal)]);
+        return { ...bills, ...group };
+      },
+      apply: value => { setData(value); onSummary(id, value.summary); },
+      status: setError,
+    });
+    return () => sync.stop();
+  }, [api, groups, getToken, id, revision, onSummary]);
   function closeMembers() {
     setMembersOpen(false);
     setRevision(n => n + 1);
@@ -150,9 +125,8 @@ export function GroupBills({ id, onSummary }: { id: string; onSummary: (id: stri
         <h2>{data?.group.name ?? "Group bills"}</h2>
         <Button variant="text" onClick={() => setMembersOpen(true)}>Members & invites</Button>
       </div>
-      {error ? (
-        <div role="alert" className="form-error"><p>{error}</p><Button onClick={() => setRevision(n => n + 1)}>Retry group bills</Button></div>
-      ) : !data ? (
+      {error && <div role="alert" className="form-error"><p>{error}</p><Button onClick={() => setRevision(n => n + 1)}>Retry group bills</Button></div>}
+      {!data ? (
         <p role="status">Loading bills...</p>
       ) : (
         <>
@@ -410,37 +384,39 @@ export function BillDetails({ id }: { id: string }) {
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
   const [notice, setNotice] = useState("");
+  const { getToken } = useAuth();
+  const [savedVersion, setSavedVersion] = useState(0);
+  const resetEditors = useRef(false);
+  const live = useRef<ReturnType<typeof startGroupSync> | null>(null);
   useEffect(() => {
     const controller = new AbortController();
-    api
-      .detail(id, controller.signal)
-      .then(({ bill }) => {
-        if (!controller.signal.aborted) {
-          setBill(bill);
-          setError("");
-        }
-      })
-      .catch((error) => {
-        if (!controller.signal.aborted) setError(errorMessage(error));
+    let sync: ReturnType<typeof startGroupSync> | undefined;
+    // This lookup only identifies the group. Display comes from the read after ready.
+    api.detail(id, controller.signal).then(({ bill: located }) => {
+      if (controller.signal.aborted) return;
+      sync = startGroupSync({
+        groupId: located.groupId, getToken,
+        read: signal => api.detail(id, signal),
+        apply: ({ bill: latest }) => {
+          setBill(latest);
+          if (resetEditors.current) { resetEditors.current = false; setSavedVersion(n => n + 1); }
+        },
+        status: setError,
       });
-    return () => controller.abort();
-  }, [api, id, revision]);
-  if (error)
-    return (
-      <div role="alert">
-        <p>{error}</p>
-        <Button onClick={() => setRevision((n) => n + 1)}>Retry bill</Button>
-        <a href="#">Back to overview</a>
-      </div>
-    );
-  if (!bill) return <p role="status">Loading bill...</p>;
+      live.current = sync;
+    }).catch(error => {
+      if (!controller.signal.aborted) setError(errorMessage(error));
+    });
+    return () => { controller.abort(); sync?.stop(); live.current = null; };
+  }, [api, getToken, id, revision]);
+  if (!bill) return <div role="status">{error || 'Loading bill...'}{error && <Button onClick={() => setRevision(n => n + 1)}>Retry bill</Button>}</div>;
   const initiator = bill.participants.find(
     (p) => p.userId === bill.initiatorId,
   )!;
   const own = bill.participants.find((p) => p.isCurrentUser);
   function saved(updated: Bill) {
-    setBill(updated);
-    setRevision((n) => n + 1);
+    resetEditors.current = true;
+    live.current?.retry();
     setNotice(
       updated.canceledAt
         ? "Bill canceled. The record is retained."
@@ -458,7 +434,6 @@ export function BillDetails({ id }: { id: string }) {
   }
   function refresh() {
     setNotice("");
-    setBill(null);
     setRevision((n) => n + 1);
   }
 
@@ -474,10 +449,9 @@ export function BillDetails({ id }: { id: string }) {
             {bill.purchaseDate} · Paid by {initiator.displayName} · CAD
           </p>
         </div>
-        <Button variant="secondary" onClick={refresh}>
-          Refresh bill
-        </Button>
+
       </div>
+      {error && <div role="alert"><p>{error}</p><Button onClick={refresh}>Retry bill</Button></div>}
       {notice && (
         <p role="status" className="bill-warning">
           {notice}
@@ -558,6 +532,7 @@ export function BillDetails({ id }: { id: string }) {
             </>
           ) : bill.completedAt ? (
             <>
+              <p>Completed bills are final. Details, participants, and shares can no longer be changed.</p>
               <h3>
                 {bill.adjustmentCents === 0
                   ? "Everything matches."
@@ -599,31 +574,14 @@ export function BillDetails({ id }: { id: string }) {
         </section>
       )}
       <div className="bill-action-layout">
-        {!bill.canceledAt &&
-          own &&
-          (!bill.completedAt ? (
-            <ShareActions
-              key={`share:${bill.id}:${revision}:${bill.revision}`}
-              bill={bill}
-              api={api}
-              saved={saved}
-              refresh={refresh}
-            />
-          ) : (
-            <section className="share-form">
-              <h2>All confirmed.</h2>
-              <p>
-                Completed bills are final. Details, participants, and shares can no longer be changed.
-              </p>
-            </section>
-          ))}
+        <ShareActions
+          key={`share:${bill.id}:${savedVersion}`}
+          bill={bill} api={api} saved={saved} refresh={refresh}
+        />
         {own?.userId === bill.initiatorId && (
           <InitiatorActions
-            key={`initiator:${bill.id}:${revision}:${bill.revision}`}
-            bill={bill}
-            api={api}
-            saved={saved}
-            refresh={refresh}
+            key={`initiator:${bill.id}:${savedVersion}`}
+            bill={bill} api={api} saved={saved} refresh={refresh}
           />
         )}
       </div>

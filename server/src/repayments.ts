@@ -1,3 +1,4 @@
+import { notifyGroupChanged } from './group-events.js';
 import { and, desc, eq } from 'drizzle-orm';
 import { db } from './db/index.js';
 import { groupMembers, repayments } from './db/schema.js';
@@ -33,7 +34,7 @@ export async function readRepayments(tx: Tx, userId: string, groupId?: string) {
 }
 
 export async function createRepayment(groupId: string, senderId: string, input: ReturnType<typeof parseRepayment>) {
-  return db.transaction(async tx => {
+  const repayment = await db.transaction(async tx => {
     await requireMember(tx, groupId, senderId);
     if (senderId === input.recipientId) throw new BillError(400, 'Choose another group member.');
     const [recipient] = await tx.select().from(groupMembers).where(and(
@@ -51,10 +52,12 @@ export async function createRepayment(groupId: string, senderId: string, input: 
       throw new BillError(409, 'This creation request was already used with different details.');
     return existing;
   });
+  notifyGroupChanged(repayment.groupId);
+  return repayment;
 }
 
 export async function decideRepayment(id: string, userId: string, decision: 'confirmed' | 'rejected') {
-  return db.transaction(async tx => {
+  const repayment = await db.transaction(async tx => {
     const [record] = await tx.select().from(repayments).where(eq(repayments.id, id)).for('update');
     if (!record) throw new BillError(404, 'Repayment not found.');
     await requireMember(tx, record.groupId, userId);
@@ -65,4 +68,6 @@ export async function decideRepayment(id: string, userId: string, decision: 'con
       .where(eq(repayments.id, id)).returning();
     return updated!;
   });
+  notifyGroupChanged(repayment.groupId);
+  return repayment;
 }

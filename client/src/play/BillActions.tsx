@@ -57,6 +57,7 @@ function useMutation(saved: Props["saved"]) {
     conflict,
     retry,
     locked: busy || retry || conflict,
+    reset() { attempt.current = null; setError(""); setRetry(false); setConflict(false); },
   };
 }
 function MutationError({
@@ -81,13 +82,46 @@ function MutationError({
   );
 }
 
-export function ShareActions({ bill, api, saved, refresh }: Props) {
-  const own = bill.participants.find((p) => p.isCurrentUser)!;
+function useDraftReview(bill: Bill, signature: string, mutation: ReturnType<typeof useMutation>) {
+  const [reviewed, setReviewed] = useState(signature);
+  const terminal = !!(bill.completedAt || bill.canceledAt);
+  return {
+    blocked: terminal || reviewed !== signature,
+    notice: terminal ? `This bill is ${bill.canceledAt ? 'canceled' : 'complete'}. Your draft is retained; submission is disabled.`
+      : reviewed !== signature ? 'This bill changed. Your draft is retained. Review the latest bill before submitting.' : '',
+    review() { setReviewed(signature); mutation.reset(); },
+    terminal,
+  };
+}
+function DraftNotice({ bill, review }: { bill: Bill; review: ReturnType<typeof useDraftReview> }) {
+  if (!review.notice) return null;
+  return <div role="alert" className="bill-warning">
+    <p>{review.notice}</p>
+    {!review.terminal && <>
+      <p>Latest: {bill.title} · {bill.purchaseDate} · CAD {(bill.totalCents / 100).toFixed(2)} · {bill.participants.map(p => p.displayName).join(', ')}</p>
+      {bill.notes && <p>{bill.notes}</p>}
+      <Button variant="secondary" onClick={review.review}>Review latest bill</Button>
+    </>}
+  </div>;
+}
+
+export function ShareActions(props: Props) {
+  const eligible = !props.bill.completedAt && !props.bill.canceledAt && props.bill.participants.some(p => p.isCurrentUser);
+  const [opened, setOpened] = useState(eligible);
+  if (!opened && eligible) setOpened(true);
+  if (!opened && !eligible) return null;
+  return <ShareEditor {...props} />;
+}
+function ShareEditor({ bill, api, saved, refresh }: Props) {
+  const currentOwn = bill.participants.find(p => p.isCurrentUser);
+  const [initialOwn] = useState(currentOwn!);
+  const own = currentOwn ?? initialOwn;
   const [amount, setAmount] = useState(
     own.amountCents === null ? "" : (own.amountCents / 100).toFixed(2),
   );
   const [validation, setValidation] = useState("");
   const mutation = useMutation(saved);
+  const review = useDraftReview(bill, `${bill.revision}:${currentOwn?.amountCents}:${!!currentOwn}`, mutation);
   let parsedAmount: number | null = null;
   try {
     parsedAmount = parseMoney(amount);
@@ -101,6 +135,7 @@ export function ShareActions({ bill, api, saved, refresh }: Props) {
       className="share-form"
       onSubmit={(e) => {
         e.preventDefault();
+        if (review.blocked || !currentOwn) return;
         setValidation("");
         let amountCents: number;
         try {
@@ -120,6 +155,8 @@ export function ShareActions({ bill, api, saved, refresh }: Props) {
         );
       }}
     >
+      <DraftNotice bill={bill} review={review} />
+      {!currentOwn && <p role="alert">You are no longer a participant. Your draft is retained; submission is disabled.</p>}
       <span className="eyebrow">YOUR SHARE</span>
       <h2>
         {own.confirmedAt
@@ -134,7 +171,8 @@ export function ShareActions({ bill, api, saved, refresh }: Props) {
           required
           inputMode="decimal"
           value={amount}
-          disabled={mutation.locked}
+          disabled={mutation.busy}
+          readOnly={mutation.locked || review.terminal || !currentOwn}
           onChange={(e) => setAmount(e.target.value)}
         />
       </label>
@@ -152,11 +190,11 @@ export function ShareActions({ bill, api, saved, refresh }: Props) {
           {validation}
         </p>
       )}
-      <MutationError mutation={mutation} refresh={refresh} />
+      <MutationError mutation={mutation} refresh={() => { review.review(); refresh(); }} />
       <Button
         type="submit"
         disabled={
-          mutation.busy || mutation.conflict || (!!own.confirmedAt && !changed)
+          review.blocked || !currentOwn || mutation.busy || mutation.conflict || (!!own.confirmedAt && !changed)
         }
       >
         {mutation.busy
@@ -179,18 +217,16 @@ export function InitiatorActions({ bill, api, saved, refresh }: Props) {
     setPanel(null);
     saved(next);
   }
-  function review() {
-    setPanel(null);
-    refresh();
-  }
-  if (bill.canceledAt || bill.completedAt) return null;
+  function review() { refresh(); }
+  const terminal = !!(bill.canceledAt || bill.completedAt);
+  if (terminal && !panel) return null;
   return (
     <section className="bill-controls">
       <span className="eyebrow">INITIATOR CONTROLS</span>
-      <Button variant="secondary" onClick={() => setPanel("edit")}>
+      <Button variant="secondary" disabled={terminal} onClick={() => setPanel("edit")}>
         Edit details & participants
       </Button>
-      {!bill.completedAt && (
+      {!terminal && (
         <button className="bill-danger" onClick={() => setPanel("cancel")}>
           Cancel this bill
         </button>
@@ -224,6 +260,7 @@ function CancelBill({
   close,
 }: Props & { close: () => void }) {
   const mutation = useMutation(saved);
+  const review = useDraftReview(bill, String(bill.revision), mutation);
   return (
     <Dialog
       title="Cancel this bill?"
@@ -236,13 +273,14 @@ function CancelBill({
         This bill will stay visible as canceled and be excluded from financial
         totals. Participants can no longer submit or confirm shares.
       </p>
-      <MutationError mutation={mutation} refresh={refresh} />
+      <DraftNotice bill={bill} review={review} />
+      <MutationError mutation={mutation} refresh={() => { review.review(); refresh(); }} />
       <div className="dialog-actions">
         <Button
           onClick={() =>
-            void mutation.run(() => api.cancel(bill.id, bill.revision))
+            !review.blocked && void mutation.run(() => api.cancel(bill.id, bill.revision))
           }
-          disabled={mutation.busy || mutation.conflict}
+          disabled={review.blocked || mutation.busy || mutation.conflict}
         >
           {mutation.busy
             ? "Saving..."
@@ -277,6 +315,7 @@ function EditBill({
   );
   const [validation, setValidation] = useState("");
   const mutation = useMutation(saved);
+  const review = useDraftReview(bill, String(bill.revision), mutation);
   useEffect(() => {
     const controller = new AbortController();
     groups
@@ -304,6 +343,7 @@ function EditBill({
         className="bill-form"
         onSubmit={(e) => {
           e.preventDefault();
+          if (review.blocked) return;
           setValidation("");
           let totalCents: number;
           try {
@@ -329,10 +369,11 @@ function EditBill({
           Saving any edit clears everyone’s confirmation, even if you only
           change its description. Existing amounts stay.
         </p>
-        <fieldset disabled={mutation.locked}>
+        <fieldset disabled={mutation.busy}>
           <label>
             Title
             <input
+              readOnly={mutation.locked || review.terminal}
               required
               maxLength={120}
               value={title}
@@ -343,6 +384,7 @@ function EditBill({
             <label>
               Purchase date
               <input
+                readOnly={mutation.locked || review.terminal}
                 type="date"
                 required
                 value={date}
@@ -352,6 +394,7 @@ function EditBill({
             <label>
               Total · CAD
               <input
+                readOnly={mutation.locked || review.terminal}
                 required
                 inputMode="decimal"
                 value={total}
@@ -362,6 +405,7 @@ function EditBill({
           <label>
             Notes
             <textarea
+              readOnly={mutation.locked || review.terminal}
               maxLength={2000}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -374,7 +418,7 @@ function EditBill({
                 <input
                   type="checkbox"
                   checked={selected.includes(p.id)}
-                  disabled={p.id === bill.initiatorId}
+                  disabled={mutation.locked || review.terminal || p.id === bill.initiatorId}
                   onChange={(e) =>
                     setSelected((current) =>
                       e.target.checked
@@ -413,11 +457,12 @@ function EditBill({
             {validation}
           </p>
         )}
-        <MutationError mutation={mutation} refresh={refresh} />
+        <DraftNotice bill={bill} review={review} />
+        <MutationError mutation={mutation} refresh={() => { review.review(); refresh(); }} />
         <div className="dialog-actions">
           <Button
             type="submit"
-            disabled={!group || mutation.busy || mutation.conflict}
+            disabled={!group || review.blocked || mutation.busy || mutation.conflict}
           >
             {mutation.busy
               ? "Saving..."

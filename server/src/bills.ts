@@ -1,3 +1,4 @@
+import { notifyGroupChanged } from './group-events.js';
 import { cents, isUuid } from "./input-validation.js";
 export { isUuid } from "./input-validation.js";
 import { confirmedRepaymentEntries } from "./repayment-accounting.js";
@@ -183,7 +184,7 @@ export async function createBill(
   userId: string,
   input: ReturnType<typeof parseBill>,
 ) {
-  return db.transaction(async (tx) => {
+  const id = await db.transaction(async (tx) => {
     // Serialize creation with membership changes and other creations in this group.
     await tx.select().from(groups).where(eq(groups.id, groupId)).for("update");
     await member(tx, groupId, userId);
@@ -245,6 +246,8 @@ export async function createBill(
     await complete(tx, bill);
     return bill.id;
   });
+  notifyGroupChanged(groupId);
+  return id;
 }
 async function lockedBill(tx: Tx, id: string, userId: string) {
   const [bill] = await tx
@@ -284,7 +287,7 @@ export async function changeBill(
   const input = command.action === "edit" ? command.input : undefined;
   const revision =
     command.action === "edit" ? command.input.revision : command.revision;
-  await db.transaction(async (tx) => {
+  const groupId = await db.transaction(async (tx) => {
     const bill = await lockedBill(tx, id, userId);
     if (bill.initiatorId !== userId)
       throw new BillError(403, "Only the initiator can change this bill.");
@@ -296,7 +299,7 @@ export async function changeBill(
         .update(bills)
         .set({ canceledAt: new Date(), revision: bill.revision + 1 })
         .where(eq(bills.id, id));
-      return;
+      return bill.groupId;
     }
     if (input) {
       if (!input.participantIds.includes(userId))
@@ -347,14 +350,16 @@ export async function changeBill(
         revision: bill.revision + 1,
       })
       .where(eq(bills.id, id));
+    return bill.groupId;
   });
+  notifyGroupChanged(groupId);
 }
 export async function submitShare(
   id: string,
   userId: string,
   input: ReturnType<typeof parseShare>,
 ) {
-  await db.transaction(async (tx) => {
+  const groupId = await db.transaction(async (tx) => {
     const bill = await lockedBill(tx, id, userId);
     const [share] = await tx
       .select()
@@ -368,7 +373,7 @@ export async function submitShare(
     assertMutableRevision(bill, input.revision);
     cents(input.amount, bill.totalCents);
     // An identical retry is harmless, even if this submission just completed the bill.
-    if (share.amountCents === input.amount && share.confirmedAt) return;
+    if (share.amountCents === input.amount && share.confirmedAt) return bill.groupId;
     if (share.amountCents !== input.expectedAmount)
       throw new BillError(
         409,
@@ -400,7 +405,9 @@ export async function submitShare(
       })
       .where(and(eq(billShares.billId, id), eq(billShares.userId, userId)));
     if (!changed || userId === bill.initiatorId) await complete(tx, bill);
+    return bill.groupId;
   });
+  notifyGroupChanged(groupId);
 }
 async function readBillsInSnapshot(tx: Tx, userId: string, groupId?: string, id?: string) {
   if (groupId) await member(tx, groupId, userId);

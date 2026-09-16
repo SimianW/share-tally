@@ -1,3 +1,4 @@
+import { notifyGroupChanged } from './group-events.js';
 import { randomBytes } from 'node:crypto';
 import { and, desc, eq, sql } from 'drizzle-orm';
 
@@ -155,5 +156,6 @@ export async function joinGroup(token: string, userId: string) {
       .onConflictDoNothing({ target: [groupMembers.groupId, groupMembers.userId] });
     return group.id;
   });
+  notifyGroupChanged(groupId);
   return getGroupForMember(groupId, userId);
 }
