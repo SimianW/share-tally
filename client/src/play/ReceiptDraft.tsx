@@ -633,7 +633,7 @@ export function ReceiptDraftForm({
                     />
                   )}
                   {draft.photo && !draft.photo.expired && (
-                    <>
+                    <div className="receipt-scan-actions">
                       {data.items.length > 0 && !replace ? (
                         <Button
                           variant="secondary"
@@ -653,13 +653,13 @@ export function ReceiptDraftForm({
                       )}
                       {replace && (
                         <Button
-                          variant="text"
+                          variant="secondary"
                           onClick={() => setReplace(false)}
                         >
                           Keep current items
                         </Button>
                       )}
-                    </>
+                    </div>
                   )}
                 </div>
                 <div className="receipt-entry-alternative">
@@ -691,7 +691,7 @@ export function ReceiptDraftForm({
                 <div
                   className={`receipt-review-layout${draft.photo ? "" : " receipt-without-photo"}`}
                 >
-                  <div>
+                  <div className="receipt-photo-panel">
                     {draft.photo && (
                       <ReceiptPhoto
                         id={draft.id}
@@ -710,7 +710,7 @@ export function ReceiptDraftForm({
                   </div>
                   <div>
                     {draft.photo && !draft.photo.expired && (
-                      <>
+                      <div className="receipt-scan-actions">
                         {data.items.length > 0 && !replace ? (
                           <Button
                             variant="secondary"
@@ -730,13 +730,13 @@ export function ReceiptDraftForm({
                         )}
                         {replace && (
                           <Button
-                            variant="text"
+                            variant="secondary"
                             onClick={() => setReplace(false)}
                           >
                             Keep current items
                           </Button>
                         )}
-                      </>
+                      </div>
                     )}
                     <ReceiptItemEditor
                       items={data.items}
