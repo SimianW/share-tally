@@ -1,3 +1,4 @@
+import { Notification } from './Notification';
 import { useRef, useState } from 'react';
 import { BillApiError, money, parseMoney, type BillApi, type Repayment, type RepaymentDraft } from './bill-api';
 import { errorMessage, type GroupDetail } from './group-api';
@@ -49,8 +50,8 @@ export function Repayments({ group, records, api, refresh, selectedId }: {
       <div className="bill-form">
         <p><strong>{name(current.senderId)}</strong> recorded sending <strong>{money(current.amountCents)}</strong> to <strong>{name(current.recipientId)}</strong>.</p>
         <p>Confirm only if you received this amount. Confirmation cannot be undone. Reject if this record is incorrect.</p>
-        {error && <p role="alert" className="form-error">{error}</p>}
-        {current.status !== 'pending' ? <p role="status">This repayment is already {current.status}.</p> : <div className="dialog-actions">
+        {error && <Notification>{error}</Notification>}
+        {current.status !== 'pending' ? <Notification tone="info" title="Repayment updated">This repayment is already {current.status}.</Notification> : <div className="dialog-actions">
           <Button disabled={busy} onClick={() => void decide('confirmed')}>Confirm receipt</Button>
           <Button variant="secondary" disabled={busy} onClick={() => void decide('rejected')}>Reject record</Button>
         </div>}
@@ -106,7 +107,7 @@ function RecordRepayment({ group, api, close, saved }: {
         <label>Amount sent · CAD<input required inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} /></label>
       </fieldset>
       {request && <p>The saved details are locked for retry. Retrying records this transfer only once, even if the previous request succeeded.</p>}
-      {error && <p role="alert" className="form-error">{error}</p>}
+      {error && <Notification>{error}</Notification>}
       <div className="dialog-actions"><Button type="submit" disabled={busy}>{busy ? 'Saving...' : request ? 'Retry recording' : 'Record transfer'}</Button><Button variant="secondary" disabled={busy} onClick={close}>Close</Button></div>
     </form>
   </Dialog>;
