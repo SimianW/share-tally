@@ -22,7 +22,13 @@ Tests use the existing Express boundary with isolated PostgreSQL and browser smo
 
 The added API scenarios cover missing versus explicit zero, confirmation invalidation, removed participants, nonparticipants, canceled/completed bills, cross-group incoming transfers, sender/recipient isolation, and both repayment decisions. Browser additions cover mobile attention links, reconfirmations, failure/retry, direct receipt review, completed-record links, and sign-out/account isolation.
 
-Validation results are recorded below after the checks finish.
+Validation on 2026-09-16:
+
+- Server typecheck passed; full backend suite passed all 66 tests, including the three added attention scenarios.
+- Client production build and ESLint passed.
+- Expanded multi-user group/bill/repayment/attention browser smoke passed; avatar smoke passed. Mobile screenshot checked at 390px with no horizontal overflow.
+- The first browser run encountered `ERR_NETWORK_CHANGED` while the concurrent backend suite created/destroyed Docker networks and stopped at an existing group-dialog check. Running the browser suite alone passed. Deliberate response-loss, conflict, and 503 scenarios still log their expected errors.
+- Read-only checks of owner-supplied `https://sharetally.app` returned homepage HTTP 200 with successful TLS verification, `/api/health` HTTP 200 with `{ "status": "ok" }`, and unauthenticated `/api/attention` HTTP 401. This checks the currently deployed service, not deployment of this PR's endpoint; API authentication runs before route matching.
 
 ## Production verification still required
 
@@ -30,7 +36,7 @@ The code can be reviewed and merged independently of the real trial. Keep #8 ope
 
 | Check | Evidence currently available | Release evidence to record |
 | --- | --- | --- |
-| Public domain, HTTPS, FRP route | Compose binds web to host `127.0.0.1:11119`; Nginx proxies `/api` to API | Public URL, route/termination owner, deployed commit, health response |
+| Public domain, HTTPS, FRP route | `https://sharetally.app` homepage and health passed on 2026-09-16; Compose binds web to host `127.0.0.1:11119`; Nginx proxies `/api` to API | Route/termination owner and deployed commit; authenticated public workflow |
 | Google login and return | Clerk integration; test identities pass through a separate test entry point | Actual Google sign-in through public URL, invitation return, correct callback in provider settings |
 | Seven-day maximum session | Accepted requirement in #1/#2 | Clerk maximum lifetime and refresh/inactivity settings, same-browser return, expiry/sign-out/revocation behavior; date each observation |
 | Restart persistence | Automated API persistence scenario; external production database network in Compose | Record IDs/amounts before and after a scheduled API restart, confirming the deployed database retains them |
@@ -84,3 +90,13 @@ Participants: owner plus at least two friends, using their own Google accounts. 
 | Remote completion/repayment updates and reconnect | Not run | |
 
 Record remaining defects with reproduction steps and expected/actual behavior. Do not close #8 until the owner confirms the real trial and production evidence.
+
+## Standards
+
+Review against the task starting commit `6d88bd2`: no documented standards violations, meaningful baseline smells, or concrete correctness concerns found. The change follows the domain terms and financial ADRs.
+
+## Spec
+
+No implementation blockers or scope creep found. The remaining partial acceptance item is production/release verification: actual Google/session behavior, deployed persistence/restore, public SSE, and the owner-plus-two-friends trial remain unverified. This does not block the implementation PR, but #8 must remain open.
+
+Review totals: Standards 0 findings; Spec 1 partial acceptance finding, pending production verification and real trial.
