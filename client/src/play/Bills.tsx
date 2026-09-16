@@ -88,7 +88,7 @@ export function OverviewBalance({ revision }: { revision: string }) {
     <p role="status">Loading balances...</p>
   );
 }
-export function GroupBills({ id, onSummary }: { id: string; onSummary: (id: string, summary: Summary | null) => void }) {
+export function GroupBills({ id, selectedRepaymentId, onSummary }: { id: string; selectedRepaymentId?: string; onSummary: (id: string, summary: Summary | null) => void }) {
   const [membersOpen, setMembersOpen] = useState(false);
   const api = useBillApi();
   const groups = useGroupApi();
@@ -132,7 +132,7 @@ export function GroupBills({ id, onSummary }: { id: string; onSummary: (id: stri
         <>
           <div className="workspace-balance"><Balance summary={data.summary} group /><Button onClick={() => setCreating(true)}>New bill</Button></div>
           <GroupBalances ledger={data.ledger} />
-          <Repayments key={id} group={data.group} records={data.repayments} api={api} refresh={() => setRevision(n => n + 1)} />
+          <Repayments key={`${id}:${selectedRepaymentId ?? ""}`} selectedId={selectedRepaymentId} group={data.group} records={data.repayments} api={api} refresh={() => setRevision(n => n + 1)} />
           <div className="bill-heading">
             <h2>
               Bills <small>{data.bills.length}</small>
