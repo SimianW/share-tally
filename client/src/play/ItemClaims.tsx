@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { BillApiError, money, type Bill } from "./bill-api";
-import { cleanItem, useReceiptApi, type ReceiptCorrectionItem } from "./receipt-api";
+import { correctionInput, useReceiptApi, type ReceiptCorrectionItem } from "./receipt-api";
+import { previewCorrection } from "./receipt-correction";
 import { ReceiptPhoto } from "./ReceiptPhoto";
-import { ReceiptItemEditor } from "./ReceiptItemEditor";
+import { ReceiptReviewItems } from "./ReceiptReview";
 import { Button } from "./ui";
 import { errorMessage } from "./group-api";
 
@@ -56,6 +57,60 @@ export function ItemClaims({
     } catch (e) {
       setError(errorMessage(e));
       if (e instanceof BillApiError && e.status === 409) refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function saveCorrection() {
+    if (!edit || busy || stale) return;
+    if (edit.some((item) => !item.name.trim() || item.amountCents === null ||
+      item.discountCents > item.amountCents || item.finalCents === null)) {
+      setError("Check each item's name, printed price, discount and final cost.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    let revision = reviewed;
+    let changed = false;
+    try {
+      if (!bill.receipt) {
+        // Existing bills have no frozen rate. Preserve their stored tax and other
+        // adjustments, changing a final cost only when explicitly set manually.
+        const items = edit.map((item) => {
+          const original = bill.items!.find((candidate) => candidate.id === item.id)!;
+          return {
+            id: item.id, name: item.name, originalText: original.originalText,
+            quantity: item.quantity, amountCents: item.amountCents!,
+            discountCents: item.discountCents, taxCents: original.taxCents,
+            extraCents: original.extraCents,
+            finalCents: item.manualFinal ? item.finalCents! : original.finalCents,
+          };
+        });
+        const result = await api.legacyItems(bill.id, revision, items);
+        setReviewed(result.bill.revision);
+        saved(result.bill);
+        setEdit(null);
+        return;
+      }
+      for (const item of edit) {
+        const original = bill.items?.find((candidate) => candidate.id === item.id);
+        if (!original) throw new Error("An item changed. Reload the bill before correcting it.");
+        const input = correctionInput(item);
+        const previous = correctionInput(original);
+        if (JSON.stringify(input) === JSON.stringify(previous)) continue;
+        const result = await api.correctItem(bill.id, item.id, revision, input);
+        revision = result.bill.revision;
+        changed = true;
+        saved(result.bill);
+      }
+      setReviewed(revision);
+      setEdit(null);
+    } catch (e) {
+      setError(errorMessage(e));
+      if (changed || (e instanceof BillApiError && e.status === 409)) {
+        setEdit(null);
+        refresh();
+      }
     } finally {
       setBusy(false);
     }
@@ -216,46 +271,29 @@ export function ItemClaims({
             variant="secondary"
             disabled={busy}
             onClick={() => {
-              setEdit((bill.items ?? []).map(cleanItem));
+              setEdit((bill.items ?? []).map((item) => ({ ...item })));
               setReviewed(bill.revision);
             }}
           >
             Edit items & prices
           </Button>
           {edit && (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (
-                  !edit.every(
-                    (i) => i.finalCents !== null && i.amountCents !== null,
-                  )
-                ) {
-                  setError("Fill in item costs.");
-                  return;
-                }
-                const items = edit.map((i) =>
-                  cleanItem({
-                    ...i,
-                    amountCents: i.amountCents!,
-                    finalCents: i.finalCents!,
-                  }),
-                );
-                void perform(() => api.items(bill.id, reviewed, items));
-              }}
-            >
-              <ReceiptItemEditor items={edit} change={setEdit} />
-              <p>
-                Price changes reserve affected claims until their owners
-                reconfirm. Other items stay confirmed.
-              </p>
-              <Button type="submit" disabled={busy || stale}>
-                Save item changes
-              </Button>
-              <Button variant="text" onClick={() => setEdit(null)}>
-                Keep current items
-              </Button>
-            </form>
+            <div className="receipt-correction">
+              {!bill.receipt && <p>This older bill has no stored receipt summary, so tax and adjustment derivations are unavailable. Its existing costs will stay unchanged unless you set a final cost manually.</p>}
+              <ReceiptReviewItems mode="correction" hasFrozenRate={!!bill.frozenTaxRate} items={edit} change={(items) => setEdit(items.map((item) => {
+                const original = bill.items?.find((candidate) => candidate.id === item.id);
+                return original ? previewCorrection(bill, original, item) : item;
+              }))} />
+              <p>Price changes reserve only the corrected item's claims until their owners reconfirm. Other items stay confirmed.</p>
+              <div className="receipt-correction-actions">
+                <Button disabled={busy || stale} onClick={() => void saveCorrection()}>
+                  {busy ? "Saving…" : "Save item changes"}
+                </Button>
+                <Button variant="text" disabled={busy} onClick={() => setEdit(null)}>
+                  Keep current items
+                </Button>
+              </div>
+            </div>
           )}
         </>
       )}

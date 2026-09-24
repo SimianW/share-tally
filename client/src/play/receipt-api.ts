@@ -26,8 +26,8 @@ export type ReceiptDraftItem = Omit<
   taxable?: boolean | null;
   manualFinal?: boolean;
 };
-// Post-initiation corrections retain their existing API until #40.
-export type ReceiptCorrectionItem = ReceiptDraftItem & { taxCents: number; extraCents: number };
+export type ReceiptCorrectionItem = ReceiptDraftItem;
+export type ReceiptCorrection = Pick<ReceiptCorrectionItem, "name" | "quantity" | "discountCents" | "manualFinal"> & { amountCents: number; taxable: boolean; finalCents?: number };
 export type ItemClaim = {
   itemId: string;
   userId: string;
@@ -35,7 +35,17 @@ export type ItemClaim = {
   denominator: number;
   confirmedAt: string | null;
 };
-export type BillItem = ReceiptItem & { claims: ItemClaim[] };
+export type BillItem = ReceiptItem & {
+  claims: ItemClaim[];
+  taxable?: boolean | null;
+  manualFinal?: boolean;
+  allocatedDiscountCents?: number | null;
+  allocatedTaxCents?: number | null;
+  allocatedExtraCents?: number | null;
+  frozenTaxRoundingCents?: number | null;
+  frozenDiscountRoundingCents?: number | null;
+  frozenExtraRoundingCents?: number | null;
+};
 export type ReceiptPricing = {
   subtotalCents: number | null;
   taxCents: number;
@@ -196,10 +206,12 @@ export function useReceiptApi() {
           revision,
           claims,
         }),
-      items: (id: string, revision: number, items: ReceiptItem[]) =>
-        request<{ bill: Bill }>(`/bills/${id}/items`, "PUT", {
+      legacyItems: (id: string, revision: number, items: ReceiptItem[]) =>
+        request<{ bill: Bill }>(`/bills/${id}/items`, "PUT", { revision, items }),
+      correctItem: (id: string, itemId: string, revision: number, item: ReceiptCorrection) =>
+        request<{ bill: Bill }>(`/bills/${id}/items/${itemId}`, "PATCH", {
           revision,
-          items,
+          ...item,
         }),
       photo: async (id: string, signal: AbortSignal) => {
         const token = await getToken();
@@ -214,16 +226,14 @@ export function useReceiptApi() {
   }, [getToken, cache]);
 }
 export type ReceiptApi = ReturnType<typeof useReceiptApi>;
-export function cleanItem(item: ReceiptItem): ReceiptItem {
+export function correctionInput(item: ReceiptCorrectionItem): ReceiptCorrection {
   return {
-    id: item.id,
     name: item.name,
-    originalText: item.originalText,
     quantity: item.quantity,
-    amountCents: item.amountCents,
-    taxCents: item.taxCents,
+    amountCents: item.amountCents!,
     discountCents: item.discountCents,
-    extraCents: item.extraCents,
-    finalCents: item.finalCents,
+    taxable: item.taxable ?? true,
+    manualFinal: !!item.manualFinal,
+    ...(item.manualFinal && item.finalCents !== null ? { finalCents: item.finalCents } : {}),
   };
 }

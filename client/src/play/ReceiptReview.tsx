@@ -4,7 +4,7 @@ import { money } from "./bill-api";
 import type { ReceiptData, ReceiptDraftItem, ReceiptPricing } from "./receipt-api";
 import { requestId } from "./request-id";
 import Dialog from "./Dialog";
-import { ReceiptAmount } from "./ReceiptItemEditor";
+import { ReceiptAmount } from "./ReceiptAmount";
 import { ReceiptItemRow } from "./ReceiptItemRow";
 import { Button } from "./ui";
 
@@ -16,7 +16,7 @@ function fieldsValid(container: HTMLElement | null) {
   return false;
 }
 
-export function ReceiptReviewItems({ items, change }: { items: ReceiptDraftItem[]; change: (items: ReceiptDraftItem[]) => void }) {
+export function ReceiptReviewItems({ items, change, mode = "review", hasFrozenRate = true }: { items: ReceiptDraftItem[]; change: (items: ReceiptDraftItem[]) => void; mode?: "review" | "correction"; hasFrozenRate?: boolean }) {
   const [selected, setSelected] = useState<string | null>(null);
   const index = items.findIndex((item) => item.id === selected);
   const active = items[index];
@@ -30,25 +30,26 @@ export function ReceiptReviewItems({ items, change }: { items: ReceiptDraftItem[
   return <section className="receipt-review-items" aria-label="Receipt items">
     <div className="receipt-list-heading"><strong>{items.length} {items.length === 1 ? "item" : "items"}</strong><span>Tap an item to edit</span></div>
     <div className="receipt-item-list">
-      {items.map((item) => <ReceiptItemRow key={item.id} item={item} mode="review" selected={item.id === selected} onOpen={() => setSelected(item.id)} />)}
+      {items.map((item) => <ReceiptItemRow key={item.id} item={item} mode={mode} selected={item.id === selected} onOpen={() => setSelected(item.id)} />)}
       {!items.length && <p className="receipt-list-empty">Add your first item, then enter its printed price.</p>}
     </div>
-    <Button variant="secondary" disabled={items.length >= 200} onClick={() => {
+    {mode === "review" && <Button variant="secondary" disabled={items.length >= 200} onClick={() => {
       const id = requestId();
       change([...items, { id, name: "", originalText: "", quantity: "1", taxable: true, amountCents: null, discountCents: 0, finalCents: null, manualFinal: false }]);
       setSelected(id);
-    }}><Plus size={16} aria-hidden="true" /> Add an item</Button>
-    {active && <Dialog title="Edit receipt item" kicker={`ITEM ${index + 1} OF ${items.length}`} className="receipt-sheet" closeLabel="Close editor" close={close}>
+    }}><Plus size={16} aria-hidden="true" /> Add an item</Button>}
+    {active && <Dialog title={mode === "correction" ? "Correct item price" : "Edit receipt item"} kicker={`ITEM ${index + 1} OF ${items.length}`} className="receipt-sheet" closeLabel="Close editor" close={close}>
       <div ref={fields} key={active.id} className="receipt-sheet-content">
         <div className="receipt-original-text"><span className="eyebrow">ON THE RECEIPT</span><p>{active.originalText || "Manually added item"}</p></div>
         <div className="receipt-editor-fields">
-          <label className="receipt-field-wide">Item name<input data-autofocus maxLength={160} value={active.name} onChange={(event) => update({ name: event.target.value })} /></label>
+          <label className="receipt-field-wide">Item name<input data-autofocus required={mode === "correction"} maxLength={160} value={active.name} onChange={(event) => update({ name: event.target.value })} /></label>
           <label>Quantity<input maxLength={40} value={active.quantity} onChange={(event) => update({ quantity: event.target.value })} /></label>
-          <ReceiptAmount label="Printed price" required={false} value={active.amountCents} change={(amountCents) => update({ amountCents })} />
+          <ReceiptAmount label="Printed price" required={mode === "correction"} value={active.amountCents} change={(amountCents) => update({ amountCents })} />
           <ReceiptAmount label="Item discount" emptyAsZero value={active.discountCents} change={(discountCents) => update({ discountCents: discountCents ?? 0 })} />
           <label className="receipt-tax-toggle"><input type="checkbox" checked={active.taxable !== false} onChange={(event) => update({ taxable: event.target.checked })} />Taxable</label>
         </div>
-        <p className="receipt-field-help">Printed price is the whole line amount, including its quantity.</p>
+        <p className="receipt-field-help">Printed price is the whole line amount, including its quantity.{mode === "correction" && hasFrozenRate && " Corrections use the tax rate frozen when this bill was initiated; only this item's claims need reconfirmation."}</p>
+        {mode === "correction" && active.allocatedDiscountCents == null && <p className="receipt-field-help">Some receipt allocations are unavailable for this older bill. Its cost remains unchanged unless you set it manually.</p>}
         <dl className="receipt-cost-breakdown">
           <div><dt>Receipt discount share</dt><dd>{active.allocatedDiscountCents == null ? "Not yet calculated" : active.allocatedDiscountCents ? `−${money(active.allocatedDiscountCents)}` : money(0)}</dd></div>
           <div><dt>Tax share</dt><dd>{active.allocatedTaxCents == null ? "Not yet calculated" : money(active.allocatedTaxCents)}</dd></div>
@@ -57,17 +58,17 @@ export function ReceiptReviewItems({ items, change }: { items: ReceiptDraftItem[
         </dl>
         {active.manualFinal ? <div className="receipt-manual-override">
           <strong>Manual override</strong><p>This amount replaces the calculated final cost. Receipt allocations above are for reference.</p>
-          <ReceiptAmount label="Final cost · CAD" required={false} value={active.finalCents} change={(finalCents) => update({ finalCents })} />
+          <ReceiptAmount label="Final cost · CAD" required={mode === "correction"} value={active.finalCents} change={(finalCents) => update({ finalCents })} />
           <Button variant="text" onClick={() => update({ manualFinal: false })}>Use receipt calculation</Button>
         </div> : <Button variant="text" onClick={() => update({ manualFinal: true })}>Set final manually</Button>}
         <div className="receipt-editor-navigation">
           <Button variant="secondary" disabled={index === 0} onClick={() => move(-1)}><ArrowLeft size={16} aria-hidden="true" />Previous item</Button>
           <Button variant="secondary" disabled={index === items.length - 1} onClick={() => move(1)}>Next item<ArrowRight size={16} aria-hidden="true" /></Button>
         </div>
-        <div className="receipt-editor-bottom"><Button variant="text" className="draft-delete-text" onClick={() => {
+        <div className="receipt-editor-bottom">{mode === "review" && <Button variant="text" className="draft-delete-text" onClick={() => {
           change(items.filter((item) => item.id !== selected));
           setSelected(null);
-        }}>Remove item</Button><Button onClick={close}>Done</Button></div>
+        }}>Remove item</Button>}<Button onClick={close}>Done</Button></div>
       </div>
     </Dialog>}
   </section>;

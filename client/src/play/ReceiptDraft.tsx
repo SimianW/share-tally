@@ -8,7 +8,7 @@ import {
   type ReceiptDraft,
   type ReceiptData,
 } from "./receipt-api";
-import { ReceiptAmount } from "./ReceiptItemEditor";
+import { ReceiptAmount } from "./ReceiptAmount";
 import { ReceiptReviewItems, ReceiptSummary, ReceiptReconciliation } from "./ReceiptReview";
 import { deriveReceiptItems, recoverReceiptData } from "./receipt-pricing";
 import { ReceiptCrop, ReceiptPhoto } from "./ReceiptPhoto";

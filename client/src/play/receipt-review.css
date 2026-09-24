@@ -147,3 +147,7 @@
 @media (min-width: 701px) {
   .receipt-photo-review img { max-height: min(55vh, calc(100dvh - 280px)); }
 }
+
+.receipt-correction { display: grid; gap: var(--space-4); margin-top: var(--space-5); }
+.receipt-correction > p { color: var(--muted); font-size: var(--text-sm); }
+.receipt-correction-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
