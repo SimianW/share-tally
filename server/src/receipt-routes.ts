@@ -9,6 +9,7 @@ import { BillError, isUuid, readBills } from "./bills.js";
 import { checked, revisionInput, draftInput } from "./receipt-input.js";
 import {
   saveDraft,
+  storeReceiptEvidence,
   deleteDraft,
   normalizeReceiptPhoto,
   requireMember,
@@ -104,14 +105,10 @@ export function createReceiptRouter(
               );
             bytes = await photoBytes(input.draftId, u.id, true);
           }
-          const extraction = await processReceipt(await extract(bytes), names);
+          const scanned = await extract(bytes);
+          const extraction = await processReceipt(scanned, names);
           if ("draftId" in input) {
-            const latest = await readDraft(input.draftId, u.id);
-            if (latest.billId || latest.revision !== input.revision)
-              throw new BillError(
-                409,
-                "Draft changed during scanning. Your edits were kept. Reopen the saved version before scanning again.",
-              );
+            await storeReceiptEvidence(input.draftId, u.id, input.revision, scanned.rawAnalysis);
           }
           res.json({ extraction });
         }
@@ -168,16 +165,9 @@ export function createReceiptRouter(
     consumeRequest(u.id);
     active.add(u.id);
     try {
-      const data = await processReceipt(
-        await extract(await photoBytes(req.params.draftId, u.id, true)),
-        names,
-      );
-      const latest = await readDraft(req.params.draftId, u.id);
-      if (latest.revision !== revision || latest.billId)
-        throw new BillError(
-          409,
-          "Draft changed during scanning. Saved edits were kept. Scan again from the current draft.",
-        );
+      const scanned = await extract(await photoBytes(req.params.draftId, u.id, true));
+      const data = await processReceipt(scanned, names);
+      await storeReceiptEvidence(req.params.draftId, u.id, revision, scanned.rawAnalysis);
       res.json({ extraction: data });
     } finally {
       active.delete(u.id);

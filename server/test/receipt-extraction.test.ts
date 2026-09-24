@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { createAzureExtractor } from "../src/azure-receipt.js";
 import {
@@ -109,51 +110,54 @@ const env = {
   AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT: "https://azure.example.test",
   AZURE_DOCUMENT_INTELLIGENCE_KEY: "test-only",
 };
-test("Azure uses the selected receipt API, polls, and preserves missing amounts", async () => {
+function recorded(name: string) {
+  return JSON.parse(readFileSync(new URL(`./fixtures/azure-receipt/${name}.json`, import.meta.url), "utf8"));
+}
+function extractorFor(result: object) {
   let calls = 0;
   const request: typeof fetch = async (url, init) => {
     assert.equal(init?.redirect, "error");
     if (++calls === 1) {
-      assert.match(
-        String(url),
-        /prebuilt-receipt:analyze\?api-version=2024-11-30/,
-      );
+      assert.match(String(url), /prebuilt-receipt:analyze\?api-version=2024-11-30/);
       assert.equal(init?.method, "POST");
-      return new Response(null, {
-        status: 202,
-        headers: {
-          "operation-location": "https://azure.example.test/results/1",
-        },
-      });
+      return new Response(null, { status: 202, headers: { "operation-location": "https://azure.example.test/results/1" } });
     }
     if (calls === 2) return Response.json({ status: "running" });
-    return Response.json({
-      status: "succeeded",
-      analyzeResult: {
-        content: "Tax included",
-        documents: [
-          {
-            fields: {
-              Items: {
-                valueArray: [
-                  { valueObject: { Description: { valueString: "APPLE" } } },
-                ],
-              },
-              TotalTax: { valueCurrency: { amount: 0.25 } },
-            },
-          },
-        ],
-      },
-    });
+    return Response.json({ status: "succeeded", analyzeResult: result });
   };
-  const output = await createAzureExtractor(env, request, async () => {})(
-    Buffer.from("image"),
-  );
-  assert.equal(calls, 3);
-  assert.equal(output.total, null);
-  assert.equal(output.items[0]!.amount, null);
-  assert.equal(output.items[0]!.description, "APPLE");
-  assert.equal(output.pricesIncludeTax, true);
+  return { extract: createAzureExtractor(env, request, async () => {}), calls: () => calls };
+}
+test("Azure adapter retains recorded evidence without changing prices", async () => {
+  const withTax = extractorFor(recorded("azure-525"));
+  const result = await withTax.extract(Buffer.from("image"));
+  assert.equal(withTax.calls(), 3);
+  assert.equal(result.evidence?.countryRegion, "MYS");
+  assert.ok(result.evidence?.taxDetails?.length);
+  assert.equal(result.evidence.taxDetails[0]?.rate, 0);
+  assert.ok(result.items[0]?.evidence?.productCode);
+  assert.ok(result.items[0]?.evidence?.descriptionRegions?.[0]?.polygon.length);
+  assert.ok(result.items[0]?.evidence?.regions?.[0]?.polygon.length);
+  assert.equal(result.items[0]?.evidence?.content, result.items[0]?.description);
+  assert.ok(result.rawAnalysis?.documents);
+  assert.equal(result.items[0]?.amount, 15.56);
+  const withoutTax = await extractorFor(recorded("azure-225")).extract(Buffer.from("image"));
+  assert.equal(withoutTax.evidence?.taxDetails, undefined);
+  assert.equal(withoutTax.items[0]?.evidence?.unitPrice, 12);
+  assert.ok(withoutTax.items[0]?.evidence?.priceConfidence);
+  assert.ok(withoutTax.items[0]?.evidence?.unitPriceConfidence);
+  assert.ok(withoutTax.items[0]?.evidence?.priceRegions?.length);
+  assert.equal(withoutTax.items[0]?.amount, 24);
+  const missing = structuredClone(recorded("azure-225"));
+  const item = missing.documents[0].fields.Items.valueArray[0].valueObject;
+  delete item.Description.confidence;
+  delete item.Description.boundingRegions;
+  delete item.TotalPrice.confidence;
+  delete item.TotalPrice.boundingRegions;
+  const noObservations = await extractorFor(missing).extract(Buffer.from("image"));
+  assert.equal(noObservations.items[0]?.evidence?.descriptionConfidence, undefined);
+  assert.equal(noObservations.items[0]?.evidence?.descriptionRegions, undefined);
+  assert.equal(noObservations.items[0]?.evidence?.priceConfidence, undefined);
+  assert.equal(noObservations.items[0]?.evidence?.priceRegions, undefined);
 });
 test("Azure rejects foreign polling URLs without forwarding credentials and returns recoverable errors", async () => {
   let calls = 0;

@@ -93,7 +93,7 @@ after(async () => {
 beforeEach(async () => {
   // Clear only this suite's isolated database, including dependent bill tables.
   await pool.query(
-    "TRUNCATE TABLE item_claims, bill_items, receipt_photos, receipt_drafts, repayments, bill_shares, bills, group_members, groups, users",
+    "TRUNCATE TABLE item_claims, bill_items, receipt_evidence, receipt_photos, receipt_drafts, repayments, bill_shares, bills, group_members, groups, users",
   );
 });
 
@@ -1780,4 +1780,55 @@ test('saved-photo preview rejects results when the saved draft changes during ex
   } finally { child!.send('release-extraction'); }
   await json(await pending, 409);
   assert.equal((await json(await api(`/receipt-drafts/${id}`))).draft.data.title, 'Changed elsewhere');
+});
+
+
+test('recorded Azure evidence follows the scanned draft and expires with its photo', async () => {
+  const sharp = (await import('sharp')).default;
+  const { group, draft } = await setup(false);
+  const { requestId: _requestId, ...fields } = draft;
+  const id = crypto.randomUUID();
+  const data = { ...fields, mode: 'items', items: [] };
+  const bytes = await sharp({ create: { width: 30, height: 60, channels: 3, background: 'white' } }).png().toBuffer();
+  const photoBase64 = bytes.toString('base64');
+  const saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data, photoBase64 }))).draft;
+  const before = (await json(await api(`/receipt-drafts/${id}`))).draft;
+  assert.equal(before.data.receipt?.evidence, undefined);
+  assert.equal(before.data.items[0]?.evidence, undefined);
+  const ready = once(child!, 'message'); child!.send('recorded-evidence'); await ready;
+  try {
+    const scan = async () => (await json(await api(`/receipt-drafts/${id}/extract`, 'alice-token', 'POST', { revision: saved.revision }))).extraction;
+    const first = await scan();
+    assert.equal(first.receipt.evidence.countryRegion, 'FRA');
+    assert.equal(first.items[0].evidence.unitPrice, 12);
+    assert.equal(first.items[0].amountCents, 2400);
+    let row = await pool.query('SELECT analysis FROM receipt_evidence WHERE draft_id = $1', [id]);
+    assert.equal(row.rowCount, 1);
+    assert.equal(row.rows[0].analysis.apiVersion, '2024-11-30');
+    assert.equal(row.rows[0].analysis.documents[0].fields.Items.valueArray[0].valueObject.Price.valueCurrency.amount, 12);
+    assert.equal((await api(`/receipt-drafts/${id}`, 'bob-token')).status, 404);
+    const second = await scan();
+    assert.equal(second.receipt.evidence.countryRegion, 'MYS');
+    assert.ok(second.receipt.evidence.taxDetails.length);
+    assert.equal(second.items[0].evidence.productCode, '000001038556');
+    row = await pool.query('SELECT analysis FROM receipt_evidence WHERE draft_id = $1', [id]);
+    assert.equal(row.rowCount, 1);
+    assert.equal(row.rows[0].analysis.documents[0].fields.CountryRegion.valueCountryRegion, 'MYS');
+    const updated = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', {
+      revision: saved.revision,
+      data: { ...data, receipt: second.receipt, items: second.items, title: second.title, totalCents: second.totalCents },
+    }))).draft;
+    assert.deepEqual((await json(await api(`/receipt-drafts/${id}`))).draft.data.receipt.evidence, second.receipt.evidence);
+    assert.deepEqual((await json(await api(`/receipt-drafts/${id}`))).draft.data.items[0].evidence, second.items[0].evidence);
+    assert.equal(updated.data.items[0].amountCents, second.items[0].amountCents);
+    await pool.query("UPDATE receipt_photos SET expires_at = now() - interval '1 second' WHERE draft_id = $1", [id]);
+    const purged = once(child!, 'message'); child!.send('purge-photos'); await purged;
+    assert.equal((await pool.query('SELECT * FROM receipt_evidence WHERE draft_id = $1', [id])).rowCount, 0);
+    assert.equal((await pool.query('SELECT base64 FROM receipt_photos WHERE draft_id = $1', [id])).rows[0].base64, '');
+    const expiredDraft = (await json(await api(`/receipt-drafts/${id}`))).draft;
+    assert.equal(expiredDraft.data.receipt.evidence, undefined);
+    assert.equal(expiredDraft.data.items[0].evidence, undefined);
+  } finally {
+    const stopped = once(child!, 'message'); child!.send('recorded-evidence-off'); await stopped;
+  }
 });
