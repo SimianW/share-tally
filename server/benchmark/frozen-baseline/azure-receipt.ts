@@ -1,11 +1,6 @@
-// Azure's documented receipt fields only; no LLM or fixture-dependent corrections.
-// https://learn.microsoft.com/azure/ai-services/document-intelligence/prebuilt/receipt
-import { BillError } from "./bill-error.js";
-import {
-  extractedReceipt,
-  type ReceiptExtractor,
-} from "./receipt-extraction.js";
-import { setTimeout as delay } from "node:timers/promises";
+// Frozen benchmark baseline from commit 16509935cb34d505ee8d48c5616c2a22ff908e2f (#48).
+// Intentional snapshot: do not update when production behavior changes. No secrets or recordings.
+import { extractedReceipt } from "./receipt-extraction.js";
 type Field = {
   type?: string;
   content?: string;
@@ -113,92 +108,6 @@ export function normalizeAzure(result: AnalyzeResult) {
     ],
   };
 }
-async function azureReceipt(
-  bytes: Buffer,
-  request: typeof fetch,
-  wait: (ms: number, signal: AbortSignal) => Promise<unknown>,
-  env: NodeJS.ProcessEnv,
-) {
-  const endpoint = env.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT;
-  const key = env.AZURE_DOCUMENT_INTELLIGENCE_KEY;
-  if (!endpoint || !key)
-    throw new Error(
-      "Configure AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT and AZURE_DOCUMENT_INTELLIGENCE_KEY.",
-    );
-  const base = new URL(endpoint);
-  if (
-    base.protocol !== "https:" ||
-    base.username ||
-    base.password ||
-    base.search ||
-    base.hash
-  )
-    throw new Error("Azure endpoint must use HTTPS.");
-  const headers = { "Ocp-Apim-Subscription-Key": key };
-  const signal = AbortSignal.timeout(120000);
-  const response = await request(
-    new URL(
-      "/documentintelligence/documentModels/prebuilt-receipt:analyze?api-version=2024-11-30",
-      base,
-    ),
-    {
-      method: "POST",
-      headers: { ...headers, "Content-Type": "image/jpeg" },
-      body: new Uint8Array(bytes),
-      signal,
-      redirect: "error",
-    },
-  );
-  if (!response.ok)
-    throw new Error(
-      `Azure analyze HTTP ${response.status}: ${(await response.text()).slice(0, 400)}`,
-    );
-  const location = response.headers.get("operation-location");
-  if (!location) throw new Error("Azure did not return an operation URL.");
-  const operation = new URL(location);
-  if (
-    operation.origin !== base.origin ||
-    operation.username ||
-    operation.password
-  )
-    throw new Error("Azure returned an unexpected operation host.");
-  let pause = Number(response.headers.get("retry-after")) || 2;
-  for (;;) {
-    await wait(Math.min(Math.max(pause, 1), 10) * 1000, signal);
-    signal.throwIfAborted();
-    const poll = await request(operation, {
-      headers,
-      signal,
-      redirect: "error",
-    });
-    if (!poll.ok)
-      throw new Error(
-        `Azure result HTTP ${poll.status}: ${(await poll.text()).slice(0, 400)}`,
-      );
-    const body = (await poll.json()) as {
-      status: string;
-      analyzeResult?: AnalyzeResult;
-      error?: { code?: string; message?: string };
-    };
-    if (body.status === "succeeded" && body.analyzeResult)
-      return {
-        data: normalizeAzure(body.analyzeResult),
-        content: body.analyzeResult.content,
-        raw: JSON.stringify(body.analyzeResult, null, 2),
-        usage: {
-          pages: body.analyzeResult.pages?.length ?? null,
-          apiVersion: "2024-11-30",
-          model: "prebuilt-receipt",
-        },
-      };
-    if (body.status === "failed" || body.status === "canceled")
-      throw new Error(
-        `Azure ${body.status}: ${body.error?.code ?? ""} ${body.error?.message ?? ""}`,
-      );
-    pause = Number(poll.headers.get("retry-after")) || 2;
-  }
-}
-
 /** Pure production mapping, shared by the extractor and offline benchmark. */
 export function mapAzureAnalysis(result: AnalyzeResult) {
   const data = normalizeAzure(result);
@@ -233,31 +142,3 @@ export function mapAzureAnalysis(result: AnalyzeResult) {
     warnings: data.warnings,
   });
 }
-
-export function createAzureExtractor(
-  env: NodeJS.ProcessEnv = process.env,
-  request: typeof fetch = fetch,
-  wait: (ms: number, signal: AbortSignal) => Promise<unknown> = (ms, signal) =>
-    delay(ms, undefined, { signal }),
-): ReceiptExtractor {
-  return async (image) => {
-    if (
-      !env.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT ||
-      !env.AZURE_DOCUMENT_INTELLIGENCE_KEY
-    )
-      throw new BillError(
-        503,
-        "Receipt scanning is not configured. You can enter items manually.",
-      );
-    try {
-      const { raw } = await azureReceipt(image, request, wait, env);
-      return mapAzureAnalysis(JSON.parse(raw) as AnalyzeResult);
-    } catch {
-      throw new BillError(
-        502,
-        "Could not read this receipt. Your draft is safe. Retry, replace the photo, or enter items manually.",
-      );
-    }
-  };
-}
-export const azureExtract = createAzureExtractor();

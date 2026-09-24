@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "labelKind": "diagnostic-partial",
+  "id": "sroie-001",
+  "currency": "MYR",
+  "currencyExponent": 2,
+  "country": "MY",
+  "region": null,
+  "merchant": "Indah Gift & Home Deco",
+  "items": [
+    {
+      "id": "item-001",
+      "description": "ST-PRIVILEGE CARD/GD INDAH",
+      "productCode": null,
+      "quantity": "1",
+      "quantityBasis": "printed",
+      "unit": null,
+      "unitPrice": 1000,
+      "linePrice": 1000,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-002",
+      "description": null,
+      "productCode": null,
+      "quantity": "1",
+      "quantityBasis": "printed",
+      "unit": null,
+      "unitPrice": 5590,
+      "linePrice": 5590,
+      "ownDiscount": 559,
+      "discountLabels": [
+        "@DISC 10.00%"
+      ],
+      "notes": [
+        "Description unscored: prior benchmark description 'GF-TABLE LAMP/STITCH' is not verbatim printed text. Original source annotation excerpt(s): 'GF-TABLE LAMP/STITCH <I>'. Annotation wording is preserved for diagnostic traceability, not scored as an everyday product name."
+      ]
+    }
+  ],
+  "receiptDiscounts": [],
+  "subtotal": 6031,
+  "subtotalBasis": "printed",
+  "subtotalStage": "after-discounts",
+  "taxLines": null,
+  "taxTotal": null,
+  "taxMode": null,
+  "charges": null,
+  "rounding": -1,
+  "total": 6030,
+  "taxability": null,
+  "notes": [
+    "Printed 10% discount of 5.59 follows the table lamp, reducing 55.90 to 50.31; 10.00 + 55.90 - 5.59 = 60.31. Printed rounding adjustment -0.01 yields 60.30.",
+    "Unverified fields are null and unscored; this diagnostic label is not a strict public-corpus truth label."
+  ],
+  "review": {
+    "method": "Prior benchmark source annotation transcription visually checked against original scan; selected ambiguities rechecked against original image/CSV, 2026-09-24",
+    "date": "2026-09-24"
+  }
+}
