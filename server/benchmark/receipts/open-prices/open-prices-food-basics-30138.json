@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "id": "open-prices-food-basics-30138",
+  "currency": "CAD",
+  "currencyExponent": 2,
+  "country": "CA",
+  "region": "ON",
+  "merchant": "food Basics",
+  "items": [
+    {
+      "id": "item-001",
+      "description": "PEPSI BOTTLE",
+      "productCode": null,
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 579,
+      "ownDiscount": 181,
+      "discountLabels": [
+        "Saving 1.81"
+      ],
+      "notes": [
+        "Receipt prints charged 3.98 and Saving 1.81; pre-discount 5.79 is their exact sum, not an independently printed price."
+      ]
+    },
+    {
+      "id": "item-002",
+      "description": "IR.CAULIFL.BITES",
+      "productCode": null,
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 699,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-003",
+      "description": "SU PASTA SALAD",
+      "productCode": null,
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 899,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-004",
+      "description": "ORIG.2% PLAIN BA",
+      "productCode": null,
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 349,
+      "ownDiscount": 50,
+      "discountLabels": [
+        "Saving 0.50"
+      ],
+      "notes": [
+        "Receipt prints charged 2.99 and Saving 0.50; pre-discount 3.49 is their exact sum, not an independently printed price."
+      ]
+    }
+  ],
+  "receiptDiscounts": [],
+  "subtotal": 2295,
+  "subtotalBasis": "printed",
+  "taxLines": [
+    {
+      "label": "HST (13.000)%",
+      "rate": "0.13",
+      "rateBasis": "printed",
+      "amount": 52
+    },
+    {
+      "label": "RED (5.000)%",
+      "rate": "0.05",
+      "rateBasis": "printed",
+      "amount": 45
+    },
+    {
+      "label": "PFT (8.000)%",
+      "rate": "0.08",
+      "rateBasis": "printed",
+      "amount": 72
+    }
+  ],
+  "taxTotal": 169,
+  "taxMode": "exclusive",
+  "charges": [],
+  "rounding": 0,
+  "total": 2464,
+  "taxability": [
+    {
+      "itemId": "item-001",
+      "taxable": true,
+      "basis": "printed-code",
+      "evidence": "H code printed beside PEPSI BOTTLE; HST (13.000)% tax base printed as 3.98.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-002",
+      "taxable": false,
+      "basis": "jurisdiction-rule",
+      "evidence": "CRA GST/HST Memorandum 4.3, paragraph 1: basic food for human consumption is zero-rated unless a listed exception applies. This grocery row has no printed taxable marker; its zero-tax treatment is corroborated by the receipt arithmetic. No tax code beside IR.CAULIFL.BITES; tax bases are 3.98 (HST) and 8.99 (RED/PFT), neither including this 6.99 product.",
+      "sourceUrls": [
+        "https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/4-3/basic-groceries.html"
+      ]
+    },
+    {
+      "itemId": "item-003",
+      "taxable": true,
+      "basis": "printed-code",
+      "evidence": "RF code printed beside SU PASTA SALAD; RED (5.000)% and PFT (8.000)% both print tax base 8.99.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-004",
+      "taxable": false,
+      "basis": "jurisdiction-rule",
+      "evidence": "CRA GST/HST Memorandum 4.3, paragraph 1: basic food for human consumption is zero-rated unless a listed exception applies. This grocery row has no printed taxable marker; its zero-tax treatment is corroborated by the receipt arithmetic. No tax code beside ORIG.2% PLAIN BA; tax bases are 3.98 (HST) and 8.99 (RED/PFT), neither including its net 2.99.",
+      "sourceUrls": [
+        "https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/4-3/basic-groceries.html"
+      ]
+    }
+  ],
+  "notes": [
+    "The receipt displays 3.98 as HST base and 8.99 as both RED and PFT bases; the three printed tax components are preserved separately without interpreting the abbreviated RED/PFT labels or collapsing them into one tax. The printed Saving amounts are associated with PEPSI BOTTLE and ORIG.2% PLAIN BA, and the displayed merchandise amounts are net of those savings."
+  ],
+  "review": {
+    "method": "manual visual transcription with arithmetic reconciliation",
+    "date": "2026-09-24"
+  }
+}

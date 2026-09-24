@@ -1,0 +1,280 @@
+{
+  "schemaVersion": 1,
+  "id": "open-prices-costco-24972",
+  "currency": "CAD",
+  "currencyExponent": 2,
+  "country": "CA",
+  "region": "ON",
+  "merchant": "COSTCO WHOLESALE",
+  "items": [
+    {
+      "id": "item-001",
+      "description": "MID-DAY SQUA",
+      "productCode": "1873581",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 1999,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-002",
+      "description": "CLEMENTINES",
+      "productCode": "21366",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 999,
+      "ownDiscount": 200,
+      "discountLabels": [
+        "TPD/21366"
+      ],
+      "notes": []
+    },
+    {
+      "id": "item-003",
+      "description": "TF MOCHI",
+      "productCode": "1865657",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 1399,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-004",
+      "description": "BANANAS",
+      "productCode": "30669",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 169,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-005",
+      "description": "EGG WRAP",
+      "productCode": "1813286",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 1999,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-006",
+      "description": "MRGHRITAPIZZ",
+      "productCode": "1895875",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 1999,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-007",
+      "description": "EGGS 2.5 DZ",
+      "productCode": "129572",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 899,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-008",
+      "description": "SPANAKOPITA",
+      "productCode": "965949",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 1999,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-009",
+      "description": "ACTIVIA LACT",
+      "productCode": "1195239",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 1079,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-010",
+      "description": "BAGELS",
+      "productCode": "129305",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 1149,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-011",
+      "description": "ORIGL TORTIL",
+      "productCode": "1218213",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 579,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    }
+  ],
+  "receiptDiscounts": [],
+  "subtotal": 14069,
+  "subtotalBasis": "printed",
+  "taxLines": [
+    {
+      "label": "TAX",
+      "rate": null,
+      "rateBasis": "unprinted",
+      "amount": 442
+    }
+  ],
+  "taxTotal": 442,
+  "taxMode": "exclusive",
+  "charges": [],
+  "rounding": 0,
+  "total": 14511,
+  "taxability": [
+    {
+      "itemId": "item-001",
+      "taxable": true,
+      "basis": "printed-code",
+      "evidence": "Printed H tax code; taxable confectionery.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-002",
+      "taxable": false,
+      "basis": "jurisdiction-rule",
+      "evidence": "Basic grocery: fruit; no H code. Ontario; CRA basic-grocery rules; no positive tax charged on this row.",
+      "sourceUrls": [
+        "https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/4-3/basic-groceries.html"
+      ]
+    },
+    {
+      "itemId": "item-003",
+      "taxable": true,
+      "basis": "printed-code",
+      "evidence": "Printed H tax code.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-004",
+      "taxable": false,
+      "basis": "jurisdiction-rule",
+      "evidence": "Basic grocery: fruit; no H code. Ontario; CRA basic-grocery rules; no positive tax charged on this row.",
+      "sourceUrls": [
+        "https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/4-3/basic-groceries.html"
+      ]
+    },
+    {
+      "itemId": "item-005",
+      "taxable": false,
+      "basis": "jurisdiction-rule",
+      "evidence": "Basic grocery: packaged food; no H code. Ontario; CRA basic-grocery rules; no positive tax charged on this row.",
+      "sourceUrls": [
+        "https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/4-3/basic-groceries.html"
+      ]
+    },
+    {
+      "itemId": "item-006",
+      "taxable": false,
+      "basis": "jurisdiction-rule",
+      "evidence": "Basic grocery: packaged pizza; no H code. Ontario; CRA basic-grocery rules; no positive tax charged on this row.",
+      "sourceUrls": [
+        "https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/4-3/basic-groceries.html"
+      ]
+    },
+    {
+      "itemId": "item-007",
+      "taxable": false,
+      "basis": "jurisdiction-rule",
+      "evidence": "Basic grocery: eggs; no H code. Ontario; CRA basic-grocery rules; no positive tax charged on this row.",
+      "sourceUrls": [
+        "https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/4-3/basic-groceries.html"
+      ]
+    },
+    {
+      "itemId": "item-008",
+      "taxable": false,
+      "basis": "jurisdiction-rule",
+      "evidence": "Basic grocery: packaged food; no H code. Ontario; CRA basic-grocery rules; no positive tax charged on this row.",
+      "sourceUrls": [
+        "https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/4-3/basic-groceries.html"
+      ]
+    },
+    {
+      "itemId": "item-009",
+      "taxable": false,
+      "basis": "jurisdiction-rule",
+      "evidence": "Basic grocery: yogurt; no H code. Ontario; CRA basic-grocery rules; no positive tax charged on this row.",
+      "sourceUrls": [
+        "https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/4-3/basic-groceries.html"
+      ]
+    },
+    {
+      "itemId": "item-010",
+      "taxable": false,
+      "basis": "jurisdiction-rule",
+      "evidence": "Basic grocery: bread; no H code. Ontario; CRA basic-grocery rules; no positive tax charged on this row.",
+      "sourceUrls": [
+        "https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/4-3/basic-groceries.html"
+      ]
+    },
+    {
+      "itemId": "item-011",
+      "taxable": false,
+      "basis": "jurisdiction-rule",
+      "evidence": "Basic grocery: tortillas; no H code. Ontario; CRA basic-grocery rules; no positive tax charged on this row.",
+      "sourceUrls": [
+        "https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/4-3/basic-groceries.html"
+      ]
+    }
+  ],
+  "notes": [
+    "All quantities are implicit one per printed purchase row; package sizes in descriptions are not purchase quantities. Unit prices are not separately printed and are null.",
+    "Own discounts are attached to the preceding matching product; linePrice is the printed amount before that discount.",
+    "Image ends within the payment block, but every item, subtotal, TAX and total is fully present and reconciles.",
+    "H-marked items total 33.98 and reconcile to TAX 4.42 under Ontario HST 13%; rate and code legend are not printed in this image, so tax rate remains null.",
+    "Source proofs 24972 and 24973 show the same transaction; only 24972 is included."
+  ],
+  "review": {
+    "method": "manual visual transcription with arithmetic reconciliation",
+    "date": "2026-09-24"
+  }
+}

@@ -1,0 +1,180 @@
+{
+  "schemaVersion": 1,
+  "id": "express-expense-1011",
+  "currency": "USD",
+  "currencyExponent": 2,
+  "country": "US",
+  "region": "CA",
+  "merchant": "Quick 73",
+  "items": [
+    {
+      "id": "item-001",
+      "description": "Beef Ribs",
+      "productCode": null,
+      "quantity": "1.89",
+      "quantityBasis": "printed-weight",
+      "unit": "lb",
+      "unitPrice": 1950,
+      "linePrice": 3686,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": [
+        "One order printed; weight 1.89 lbs @ 19.50/lbs is printed; rounded line total 36.86."
+      ]
+    },
+    {
+      "id": "item-002",
+      "description": "Pulled Pork Sand",
+      "productCode": null,
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 850,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-003",
+      "description": "*Reg",
+      "productCode": null,
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 0,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": [
+        "Printed zero-dollar modifier"
+      ]
+    },
+    {
+      "id": "item-004",
+      "description": "Creamed Corn[Small]",
+      "productCode": null,
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 335,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-005",
+      "description": "Longhorn Mac & Cheese[sm]",
+      "productCode": null,
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 420,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-006",
+      "description": "Chocolate Cake[Slice]",
+      "productCode": null,
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 395,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-007",
+      "description": "Fountain Soda",
+      "productCode": null,
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 225,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    }
+  ],
+  "receiptDiscounts": [],
+  "subtotal": 5911,
+  "subtotalBasis": "printed",
+  "taxLines": [
+    {
+      "label": "CA Sales Tax",
+      "rate": null,
+      "rateBasis": "unprinted",
+      "amount": 532
+    }
+  ],
+  "taxTotal": 532,
+  "taxMode": "exclusive",
+  "charges": [],
+  "rounding": 0,
+  "total": 6443,
+  "taxability": [
+    {
+      "itemId": "item-001",
+      "taxable": true,
+      "basis": "printed-tax",
+      "evidence": "Printed positive tax 5.32 on full restaurant-food subtotal 59.11; this item participates in the taxed order.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-002",
+      "taxable": true,
+      "basis": "printed-tax",
+      "evidence": "Printed positive tax 5.32 on full restaurant-food subtotal 59.11; this item participates in the taxed order.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-003",
+      "taxable": true,
+      "basis": "printed-tax",
+      "evidence": "Printed positive tax 5.32 on full restaurant-food subtotal 59.11; this item participates in the taxed order.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-004",
+      "taxable": true,
+      "basis": "printed-tax",
+      "evidence": "Printed positive tax 5.32 on full restaurant-food subtotal 59.11; this item participates in the taxed order.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-005",
+      "taxable": true,
+      "basis": "printed-tax",
+      "evidence": "Printed positive tax 5.32 on full restaurant-food subtotal 59.11; this item participates in the taxed order.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-006",
+      "taxable": true,
+      "basis": "printed-tax",
+      "evidence": "Printed positive tax 5.32 on full restaurant-food subtotal 59.11; this item participates in the taxed order.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-007",
+      "taxable": true,
+      "basis": "printed-tax",
+      "evidence": "Printed positive tax 5.32 on full restaurant-food subtotal 59.11; this item participates in the taxed order.",
+      "sourceUrls": []
+    }
+  ],
+  "notes": [
+    "Weight 1.89 lbs @ 19.50/lbs is printed for Beef Ribs; rounded line total 36.86 retained as printed; 0.00 *Reg is printed as a separate modifier."
+  ],
+  "review": {
+    "method": "manual visual transcription with arithmetic reconciliation",
+    "date": "2026-09-24"
+  }
+}
