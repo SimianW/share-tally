@@ -1,5 +1,6 @@
 import { requestId } from "./request-id";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useReceiptDraftSync } from "./receipt-draft-sync";
 import { BillApiError, localToday, money, type Bill } from "./bill-api";
 import { errorMessage, type GroupDetail } from "./group-api";
 import {
@@ -105,23 +106,11 @@ export function ReceiptDrafts({
   const [retry, setRetry] = useState(0);
   const [deleting, setDeleting] = useState<ReceiptDraft | null>(null);
   const [busy, setBusy] = useState(false);
-  useEffect(() => {
-    let live = true;
-    api
-      .list(groupId)
-      .then((r) => {
-        if (live) {
-          setDrafts(r.drafts);
-          setError("");
-        }
-      })
-      .catch((e) => {
-        if (live) setError(errorMessage(e));
-      });
-    return () => {
-      live = false;
-    };
-  }, [api, groupId, retry]);
+  const applyDrafts = useCallback((updated: ReceiptDraft[]) => {
+    setDrafts(updated);
+    setError("");
+  }, []);
+  useReceiptDraftSync(groupId, null, applyDrafts, setError, true, retry);
   return (
     <section className="receipt-drafts">
       {drafts.length > 0 && (
@@ -142,6 +131,8 @@ export function ReceiptDrafts({
             <strong>{d.data.title || "Untitled bill"}</strong>
             <small>
               {d.data.mode === "items" ? "Split by items" : "Split by amount"}
+              {d.processingStatus === "processing" && " · Checking names and tax"}
+              {d.processingStatus === "fallback" && " · Tax not checked"}
               {d.updatedAt &&
                 ` · Saved ${new Date(d.updatedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`}
             </small>
@@ -157,6 +148,7 @@ export function ReceiptDrafts({
           <button
             className="draft-delete"
             aria-label={`Delete ${d.data.title || "untitled bill"}`}
+            disabled={d.processingStatus === "processing"}
             onClick={() => {
               setError("");
               setDeleting(d);
@@ -204,6 +196,8 @@ function emptyDraft(userId: string, id = requestId()): ReceiptDraft {
   return {
     id,
     revision: 0,
+    processingStatus: "ready",
+    processingStartedAt: null,
     data: {
       mode: "items",
       title: "",
@@ -275,8 +269,6 @@ export function ReceiptDraftForm({
     stepHeading.current?.focus({ preventScroll: true });
   }, [step, stepKey, loading]);
   const [busy, setBusy] = useState("");
-  const [naming, setNaming] = useState(false);
-  const [nameError, setNameError] = useState("");
   const cameraInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const pending = useRef(false);
@@ -286,6 +278,26 @@ export function ReceiptDraftForm({
   const [warnings, setWarnings] = useState<string[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [replace, setReplace] = useState(false);
+  const [syncError, setSyncError] = useState("");
+  const applyProcessingDraft = useCallback((drafts: ReceiptDraft[]) => {
+    const latest = drafts[0];
+    if (!latest) return;
+    if (latest.processingStatus === "processing" && latest.data.mode === "items") setStep(1);
+    setDraft((current) => {
+      // Keep the original idempotent initiation revision if its response was lost.
+      if (current.initializationRevision || latest.revision <= current.revision) return current;
+      const clean = !current.pendingPhoto && baseline.current &&
+        comparable(current.data) === comparable(baseline.current.data);
+      // A scan always wins: the server rejects edits while it is processing.
+      // Otherwise preserve unrelated local edits for the normal revision conflict.
+      if (!clean && latest.processingStatus !== "processing" &&
+        current.processingStatus !== "processing") return current;
+      baseline.current = latest;
+      return latest;
+    });
+  }, []);
+  useReceiptDraftSync(group.id, draft.id, applyProcessingDraft, setSyncError,
+    draft.revision > 0 && !loading);
   useEffect(() => {
     if (!id) return;
     let live = true;
@@ -303,6 +315,9 @@ export function ReceiptDraftForm({
             const local = recoveredDraft.current;
             if (
               local?.id === r.draft.id &&
+              r.draft.processingStatus !== "processing" &&
+              local.processingStatus !== "processing" &&
+              local.revision === r.draft.revision &&
               (local.initializationRevision ||
                 comparable(local.data) !== comparable(r.draft.data) ||
                 local.pendingPhoto)
@@ -318,7 +333,9 @@ export function ReceiptDraftForm({
                   : "Recovered your local changes. The saved draft has changed elsewhere; saving will check for a conflict.",
               );
             } else setDraft(r.draft);
-            if (sessionStorage.getItem(stepKey) === null)
+            if (r.draft.processingStatus === "processing" && r.draft.data.mode === "items")
+              setStep(1);
+            else if (sessionStorage.getItem(stepKey) === null)
               setStep(
                 r.draft.data.mode === "manual"
                   ? 2
@@ -362,6 +379,7 @@ export function ReceiptDraftForm({
     }
   }
   function update(patch: Partial<ReceiptData>) {
+    if (draft.processingStatus === "processing") return;
     setDraft((d) => ({ ...d, data: { ...d.data, ...patch } }));
     setNotice("Unsaved changes");
   }
@@ -413,62 +431,25 @@ export function ReceiptDraftForm({
     }
   }
   async function scan() {
-    const current = await prepare();
-    // Persist the photo before scanning so its raw analysis is retained with it.
-    const saved = current.pendingPhoto
-      ? (await api.save(group.id, current)).draft
-      : current;
-    if (saved !== current) {
-      setDraft(saved);
-      baseline.current = saved;
-    }
-    const { extraction } = await api.previewExtract(group.id, saved);
-    await prepare({
-      ...saved,
-      data: {
-        ...saved.data,
-        mode: "items",
-        items: extraction.items,
-        receipt: extraction.receipt,
-        totalCents: extraction.totalCents,
-        title: saved.data.title || extraction.title,
-      },
-    });
+    // Save both the draft and photo first: the saved scan owns the Azure result.
+    const { draft: saved } = await api.save(group.id, draft);
+    setDraft(saved);
+    baseline.current = saved;
+    const { draft: scanned, extraction } = await api.extract(saved.id, saved.revision);
+    setDraft((current) => scanned.revision >= current.revision ? scanned : current);
+    baseline.current = scanned;
     setWarnings(extraction.warnings);
     setReplace(false);
     setStep(1);
-    setNameError("");
-  }
-  async function nameItems(snapshot: ReceiptDraft) {
-    setNaming(true);
-    setNameError("");
-    try {
-      const result = await api.previewNames(group.id, snapshot.data);
-      if (ended.current) return;
-      setDraft((current) => ({
-        ...current,
-        data: {
-          ...current.data,
-          items: current.data.items.map((item) => {
-            const source = snapshot.data.items.find((i) => i.id === item.id);
-            const name = result.names.find((n) => n.id === item.id)?.name;
-            return source &&
-              source.name === item.name &&
-              source.originalText === item.originalText &&
-              name
-              ? { ...item, name }
-              : item;
-          }),
-        },
-      }));
-    } catch (e) {
-      setNameError(errorMessage(e));
-    } finally {
-      setNaming(false);
-    }
   }
   const data = draft.data;
+  const processing = draft.processingStatus === "processing";
   const itemTotal = data.items.reduce((sum, i) => sum + (i.finalCents ?? 0), 0);
+  const displayWarnings = (data.receipt?.taxCents ?? 0) > 0 &&
+    !data.receipt?.pricesIncludeTax && data.items.length > 0 &&
+    data.items.every((item) => item.taxable === false)
+    ? [...warnings, `Receipt tax ${money(data.receipt!.taxCents)} isn't assigned to any item — mark taxable items.`]
+    : warnings;
   const valid =
     data.totalCents !== null &&
     data.totalCents > 0 &&
@@ -498,7 +479,7 @@ export function ReceiptDraftForm({
           noValidate
           onSubmit={(e) => {
             e.preventDefault();
-            if (step !== 2 || !e.currentTarget.reportValidity()) return;
+            if (processing || step !== 2 || !e.currentTarget.reportValidity()) return;
             if (valid)
               void run("Initiating…", async () => {
                 const saved = draft.initializationRevision
@@ -529,6 +510,7 @@ export function ReceiptDraftForm({
                   disabled={
                     !!busy ||
                     !!draft.initializationRevision ||
+                    processing ||
                     (index === 1 && data.mode === "manual")
                   }
                   onClick={() => setStep(index)}
@@ -563,7 +545,18 @@ export function ReceiptDraftForm({
               ][step]
             }
           </p>
-          <fieldset disabled={!!busy || !!draft.initializationRevision}>
+          {processing && (
+            <Notification tone="info" title="Checking names and tax">
+              Review your receipt while the tax check finishes. Editing and initiation are paused.
+            </Notification>
+          )}
+          {draft.processingStatus === "fallback" && (
+            <Notification tone="warning" title="Tax not checked">
+              The AI tax check did not finish. Please confirm which items are taxable before initiating.
+            </Notification>
+          )}
+          {syncError && processing && <p role="status">{syncError}</p>}
+          <fieldset disabled={!!busy || !!draft.initializationRevision || processing}>
             {step === 0 && (
               <>
                 <div className="receipt-source">
@@ -752,6 +745,7 @@ export function ReceiptDraftForm({
                       items={data.items}
                       change={(items) => update({ items })}
                       draftMode
+                      processing={processing}
                     />
                   </div>
                 </div>
@@ -855,27 +849,6 @@ export function ReceiptDraftForm({
                     </fieldset>
                   )}
                 </details>
-                {data.items.length > 0 && (
-                  <Button
-                    variant="text"
-                    disabled={naming}
-                    onClick={() =>
-                      void run("Saving…", async () => {
-                        const saved = await prepare();
-                        void nameItems(saved);
-                      })
-                    }
-                  >
-                    Retry names, replacing unchanged names
-                  </Button>
-                )}
-                {nameError && <p role="alert">{nameError}</p>}
-                {naming && (
-                  <p role="status">
-                    Interpreting product names… You can keep editing or initiate
-                    without waiting.
-                  </p>
-                )}
               </>
             )}
             {step === 2 && (
@@ -1007,7 +980,7 @@ export function ReceiptDraftForm({
               </div>
             )}
           </fieldset>
-          {warnings.map((w, i) => (
+          {displayWarnings.map((w, i) => (
             <Notification tone="warning" title="Check the receipt" key={i}>
               {w}
             </Notification>
@@ -1043,7 +1016,7 @@ export function ReceiptDraftForm({
               {step > 0 && (
                 <Button
                   variant="text"
-                  disabled={!!busy || !!draft.initializationRevision}
+                  disabled={!!busy || !!draft.initializationRevision || processing}
                   onClick={() =>
                     setStep(step === 2 && data.mode === "manual" ? 0 : step - 1)
                   }
@@ -1053,7 +1026,7 @@ export function ReceiptDraftForm({
               )}
               <Button
                 variant="text"
-                disabled={!!busy || !!draft.initializationRevision}
+                disabled={!!busy || !!draft.initializationRevision || processing}
                 onClick={() =>
                   void run("Saving draft…", async () => {
                     await save();
@@ -1068,7 +1041,7 @@ export function ReceiptDraftForm({
                 <Button
                   variant="text"
                   className="draft-delete-text"
-                  disabled={!!busy || !!draft.initializationRevision}
+                  disabled={!!busy || !!draft.initializationRevision || processing}
                   onClick={() => setDeleting(true)}
                 >
                   <Trash2 size={16} /> Delete draft
@@ -1076,12 +1049,12 @@ export function ReceiptDraftForm({
               )}
             </div>
             {step === 1 && (
-              <Button onClick={() => setStep(2)} disabled={!!busy}>
+              <Button onClick={() => setStep(2)} disabled={!!busy || processing}>
                 Continue to sharing <ArrowRight size={16} aria-hidden="true" />
               </Button>
             )}
             {step === 2 && (
-              <Button type="submit" disabled={!!busy || !valid}>
+              <Button type="submit" disabled={!!busy || !valid || processing}>
                 {draft.initializationRevision
                   ? "Retry initiation"
                   : "Initiate bill"}

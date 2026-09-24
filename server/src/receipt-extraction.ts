@@ -25,6 +25,12 @@ export const extractedReceipt = z.object({
   subtotal: money.nullable().optional(),
   evidence: receiptEvidenceFields.optional(),
   rawAnalysis: z.record(z.string(), z.unknown()).optional(),
+  // Per-scan durations only; the lifecycle logs these without receipt contents.
+  scanTimings: z.object({
+    azureSubmitMs: z.number().nonnegative(),
+    azurePollMs: z.number().nonnegative(),
+    mappingMs: z.number().nonnegative(),
+  }).optional(),
   pricesIncludeTax: z.boolean().default(false),
   discountTotal: money.nullable(),
   taxTotal: money.nullable(),

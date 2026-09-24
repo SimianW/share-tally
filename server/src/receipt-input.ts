@@ -44,6 +44,7 @@ export const receiptEvidenceFields = z.object({
 });
 export const draftItemInput = itemInput.extend({
   allocatedTaxCents: amount.optional(),
+  taxNotChecked: z.boolean().optional(),
   evidence: itemEvidence.optional(),
   manualFinal: z.boolean().default(false),
   name: z.string().max(160),

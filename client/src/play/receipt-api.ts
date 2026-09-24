@@ -38,6 +38,7 @@ export type ReceiptDraftItem = Omit<
   amountCents: number | null;
   finalCents: number | null;
   allocatedTaxCents?: number;
+  taxNotChecked?: boolean;
   taxable?: boolean | null;
   manualFinal?: boolean;
   evidence?: ItemEvidence;
@@ -76,6 +77,8 @@ export type ReceiptDraft = {
   pendingPhoto?: string;
   id: string;
   revision: number;
+  processingStatus: "ready" | "processing" | "fallback";
+  processingStartedAt: string | null;
   data: ReceiptData;
   billId?: string | null;
   photo?: { expiresAt: string; expired?: boolean } | null;
@@ -100,11 +103,13 @@ export function useReceiptApi() {
       path: string,
       method = "GET",
       body?: unknown,
+      signal?: AbortSignal,
     ): Promise<T> {
       const token = await getToken();
       if (!token) throw new BillApiError(401, "Please sign in again.");
       const response = await fetch(`/api${path}`, {
         method,
+        signal,
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -124,12 +129,12 @@ export function useReceiptApi() {
       return result;
     }
     return {
-      list: (groupId: string) =>
+      list: (groupId: string, signal?: AbortSignal) =>
         request<{ drafts: ReceiptDraft[] }>(
-          `/groups/${groupId}/receipt-drafts`,
+          `/groups/${groupId}/receipt-drafts`, "GET", undefined, signal,
         ),
-      get: (id: string) =>
-        request<{ draft: ReceiptDraft }>(`/receipt-drafts/${id}`),
+      get: (id: string, signal?: AbortSignal) =>
+        request<{ draft: ReceiptDraft }>(`/receipt-drafts/${id}`, "GET", undefined, signal),
       save: (groupId: string, draft: ReceiptDraft) =>
         request<{ draft: ReceiptDraft }>(
           `/groups/${groupId}/receipt-drafts/${draft.id}`,
@@ -144,23 +149,9 @@ export function useReceiptApi() {
         request<{ deleted: boolean }>(`/receipt-drafts/${id}`, "DELETE", {
           revision,
         }),
-      previewExtract: (groupId: string, draft: ReceiptDraft) =>
-        request<{ extraction: Extraction }>(
-          `/groups/${groupId}/receipt-preview/extract`,
-          "POST",
-          draft.pendingPhoto
-            ? { base64: draft.pendingPhoto }
-            : { draftId: draft.id, revision: draft.revision },
-        ),
       previewPrices: (groupId: string, data: ReceiptData) =>
         request<{ items: ReceiptDraftItem[]; warnings: string[] }>(
           `/groups/${groupId}/receipt-preview/prices`,
-          "POST",
-          data,
-        ),
-      previewNames: (groupId: string, data: ReceiptData) =>
-        request<{ names: { id: string; name: string }[] }>(
-          `/groups/${groupId}/receipt-preview/names`,
           "POST",
           data,
         ),
@@ -170,7 +161,7 @@ export function useReceiptApi() {
           base64,
         }),
       extract: (id: string, revision: number) =>
-        request<{ extraction: Extraction }>(
+        request<{ draft: ReceiptDraft; extraction: Extraction }>(
           `/receipt-drafts/${id}/extract`,
           "POST",
           { revision },
@@ -178,12 +169,6 @@ export function useReceiptApi() {
       prices: (id: string, revision: number) =>
         request<{ items: ReceiptDraftItem[]; warnings: string[] }>(
           `/receipt-drafts/${id}/prices`,
-          "POST",
-          { revision },
-        ),
-      names: (id: string, revision: number) =>
-        request<{ names: { id: string; name: string }[] }>(
-          `/receipt-drafts/${id}/names`,
           "POST",
           { revision },
         ),

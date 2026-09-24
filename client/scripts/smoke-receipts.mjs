@@ -37,7 +37,7 @@ try {
   const port = await new Promise((resolve, reject) => {
     const timer = setTimeout(
       () => reject(new Error("API startup timed out")),
-      10_000,
+      30_000,
     );
     child.once("message", (value) => {
       clearTimeout(timer);
@@ -128,6 +128,22 @@ try {
       }
     });
     return page;
+  }
+  function waitForServer(expected, command) {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        child.off("message", received);
+        reject(new Error(`Timed out waiting for server message ${expected}`));
+      }, 15_000);
+      const received = (message) => {
+        if (message !== expected) return;
+        clearTimeout(timer);
+        child.off("message", received);
+        resolve();
+      };
+      child.on("message", received);
+      if (command) child.send(command);
+    });
   }
   async function api(path, token = "alice-token", method = "GET", body) {
     const response = await fetch(`http://127.0.0.1:${port}/api${path}`, {
@@ -365,17 +381,46 @@ try {
       exact: true,
     }),
   ).toBeVisible();
+  const observer = await pageFor("alice-token", { width: 1280, height: 1000 });
+  await observer.goto(`${base}#/group-bills/${group.id}`);
+  await observer.locator(".draft-list-row").filter({ hasText: "Scanned receipt" })
+    .getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(observer.getByRole("heading", { name: "Start with your receipt" })).toBeVisible();
+  await waitForServer("holding-model", "hold-model");
+  const firstModelHeld = waitForServer("model-held");
   await alice
     .getByRole("button", { name: "Read receipt", exact: true })
     .click();
+  await firstModelHeld;
+  await expect(alice.getByText("Checking names and tax", { exact: true })).toBeVisible();
+  await expect(alice.getByLabel("Item name", { exact: true })).toBeDisabled();
+  await expect(alice.getByText("Checking tax", { exact: true })).toBeVisible();
+  await expect(observer.getByText("Checking names and tax", { exact: true })).toBeVisible();
+  await expect(observer.getByLabel("Item name", { exact: true })).toBeDisabled();
+  await expect(observer.getByRole("button", { name: "Continue to sharing" })).toBeDisabled();
+  await expect(alice.getByRole("button", { name: "Continue to sharing" })).toBeDisabled();
+  await expect(alice.getByRole("button", { name: "Save draft & close" })).toBeDisabled();
+  await expect(alice.getByRole("button", { name: "Replace receipt photo" })).toBeDisabled();
+  await alice.setViewportSize({ width: 390, height: 844 });
+  await expect(alice.getByLabel("Item name", { exact: true })).toBeDisabled();
+  assert.equal(await alice.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await alice.setViewportSize({ width: 1280, height: 1000 });
+  child.send("release-model");
   await expect(alice.getByLabel("Item name", { exact: true })).toHaveValue(
-    "Apples",
+    "Friendly item 1",
   );
+  await expect(alice.getByLabel("Item name", { exact: true })).toBeEnabled();
+  await expect(observer.getByLabel("Item name", { exact: true })).toHaveValue("Friendly item 1");
+  await expect(observer.getByLabel("Item name", { exact: true })).toBeEnabled();
+  await observer.close();
   await alice
     .getByText("Tax, discounts & receipt adjustments", { exact: true })
     .click();
-  await expect(alice.getByRole("checkbox", { name: "Taxable", exact: true })).toBeChecked();
+  await expect(alice.getByRole("checkbox", { name: "Taxable", exact: true })).not.toBeChecked();
   await alice.getByLabel("Receipt tax", { exact: true }).fill("0.30");
+  await expect(alice.getByText(/Receipt tax \$0\.30 isn't assigned to any item/)).toBeVisible();
+  await alice.getByRole("checkbox", { name: "Taxable", exact: true }).check();
+  await expect(alice.getByText(/Receipt tax \$0\.30 isn't assigned to any item/)).toHaveCount(0);
   await alice
     .getByRole("button", {
       name: "Apply adjustments to final costs",
@@ -419,6 +464,7 @@ try {
   await alice.getByRole("checkbox", { name: "Taxable", exact: true }).uncheck();
   await alice.getByLabel("Final cost · CAD", { exact: true }).fill("2.80");
   await alice.getByRole("button", { name: "Save draft & close" }).click();
+  await expect(alice.locator("dialog[open]")).toHaveCount(0);
   await expect(alice.locator(".draft-list-row").filter({ hasText: "Scanned receipt" })).toBeVisible();
   const savedScan = (await api(`/groups/${group.id}/receipt-drafts`)).drafts.find(d => d.data.title === "Scanned receipt");
   const savedPhoto = (await pool.query('SELECT base64 FROM receipt_photos WHERE draft_id = $1', [savedScan.id])).rows[0].base64;
@@ -530,6 +576,26 @@ try {
     ).length,
     1,
   );
+  // A failed background check leaves the Azure item visible and marks tax unchecked.
+  await alice.goto(`${base}#/group-bills/${group.id}`);
+  await alice.getByRole("button", { name: "New bill", exact: true }).click();
+  await alice.getByLabel("Choose a receipt image").setInputFiles({ name: "fallback.png", mimeType: "image/png", buffer: image });
+  await alice.getByRole("button", { name: "Use this photo", exact: true }).click();
+  await waitForServer("holding-model", "hold-model");
+  await waitForServer("model-mode-error-ready", "model-mode-error");
+  const fallbackModelHeld = waitForServer("model-held");
+  await alice.getByRole("button", { name: "Read receipt", exact: true }).click();
+  await fallbackModelHeld;
+  await expect(alice.getByText("Checking names and tax", { exact: true })).toBeVisible();
+  child.send("release-model");
+  await expect(alice.getByText("Tax not checked", { exact: true }).first()).toBeVisible();
+  await expect(alice.getByText("Taxable · not checked", { exact: true })).toBeVisible();
+  await expect(alice.getByLabel("Item name", { exact: true })).toBeEnabled();
+  await alice.getByRole("checkbox", { name: "Taxable", exact: true }).uncheck();
+  await expect(alice.getByText("Taxable · not checked", { exact: true })).toHaveCount(0);
+  await alice.getByRole("button", { name: "Close dialog" }).click();
+  await alice.getByRole("button", { name: "Discard changes", exact: true }).click();
+  await waitForServer("model-mode-ok-ready", "model-mode-ok");
   // The guided entry still supports switching an unfinished receipt to manual shares.
   await alice.goto(`${base}#/group-bills/${group.id}`);
   await alice.getByRole("button", { name: "New bill", exact: true }).click();

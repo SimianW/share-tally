@@ -14,6 +14,7 @@ let container: StartedPostgreSqlContainer | undefined;
 let pool: Pool;
 let child: ChildProcess | undefined;
 let baseUrl: string;
+const scanLogs: string[] = [];
 
 async function startServer() {
   assert.ok(container);
@@ -26,14 +27,25 @@ async function startServer() {
         PATH: process.env.PATH,
         DATABASE_URL: container.getConnectionUri(),
       },
-      stdio: ["ignore", "inherit", "inherit", "ipc"],
+      stdio: ["ignore", "pipe", "inherit", "ipc"],
     },
   );
+  let output = '';
+  processUnderTest.stdout!.on('data', (chunk: Buffer) => {
+    process.stdout.write(chunk);
+    output += chunk.toString();
+    let newline;
+    while ((newline = output.indexOf('\n')) >= 0) {
+      const line = output.slice(0, newline);
+      if (line.startsWith('Receipt scan ')) scanLogs.push(line.slice('Receipt scan '.length));
+      output = output.slice(newline + 1);
+    }
+  });
   child = processUnderTest;
   const port = await new Promise<number>((resolve, reject) => {
     const timer = setTimeout(
       () => reject(new Error("Test server startup timed out")),
-      10_000,
+      30_000,
     );
     processUnderTest.once("message", (message) => {
       clearTimeout(timer);
@@ -1146,9 +1158,9 @@ async function stream(groupId: string, token = 'bob-token') {
   })();
   return { frames, reading, async close() { controller.abort(); await reading; } };
 }
-async function eventually(check: () => boolean, timeout = 3000) {
+async function eventually(check: () => boolean | Promise<boolean>, timeout = 3000) {
   const deadline = Date.now() + timeout;
-  while (!check()) {
+  while (!(await check())) {
     assert.ok(Date.now() < deadline, 'Expected stream event before deadline');
     await new Promise(resolve => setTimeout(resolve, 10));
   }
@@ -1598,13 +1610,16 @@ test('photo privacy, extraction retry and naming failure preserve saved edits an
   saved = (await json(await api(`/receipt-drafts/${id}/photo`, 'alice-token', 'PUT', { revision: saved.revision, base64: bytes.toString('base64') }))).draft;
   assert.equal((await api(`/receipt-drafts/${id}/photo`, 'bob-token')).status, 404);
   await json(await api(`/receipt-drafts/${id}/extract`, 'alice-token', 'POST', { revision: saved.revision }), 502);
+  const afterFailure = (await json(await api(`/receipt-drafts/${id}`))).draft;
+  assert.equal(afterFailure.data.items[0].name, 'My edited name');
+  assert.equal(afterFailure.data.items[0].finalCents, 100);
   const scanned = await json(await api(`/receipt-drafts/${id}/extract`, 'alice-token', 'POST', { revision: saved.revision }));
   assert.equal(scanned.extraction.items[0].originalText, 'APPLE');
-  await json(await api(`/receipt-drafts/${id}/names`, 'alice-token', 'POST', { revision: saved.revision }), 502);
-  const reopened = (await json(await api(`/receipt-drafts/${id}`))).draft;
-  assert.equal(reopened.data.items[0].name, 'My edited name');
-  assert.equal(reopened.data.items[0].finalCents, 100);
-  const initialized = (await json(await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST', { revision: saved.revision }))).bill;
+  assert.equal(scanned.draft.processingStatus, 'processing');
+  let reopened: typeof scanned.draft;
+  await eventually(async () => { reopened = (await json(await api(`/receipt-drafts/${id}`))).draft; return reopened.processingStatus !== 'processing'; });
+  assert.equal(reopened!.data.items[0].name, 'Friendly item 1');
+  const initialized = (await json(await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST', { revision: reopened!.revision }))).bill;
   assert.equal((await api(`/receipt-drafts/${id}/photo`, 'bob-token')).status, 200);
   assert.equal((await api(`/receipt-drafts/${id}/photo`, 'carol-token')).status, 404);
   await pool.query('UPDATE receipt_photos SET expires_at = now() - interval \'1 second\' WHERE draft_id = $1', [id]);
@@ -1613,7 +1628,7 @@ test('photo privacy, extraction retry and naming failure preserve saved edits an
   const photo = await pool.query('SELECT base64 FROM receipt_photos WHERE draft_id = $1', [id]);
   assert.equal(photo.rows[0].base64, '');
   assert.equal((await json(await api(`/bills/${initialized.id}`))).bill.photo.expired, true);
-  assert.equal((await json(await api(`/bills/${initialized.id}`))).bill.items[0].originalText, 'FAIL-NAMES');
+  assert.equal((await json(await api(`/bills/${initialized.id}`))).bill.items[0].originalText, 'APPLE');
 });
 
 test('item addition, deletion, names and participant changes follow their confirmation rules', async () => {
@@ -1642,7 +1657,7 @@ test('item addition, deletion, names and participant changes follow their confir
   assert.ok(current.participants.every((p: { confirmedAt: string | null }) => p.confirmedAt === null));
   await claimBill(bill.id, 'bob-token', [], 403);
 });
-test('draft price defaults are repeatable and name retries only return names', async () => {
+test('draft price defaults are repeatable without a manual name retry endpoint', async () => {
   const { group, draft } = await setup();
   const { requestId: _requestId, ...fields } = draft;
   const id = crypto.randomUUID();
@@ -1655,8 +1670,7 @@ test('draft price defaults are repeatable and name retries only return names', a
   saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: saved.revision, data: { ...data, items: prices.items } }))).draft;
   const again = await json(await api(`/receipt-drafts/${id}/prices`, 'alice-token', 'POST', { revision: saved.revision }));
   assert.deepEqual(again.items, prices.items);
-  const names = await json(await api(`/receipt-drafts/${id}/names`, 'alice-token', 'POST', { revision: saved.revision }));
-  assert.ok(names.names.every((n: object) => Object.keys(n).sort().join(',') === 'id,name'));
+  assert.equal((await api(`/receipt-drafts/${id}/names`, 'alice-token', 'POST', { revision: saved.revision })).status, 404);
   const reopened = (await json(await api(`/receipt-drafts/${id}`))).draft;
   assert.deepEqual(reopened.data.items, prices.items);
   const corrected = { ...reopened.data, receipt: { ...reopened.data.receipt, taxCents: 200 }, items: reopened.data.items.map((i: object, index: number) => index === 0 ? { ...i, finalCents: 42, manualFinal: true } : i) };
@@ -1705,7 +1719,7 @@ test('explicit draft save atomically replaces data and photo; previews leave the
   assert.equal(retry.photo.expiresAt, saved.photo.expiresAt);
   const nextData = { ...data, title: 'Not saved yet' };
   await json(await api(`/groups/${group.id}/receipt-preview/prices`, 'alice-token', 'POST', nextData));
-  await json(await api(`/groups/${group.id}/receipt-preview/names`, 'alice-token', 'POST', nextData));
+  assert.equal((await api(`/groups/${group.id}/receipt-preview/names`, 'alice-token', 'POST', nextData)).status, 404);
   const extraction = await api(`/groups/${group.id}/receipt-preview/extract`, 'alice-token', 'POST', { base64: replacement });
   assert.ok([200, 502].includes(extraction.status));
   assert.deepEqual((await json(await api(`/receipt-drafts/${id}`))).draft, saved);
@@ -1719,7 +1733,7 @@ test('explicit draft save atomically replaces data and photo; previews leave the
   assert.equal(replaced.revision, saved.revision + 1);
   assert.notDeepEqual(Buffer.from(await (await api(`/receipt-drafts/${id}/photo`)).arrayBuffer()), originalPhoto);
   assert.equal((await json(await api(`/groups/${group.id}/receipt-drafts`))).drafts.length, 1);
-  await json(await api(`/groups/${group.id}/receipt-preview/names`, 'carol-token', 'POST', nextData), 404);
+  assert.equal((await api(`/groups/${group.id}/receipt-preview/names`, 'carol-token', 'POST', nextData)).status, 404);
   await json(await api(`/groups/${group.id}/receipt-preview/extract`, 'bob-token', 'POST', { draftId: id, revision: replaced.revision }), 404);
 });
 
@@ -1797,8 +1811,10 @@ test('recorded Azure evidence follows the scanned draft and expires with its pho
   assert.equal(before.data.items[0]?.evidence, undefined);
   const ready = once(child!, 'message'); child!.send('recorded-evidence'); await ready;
   try {
-    const scan = async () => (await json(await api(`/receipt-drafts/${id}/extract`, 'alice-token', 'POST', { revision: saved.revision }))).extraction;
-    const first = await scan();
+    const scan = async (revision: number) => await json(await api(`/receipt-drafts/${id}/extract`, 'alice-token', 'POST', { revision }));
+    const firstResult = await scan(saved.revision);
+    const first = firstResult.extraction;
+    assert.equal(firstResult.draft.processingStatus, 'processing');
     assert.equal(first.receipt.evidence.countryRegion, 'FRA');
     assert.equal(first.items[0].evidence.unitPrice, 12);
     assert.equal(first.items[0].amountCents, 2400);
@@ -1807,16 +1823,20 @@ test('recorded Azure evidence follows the scanned draft and expires with its pho
     assert.equal(row.rows[0].analysis.apiVersion, '2024-11-30');
     assert.equal(row.rows[0].analysis.documents[0].fields.Items.valueArray[0].valueObject.Price.valueCurrency.amount, 12);
     assert.equal((await api(`/receipt-drafts/${id}`, 'bob-token')).status, 404);
-    const second = await scan();
+    const firstReady = await awaitModelDraft(id);
+    const secondResult = await scan(firstReady.revision);
+    const second = secondResult.extraction;
+    assert.equal(secondResult.draft.processingStatus, 'processing');
     assert.equal(second.receipt.evidence.countryRegion, 'MYS');
     assert.ok(second.receipt.evidence.taxDetails.length);
     assert.equal(second.items[0].evidence.productCode, '000001038556');
     row = await pool.query('SELECT analysis FROM receipt_evidence WHERE draft_id = $1', [id]);
     assert.equal(row.rowCount, 1);
     assert.equal(row.rows[0].analysis.documents[0].fields.CountryRegion.valueCountryRegion, 'MYS');
+    const secondReady = await awaitModelDraft(id);
     const updated = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', {
-      revision: saved.revision,
-      data: { ...data, receipt: second.receipt, items: second.items, title: second.title, totalCents: second.totalCents },
+      revision: secondReady.revision,
+      data: { ...secondReady.data, title: 'Reviewed receipt' },
     }))).draft;
     assert.deepEqual((await json(await api(`/receipt-drafts/${id}`))).draft.data.receipt.evidence, second.receipt.evidence);
     assert.deepEqual((await json(await api(`/receipt-drafts/${id}`))).draft.data.items[0].evidence, second.items[0].evidence);
@@ -1831,4 +1851,279 @@ test('recorded Azure evidence follows the scanned draft and expires with its pho
   } finally {
     const stopped = once(child!, 'message'); child!.send('recorded-evidence-off'); await stopped;
   }
+});
+
+async function modelControl(message: string, expected: string) {
+  const response = once(child!, 'message');
+  child!.send(message);
+  assert.equal((await response)[0], expected);
+}
+
+async function releaseHeldModel() {
+  const release = once(child!, 'message');
+  child!.send('release-model');
+  assert.equal((await release)[0], 'model-released');
+}
+
+async function scannedDraft() {
+  const { group, draft } = await setup(false);
+  const { requestId: _requestId, ...fields } = draft;
+  const id = crypto.randomUUID();
+  const sharp = (await import('sharp')).default;
+  const photoBase64 = (await sharp({ create: { width: 30, height: 60, channels: 3, background: 'white' } }).png().toBuffer()).toString('base64');
+  const data = { ...fields, mode: 'items', items: [] };
+  const saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data, photoBase64 }))).draft;
+  return { group, id, data, photoBase64, saved };
+}
+
+async function awaitModelDraft(id: string, timeout = 3_000) {
+  let current: any;
+  await eventually(async () => {
+    current = (await json(await api(`/receipt-drafts/${id}`))).draft;
+    return current.processingStatus !== 'processing';
+  }, timeout);
+  return current;
+}
+
+test('per-scan latency logs contain timings and outcome but no receipt details', async () => {
+  const { id, saved } = await scannedDraft();
+  await modelControl('recorded-evidence', 'recorded-evidence-ready');
+  scanLogs.length = 0;
+  try {
+    await json(await api(`/receipt-drafts/${id}/extract`, 'alice-token', 'POST', { revision: saved.revision }));
+    await awaitModelDraft(id);
+    await eventually(() => scanLogs.length > 0);
+    const log = scanLogs.at(-1)!;
+    const details = JSON.parse(log);
+    assert.deepEqual(Object.keys(details).sort(), ['azurePollMs', 'azureSubmitMs', 'mappingMs', 'modelMs', 'outcome', 'reason']);
+    for (const field of ['azureSubmitMs', 'azurePollMs', 'mappingMs', 'modelMs']) {
+      assert.equal(typeof details[field], 'number');
+      assert.ok(details[field] >= 0);
+    }
+    assert.equal(details.outcome, 'ok');
+    assert.equal(details.reason, null);
+    assert.equal(/RELAIS TOTAL OULMES|CAFE CREME|Friendly item|000001038556/i.test(log), false);
+  } finally {
+    await modelControl('recorded-evidence-off', 'recorded-evidence-stopped');
+  }
+});
+
+test('scan saves Azure data before the model finishes, locks draft writes, then notifies on completion', async () => {
+  const { group, id, data, photoBase64, saved } = await scannedDraft();
+  await modelControl('recorded-evidence', 'recorded-evidence-ready');
+  await modelControl('hold-model', 'holding-model');
+  const watching = await stream(group.id);
+  try {
+    await eventually(() => watching.frames.some(frame => frame.includes('event: ready')));
+    const held = once(child!, 'message');
+    const scanned = await json(await api(`/receipt-drafts/${id}/extract`, 'alice-token', 'POST', { revision: saved.revision }));
+    assert.equal((await held)[0], 'model-held');
+    assert.equal(scanned.draft.processingStatus, 'processing');
+    assert.ok(scanned.draft.processingStartedAt);
+    assert.equal(scanned.draft.revision, saved.revision + 1);
+    assert.equal(scanned.draft.data.items.length, 3);
+    assert.ok(scanned.draft.data.items.every((item: { taxable: boolean | null }) => item.taxable === null));
+    const list = (await json(await api(`/groups/${group.id}/receipt-drafts`))).drafts;
+    assert.equal(list.find((draft: { id: string }) => draft.id === id).processingStatus, 'processing');
+    for (const [path, method, body] of [
+      [`/groups/${group.id}/receipt-drafts/${id}`, 'PUT', { revision: scanned.draft.revision, data }],
+      [`/groups/${group.id}/receipt-drafts/${id}`, 'PUT', { revision: scanned.draft.revision, data: scanned.draft.data }],
+      [`/receipt-drafts/${id}`, 'DELETE', { revision: scanned.draft.revision }],
+      [`/receipt-drafts/${id}/photo`, 'PUT', { revision: scanned.draft.revision, base64: photoBase64 }],
+      [`/receipt-drafts/${id}/extract`, 'POST', { revision: scanned.draft.revision }],
+      [`/groups/${group.id}/receipt-preview/extract`, 'POST', { draftId: id, revision: scanned.draft.revision }],
+      [`/receipt-drafts/${id}/prices`, 'POST', { revision: scanned.draft.revision }],
+      [`/receipt-drafts/${id}/initialize`, 'POST', { revision: scanned.draft.revision }],
+    ] as const) await json(await api(path, 'alice-token', method, body), 409);
+    const otherId = crypto.randomUUID();
+    const another = await json(await api(`/groups/${group.id}/receipt-drafts/${otherId}`, 'alice-token', 'PUT', { revision: 0, data }));
+    assert.equal(another.draft.processingStatus, 'ready');
+    await eventually(() => watching.frames.some(frame => frame.includes('event: changed')));
+    const eventsBefore = watching.frames.filter(frame => frame.includes('event: changed')).length;
+    await releaseHeldModel();
+    const ready = await awaitModelDraft(id);
+    assert.equal(ready.processingStatus, 'ready');
+    assert.equal(ready.processingStartedAt, null);
+    assert.equal(ready.revision, scanned.draft.revision + 1);
+    assert.deepEqual(ready.data.items.map((item: { name: string }) => item.name), ['Friendly item 1', 'Friendly item 2', 'Friendly item 3']);
+    assert.deepEqual(ready.data.items.map((item: { taxable: boolean }) => item.taxable), [false, true, true]);
+    assert.ok(ready.data.items.every((item: { taxNotChecked?: boolean }) => !item.taxNotChecked));
+    assert.deepEqual(ready.data.items.map((item: { amountCents: number | null }) => item.amountCents), scanned.draft.data.items.map((item: { amountCents: number | null }) => item.amountCents));
+    assert.deepEqual(ready.data.receipt, scanned.draft.data.receipt);
+    assert.equal(ready.data.totalCents, scanned.draft.data.totalCents);
+    await eventually(() => watching.frames.filter(frame => frame.includes('event: changed')).length > eventsBefore);
+  } finally {
+    child!.send('release-model');
+    await watching.close();
+    await modelControl('recorded-evidence-off', 'recorded-evidence-stopped');
+  }
+});
+
+test('model errors, invalid results, and partial answers fall back only for affected items', async () => {
+  for (const mode of ['error', 'invalid', 'partial'] as const) {
+    const { id, saved } = await scannedDraft();
+    await modelControl('recorded-evidence', 'recorded-evidence-ready');
+    await modelControl(`model-mode-${mode}`, `model-mode-${mode}-ready`);
+    try {
+      const scanned = await json(await api(`/receipt-drafts/${id}/extract`, 'alice-token', 'POST', { revision: saved.revision }));
+      assert.equal(scanned.draft.processingStatus, 'processing');
+      const finished = await awaitModelDraft(id);
+      assert.equal(finished.processingStatus, 'fallback', mode);
+      assert.equal(finished.processingStartedAt, null);
+      assert.equal(finished.revision, scanned.draft.revision + 1);
+      const items = finished.data.items;
+      assert.equal(items.length, 3);
+      if (mode === 'partial') {
+        assert.equal(items[0].name, 'Friendly item 1');
+        assert.equal(items[0].taxable, false);
+        assert.equal(items[0].taxNotChecked, false);
+        assert.deepEqual(items.slice(1).map((item: { name: string; originalText: string; taxable: boolean; taxNotChecked: boolean }) => [item.name === item.originalText, item.taxable, item.taxNotChecked]), [[true, true, true], [true, true, true]]);
+      } else assert.ok(items.every((item: { name: string; originalText: string; taxable: boolean; taxNotChecked: boolean }) => item.name === item.originalText && item.taxable && item.taxNotChecked), mode);
+    } finally {
+      await modelControl('model-mode-ok', 'model-mode-ok-ready');
+      await modelControl('recorded-evidence-off', 'recorded-evidence-stopped');
+    }
+  }
+});
+
+test('a model still running after 20 seconds falls back and its late answer cannot overwrite the draft', { timeout: 50_000 }, async () => {
+  const { id, saved } = await scannedDraft();
+  await modelControl('recorded-evidence', 'recorded-evidence-ready');
+  await modelControl('hold-model', 'holding-model');
+  try {
+    const held = once(child!, 'message');
+    const scanned = await json(await api(`/receipt-drafts/${id}/extract`, 'alice-token', 'POST', { revision: saved.revision }));
+    assert.equal((await held)[0], 'model-held');
+    assert.equal(scanned.draft.processingStatus, 'processing');
+    const finished = await awaitModelDraft(id, 25_000);
+    assert.equal(finished.processingStatus, 'fallback');
+    assert.equal(finished.revision, scanned.draft.revision + 1);
+    assert.ok(finished.data.items.every((item: { taxable: boolean; taxNotChecked: boolean }) => item.taxable && item.taxNotChecked));
+    await releaseHeldModel();
+    await new Promise(resolve => setTimeout(resolve, 250));
+    const after = (await json(await api(`/receipt-drafts/${id}`))).draft;
+    assert.equal(after.revision, finished.revision);
+    assert.deepEqual(after.data.items, finished.data.items);
+  } finally {
+    child!.send('release-model');
+    await modelControl('recorded-evidence-off', 'recorded-evidence-stopped');
+  }
+});
+
+test('model taxability reallocates all printed tax without changing Azure amounts', async () => {
+  await modelControl('allocation-receipt', 'allocation-receipt-ready');
+  try {
+    const { id, saved } = await scannedDraft();
+    const scanned = await json(await api(`/receipt-drafts/${id}/extract`, 'alice-token', 'POST', { revision: saved.revision }));
+    const finished = await awaitModelDraft(id);
+    assert.equal(finished.processingStatus, 'ready');
+    assert.deepEqual(finished.data.items.map((item: { taxable: boolean }) => item.taxable), [false, true, true]);
+    assert.deepEqual(finished.data.items.map((item: { amountCents: number }) => item.amountCents), [100, 100, 100]);
+    assert.deepEqual(finished.data.items.map((item: { allocatedTaxCents: number }) => item.allocatedTaxCents), [0, 8, 7]);
+    assert.deepEqual(finished.data.items.map((item: { finalCents: number }) => item.finalCents), [100, 108, 107]);
+    assert.equal(finished.data.receipt.taxCents, 15);
+    assert.equal(finished.data.totalCents, scanned.draft.data.totalCents);
+  } finally {
+    await modelControl('normal-allocation', 'normal-allocation-ready');
+  }
+});
+
+test('an empty Azure item list still records a model failure as fallback', async () => {
+  await modelControl('empty-receipt', 'empty-receipt-ready');
+  await modelControl('model-mode-error', 'model-mode-error-ready');
+  try {
+    const { id, saved } = await scannedDraft();
+    const scanned = await json(await api(`/receipt-drafts/${id}/extract`, 'alice-token', 'POST', { revision: saved.revision }));
+    assert.equal(scanned.draft.processingStatus, 'processing');
+    const finished = await awaitModelDraft(id);
+    assert.equal(finished.processingStatus, 'fallback');
+    assert.deepEqual(finished.data.items, []);
+    assert.equal(finished.revision, scanned.draft.revision + 1);
+  } finally {
+    await modelControl('model-mode-ok', 'model-mode-ok-ready');
+    await modelControl('normal-receipt', 'normal-receipt-ready');
+  }
+});
+
+test('numeric-only printed tax legends reach the model rather than being interpreted as universal codes', async () => {
+  await modelControl('numeric-legend', 'numeric-legend-ready');
+  try {
+    const { id, saved } = await scannedDraft();
+    const scanned = await json(await api(`/receipt-drafts/${id}/extract`, 'alice-token', 'POST', { revision: saved.revision }));
+    assert.equal(scanned.draft.processingStatus, 'processing');
+    const finished = await awaitModelDraft(id);
+    assert.equal(finished.processingStatus, 'ready');
+    assert.equal(finished.data.items[0].name, 'Friendly item 1');
+    assert.equal(finished.data.items[0].taxable, false);
+  } finally {
+    await modelControl('normal-legend', 'normal-legend-ready');
+  }
+});
+
+test('reading a stale processing draft falls back without a restart', async () => {
+  const { id, saved } = await scannedDraft();
+  await modelControl('recorded-evidence', 'recorded-evidence-ready');
+  await modelControl('hold-model', 'holding-model');
+  try {
+    const held = once(child!, 'message');
+    const scanned = await json(await api(`/receipt-drafts/${id}/extract`, 'alice-token', 'POST', { revision: saved.revision }));
+    assert.equal((await held)[0], 'model-held');
+    await pool.query("UPDATE receipt_drafts SET processing_started_at = now() - interval '21 seconds' WHERE id = $1", [id]);
+    const recovered = (await json(await api(`/receipt-drafts/${id}`))).draft;
+    assert.equal(recovered.processingStatus, 'fallback');
+    assert.equal(recovered.revision, scanned.draft.revision + 1);
+    assert.ok(recovered.data.items.every((item: { taxable: boolean; taxNotChecked: boolean }) => item.taxable && item.taxNotChecked));
+    await releaseHeldModel();
+    await new Promise(resolve => setTimeout(resolve, 250));
+    const after = (await json(await api(`/receipt-drafts/${id}`))).draft;
+    assert.equal(after.revision, recovered.revision);
+  } finally {
+    child!.send('release-model');
+    await modelControl('recorded-evidence-off', 'recorded-evidence-stopped');
+  }
+});
+
+test('a near-deadline draft recovers promptly after restart without any draft read', { timeout: 20_000 }, async () => {
+  const { group, id, saved } = await scannedDraft();
+  await modelControl('recorded-evidence', 'recorded-evidence-ready');
+  await modelControl('hold-model', 'holding-model');
+  const held = once(child!, 'message');
+  const scanned = await json(await api(`/receipt-drafts/${id}/extract`, 'alice-token', 'POST', { revision: saved.revision }));
+  assert.equal((await held)[0], 'model-held');
+  await stopServer();
+  await startServer();
+  const watching = await stream(group.id);
+  try {
+    await eventually(() => watching.frames.some(frame => frame.includes('event: ready')));
+    assert.equal((await pool.query('SELECT processing_status FROM receipt_drafts WHERE id = $1', [id])).rows[0].processing_status, 'processing');
+    // Simulate a server coming back near the original 20-second deadline. No GET
+    // is made until after the restarted server's periodic recovery and SSE event.
+    await pool.query("UPDATE receipt_drafts SET processing_started_at = now() - interval '19 seconds' WHERE id = $1", [id]);
+    await eventually(async () => (await pool.query('SELECT processing_status FROM receipt_drafts WHERE id = $1', [id])).rows[0].processing_status === 'fallback', 5_000);
+    await eventually(() => watching.frames.some(frame => frame.includes('event: changed')));
+    const recovered = (await json(await api(`/receipt-drafts/${id}`))).draft;
+    assert.equal(recovered.revision, scanned.draft.revision + 1);
+    assert.ok(recovered.data.items.every((item: { taxNotChecked: boolean }) => item.taxNotChecked));
+  } finally {
+    await watching.close();
+  }
+});
+
+test('production startup sequence recovers processing drafts left stale by a stopped server', async () => {
+  const { id, saved } = await scannedDraft();
+  await modelControl('recorded-evidence', 'recorded-evidence-ready');
+  await modelControl('hold-model', 'holding-model');
+  const held = once(child!, 'message');
+  const scanned = await json(await api(`/receipt-drafts/${id}/extract`, 'alice-token', 'POST', { revision: saved.revision }));
+  assert.equal((await held)[0], 'model-held');
+  await pool.query("UPDATE receipt_drafts SET processing_started_at = now() - interval '21 seconds' WHERE id = $1", [id]);
+  await stopServer();
+  await startServer();
+  // Query before GET so the read-time sweep cannot account for this transition.
+  const row = await pool.query('SELECT processing_status, processing_started_at, revision FROM receipt_drafts WHERE id = $1', [id]);
+  assert.equal(row.rows[0].processing_status, 'fallback');
+  assert.equal(row.rows[0].processing_started_at, null);
+  assert.equal(row.rows[0].revision, scanned.draft.revision + 1);
+  const recovered = (await json(await api(`/receipt-drafts/${id}`))).draft;
+  assert.ok(recovered.data.items.every((item: { taxable: boolean; taxNotChecked: boolean }) => item.taxable && item.taxNotChecked));
 });

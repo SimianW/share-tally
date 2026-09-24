@@ -94,6 +94,17 @@
   border-radius: 9px;
   background: white;
 }
+.receipt-tax-status {
+  display: inline-block;
+  width: fit-content;
+  margin-top: 10px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: #465c29;
+  background: #edf4df;
+  font-size: 12px;
+  font-weight: 700;
+}
 .receipt-edit-row .receipt-tax-toggle {
   display: flex;
   align-items: center;
@@ -428,9 +439,13 @@
   place-items: center;
   flex-shrink: 0;
 }
-.draft-delete:hover {
+.draft-delete:hover:not(:disabled) {
   background: #fff0ea;
   color: #a13e2b;
+}
+.draft-delete:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 .button.draft-danger {
   background: #a13e2b;

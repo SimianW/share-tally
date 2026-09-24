@@ -66,10 +66,12 @@ export function ReceiptItemEditor({
   items,
   change,
   draftMode = false,
+  processing = false,
 }: {
   items: ReceiptDraftItem[];
   change: (items: ReceiptDraftItem[]) => void;
   draftMode?: boolean;
+  processing?: boolean;
 }) {
   function update(
     id: string,
@@ -79,7 +81,7 @@ export function ReceiptItemEditor({
     change(
       items.map((item) => {
         if (item.id !== id) return item;
-        const next = { ...item, ...patch };
+        const next = { ...item, ...patch, taxNotChecked: false };
         if (recalculate && !next.manualFinal)
           next.finalCents =
             next.amountCents === null
@@ -131,6 +133,11 @@ export function ReceiptItemEditor({
               }
             />
           </div>
+          {draftMode && (processing || item.taxNotChecked) && (
+            <span className="receipt-tax-status" role="status">
+              {processing ? "Checking tax" : "Taxable · not checked"}
+            </span>
+          )}
           {draftMode && (
             <label className="receipt-tax-toggle">
               <input
