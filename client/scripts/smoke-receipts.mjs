@@ -157,34 +157,66 @@ try {
     await alice.evaluate(() => typeof crypto.randomUUID),
     "undefined",
   );
-  // Opening and dismissing a new bill must not create an untitled server draft.
+  const groupRoute = `${base}#/group-bills/${group.id}`;
+  const newBillRoute = `${base}#/new-bill/${group.id}`;
+  const stepButton = (label) => alice.getByRole("navigation", { name: "New bill steps" })
+    .getByRole("button", { name: new RegExp(`${label}$`) });
+  const expectNewBillRoute = async (draftId) => {
+    await expect(alice).toHaveURL(draftId ? `${newBillRoute}/${draftId}` : newBillRoute);
+    await expect(alice.getByRole("navigation", { name: "New bill steps" })).toBeVisible();
+    for (const label of ["Receipt", "Items", "People"])
+      await expect(stepButton(label)).toBeVisible();
+    await expect(alice.locator("dialog[open]")).toHaveCount(0);
+  };
+  // Opening and leaving a blank full-page bill must not create an untitled server draft.
   await alice.getByRole("button", { name: "New bill", exact: true }).click();
-  await alice.getByRole("button", { name: "Close dialog" }).click();
-  await expect(alice.locator("dialog[open]")).toHaveCount(0);
+  await expectNewBillRoute();
+  await alice.reload();
+  await expectNewBillRoute();
+  await expect(alice.getByRole("heading", { name: "Start with your receipt" })).toBeVisible();
+  await alice.goBack();
+  await expect(alice).toHaveURL(groupRoute);
+  await expect(alice.getByRole("button", { name: "New bill", exact: true })).toBeVisible();
   assert.equal((await api(`/groups/${group.id}/receipt-drafts`)).drafts.length, 0);
   await alice.getByRole("button", { name: "New bill", exact: true }).click();
+  await expectNewBillRoute();
   const temporaryPhoto = await serverRequire("sharp")({ create: { width: 20, height: 30, channels: 3, background: "red" } }).png().toBuffer();
   await alice.getByLabel("Choose a receipt image").setInputFiles({ name: "discard.png", mimeType: "image/png", buffer: temporaryPhoto });
   await alice.getByRole("button", { name: "Use this photo", exact: true }).click();
   await expect(alice.getByRole("img", { name: "Original cropped receipt" })).toBeVisible();
+  // The first extraction fails on purpose; cropping must have started it without a Read receipt click.
+  await expect(alice.getByText("Test extraction unavailable. Your draft is safe.", { exact: true })).toBeVisible();
+  await expect(alice.getByRole("button", { name: "Read receipt", exact: true })).toBeVisible();
+  await alice.getByRole("button", { name: "Read receipt", exact: true }).click();
+  await expect(alice.getByLabel("Item name", { exact: true })).toHaveValue("Apples");
   assert.equal((await api(`/groups/${group.id}/receipt-drafts`)).drafts.length, 0);
-  await alice.keyboard.press("Escape");
+  await alice.getByRole("button", { name: "Back to group" }).click();
+  await expect(alice.getByRole("heading", { name: "Discard unsaved changes?" })).toBeVisible();
   await alice.getByRole("button", { name: "Discard changes", exact: true }).click();
-  await expect(alice.locator("dialog[open]")).toHaveCount(0);
+  await expect(alice).toHaveURL(groupRoute);
   assert.equal((await api(`/groups/${group.id}/receipt-drafts`)).drafts.length, 0);
   // Explicit save, edit/discard, overwrite and delete on the production list.
   await alice.getByRole("button", { name: "New bill", exact: true }).click();
   await alice.getByRole("button", { name: "Split by amounts instead" }).click();
+  await expect(alice.getByRole("heading", { name: "Who’s sharing this bill?" })).toBeVisible();
+  await alice.reload();
+  await expectNewBillRoute();
+  await expect(alice.getByRole("heading", { name: "Who’s sharing this bill?" })).toBeVisible();
   await alice.getByLabel("Bill title", { exact: true }).fill("Draft lifecycle");
   await alice.getByRole("button", { name: "Save draft & close" }).click();
   const lifecycleRow = () => alice.locator(".draft-list-row").filter({ hasText: "Draft lifecycle" });
   await lifecycleRow().getByRole("button", { name: "Continue", exact: true }).click();
+  const lifecycleId = (await api(`/groups/${group.id}/receipt-drafts`)).drafts[0].id;
+  await expectNewBillRoute(lifecycleId);
   await alice.getByLabel("Bill title", { exact: true }).fill("Discard me");
-  await alice.getByRole("button", { name: "Close dialog" }).click();
+  await alice.goBack();
+  await expect(alice.getByRole("heading", { name: "Discard unsaved changes?" })).toBeVisible();
   await alice.getByRole("button", { name: "Keep editing" }).click();
+  await expectNewBillRoute(lifecycleId);
   await expect(alice.getByLabel("Bill title", { exact: true })).toHaveValue("Discard me");
-  await alice.getByRole("button", { name: "Close dialog" }).click();
+  await alice.getByRole("button", { name: "Back to group" }).click();
   await alice.getByRole("button", { name: "Discard changes", exact: true }).click();
+  await expect(alice).toHaveURL(groupRoute);
   await lifecycleRow().getByRole("button", { name: "Continue", exact: true }).click();
   await expect(alice.getByLabel("Bill title", { exact: true })).toHaveValue("Draft lifecycle");
   await alice.getByLabel("Bill title", { exact: true }).fill("Draft lifecycle updated");
@@ -311,9 +343,9 @@ try {
   });
   await alice.goto(`${base}#/group-bills/${group.id}`);
   await alice.getByRole("button", { name: "New bill", exact: true }).click();
-  await alice.getByRole("button", { name: "03 Share the bill" }).click();
+  await stepButton("People").click();
   await alice.getByLabel("Bill title", { exact: true }).fill("Scanned receipt");
-  await alice.getByRole("button", { name: /Bring your receipt/ }).click();
+  await stepButton("Receipt").click();
   const sharp = serverRequire("sharp");
   const image = await sharp({
     create: { width: 300, height: 500, channels: 3, background: "#f8f8f2" },
@@ -357,17 +389,8 @@ try {
   await alice
     .getByRole("button", { name: "Use this photo", exact: true })
     .click();
-  await alice
-    .getByRole("button", { name: "Read receipt", exact: true })
-    .click();
-  await expect(
-    alice.getByText("Test extraction unavailable. Your draft is safe.", {
-      exact: true,
-    }),
-  ).toBeVisible();
-  await alice
-    .getByRole("button", { name: "Read receipt", exact: true })
-    .click();
+  // Extraction succeeds automatically after the crop; the failed-scan retry was covered above.
+  await expect(alice.getByRole("heading", { name: "Check your items" })).toBeVisible();
   await expect(alice.getByLabel("Item name", { exact: true })).toHaveValue(
     "Apples",
   );
@@ -426,12 +449,16 @@ try {
   await alice.getByRole("button", { name: "Replace receipt photo", exact: true }).click();
   await alice.getByLabel("Choose a receipt image").setInputFiles({ name: "replacement.png", mimeType: "image/png", buffer: temporaryPhoto });
   await alice.getByRole("button", { name: "Use this photo", exact: true }).click();
-  await alice.getByRole("button", { name: "Close dialog" }).click();
+  await expect(alice.getByRole("heading", { name: "Check your items" })).toBeVisible();
+  await alice.getByRole("button", { name: "Back to group" }).click();
   await alice.getByRole("button", { name: "Discard changes", exact: true }).click();
   assert.equal((await pool.query('SELECT base64 FROM receipt_photos WHERE draft_id = $1', [savedScan.id])).rows[0].base64, savedPhoto);
   assert.deepEqual((await api(`/receipt-drafts/${savedScan.id}`)).draft.data, savedScan.data);
   await alice.locator(".draft-list-row").filter({ hasText: "Scanned receipt" }).getByRole("button", { name: "Continue", exact: true }).click();
-  await alice.getByRole("button", { name: /Check the items/ }).click();
+  await stepButton("Items").click();
+  await alice.reload();
+  await expectNewBillRoute(savedScan.id);
+  await expect(alice.getByRole("heading", { name: "Check your items" })).toBeVisible();
   await expect(
     alice.getByLabel("Final cost · CAD", { exact: true }),
   ).toHaveValue("2.80");
@@ -441,7 +468,8 @@ try {
     .getByLabel("Bill title", { exact: true })
     .fill("Recovered local title");
   await alice.reload();
-  await alice.locator(".draft-list-row").filter({ hasText: "Scanned receipt" }).getByRole("button", { name: "Continue", exact: true }).click();
+  await expectNewBillRoute(savedScan.id);
+  await expect(alice.getByRole("heading", { name: "Who’s sharing this bill?" })).toBeVisible();
   await expect(
     alice.getByText("Recovered your unsaved changes.", { exact: true }),
   ).toBeVisible();
@@ -456,36 +484,25 @@ try {
     fullPage: true,
   });
   await alice.setViewportSize({ width: 320, height: 640 });
+  await expectNewBillRoute(savedScan.id);
   await alice
     .getByText("Original text & price details", { exact: true })
     .click();
   await alice.locator(".receipt-original").evaluate((el) => {
     el.textContent = "LONG_RECEIPT_PRODUCT_CODE_".repeat(20);
   });
-  const dimensions = await alice.locator("dialog").evaluate((dialog) => ({
-    client: dialog.clientWidth,
-    scroll: dialog.scrollWidth,
-    left: dialog.getBoundingClientRect().left,
-    right: dialog.getBoundingClientRect().right,
+  const dimensions = await alice.evaluate(() => ({
+    client: document.documentElement.clientWidth,
+    scroll: document.documentElement.scrollWidth,
     viewport: innerWidth,
   }));
   assert.ok(
-    dimensions.scroll <= dimensions.client &&
-      dimensions.left >= 0 &&
-      dimensions.right <= dimensions.viewport,
+    dimensions.scroll <= dimensions.client && dimensions.client <= dimensions.viewport,
     JSON.stringify(dimensions),
   );
-  await alice.locator("dialog").evaluate((dialog) => {
-    dialog.scrollLeft = 100;
-    dialog.scrollTop = 100;
-  });
-  assert.equal(
-    await alice.locator("dialog").evaluate((dialog) => dialog.scrollLeft),
-    0,
-  );
-  assert.ok(
-    await alice.locator("dialog").evaluate((dialog) => dialog.scrollTop > 0),
-  );
+  await alice.evaluate(() => window.scrollTo({ left: 100, top: 100 }));
+  assert.equal(await alice.evaluate(() => window.scrollX), 0);
+  assert.ok(await alice.evaluate(() => window.scrollY > 0));
   assert.ok(
     await alice
       .getByLabel("Final cost · CAD", { exact: true })
@@ -493,10 +510,9 @@ try {
   );
 
   await alice.setViewportSize({ width: 390, height: 844 });
+  await expectNewBillRoute(savedScan.id);
   assert.equal(
-    await alice
-      .locator("dialog")
-      .evaluate((dialog) => dialog.scrollWidth > dialog.clientWidth),
+    await alice.evaluate(() => document.documentElement.scrollWidth > innerWidth),
     false,
   );
   await alice.screenshot({
