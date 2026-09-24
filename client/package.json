@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prototype:receipts": "vite --host 0.0.0.0 --open /receipt-prototype.html",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
