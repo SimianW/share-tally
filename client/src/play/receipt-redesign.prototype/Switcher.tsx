@@ -2,9 +2,10 @@
 import { useEffect } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
-export const variants = ['A', 'B', 'C', 'claim'] as const
+export const variants = ['P1', 'P2', 'P3', 'A', 'B', 'C', 'claim'] as const
 export type Variant = typeof variants[number]
 const labels: Record<Variant, string> = {
+  P1: 'P1 · Processing: banner', P2: 'P2 · Processing: quiet + footer', P3: 'P3 · Processing: checklist',
   A: 'A · List + sheet', B: 'B · Review queue', C: 'C · Receipt mirror', claim: 'Claim · Participant view',
 }
 

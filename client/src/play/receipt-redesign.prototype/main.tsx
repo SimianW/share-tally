@@ -1,4 +1,4 @@
-// PROTOTYPE — throwaway. Three review-list variants + claim view for the receipt-item redesign, switchable via ?variant=A|B|C|claim.
+// PROTOTYPE — throwaway. Receipt-item redesign: processing-state options P1–P3 (inside variant A), the original review variants A/B/C and the claim view, switchable via ?variant=.
 /* eslint-disable react-refresh/only-export-components -- Standalone Vite entry point. */
 import { useState } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -10,12 +10,13 @@ import VariantA from './VariantA'
 import VariantB from './VariantB'
 import VariantC from './VariantC'
 import ClaimView from './ClaimView'
+import ProcessingPrototype from './Processing'
 import Switcher from './Switcher'
 import type { Variant } from './Switcher'
 
 function readVariant(): Variant {
   const value = new URLSearchParams(window.location.search).get('variant')
-  return value === 'B' || value === 'C' || value === 'claim' ? value : 'A'
+  return value === 'A' || value === 'B' || value === 'C' || value === 'claim' || value === 'P2' || value === 'P3' ? value : 'P1'
 }
 
 function App() {
@@ -31,6 +32,7 @@ function App() {
   }
   const props = { items, summary, updateItem, setSummary }
   return <div className="receipt-prototype">
+    {(variant === 'P1' || variant === 'P2' || variant === 'P3') && <ProcessingPrototype variant={variant} />}
     {variant === 'A' && <VariantA {...props} />}
     {variant === 'B' && <VariantB {...props} />}
     {variant === 'C' && <VariantC {...props} />}
