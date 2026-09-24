@@ -1,7 +1,7 @@
 import { requestId } from "./request-id";
 import { useState } from "react";
 import { money, parseMoney } from "./bill-api";
-import type { ReceiptDraftItem } from "./receipt-api";
+import type { ReceiptCorrectionItem } from "./receipt-api";
 import { Button } from "./ui";
 export function ReceiptAmount({
   label,
@@ -9,12 +9,14 @@ export function ReceiptAmount({
   change,
   signed = false,
   emptyAsZero = false,
+  required = !emptyAsZero,
 }: {
   label: string;
   value: number | null;
   change: (n: number | null) => void;
   signed?: boolean;
   emptyAsZero?: boolean;
+  required?: boolean;
 }) {
   const [input, setInput] = useState({
     value,
@@ -30,7 +32,7 @@ export function ReceiptAmount({
     <label>
       {label}
       <input
-        required={!emptyAsZero}
+        required={required}
         aria-label={label}
         inputMode="decimal"
         value={text}
@@ -58,7 +60,7 @@ export function ReceiptAmount({
           }
         }}
       />
-      {value === null && <span className="field-error">Enter an amount.</span>}
+      {value === null && required && <span className="field-error">Enter an amount.</span>}
     </label>
   );
 }
@@ -67,13 +69,13 @@ export function ReceiptItemEditor({
   change,
   draftMode = false,
 }: {
-  items: ReceiptDraftItem[];
-  change: (items: ReceiptDraftItem[]) => void;
+  items: ReceiptCorrectionItem[];
+  change: (items: ReceiptCorrectionItem[]) => void;
   draftMode?: boolean;
 }) {
   function update(
     id: string,
-    patch: Partial<ReceiptDraftItem>,
+    patch: Partial<ReceiptCorrectionItem>,
     recalculate = false,
   ) {
     change(

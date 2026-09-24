@@ -8,7 +8,9 @@ import {
   type ReceiptDraft,
   type ReceiptData,
 } from "./receipt-api";
-import { ReceiptItemEditor, ReceiptAmount } from "./ReceiptItemEditor";
+import { ReceiptAmount } from "./ReceiptItemEditor";
+import { ReceiptReviewItems, ReceiptSummary, ReceiptReconciliation } from "./ReceiptReview";
+import { deriveReceiptItems, recoverReceiptData } from "./receipt-pricing";
 import { ReceiptCrop, ReceiptPhoto } from "./ReceiptPhoto";
 import Dialog from "./Dialog";
 import { Notification } from "./Notification";
@@ -26,6 +28,7 @@ import {
   LockKeyhole,
 } from "lucide-react";
 import "./receipts.css";
+import "./receipt-review.css";
 
 function comparable(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(comparable).join(",")}]`;
@@ -273,7 +276,10 @@ export function ReceiptDraftForm({
   const [draft, setDraft] = useState<ReceiptDraft>(() => {
     try {
       const stored = sessionStorage.getItem(key);
-      if (stored) return JSON.parse(stored);
+      if (stored) {
+        const recovered = JSON.parse(stored) as ReceiptDraft;
+        return { ...recovered, data: recoverReceiptData(recovered.data) };
+      }
     } catch {
       /* Saved server draft remains available. */
     }
@@ -314,6 +320,7 @@ export function ReceiptDraftForm({
   const [warnings, setWarnings] = useState<string[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [replace, setReplace] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   useEffect(() => {
     if (!id) return;
     let live = true;
@@ -390,7 +397,10 @@ export function ReceiptDraftForm({
     }
   }
   function update(patch: Partial<ReceiptData>) {
-    setDraft((d) => ({ ...d, data: { ...d.data, ...patch } }));
+    setDraft((d) => {
+      const data = { ...d.data, ...patch };
+      return { ...d, data: data.mode === "items" ? { ...data, items: deriveReceiptItems(data) } : data };
+    });
     setNotice("Unsaved changes");
   }
   async function run(label: string, action: () => Promise<void>) {
@@ -740,6 +750,7 @@ export function ReceiptDraftForm({
                         version={draft.revision}
                         localPhoto={draft.pendingPhoto}
                         expired={draft.photo.expired}
+                        review
                       />
                     )}
 
@@ -780,113 +791,12 @@ export function ReceiptDraftForm({
                         )}
                       </div>
                     )}
-                    <ReceiptItemEditor
+                    <ReceiptReviewItems
                       items={data.items}
                       change={(items) => update({ items })}
-                      draftMode
                     />
                   </div>
                 </div>
-                <details className="receipt-adjustments">
-                  <summary>Tax, discounts & receipt adjustments</summary>
-                  {data.receipt && (
-                    <fieldset>
-                      <legend>Receipt adjustments</legend>
-                      <label className="participant-choice">
-                        <input
-                          type="checkbox"
-                          checked={data.receipt.pricesIncludeTax}
-                          onChange={(e) => {
-                            const next = {
-                              ...draft,
-                              data: {
-                                ...data,
-                                receipt: {
-                                  ...data.receipt!,
-                                  pricesIncludeTax: e.target.checked,
-                                },
-                              },
-                            };
-                            setDraft(next);
-                            void run("Calculating…", async () => {
-                              const saved = await prepare(next);
-                              const result = await api.previewPrices(
-                                group.id,
-                                saved.data,
-                              );
-                              setWarnings(result.warnings);
-                              await prepare({
-                                ...saved,
-                                data: { ...saved.data, items: result.items },
-                              });
-                            });
-                          }}
-                        />
-                        Printed prices include tax
-                      </label>
-                      {data.receipt.subtotalCents !== null && (
-                        <p>
-                          Printed subtotal: {money(data.receipt.subtotalCents)}
-                        </p>
-                      )}
-                      <div className="receipt-costs">
-                        {(
-                          ["taxCents", "discountCents", "extraCents"] as const
-                        ).map((field, i) => (
-                          <ReceiptAmount
-                            key={field}
-                            emptyAsZero
-                            label={
-                              [
-                                "Receipt tax",
-                                "Receipt discount",
-                                "Receipt other charges",
-                              ][i]
-                            }
-                            value={data.receipt![field]}
-                            signed={field === "extraCents"}
-                            change={(value) => {
-                              if (value !== null)
-                                update({
-                                  receipt: {
-                                    ...data.receipt!,
-                                    [field]: value,
-                                  },
-                                });
-                            }}
-                          />
-                        ))}
-                      </div>
-                      <p>
-                        Tax is reference only when prices include tax. Receipt
-                        adjustments are additional to item-specific entries.
-                      </p>
-                      <Button
-                        variant="secondary"
-                        onClick={() =>
-                          void run("Calculating…", async () => {
-                            const saved = await prepare();
-                            const result = await api.previewPrices(
-                              group.id,
-                              saved.data,
-                            );
-                            setWarnings(result.warnings);
-                            await prepare({
-                              ...saved,
-                              data: { ...saved.data, items: result.items },
-                            });
-                          })
-                        }
-                      >
-                        Apply adjustments to final costs
-                      </Button>
-                      <p>
-                        This calculates final costs while keeping any final
-                        costs you entered manually.
-                      </p>
-                    </fieldset>
-                  )}
-                </details>
                 {data.items.length > 0 && (
                   <Button
                     variant="text"
@@ -1070,7 +980,8 @@ export function ReceiptDraftForm({
             </p>
           )}
 
-          <div className="receipt-wizard-actions">
+          <div className={`receipt-wizard-actions${step === 1 ? " receipt-review-footer" : ""}`}>
+            {step === 1 && <ReceiptReconciliation data={data} openSummary={() => setSummaryOpen(true)} />}
             <div>
               {step > 0 && (
                 <Button
@@ -1135,6 +1046,7 @@ export function ReceiptDraftForm({
   return (
     <>
       {editor}
+      {summaryOpen && <ReceiptSummary data={data} change={update} close={() => setSummaryOpen(false)} />}
       {discard && (
         <Dialog
           title="Discard unsaved changes?"

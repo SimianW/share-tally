@@ -1481,7 +1481,7 @@ test('receipt drafts preserve missing money and reject initialization until requ
   const { requestId: _requestId, ...fields } = draft;
   const data: import('../src/receipt-input.js').ReceiptDraftData = { ...fields, mode: 'items', totalCents: null, items: [{
     id: crypto.randomUUID(), name: 'Apples', originalText: 'APPLE', quantity: '1', taxable: null, manualFinal: false,
-    amountCents: null, finalCents: null, taxCents: 0, discountCents: 0, extraCents: 0,
+    amountCents: null, finalCents: null, discountCents: 0,
   }] };
   const saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data }))).draft;
   assert.equal(saved.data.totalCents, null);
@@ -1504,7 +1504,8 @@ test('item details preserve confirmation until the final claimable price changes
   const id = crypto.randomUUID();
   const { requestId: _requestId, ...fields } = draft;
   const item = { id: crypto.randomUUID(), name: 'Apples', originalText: 'APPLE', quantity: '1', amountCents: 100, finalCents: 100, taxCents: 0, discountCents: 0, extraCents: 0 };
-  const data = { ...fields, mode: 'items', items: [item] };
+  const { taxCents: _tax, extraCents: _extra, ...draftItem } = item;
+  const data = { ...fields, mode: 'items', items: [draftItem] };
   const saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data }))).draft;
   let bill = (await json(await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST', { revision: saved.revision }))).bill;
   bill = (await json(await api(`/bills/${bill.id}/claims`, 'bob-token', 'POST', { revision: bill.revision, claims: [{ itemId: item.id, numerator: 1, denominator: 2 }] }))).bill;
@@ -1523,7 +1524,8 @@ async function itemBill(costs = [100], totalCents = 100) {
   const { requestId: _requestId, ...fields } = context.draft;
   const data = { ...fields, totalCents, mode: 'items', items: costs.map((cost, index) => ({ id: crypto.randomUUID(), name: `Item ${index + 1}`, originalText: `ITEM ${index + 1}`, quantity: '1', amountCents: cost, finalCents: cost, taxCents: 0, discountCents: 0, extraCents: 0 })) };
   const id = crypto.randomUUID();
-  const saved = (await json(await api(`/groups/${context.group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data }))).draft;
+  const draftData = { ...data, items: data.items.map(({ taxCents: _tax, extraCents: _extra, ...item }) => item) };
+  const saved = (await json(await api(`/groups/${context.group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data: draftData }))).draft;
   const bill = (await json(await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST', { revision: saved.revision }))).bill;
   return { ...context, bill, data, draftId: id };
 }
@@ -1592,7 +1594,7 @@ test('photo privacy, extraction retry and naming failure preserve saved edits an
   const { group, draft } = await setup(false);
   const { requestId: _requestId, ...fields } = draft;
   const id = crypto.randomUUID();
-  const data = { ...fields, mode: 'items', items: [{ id: crypto.randomUUID(), name: 'My edited name', originalText: 'FAIL-NAMES', quantity: '1', amountCents: 100, finalCents: 100, taxCents: 0, discountCents: 0, extraCents: 0 }] };
+  const data = { ...fields, mode: 'items', items: [{ id: crypto.randomUUID(), name: 'My edited name', originalText: 'FAIL-NAMES', quantity: '1', amountCents: 100, finalCents: 100, discountCents: 0 }] };
   let saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data }))).draft;
   const bytes = await sharp({ create: { width: 30, height: 60, channels: 3, background: 'white' } }).png().toBuffer();
   saved = (await json(await api(`/receipt-drafts/${id}/photo`, 'alice-token', 'PUT', { revision: saved.revision, base64: bytes.toString('base64') }))).draft;
@@ -1646,7 +1648,7 @@ test('draft price defaults are repeatable and name retries only return names', a
   const { group, draft } = await setup();
   const { requestId: _requestId, ...fields } = draft;
   const id = crypto.randomUUID();
-  const data = { ...fields, mode: 'items', receipt: { subtotalCents: 300, taxCents: 15, discountCents: 30, extraCents: 2, pricesIncludeTax: false }, items: [0, 1, 2].map(n => ({ id: crypto.randomUUID(), name: `Edited ${n}`, originalText: 'APPLE', quantity: '1', amountCents: 100, finalCents: 100, taxCents: 0, discountCents: 0, extraCents: 0 })) };
+  const data = { ...fields, mode: 'items', receipt: { subtotalCents: 300, taxCents: 15, discountCents: 30, extraCents: 2, pricesIncludeTax: false }, items: [0, 1, 2].map(n => ({ id: crypto.randomUUID(), name: `Edited ${n}`, originalText: 'APPLE', quantity: '1', amountCents: 100, finalCents: 100, discountCents: 0 })) };
   let saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data }))).draft;
   const retry = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data }))).draft;
   assert.equal(retry.revision, saved.revision);
@@ -1780,4 +1782,138 @@ test('saved-photo preview rejects results when the saved draft changes during ex
   } finally { child!.send('release-extraction'); }
   await json(await pending, 409);
   assert.equal((await json(await api(`/receipt-drafts/${id}`))).draft.data.title, 'Changed elsewhere');
+});
+
+test('draft saves derive receipt shares from printed prices rather than submitted costs', async () => {
+  const { group, draft } = await setup();
+  const { requestId: _requestId, ...fields } = draft;
+  const id = crypto.randomUUID();
+  const data = {
+    ...fields, mode: 'items', totalCents: 3230,
+    receipt: { subtotalCents: 3200, discountCents: 300, taxCents: 270, extraCents: 260, pricesIncludeTax: false },
+    items: [
+      { amountCents: 1200, discountCents: 200, taxable: true },
+      { amountCents: 2000, discountCents: 0, taxable: false },
+    ].map((item, index) => ({
+      ...item, id: crypto.randomUUID(), name: `Item ${index + 1}`, originalText: '', quantity: '1',
+      finalCents: 999, manualFinal: false,
+      allocatedTaxCents: 999, allocatedDiscountCents: 999, allocatedExtraCents: 999,
+    })),
+  };
+  const saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data }))).draft;
+  assert.deepEqual(saved.data.items.map((item: Record<string, unknown>) => [item.allocatedDiscountCents, item.allocatedTaxCents, item.allocatedExtraCents, item.finalCents]), [[100, 270, 87, 1257], [200, 0, 173, 1973]]);
+  assert.equal(saved.data.totalCents, 3230);
+  const bill = (await json(await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST', { revision: saved.revision }))).bill;
+  assert.deepEqual(bill.items.map((item: Record<string, unknown>) => [item.taxCents, item.extraCents, item.finalCents]), [[270, 87, 1257], [0, 173, 1973]]);
+});
+
+test('legacy draft migration preserves every final and receipt summary, and only affected drafts become manual', async () => {
+  const { group, draft } = await setup();
+  const { requestId: _requestId, ...fields } = draft;
+  const receipt = { subtotalCents: 3000, taxCents: 300, discountCents: 0, extraCents: 0, pricesIncludeTax: false };
+  const examples = [
+    { residualTax: 50, extra: 0, affected: true },
+    { residualTax: 0, extra: -25, affected: true },
+    { residualTax: 0, extra: 0, affected: false },
+  ];
+  const drafts = [];
+  for (const example of examples) {
+    const id = crypto.randomUUID();
+    const data = { ...fields, mode: 'items', totalCents: 3350, receipt, items: [] };
+    await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data }));
+    const legacy = { ...data, items: [
+      { id: crypto.randomUUID(), name: 'Taxable', originalText: '', quantity: '1', amountCents: 1000, discountCents: 0, taxable: true, manualFinal: false, taxCents: 100 + example.residualTax, allocatedTaxCents: 100, extraCents: example.extra, finalCents: 1100 + example.residualTax + example.extra },
+      { id: crypto.randomUUID(), name: 'Also taxable', originalText: '', quantity: '1', amountCents: 2000, discountCents: 0, taxable: true, manualFinal: false, taxCents: 200, allocatedTaxCents: 200, extraCents: 0, finalCents: 2200 },
+    ] };
+    // Legacy fixture setup only; results are observed through authenticated HTTP.
+    await pool.query('UPDATE receipt_drafts SET data = $2 WHERE id = $1', [id, legacy]);
+    const before = (await json(await api(`/receipt-drafts/${id}`))).draft;
+    drafts.push({ id, before, affected: example.affected });
+  }
+  // This data-only migration leaves the schema unchanged. Restore its pre-migration
+  // journal state, then apply the committed history using the production migrator.
+  const { readFile } = await import('node:fs/promises');
+  const journal = JSON.parse(await readFile(new URL('../drizzle/meta/_journal.json', import.meta.url), 'utf8'));
+  const migration = journal.entries.find((entry: { tag: string }) => entry.tag === '0009_preserve_draft_item_costs');
+  assert.ok(migration);
+  await pool.query('DELETE FROM drizzle.__drizzle_migrations WHERE created_at >= $1', [migration.when]);
+  await migrate(drizzle(pool), { migrationsFolder: './drizzle' });
+  for (const { id, before, affected } of drafts) {
+    const after = (await json(await api(`/receipt-drafts/${id}`))).draft;
+    assert.equal(after.data.totalCents, before.data.totalCents);
+    assert.deepEqual(after.data.receipt, before.data.receipt);
+    assert.deepEqual(after.data.items.map((item: { finalCents: number }) => item.finalCents), before.data.items.map((item: { finalCents: number }) => item.finalCents));
+    assert.deepEqual(after.data.items.map((item: { manualFinal: boolean }) => item.manualFinal), [affected, affected]);
+    assert.ok(after.data.items.every((item: object) => !('taxCents' in item) && !('extraCents' in item)));
+    assert.equal(after.revision, before.revision + 1);
+    const saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: after.revision, data: after.data }))).draft;
+    assert.deepEqual(saved.data.items.map((item: { finalCents: number }) => item.finalCents), before.data.items.map((item: { finalCents: number }) => item.finalCents));
+    const bill = (await json(await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST', { revision: saved.revision }))).bill;
+    assert.deepEqual(bill.items.map((item: { finalCents: number }) => item.finalCents), before.data.items.map((item: { finalCents: number }) => item.finalCents));
+    assert.equal(bill.totalCents, before.data.totalCents);
+  }
+});
+
+test('draft overrides survive summary edits and clearing an override restores derivation', async () => {
+  const { group, draft } = await setup();
+  const { requestId: _requestId, ...fields } = draft;
+  const id = crypto.randomUUID();
+  const path = `/groups/${group.id}/receipt-drafts/${id}`;
+  const data = {
+    ...fields, mode: 'items', totalCents: 1,
+    receipt: { subtotalCents: 300, discountCents: 0, taxCents: 5, extraCents: -2, pricesIncludeTax: false },
+    items: [0, 1, 2].map(index => ({ id: crypto.randomUUID(), name: `Item ${index}`, originalText: '', quantity: '1', amountCents: 100, discountCents: 0, taxable: true, finalCents: 42, manualFinal: index === 0 })),
+  };
+  let saved = (await json(await api(path, 'alice-token', 'PUT', { revision: 0, data }))).draft;
+  assert.deepEqual(saved.data.items.map((item: { finalCents: number }) => item.finalCents), [42, 101, 101]);
+  assert.deepEqual(saved.data.items.map((item: { allocatedTaxCents: number }) => item.allocatedTaxCents), [2, 2, 1]);
+  assert.deepEqual(saved.data.items.map((item: { allocatedExtraCents: number }) => item.allocatedExtraCents), [-1, -1, 0]);
+  saved = (await json(await api(path, 'alice-token', 'PUT', { revision: saved.revision, data: { ...saved.data, receipt: { ...saved.data.receipt, pricesIncludeTax: true } } }))).draft;
+  assert.deepEqual(saved.data.items.map((item: { finalCents: number }) => item.finalCents), [42, 99, 100]);
+  assert.deepEqual(saved.data.items.map((item: { allocatedTaxCents: number }) => item.allocatedTaxCents), [0, 0, 0]);
+  saved.data.items[0].manualFinal = false;
+  saved = (await json(await api(path, 'alice-token', 'PUT', { revision: saved.revision, data: saved.data }))).draft;
+  assert.deepEqual(saved.data.items.map((item: { finalCents: number }) => item.finalCents), [99, 99, 100]);
+  assert.equal(saved.data.totalCents, 1);
+  // Reconciliation is advisory even for large differences.
+  const bill = (await json(await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST', { revision: saved.revision }))).bill;
+  assert.equal(bill.totalCents, 1);
+});
+
+test('removed per-item tax and adjustment inputs are rejected by draft save and previews', async () => {
+  const { group, draft } = await setup();
+  const { requestId: _requestId, ...fields } = draft;
+  const id = crypto.randomUUID();
+  const data = { ...fields, mode: 'items', items: [{ id: crypto.randomUUID(), name: 'Item', originalText: '', quantity: '1', amountCents: 100, discountCents: 0, finalCents: 100 }] };
+  const path = `/groups/${group.id}/receipt-drafts/${id}`;
+  await json(await api(path, 'alice-token', 'PUT', { revision: 0, data }));
+  const before = (await json(await api(`/receipt-drafts/${id}`))).draft;
+  for (const field of ['taxCents', 'extraCents']) {
+    for (const value of [0, 10]) {
+      const invalid = { ...data, items: [{ ...data.items[0], [field]: value }] };
+      const error = await json(await api(path, 'alice-token', 'PUT', { revision: before.revision, data: invalid }), 400);
+      assert.match(error.error, new RegExp(field));
+      const previewError = await json(await api(`/groups/${group.id}/receipt-preview/prices`, 'alice-token', 'POST', invalid), 400);
+      assert.match(previewError.error, new RegExp(field));
+    }
+  }
+  assert.deepEqual((await json(await api(`/receipt-drafts/${id}`))).draft, before);
+});
+
+test('missing prices only block dependent receipt allocations and zero weights never guess a distribution', async () => {
+  const { group, draft } = await setup();
+  const { requestId: _requestId, ...fields } = draft;
+  const data = { ...fields, mode: 'items', receipt: { subtotalCents: null, discountCents: 0, taxCents: 25, extraCents: 0, pricesIncludeTax: false }, items: [
+    { amountCents: 100, taxable: false }, { amountCents: 200, taxable: true }, { amountCents: null, taxable: false },
+  ].map((item, index) => ({ ...item, id: crypto.randomUUID(), name: `Item ${index}`, originalText: '', quantity: '1', discountCents: 0, finalCents: 999 })) };
+  const price = async (input: unknown) => json(await api(`/groups/${group.id}/receipt-preview/prices`, 'alice-token', 'POST', input));
+  const independent = await price(data);
+  assert.deepEqual(independent.items.map((item: { finalCents: number | null }) => item.finalCents), [100, 225, null]);
+  data.items[2]!.taxable = true;
+  const missingTaxable = await price(data);
+  assert.deepEqual(missingTaxable.items.map((item: { finalCents: number | null }) => item.finalCents), [100, null, null]);
+  assert.deepEqual(missingTaxable.items.map((item: { allocatedTaxCents: number | null }) => item.allocatedTaxCents), [0, null, null]);
+  const zero = await price({ ...data, items: data.items.map(item => ({ ...item, amountCents: 0, taxable: true })) });
+  assert.deepEqual(zero.items.map((item: { finalCents: number | null }) => item.finalCents), [null, null, null]);
+  assert.ok(zero.warnings.length);
 });

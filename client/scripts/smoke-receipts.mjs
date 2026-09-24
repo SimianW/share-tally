@@ -3,6 +3,7 @@
 // Real UI + Express + temporary PostgreSQL. Clerk and receipt providers are replaced; this does
 // not verify Google OAuth, production credentials, or session lifetime.
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { fork } from "node:child_process";
 import { once } from "node:events";
 import { createRequire } from "node:module";
@@ -188,7 +189,7 @@ try {
   await expect(alice.getByText("Test extraction unavailable. Your draft is safe.", { exact: true })).toBeVisible();
   await expect(alice.getByRole("button", { name: "Read receipt", exact: true })).toBeVisible();
   await alice.getByRole("button", { name: "Read receipt", exact: true }).click();
-  await expect(alice.getByLabel("Item name", { exact: true })).toHaveValue("Apples");
+  await expect(alice.getByRole("button", { name: "Edit Apples", exact: true })).toBeVisible();
   assert.equal((await api(`/groups/${group.id}/receipt-drafts`)).drafts.length, 0);
   await alice.getByRole("button", { name: "Back to group" }).click();
   await expect(alice.getByRole("heading", { name: "Discard unsaved changes?" })).toBeVisible();
@@ -243,16 +244,13 @@ try {
     .getByRole("button", { name: "Enter items myself", exact: true })
     .click();
   await alice
-    .getByRole("button", { name: "+ Add an item", exact: true })
+    .getByRole("button", { name: "Add an item", exact: true })
     .click();
-  const quantityBox = await alice.getByLabel("Quantity", { exact: true }).boundingBox();
-  const finalBox = await alice.getByLabel("Final cost · CAD", { exact: true }).boundingBox();
-  assert.ok(Math.abs(quantityBox.y - finalBox.y) < 2, "Quantity and empty Final cost inputs must align despite validation text");
   const taxBox = await alice.getByRole("checkbox", { name: "Taxable", exact: true }).boundingBox();
   assert.ok(taxBox.width <= 24, "Tax checkbox must not inherit full-width input styling");
   await alice.getByLabel("Item name", { exact: true }).fill("Apples");
-  await alice.getByText("Original text & price details").click();
-  await alice.getByLabel("Printed amount", { exact: true }).fill("3.00");
+  await alice.getByLabel("Printed price", { exact: true }).fill("3.00");
+  await alice.getByRole("button", { name: "Close editor", exact: true }).click();
   await alice.getByRole("button", { name: "Continue to sharing" }).click();
   await alice.getByLabel("Bill title", { exact: true }).fill("Shared apples");
   await alice.getByLabel("Bob", { exact: true }).check();
@@ -266,12 +264,7 @@ try {
     alice.getByRole("heading", { name: "Who’s sharing this bill?" }),
   ).toBeVisible();
   await alice.getByRole("button", { name: "Back", exact: true }).click();
-  await expect(alice.getByLabel("Item name", { exact: true })).toHaveValue(
-    "Apples",
-  );
-  await expect(
-    alice.getByLabel("Final cost · CAD", { exact: true }),
-  ).toHaveValue("3.00");
+  await expect(alice.getByRole("button", { name: "Edit Apples", exact: true })).toContainText("3.00");
   await alice.getByRole("button", { name: "Continue to sharing" }).click();
   await alice
     .getByRole("button", { name: "Initiate bill", exact: true })
@@ -391,56 +384,33 @@ try {
     .click();
   // Extraction succeeds automatically after the crop; the failed-scan retry was covered above.
   await expect(alice.getByRole("heading", { name: "Check your items" })).toBeVisible();
-  await expect(alice.getByLabel("Item name", { exact: true })).toHaveValue(
-    "Apples",
-  );
-  await alice
-    .getByText("Tax, discounts & receipt adjustments", { exact: true })
-    .click();
-  await expect(alice.getByRole("checkbox", { name: "Taxable", exact: true })).toBeChecked();
+  const applesRow = () => alice.getByRole("button", { name: "Edit Apples", exact: true });
+  const reconciliation = () => alice.getByRole("button", { name: /Matches receipt|Off by|Receipt summary/ }).filter({ hasText: /Items/ });
+  await expect(applesRow()).toContainText("3.00");
+  await reconciliation().click();
   await alice.getByLabel("Receipt tax", { exact: true }).fill("0.30");
-  await alice
-    .getByRole("button", {
-      name: "Apply adjustments to final costs",
-      exact: true,
-    })
-    .click();
-  await expect(
-    alice.getByLabel("Final cost · CAD", { exact: true }),
-  ).toHaveValue("3.30");
+  await alice.getByRole("button", { name: "Close summary", exact: true }).click();
+  await expect(applesRow()).toContainText("3.30");
+  await expect(reconciliation()).toContainText("Off by $0.30");
+  await reconciliation().click();
   await alice.getByLabel("Receipt tax", { exact: true }).fill("");
-  await alice
-    .getByRole("button", {
-      name: "Apply adjustments to final costs",
-      exact: true,
-    })
-    .click();
-  await expect(
-    alice.getByLabel("Final cost · CAD", { exact: true }),
-  ).toHaveValue("3.00");
+  await alice.getByRole("button", { name: "Close summary", exact: true }).click();
+  await expect(applesRow()).toContainText("3.00");
+  await reconciliation().click();
   await alice.getByLabel("Receipt tax", { exact: true }).fill("0.30");
   await alice.getByLabel("Printed prices include tax", { exact: true }).check();
-  await alice
-    .getByRole("button", {
-      name: "Apply adjustments to final costs",
-      exact: true,
-    })
-    .click();
-  await expect(
-    alice.getByLabel("Final cost · CAD", { exact: true }),
-  ).toHaveValue("3.00");
+  await alice.getByRole("button", { name: "Close summary", exact: true }).click();
+  await expect(applesRow()).toContainText("3.00");
+  await reconciliation().click();
   await alice.getByLabel("Receipt discount", { exact: true }).fill("0.30");
-  await alice
-    .getByRole("button", {
-      name: "Apply adjustments to final costs",
-      exact: true,
-    })
-    .click();
-  await expect(
-    alice.getByLabel("Final cost · CAD", { exact: true }),
-  ).toHaveValue("2.70");
+  await alice.getByRole("button", { name: "Close summary", exact: true }).click();
+  await expect(applesRow()).toContainText("2.70");
+  await applesRow().click();
+  await expect(alice.getByRole("checkbox", { name: "Taxable", exact: true })).toBeChecked();
   await alice.getByRole("checkbox", { name: "Taxable", exact: true }).uncheck();
+  await alice.getByRole("button", { name: "Set final manually", exact: true }).click();
   await alice.getByLabel("Final cost · CAD", { exact: true }).fill("2.80");
+  await alice.getByRole("button", { name: "Close editor", exact: true }).click();
   await alice.getByRole("button", { name: "Save draft & close" }).click();
   await expect(alice.locator(".draft-list-row").filter({ hasText: "Scanned receipt" })).toBeVisible();
   const savedScan = (await api(`/groups/${group.id}/receipt-drafts`)).drafts.find(d => d.data.title === "Scanned receipt");
@@ -459,10 +429,10 @@ try {
   await alice.reload();
   await expectNewBillRoute(savedScan.id);
   await expect(alice.getByRole("heading", { name: "Check your items" })).toBeVisible();
-  await expect(
-    alice.getByLabel("Final cost · CAD", { exact: true }),
-  ).toHaveValue("2.80");
+  await applesRow().click();
+  await expect(alice.getByLabel("Final cost · CAD", { exact: true })).toHaveValue("2.80");
   await expect(alice.getByRole("checkbox", { name: "Taxable", exact: true })).not.toBeChecked();
+  await alice.getByRole("button", { name: "Close editor", exact: true }).click();
   await alice.getByRole("button", { name: "Continue to sharing" }).click();
   await alice
     .getByLabel("Bill title", { exact: true })
@@ -485,10 +455,8 @@ try {
   });
   await alice.setViewportSize({ width: 320, height: 640 });
   await expectNewBillRoute(savedScan.id);
-  await alice
-    .getByText("Original text & price details", { exact: true })
-    .click();
-  await alice.locator(".receipt-original").evaluate((el) => {
+  await applesRow().click();
+  await alice.locator(".receipt-original-text p").evaluate((el) => {
     el.textContent = "LONG_RECEIPT_PRODUCT_CODE_".repeat(20);
   });
   const dimensions = await alice.evaluate(() => ({
@@ -502,7 +470,6 @@ try {
   );
   await alice.evaluate(() => window.scrollTo({ left: 100, top: 100 }));
   assert.equal(await alice.evaluate(() => window.scrollX), 0);
-  assert.ok(await alice.evaluate(() => window.scrollY > 0));
   assert.ok(
     await alice
       .getByLabel("Final cost · CAD", { exact: true })
@@ -510,7 +477,7 @@ try {
   );
 
   await alice.setViewportSize({ width: 390, height: 844 });
-  await expectNewBillRoute(savedScan.id);
+  await expect(alice).toHaveURL(`${newBillRoute}/${savedScan.id}`);
   assert.equal(
     await alice.evaluate(() => document.documentElement.scrollWidth > innerWidth),
     false,
@@ -520,6 +487,7 @@ try {
     fullPage: true,
   });
   await alice.setViewportSize({ width: 1280, height: 1000 });
+  await alice.getByRole("button", { name: "Close editor", exact: true }).click();
   await alice.getByRole("button", { name: "Continue to sharing" }).click();
   let lost = false;
   await alice.route("**/receipt-drafts/*/initialize", async (route) => {
@@ -546,6 +514,112 @@ try {
     ).length,
     1,
   );
+  // Exercise the same compact review contract at desktop and mobile widths.
+  for (const viewport of [{ width: 1280, height: 1000 }, { width: 390, height: 844 }]) {
+    const draftId = randomUUID();
+    const item = (name, amountCents, taxable) => ({
+      id: randomUUID(), name, originalText: `${name.toUpperCase()} RECEIPT LINE`,
+      quantity: "1", amountCents, discountCents: 0, taxable,
+      finalCents: amountCents, manualFinal: false,
+    });
+    await api(`/groups/${group.id}/receipt-drafts/${draftId}`, "alice-token", "PUT", {
+      revision: 0,
+      data: {
+        mode: "items", title: `Compact review ${viewport.width}`, purchaseDate: "2026-09-24",
+        timeZone: "America/Toronto", notes: "", totalCents: 3000, ownShareCents: 0,
+        participantIds: [],
+        receipt: { subtotalCents: 3000, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
+        items: [item("Apples", 1000, true), item("Milk", 2000, false)],
+      },
+      photoBase64: image.toString("base64"),
+    });
+    await alice.setViewportSize(viewport);
+    await alice.goto(`${newBillRoute}/${draftId}`);
+    await stepButton("Items").click();
+    const row = name => alice.getByRole("button", { name: `Edit ${name}`, exact: true, includeHidden: true });
+    await expect(row("Apples")).toContainText("10.00");
+    await expect(reconciliation()).toContainText("Matches receipt");
+    await alice.getByRole("button", { name: "View receipt photo", exact: true }).click();
+    const photoDialog = alice.getByRole("dialog", { name: "Receipt photo", exact: true });
+    await expect(photoDialog).toBeVisible();
+    const photo = photoDialog.getByRole("img");
+    const initialPhotoWidth = (await photo.boundingBox()).width;
+    await alice.getByRole("button", { name: "Zoom in", exact: true }).click();
+    await expect.poll(async () => (await photo.boundingBox()).width).toBeGreaterThan(initialPhotoWidth);
+    await alice.getByRole("button", { name: "Close photo", exact: true }).click();
+    await expect(photoDialog).toHaveCount(0);
+    await row("Apples").click();
+    const editor = alice.getByRole("dialog", { name: "Edit receipt item", exact: true });
+    await expect(editor).toBeVisible();
+    await expect(editor).toContainText("APPLES RECEIPT LINE");
+    const editorBox = await editor.boundingBox();
+    if (viewport.width < 700) {
+      assert.ok(Math.abs(editorBox.x) < 2, "Mobile editor spans the viewport");
+      assert.ok(Math.abs(editorBox.y + editorBox.height - viewport.height) < 3, "Mobile editor is a bottom sheet");
+    } else {
+      assert.ok(editorBox.x > viewport.width / 2, "Desktop editor is a side panel");
+    }
+    await alice.getByLabel("Item name", { exact: true }).fill("Reviewed apples");
+    await alice.getByLabel("Quantity", { exact: true }).fill("2");
+    await alice.getByLabel("Printed price", { exact: true }).fill("12.00");
+    await alice.getByLabel("Item discount", { exact: true }).fill("2.00");
+    await expect(row("Reviewed apples")).toContainText("×2");
+    await expect(row("Reviewed apples")).toContainText("10.00");
+    await alice.getByRole("button", { name: "Next item", exact: true }).click();
+    await expect(alice.getByLabel("Item name", { exact: true })).toHaveValue("Milk");
+    await alice.getByRole("button", { name: "Previous item", exact: true }).click();
+    await expect(alice.getByLabel("Item name", { exact: true })).toHaveValue("Reviewed apples");
+    await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+    await reconciliation().click();
+    await alice.getByLabel("Receipt subtotal", { exact: true }).fill("30.00");
+    await alice.getByLabel("Receipt discount", { exact: true }).fill("3.00");
+    await alice.getByLabel("Receipt tax", { exact: true }).fill("3.00");
+    await alice.getByLabel("Other adjustments", { exact: true }).fill("1.50");
+    await alice.getByLabel("Receipt total", { exact: true }).fill("31.50");
+    await alice.getByRole("button", { name: "Close summary", exact: true }).click();
+    await expect(row("Reviewed apples")).toContainText("12.50");
+    await expect(row("Milk")).toContainText("19.00");
+    await expect(reconciliation()).toContainText("Matches receipt");
+    await reconciliation().click();
+    await alice.getByLabel("Receipt tax", { exact: true }).fill("6.00");
+    await alice.getByRole("button", { name: "Close summary", exact: true }).click();
+    await expect(row("Reviewed apples")).toContainText("15.50");
+    await expect(reconciliation()).toContainText("Off by $3.00");
+    await alice.getByRole("button", { name: "Continue to sharing" }).click();
+    await expect(alice.getByRole("heading", { name: "Who’s sharing this bill?" })).toBeVisible();
+    await stepButton("Items").click();
+    await row("Reviewed apples").click();
+    await alice.getByRole("button", { name: "Set final manually", exact: true }).click();
+    await alice.getByLabel("Final cost · CAD", { exact: true }).fill("11.00");
+    await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+    await expect(row("Reviewed apples")).toContainText("Manual");
+    await expect(row("Reviewed apples")).toContainText("11.00");
+    await expect(reconciliation()).toContainText("Off by $1.50");
+    await row("Reviewed apples").click();
+    await alice.getByRole("button", { name: "Use receipt calculation", exact: true }).click();
+    await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+    await expect(row("Reviewed apples")).toContainText("15.50");
+    // Signed penny allocation follows the same deterministic remainder rule.
+    await reconciliation().click();
+    await alice.getByLabel("Other adjustments", { exact: true }).fill("-0.01");
+    await alice.getByRole("button", { name: "Close summary", exact: true }).click();
+    await expect(row("Reviewed apples")).toContainText("15.00");
+    await expect(row("Milk")).toContainText("17.99");
+    await reconciliation().click();
+    await alice.getByLabel("Other adjustments", { exact: true }).fill("1.50");
+    await alice.getByRole("button", { name: "Close summary", exact: true }).click();
+    await expect(row("Reviewed apples")).toContainText("15.50");
+    assert.equal(await alice.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    await alice.screenshot({ path: `/tmp/share-tally-receipt-smoke/compact-review-${viewport.width}.png`, fullPage: true });
+    await alice.getByRole("button", { name: "Save draft & close" }).click();
+    await expect(alice).toHaveURL(groupRoute);
+    const persisted = (await api(`/receipt-drafts/${draftId}`)).draft.data;
+    assert.deepEqual(persisted.items.map(i => i.finalCents), [1550, 1900]);
+    assert.equal(persisted.items[0].quantity, "2");
+    assert.equal(persisted.items[0].name, "Reviewed apples");
+    assert.equal(persisted.receipt.taxCents, 600);
+    assert.equal(persisted.totalCents, 3150);
+  }
   // The guided entry still supports switching an unfinished receipt to manual shares.
   await alice.goto(`${base}#/group-bills/${group.id}`);
   await alice.getByRole("button", { name: "New bill", exact: true }).click();
@@ -553,14 +627,12 @@ try {
     .getByRole("button", { name: "Enter items myself", exact: true })
     .click();
   await alice
-    .getByRole("button", { name: "+ Add an item", exact: true })
+    .getByRole("button", { name: "Add an item", exact: true })
     .click();
   await alice.getByLabel("Item name", { exact: true }).fill("Free sample");
-  await alice
-    .getByText("Original text & price details", { exact: true })
-    .click();
-  await alice.getByLabel("Printed amount", { exact: true }).fill("0.00");
+  await alice.getByLabel("Printed price", { exact: true }).fill("0.00");
   await alice.getByLabel("Item name", { exact: true }).press("Enter");
+  await alice.getByRole("button", { name: "Close editor", exact: true }).click();
   await expect(
     alice.getByRole("heading", { name: "Check your items", exact: true }),
   ).toBeVisible();

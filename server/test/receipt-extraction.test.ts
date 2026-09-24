@@ -33,7 +33,7 @@ function receipt(patch: Partial<ExtractedReceipt> = {}): ExtractedReceipt {
 test("tax allocation preserves cents and included tax is not charged twice", () => {
   const exclusive = extractionDefaults(receipt());
   assert.deepEqual(
-    exclusive.items.map((i) => i.taxCents),
+    exclusive.items.map((i) => i.allocatedTaxCents),
     [2, 2, 1],
   );
   assert.deepEqual(
@@ -53,7 +53,7 @@ test("tax allocation preserves cents and included tax is not charged twice", () 
     items: exclusive.items,
   });
   assert.deepEqual(
-    repriced.items.map((i) => [i.taxCents, i.finalCents]),
+    repriced.items.map((i) => [i.allocatedTaxCents, i.finalCents]),
     [
       [2, 102],
       [2, 102],
@@ -82,13 +82,8 @@ test("missing money stays empty, explicit zero is valid, undefined allocation re
     i.amount = 0;
   });
   const explicitZero = extractionDefaults(zero);
-  const {
-    taxable: _taxable,
-    manualFinal: _manualFinal,
-    allocatedTaxCents: _allocatedTaxCents,
-    ...zeroItem
-  } = explicitZero.items[0]!;
-  assert.equal(itemInput.safeParse(zeroItem).success, true);
+  assert.equal(draftItemInput.safeParse(explicitZero.items[0]).success, true);
+  assert.equal(explicitZero.items[0]!.finalCents, 0);
   zero.taxTotal = 0.01;
   assert.ok(extractionDefaults(zero).items.every((i) => i.finalCents === null));
 });
