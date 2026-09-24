@@ -1,6 +1,7 @@
 // Azure's documented receipt fields only; no LLM or fixture-dependent corrections.
 // https://learn.microsoft.com/azure/ai-services/document-intelligence/prebuilt/receipt
 import { BillError } from "./bill-error.js";
+import { attachReceiptDiscounts } from "./receipt-discounts.js";
 import {
   extractedReceipt,
   type ReceiptExtractor,
@@ -40,6 +41,29 @@ export function normalizeAzure(result: AnalyzeResult) {
     );
   const f = documents[0]!.fields ?? {};
   const rows = f.Items?.valueArray ?? [];
+  const lineAmount = (row: Field) => {
+    const total = amount(row.valueObject?.TotalPrice);
+    const price = amount(row.valueObject?.Price);
+    return total ?? (price !== null && price < 0 ? price : null);
+  };
+  const itemRows = rows.filter((row) => (lineAmount(row) ?? 0) >= 0);
+  const cents = (value: number | null) => value === null ? null : Math.round(value * 100);
+  const discountResult = attachReceiptDiscounts(
+    itemRows.map((row) => ({
+      amountCents: cents(amount(row.valueObject?.TotalPrice)),
+      productCode: string(row.valueObject?.ProductCode) ?? undefined,
+      content: row.content ?? "",
+    })),
+    rows.map((row) => {
+      const value = lineAmount(row);
+      return {
+        amountCents: cents(value),
+        content: row.content ?? "",
+        ...(value === null || value >= 0 ? { itemIndex: itemRows.indexOf(row) } : {}),
+      };
+    }),
+    cents(amount(f.Subtotal)),
+  );
   const currencies = new Set<string>();
   function collect(field: Field) {
     if (field.valueCurrency?.currencyCode)
@@ -75,9 +99,10 @@ export function normalizeAzure(result: AnalyzeResult) {
     },
     merchant: string(f.MerchantName),
     currency: currencies.size === 1 ? [...currencies][0] : null,
-    items: rows.map((row) => {
+    items: itemRows.map((row, index) => {
       const item = row.valueObject ?? {};
       return {
+        discountCents: discountResult.itemDiscountsCents[index]!,
         description: row.content || string(item.Description) || "Unclear Item",
         evidence: {
           ...(item.Description?.confidence !== undefined ? { descriptionConfidence: item.Description.confidence } : {}),
@@ -100,9 +125,11 @@ export function normalizeAzure(result: AnalyzeResult) {
     subtotal: amount(f.Subtotal),
     total: amount(f.Total),
     taxes,
-    discountTotal: null,
+    discountTotal: discountResult.receiptDiscountCents,
+    discountFallback: discountResult.fallback,
     roundingAdjustment: null,
     warnings: [
+      ...(discountResult.fallback ? ["Discount attachment did not reconcile to the printed subtotal. Review item discounts and the remaining gap; it was not absorbed as a discount."] : []),
       "Review discounts and other adjustments. Azure does not provide standard receipt fields for them.",
       ...(currencies.size > 1
         ? ["Azure returned multiple currency codes; currency is left unknown."]
@@ -234,14 +261,17 @@ export function createAzureExtractor(
           plainEnglish: null,
           quantity: item.quantity === null ? null : String(item.quantity),
           amount: item.totalPrice,
-          discount: null,
+          discount: item.discountCents / 100,
+          ...(item.discountCents ? { discountSource: "receipt" as const } : {}),
           tax: null,
           taxable: null,
         })),
         taxTotal: data.taxes.length
           ? data.taxes.reduce((sum, tax) => sum + tax.amount, 0)
           : null,
-        discountTotal: null,
+        // extractionDefaults subtracts own discounts from this overall total.
+        discountTotal: (data.discountTotal + data.items.reduce((sum, item) => sum + item.discountCents, 0)) / 100,
+        discountFallback: data.discountFallback,
         otherCharges: null,
         warnings: data.warnings,
       });

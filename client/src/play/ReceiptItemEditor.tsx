@@ -80,6 +80,7 @@ export function ReceiptItemEditor({
       items.map((item) => {
         if (item.id !== id) return item;
         const next = { ...item, ...patch };
+        if ("discountCents" in patch) next.discountSource = undefined;
         if (recalculate && !next.manualFinal)
           next.finalCents =
             next.amountCents === null
@@ -173,7 +174,7 @@ export function ReceiptItemEditor({
                 }}
               />
               <ReceiptAmount
-                label="Discount"
+                label={item.discountSource === "receipt" ? "Discount (from receipt)" : "Discount"}
                 emptyAsZero
                 value={item.discountCents}
                 change={(discountCents) => {

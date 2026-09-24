@@ -1811,6 +1811,12 @@ test('recorded Azure evidence follows the scanned draft and expires with its pho
     assert.equal(second.receipt.evidence.countryRegion, 'MYS');
     assert.ok(second.receipt.evidence.taxDetails.length);
     assert.equal(second.items[0].evidence.productCode, '000001038556');
+    assert.deepEqual(second.items.map((item: { discountCents: number }) => item.discountCents).filter(Boolean), [257, 190, 700]);
+    assert.equal(second.items[0].discountSource, 'receipt');
+    assert.equal(second.items[0].finalCents, 1299);
+    assert.equal(second.receipt.discountCents, 0);
+    assert.equal(second.receipt.discountFallback, false);
+    assert.equal(second.receipt.subtotalCents, 12737);
     row = await pool.query('SELECT analysis FROM receipt_evidence WHERE draft_id = $1', [id]);
     assert.equal(row.rowCount, 1);
     assert.equal(row.rows[0].analysis.documents[0].fields.CountryRegion.valueCountryRegion, 'MYS');
@@ -1821,6 +1827,9 @@ test('recorded Azure evidence follows the scanned draft and expires with its pho
     assert.deepEqual((await json(await api(`/receipt-drafts/${id}`))).draft.data.receipt.evidence, second.receipt.evidence);
     assert.deepEqual((await json(await api(`/receipt-drafts/${id}`))).draft.data.items[0].evidence, second.items[0].evidence);
     assert.equal(updated.data.items[0].amountCents, second.items[0].amountCents);
+    assert.equal(updated.data.items[0].discountCents, 257);
+    assert.equal((await json(await api(`/receipt-drafts/${id}`))).draft.data.items[0].discountSource, 'receipt');
+    assert.equal((await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST', { revision: updated.revision })).status, 200);
     await pool.query("UPDATE receipt_photos SET expires_at = now() - interval '1 second' WHERE draft_id = $1", [id]);
     const purged = once(child!, 'message'); child!.send('purge-photos'); await purged;
     assert.equal((await pool.query('SELECT * FROM receipt_evidence WHERE draft_id = $1', [id])).rowCount, 0);

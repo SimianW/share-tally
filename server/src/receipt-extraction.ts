@@ -17,6 +17,7 @@ export const extractedReceipt = z.object({
         quantity: z.string().nullable(),
         amount: money.nullable(),
         discount: money.nullable(),
+        discountSource: z.literal("receipt").optional(),
         tax: money.nullable(),
         taxable: z.boolean().nullable(),
       }),
@@ -27,6 +28,7 @@ export const extractedReceipt = z.object({
   rawAnalysis: z.record(z.string(), z.unknown()).optional(),
   pricesIncludeTax: z.boolean().default(false),
   discountTotal: money.nullable(),
+  discountFallback: z.boolean().optional(),
   taxTotal: money.nullable(),
   otherCharges: z.number().min(-10000).max(10000).nullable(),
   warnings: z.array(z.string()),
@@ -54,6 +56,7 @@ export function extractionDefaults(data: ExtractedReceipt) {
     quantity: (i.quantity || "1").slice(0, 40),
     amountCents: i.amount === null ? null : cents(i.amount),
     discountCents: cents(i.discount),
+    ...(i.discountSource ? { discountSource: i.discountSource } : {}),
     taxCents: cents(i.tax),
     allocatedTaxCents: 0,
     extraCents: 0,
@@ -72,6 +75,7 @@ export function extractionDefaults(data: ExtractedReceipt) {
     ),
     extraCents: cents(data.otherCharges),
     pricesIncludeTax: data.pricesIncludeTax,
+    ...(data.discountFallback !== undefined ? { discountFallback: data.discountFallback } : {}),
     ...(data.evidence ? { evidence: data.evidence } : {}),
   };
   const priced = priceDraft({

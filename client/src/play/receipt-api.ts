@@ -38,6 +38,7 @@ export type ReceiptDraftItem = Omit<
   amountCents: number | null;
   finalCents: number | null;
   allocatedTaxCents?: number;
+  discountSource?: "receipt";
   taxable?: boolean | null;
   manualFinal?: boolean;
   evidence?: ItemEvidence;
@@ -56,6 +57,7 @@ export type ReceiptPricing = {
   discountCents: number;
   extraCents: number;
   pricesIncludeTax: boolean;
+  discountFallback?: boolean;
   evidence?: ReceiptEvidenceFields;
 };
 export type ReceiptData = {

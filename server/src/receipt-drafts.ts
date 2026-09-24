@@ -295,6 +295,7 @@ export async function initializeDraft(
                 taxable: _taxable,
                 manualFinal: _manualFinal,
                 allocatedTaxCents: _allocatedTaxCents,
+                discountSource: _discountSource,
                 evidence: _evidence,
                 ...item
               }) => item,
