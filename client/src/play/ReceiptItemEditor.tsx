@@ -67,11 +67,9 @@ export function ReceiptAmount({
 export function ReceiptItemEditor({
   items,
   change,
-  draftMode = false,
 }: {
   items: ReceiptCorrectionItem[];
   change: (items: ReceiptCorrectionItem[]) => void;
-  draftMode?: boolean;
 }) {
   function update(
     id: string,
@@ -133,28 +131,6 @@ export function ReceiptItemEditor({
               }
             />
           </div>
-          {draftMode && (
-            <label className="receipt-tax-toggle">
-              <input
-                type="checkbox"
-                aria-label="Taxable"
-                checked={item.taxable !== false}
-                onChange={(e) => update(item.id, { taxable: e.target.checked })}
-              />
-              {item.taxable === false ? "Not taxable" : "Taxable"}
-            </label>
-          )}
-          {item.manualFinal && draftMode && (
-            <p>
-              Final cost entered manually.{" "}
-              <Button
-                variant="text"
-                onClick={() => update(item.id, { manualFinal: false }, true)}
-              >
-                Use calculated cost
-              </Button>
-            </p>
-          )}
           <details>
             <summary>Original text & price details</summary>
             <p className="receipt-original">

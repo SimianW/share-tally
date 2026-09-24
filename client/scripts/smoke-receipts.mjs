@@ -539,6 +539,12 @@ try {
     const row = name => alice.getByRole("button", { name: `Edit ${name}`, exact: true, includeHidden: true });
     await expect(row("Apples")).toContainText("10.00");
     await expect(reconciliation()).toContainText("Matches receipt");
+    await reconciliation().scrollIntoViewIfNeeded();
+    if (viewport.width <= 640) {
+      const footerBox = await alice.locator(".receipt-review-footer").boundingBox();
+      const navigationBox = await alice.locator(".main-nav").boundingBox();
+      assert.ok(footerBox.y + footerBox.height <= navigationBox.y + 1, "Sticky review actions must clear mobile navigation");
+    }
     await alice.getByRole("button", { name: "View receipt photo", exact: true }).click();
     const photoDialog = alice.getByRole("dialog", { name: "Receipt photo", exact: true });
     await expect(photoDialog).toBeVisible();
@@ -577,6 +583,7 @@ try {
     await alice.getByLabel("Other adjustments", { exact: true }).fill("1.50");
     await alice.getByLabel("Receipt total", { exact: true }).fill("31.50");
     await alice.getByRole("button", { name: "Close summary", exact: true }).click();
+    await expect(reconciliation()).toBeFocused();
     await expect(row("Reviewed apples")).toContainText("12.50");
     await expect(row("Milk")).toContainText("19.00");
     await expect(reconciliation()).toContainText("Matches receipt");
@@ -662,7 +669,7 @@ try {
   );
   assert.deepEqual(errors, []);
   console.log(
-    "Receipt browser smoke passed: private draft recovery, item entry, exact thirds, mobile claims, price correction, reservations, reconfirmation, automatic completion and adjustment.",
+    "Receipt browser smoke passed: private draft recovery, compact rows, editor navigation, live reconciliation and summary edits, signed-cent allocation, photo zoom on desktop/mobile, exact thirds, claims, corrections, reservations, completion and adjustment.",
   );
 } catch (error) {
   if (networkChangeFailures.size) {
