@@ -44,6 +44,14 @@ A previously claimed fraction held for its claimant after an item-price correcti
 **Bill draft**:
 An uninitialized bill visible only to its initiator, who can review and correct it before opening it for participation.
 
+**Processing draft**:
+A bill draft whose receipt is still being interpreted after scanning. Its initiator can view it but cannot edit or initiate it until interpretation finishes or falls back.
+_Avoid_: Pending draft, since "pending" already describes repayment records.
+
+**Receipt evidence**:
+Everything the receipt reader extracted from a scanned receipt photo, including the raw analysis, retained with the photo and deleted with it.
+_Avoid_: OCR data, scan result.
+
 **Bill initiation**:
 The initiator's publication of a reviewed bill draft, making it visible to the group and opening it to its selected participants. For item-based bills, initiation does not itself confirm any item claims.
 
