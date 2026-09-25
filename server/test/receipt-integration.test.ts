@@ -120,3 +120,37 @@ test("failed discount attachment remains receipt-wide through model defaults and
   // The incorrect printed subtotal is not rewritten to conceal the discrepancy.
   assert.equal(data.receipt.subtotalCents, 2900);
 });
+
+test("an undecided (null) taxability answer keeps the model name but stays taxable and unchecked", () => {
+  const { defaults } = scannedFixture("costco-coupon.synthetic", 24, true);
+  const [first, second] = defaults.items;
+  const applied = applyReceiptModelResult(defaults.items, { kind: "result", value: { items: [
+    { id: first!.id, name: "Unclear Item", taxable: null },
+    { id: second!.id, name: "Paper towels", taxable: false },
+  ] } });
+  assert.equal(applied.outcome, "ok");
+  assert.deepEqual(applied.items.map((item) => [item.name, item.taxable, item.taxNotChecked]), [
+    ["Unclear Item", true, true], ["Paper towels", false, false],
+  ]);
+});
+
+test("a receipt that prints no tax settles every item as not taxable, whatever the model answered", () => {
+  const { defaults } = scannedFixture("costco-coupon.synthetic", 24, true);
+  const [first, second] = defaults.items;
+  const answer = { kind: "result" as const, value: { items: [
+    { id: first!.id, name: "Unclear Item", taxable: null },
+    { id: second!.id, name: "Paper towels", taxable: true },
+  ] } };
+  const noTax = applyReceiptModelResult(defaults.items, answer, { taxCents: 0, subtotalCents: 2900, totalCents: 2900 });
+  assert.deepEqual(noTax.items.map((item) => [item.name, item.taxable, item.taxNotChecked]), [
+    ["Unclear Item", false, false], ["Paper towels", false, false],
+  ]);
+  // Also when the model did not answer at all.
+  assert.ok(applyReceiptModelResult(defaults.items, { kind: "timeout" }, { taxCents: 0, subtotalCents: 2900, totalCents: 2900 })
+    .items.every((item) => item.taxable === false && !item.taxNotChecked));
+  // Zero tax alone may be a tax line Azure missed; a subtotal/total gap or a missing subtotal keeps the model's answer.
+  for (const receipt of [{ taxCents: 0, subtotalCents: 2900, totalCents: 3277 }, { taxCents: 0, subtotalCents: null, totalCents: 2900 }]) {
+    const kept = applyReceiptModelResult(defaults.items, answer, receipt);
+    assert.deepEqual(kept.items.map((item) => [item.taxable, item.taxNotChecked]), [[true, true], [true, false]]);
+  }
+});
