@@ -563,7 +563,9 @@ export async function completeProcessingDraft(
     if (!draft || draft.processingStatus !== "processing" ||
         draft.processingStartedAt?.getTime() !== startedAt.getTime()) return null;
     const expired = Date.now() - startedAt.getTime() >= RECEIPT_MODEL_TIMEOUT_MS;
-    const applied = applyReceiptModelResult(draft.data.items, expired ? { kind: "timeout" } : attempt);
+    const receipt = draft.data.receipt;
+    const applied = applyReceiptModelResult(draft.data.items, expired ? { kind: "timeout" } : attempt,
+      receipt && { taxCents: receipt.taxCents, subtotalCents: receipt.subtotalCents, totalCents: draft.data.totalCents });
     const data: ReceiptDraftData = { ...draft.data, items: applied.items };
     // Reallocate the same Azure tax, never change the receipt's amounts.
     data.items = priceDraft(data).items;

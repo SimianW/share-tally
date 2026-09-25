@@ -111,7 +111,25 @@ const answerSchema = z
   })
   .strict();
 
+/** Printed receipt totals used to settle taxability without the model. */
+export type ReceiptTaxEvidence = { taxCents: number; subtotalCents: number | null; totalCents: number | null };
+
+// A receipt that prints no tax (zero tax and subtotal equal to total) taxes nothing, whatever the
+// model says. Both conditions are required so a tax line Azure merely missed cannot trigger it.
+export function receiptPrintsNoTax(receipt: ReceiptTaxEvidence | undefined): boolean {
+  return !!receipt && receipt.taxCents === 0 && receipt.subtotalCents !== null &&
+    receipt.subtotalCents === receipt.totalCents;
+}
+
 export function applyReceiptModelResult<
+  T extends { id: string; name: string; taxable: boolean | null },
+>(items: T[], attempt: ReceiptModelAttempt, receipt?: ReceiptTaxEvidence) {
+  const applied = applyModelAnswers(items, attempt);
+  if (!receiptPrintsNoTax(receipt)) return applied;
+  return { ...applied, items: applied.items.map((item) => ({ ...item, taxable: false as const, taxNotChecked: false })) };
+}
+
+function applyModelAnswers<
   T extends { id: string; name: string; taxable: boolean | null },
 >(items: T[], attempt: ReceiptModelAttempt) {
   const fallback = (reason: "timeout" | "error" | "invalid") => ({
