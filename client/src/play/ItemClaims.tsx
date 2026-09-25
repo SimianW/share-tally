@@ -1,25 +1,13 @@
 import { useState } from "react";
-import { BillApiError, money, type Bill } from "./bill-api";
+import { BillApiError, useBillApi, type Bill } from "./bill-api";
 import { correctionInput, useReceiptApi, type ReceiptCorrectionItem } from "./receipt-api";
 import { previewCorrection } from "./receipt-correction";
-import { ReceiptPhoto } from "./ReceiptPhoto";
+import { ClaimItems } from "./ClaimItems";
+import { claimAvailabilityMessage } from "./claim-fractions";
 import { ReceiptReviewItems } from "./ReceiptReview";
 import { Button } from "./ui";
 import { errorMessage } from "./group-api";
 
-function available(claims: { numerator: number; denominator: number }[]) {
-  let n = 1n,
-    d = 1n;
-  for (const c of claims) {
-    n = n * BigInt(c.denominator) - BigInt(c.numerator) * d;
-    d *= BigInt(c.denominator);
-  }
-  function gcd(a: bigint, b: bigint): bigint {
-    return b ? gcd(b, a % b) : a;
-  }
-  const g = gcd(n, d);
-  return `${n / g}/${d / g}`;
-}
 export function ItemClaims({
   bill,
   saved,
@@ -30,6 +18,7 @@ export function ItemClaims({
   refresh: () => void;
 }) {
   const api = useReceiptApi();
+  const billApi = useBillApi();
   const own = bill.participants.find((p) => p.isCurrentUser);
   const [selection, setSelection] = useState<Record<string, string>>(() =>
     Object.fromEntries(
@@ -56,7 +45,15 @@ export function ItemClaims({
       setEdit(null);
     } catch (e) {
       setError(errorMessage(e));
-      if (e instanceof BillApiError && e.status === 409) refresh();
+      if (e instanceof BillApiError && e.status === 409) {
+        // A simultaneous claimant can take the last fraction before our stale
+        // revision reaches the server. Show the actual current availability.
+        try {
+          const current = await billApi.detail(bill.id);
+          setError(claimAvailabilityMessage(current.bill, selection) ?? errorMessage(e));
+        } catch { /* Keep the original server message if the refresh fails. */ }
+        refresh();
+      }
     } finally {
       setBusy(false);
     }
@@ -127,7 +124,7 @@ export function ItemClaims({
             );
           const numerator = Number(match[1]),
             denominator = Number(match[2] ?? 1);
-          if (numerator < 1 || denominator < numerator || denominator > 10000)
+          if (numerator < 1 || denominator < numerator || numerator > 10000 || denominator > 10000)
             throw new Error(
               "Use a positive fraction no greater than 1, with numerator and denominator at most 10,000.",
             );
@@ -141,90 +138,12 @@ export function ItemClaims({
   return (
     <section className="item-claims">
       <h2>Items & claims</h2>
-      <div className="receipt-review-layout">
-        <div>
-          {bill.photo ? (
-            <ReceiptPhoto
-              id={bill.photo.draftId}
-              expired={bill.photo.expired}
-            />
-          ) : (
-            <p>
-              No receipt photo is available. Photos expire after six months.
-            </p>
-          )}
-        </div>
-        <div>
-          {(bill.items ?? []).map((item) => (
-            <article className="receipt-edit-row" key={item.id}>
-              <h3>
-                {item.name} <span>{money(item.finalCents)}</span>
-              </h3>
-              <p>
-                Quantity {item.quantity} · Printed amount{" "}
-                {money(item.amountCents)}
-              </p>
-              <details>
-                <summary>Original receipt text</summary>
-                <p>{item.originalText || "Manually entered item"}</p>
-              </details>
-              <p>
-                Available to you:{" "}
-                {available(item.claims.filter((c) => c.userId !== own?.userId))}
-              </p>
-              {item.claims.map((c) => (
-                <p key={c.userId}>
-                  {
-                    bill.participants.find((p) => p.userId === c.userId)
-                      ?.displayName
-                  }
-                  : {c.numerator}/{c.denominator} ·{" "}
-                  {c.confirmedAt
-                    ? "Confirmed"
-                    : "Reserved, needs reconfirmation"}
-                </p>
-              ))}
-              {own && !terminal && (
-                <div className="receipt-costs">
-                  <label>
-                    Your selection, not yet submitted
-                    <input
-                      aria-label={`Your fraction of ${item.name}`}
-                      value={selection[item.id] ?? ""}
-                      disabled={busy}
-                      placeholder="1 or 1/3"
-                      onChange={(e) =>
-                        setSelection((s) => ({
-                          ...s,
-                          [item.id]: e.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <Button
-                    variant="text"
-                    disabled={busy}
-                    onClick={() =>
-                      setSelection((s) => ({ ...s, [item.id]: "1" }))
-                    }
-                  >
-                    Whole item
-                  </Button>
-                  <Button
-                    variant="text"
-                    disabled={busy}
-                    onClick={() =>
-                      setSelection((s) => ({ ...s, [item.id]: "" }))
-                    }
-                  >
-                    Remove my selection
-                  </Button>
-                </div>
-              )}
-            </article>
-          ))}
-        </div>
-      </div>
+      <ClaimItems bill={bill} selection={selection} change={(id, value) =>
+        setSelection((current) => ({ ...current, [id]: value }))} busy={busy} terminal={terminal} error={error}
+        confirmAction={!terminal && own ? <Button disabled={busy || stale} onClick={confirm}>
+          {busy ? "Saving…" : Object.values(selection).some((value) => value.trim())
+            ? "Confirm my item claims" : "Confirm I purchased nothing"}
+        </Button> : null} />
       {!terminal && own && (
         <>
           <p>
@@ -256,13 +175,6 @@ export function ItemClaims({
               </Button>
             </div>
           )}
-          <Button disabled={busy || stale} onClick={confirm}>
-            {busy
-              ? "Saving…"
-              : Object.values(selection).some((s) => s.trim())
-                ? "Confirm my item claims"
-                : "Confirm I purchased nothing"}
-          </Button>
         </>
       )}
       {!terminal && own?.userId === bill.initiatorId && (
@@ -297,7 +209,6 @@ export function ItemClaims({
           )}
         </>
       )}
-      {error && <p role="alert">{error}</p>}
     </section>
   );
 }
