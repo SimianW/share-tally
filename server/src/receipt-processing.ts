@@ -107,7 +107,7 @@ const answerSchema = z
   .object({
     id: z.string(),
     name: z.string().trim().min(1).max(160),
-    taxable: z.boolean(),
+    taxable: z.boolean().nullable(),
   })
   .strict();
 
@@ -145,7 +145,9 @@ export function applyReceiptModelResult<
     items: items.map((item) => {
       const answer = answers.get(item.id);
       return answer
-        ? { ...item, name: answer.name, taxable: answer.taxable, taxNotChecked: false }
+        ? answer.taxable === null
+          ? { ...item, name: answer.name, taxable: true as const, taxNotChecked: true }
+          : { ...item, name: answer.name, taxable: answer.taxable, taxNotChecked: false }
         : { ...item, taxable: true as const, taxNotChecked: true };
     }),
     outcome: missing
