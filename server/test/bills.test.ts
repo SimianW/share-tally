@@ -1877,8 +1877,12 @@ test('legacy draft migration preserves every final and receipt summary, and only
   const receipt = { subtotalCents: 3000, taxCents: 300, discountCents: 0, extraCents: 0, pricesIncludeTax: false };
   const examples = [
     { residualTax: 50, extra: 0, affected: true },
+    { residualTax: -100, extra: 0, affected: true },
     { residualTax: 0, extra: -25, affected: true },
     { residualTax: 0, extra: 0, affected: false },
+    { residualTax: 0, extra: 0, affected: false, missingTax: true },
+    { residualTax: 0, extra: 0, affected: false, nullTax: true },
+    { residualTax: 0, extra: 0, affected: true, missingAllocation: true },
   ];
   const drafts = [];
   for (const example of examples) {
@@ -1886,7 +1890,7 @@ test('legacy draft migration preserves every final and receipt summary, and only
     const data = { ...fields, mode: 'items', totalCents: 3350, receipt, items: [] };
     await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data }));
     const legacy = { ...data, items: [
-      { id: crypto.randomUUID(), name: 'Taxable', originalText: '', quantity: '1', amountCents: 1000, discountCents: 0, taxable: true, manualFinal: false, taxCents: 100 + example.residualTax, allocatedTaxCents: 100, extraCents: example.extra, finalCents: 1100 + example.residualTax + example.extra },
+      { id: crypto.randomUUID(), name: 'Taxable', originalText: '', quantity: '1', amountCents: 1000, discountCents: 0, taxable: true, manualFinal: false, ...(example.missingTax ? {} : { taxCents: example.nullTax ? null : 100 + example.residualTax }), ...(example.missingAllocation ? {} : { allocatedTaxCents: 100 }), extraCents: example.extra, finalCents: 1100 + example.residualTax + example.extra },
       { id: crypto.randomUUID(), name: 'Also taxable', originalText: '', quantity: '1', amountCents: 2000, discountCents: 0, taxable: true, manualFinal: false, taxCents: 200, allocatedTaxCents: 200, extraCents: 0, finalCents: 2200 },
     ] };
     // Legacy fixture setup only; results are observed through authenticated HTTP.
@@ -2110,6 +2114,56 @@ test('manual final-cost correction is marked manual until its override is cleare
   }))).bill;
   assert.deepEqual([bill.items[0].manualFinal, bill.items[0].finalCents, bill.items[0].allocatedTaxCents], [false, 1212, 108]);
   assert.deepEqual(bill.items.slice(1), siblings);
+});
+
+test('legacy PUT persists new manual overrides without inventing historical provenance', async () => {
+  const { bill, data } = await itemBill([100, 200], 300);
+  const saved = (await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', {
+    revision: bill.revision,
+    items: [{ ...data.items[0], finalCents: 90, manualFinal: true }, data.items[1]],
+  }))).bill;
+  const reopened = (await json(await api(`/bills/${bill.id}`, 'bob-token'))).bill;
+  assert.deepEqual(reopened.items.map((item: Record<string, unknown>) => [item.finalCents, item.manualFinal, item.taxable]),
+    [[90, true, null], [200, null, null]]);
+  assert.deepEqual(reopened.items, saved.items);
+});
+
+test('legacy PUT round-trips printed price, discount, tax, signed adjustment and add/delete edits', async () => {
+  const { bill, data } = await itemBill([1000, 200, 300], 1500);
+  const corrected = { ...data.items[0], amountCents: 2000, discountCents: 100, taxCents: 75, extraCents: -25, finalCents: 1950, manualFinal: false };
+  const added = { id: crypto.randomUUID(), name: 'Added item', originalText: '', quantity: '2', amountCents: 500, discountCents: 0, taxCents: 25, extraCents: 10, finalCents: 535, manualFinal: false };
+  await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', {
+    revision: bill.revision,
+    items: [corrected, { ...data.items[1], manualFinal: null }, added],
+  }));
+  const reopened = (await json(await api(`/bills/${bill.id}`))).bill;
+  assert.equal(reopened.receipt, null);
+  assert.equal(reopened.frozenTaxRate, null);
+  assert.equal(reopened.totalCents, 1500, 'editing items does not alter the amount paid');
+  assert.deepEqual(reopened.items.map((item: Record<string, unknown>) => ({
+    id: item.id, name: item.name, originalText: item.originalText, quantity: item.quantity,
+    amountCents: item.amountCents, discountCents: item.discountCents,
+    taxCents: item.taxCents, extraCents: item.extraCents, finalCents: item.finalCents,
+    manualFinal: item.manualFinal,
+  })), [corrected, { ...data.items[1], manualFinal: null }, added]);
+  assert.deepEqual(reopened.items.map((item: Record<string, unknown>) => [item.allocatedTaxCents, item.allocatedExtraCents, item.taxable]),
+    [[75, -25, null], [0, 0, null], [25, 10, null]]);
+});
+
+test('legacy PUT preserves known override provenance when omitted and records return to calculation', async () => {
+  const { bill, data } = await itemBill([100, 200], 300);
+  let saved = (await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', {
+    revision: bill.revision, items: [{ ...data.items[0], finalCents: 90, manualFinal: true }, data.items[1]],
+  }))).bill;
+  saved = (await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', {
+    revision: saved.revision, items: [{ ...data.items[0], finalCents: 90, name: 'Renamed' }, data.items[1]],
+  }))).bill;
+  assert.equal(saved.items[0].manualFinal, true, 'older clients omitting provenance cannot erase a known override');
+  await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', {
+    revision: saved.revision, items: [{ ...data.items[0], manualFinal: false }, data.items[1]],
+  }));
+  const reopened = (await json(await api(`/bills/${bill.id}`))).bill;
+  assert.deepEqual(reopened.items.map((item: Record<string, unknown>) => [item.finalCents, item.manualFinal]), [[100, false], [200, null]]);
 });
 
 test('legacy item bills retain their amounts and PUT corrections; summarized bills reject PUT', async () => {
