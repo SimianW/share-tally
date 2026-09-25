@@ -276,7 +276,7 @@ test("a frozen #48 scan failure is recorded as a no-call baseline outcome and re
     assert.deepEqual(saved.outcome, { kind: "skipped", reason: "scan-failed" });
     const replay = await invokeAdapter(baselineAdapter, coupon, saved);
     assert.equal(replay.complete, true);
-    assert.deepEqual(replay.prediction.items, []);
+    assert.equal(replay.prediction.items, null);
     assert.equal(replay.prediction.total, null);
     // A scan-failure marker cannot stand in for a receipt the frozen mapper accepts.
     await assert.rejects(invokeAdapter(baselineAdapter, analysis, saved), /drift/);
@@ -306,7 +306,7 @@ test("when both production versions fail to scan (amount over the cap), neither 
       assert.deepEqual(saved.outcome, { kind: "skipped", reason: "scan-failed" });
       const replay = await invokeAdapter(adapter, large, saved);
       assert.equal(replay.complete, true);
-      assert.deepEqual(replay.prediction.items, []);
+      assert.equal(replay.prediction.items, null);
       await assert.rejects(async () => invokeAdapter(adapter, analysis, saved), /drift|do not match/);
     }
     const before = calls.length;

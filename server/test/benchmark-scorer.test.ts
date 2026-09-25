@@ -4,6 +4,7 @@ import {
   aggregateScores, compareScores, scoreReceipt,
   type BenchmarkPrediction, type ReceiptLabel,
 } from "../benchmark/scorer.js";
+import { scanFailedPrediction } from "../benchmark/adapter.js";
 
 const allFields: BenchmarkPrediction["supportedFields"] = [
   "merchant", "currency", "items", "items.description", "items.productCode",
@@ -183,4 +184,16 @@ test("a dropped supported field regresses and individual regressions remain visi
     merchant: label.merchant,
   })))));
   assert.equal(incomplete.status, "pass");
+});
+
+test("a failed production scan scores every supported, printed field as a miss", () => {
+  const label = { id: "r", merchant: "SHOP", currency: "CAD", subtotal: 200, subtotalBasis: "printed", taxTotal: 0, taxMode: "exclusive",
+    rounding: 0, total: 200, receiptDiscounts: [], charges: [], taxLines: [],
+    items: [{ id: "item-001", description: "MILK", productCode: null, quantity: "1", unit: null, unitPrice: null, linePrice: 200, ownDiscount: 0 }],
+    taxability: [{ itemId: "item-001", taxable: false }] } as unknown as ReceiptLabel;
+  const score = scoreReceipt(label, scanFailedPrediction(true));
+  assert.equal(score.correct, 0);
+  assert.ok(score.scored > 0);
+  assert.equal(score.fields["items.extra"].scored, 1);
+  assert.equal(score.fields["items.extra"].correct, 0);
 });

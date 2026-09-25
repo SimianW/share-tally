@@ -36,11 +36,12 @@ export const PIPELINE_FIELDS: BenchmarkPrediction["supportedFields"] = ["merchan
  * Both frozen #48 and current production map the Azure result inside the extractor and answer any
  * mapping failure with a 502: the user gets no extraction and no model call is made. Examples are
  * negative coupon rows in #48 and any amount above the 10,000 cap (e.g. IDR receipts) in both.
- * Every supported field is therefore a real miss, not a missing recording.
+ * Every supported field is therefore a real miss, not a missing recording. Items are null, not [],
+ * so "no extra items" is not scored as a correct extraction.
  */
 export function scanFailedPrediction(recorded: boolean): BenchmarkPrediction {
   return { supportedFields: [...PIPELINE_FIELDS, ...(recorded ? ["taxability" as const] : [])], merchant: null, currency: null,
-    items: [], receiptDiscounts: null, charges: null, subtotal: null, taxLines: null, taxTotal: null, taxMode: null, total: null };
+    items: null, receiptDiscounts: null, charges: null, subtotal: null, taxLines: null, taxTotal: null, taxMode: null, total: null };
 }
 /** Shared projection: no labels and no assumptions that output rows retain Azure order/count. */
 export function projectAzureDescriptions(analysis: AnalyzeResult, prediction: BenchmarkPrediction): BenchmarkPrediction {
