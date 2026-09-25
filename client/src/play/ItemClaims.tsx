@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { BillApiError, money, type Bill } from "./bill-api";
-import { cleanItem, useReceiptApi, type ReceiptDraftItem } from "./receipt-api";
+import { cleanItem, useReceiptApi, type ReceiptCorrectionItem } from "./receipt-api";
 import { ReceiptPhoto } from "./ReceiptPhoto";
 import { ReceiptItemEditor } from "./ReceiptItemEditor";
 import { Button } from "./ui";
@@ -42,7 +42,7 @@ export function ItemClaims({
   const [reviewed, setReviewed] = useState(bill.revision);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [edit, setEdit] = useState<ReceiptDraftItem[] | null>(null);
+  const [edit, setEdit] = useState<ReceiptCorrectionItem[] | null>(null);
   const terminal = !!(bill.completedAt || bill.canceledAt);
   const stale = reviewed !== bill.revision;
   async function perform(action: () => Promise<{ bill: Bill }>) {

@@ -2,6 +2,7 @@ import { useCachedRequest, refreshFinancialQueries } from "./query-cache";
 import { useAuth } from "@clerk/react";
 import { useMemo } from "react";
 import { BillApiError, type Bill } from "./bill-api";
+import { recoverReceiptData } from "./receipt-pricing";
 export type ReceiptItem = {
   id: string;
   name: string;
@@ -15,14 +16,18 @@ export type ReceiptItem = {
 };
 export type ReceiptDraftItem = Omit<
   ReceiptItem,
-  "amountCents" | "finalCents"
+  "amountCents" | "finalCents" | "taxCents" | "extraCents"
 > & {
   amountCents: number | null;
   finalCents: number | null;
-  allocatedTaxCents?: number;
+  allocatedTaxCents?: number | null;
+  allocatedDiscountCents?: number | null;
+  allocatedExtraCents?: number | null;
   taxable?: boolean | null;
   manualFinal?: boolean;
 };
+// Post-initiation corrections retain their existing API until #40.
+export type ReceiptCorrectionItem = ReceiptDraftItem & { taxCents: number; extraCents: number };
 export type ItemClaim = {
   itemId: string;
   userId: string;
@@ -72,6 +77,17 @@ export type Extraction = {
   };
   warnings: string[];
 };
+function draftRequestData(data: ReceiptData): ReceiptData {
+  const clean = recoverReceiptData(data);
+  return { ...clean, items: clean.items.map((item) => {
+    const input = { ...item };
+    delete input.allocatedTaxCents;
+    delete input.allocatedDiscountCents;
+    delete input.allocatedExtraCents;
+    return input;
+  }) };
+}
+
 export function useReceiptApi() {
   const { getToken } = useAuth();
   const cache = useCachedRequest();
@@ -116,7 +132,7 @@ export function useReceiptApi() {
           "PUT",
           {
             revision: draft.revision,
-            data: draft.data,
+            data: draftRequestData(draft.data),
             photoBase64: draft.pendingPhoto,
           },
         ),
@@ -136,13 +152,13 @@ export function useReceiptApi() {
         request<{ items: ReceiptDraftItem[]; warnings: string[] }>(
           `/groups/${groupId}/receipt-preview/prices`,
           "POST",
-          data,
+          draftRequestData(data),
         ),
       previewNames: (groupId: string, data: ReceiptData) =>
         request<{ names: { id: string; name: string }[] }>(
           `/groups/${groupId}/receipt-preview/names`,
           "POST",
-          data,
+          draftRequestData(data),
         ),
       upload: (id: string, revision: number, base64: string) =>
         request<{ draft: ReceiptDraft }>(`/receipt-drafts/${id}/photo`, "PUT", {

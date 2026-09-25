@@ -1,6 +1,7 @@
 @import "./play/fonts.css";
+@import "./play/tokens.css";
 :root {
-  font-family: "DM Sans", sans-serif;
+  font-family: var(--font-body);
   color: #263021;
   background: #f9faf6;
   font-synthesis: none;

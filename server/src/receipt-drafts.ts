@@ -21,6 +21,7 @@ import {
 import { BillError, parseBill } from "./bills.js";
 import type { Tx } from "./item-accounting.js";
 import { notifyGroupChanged } from "./group-events.js";
+import { priceDraft } from "./receipt-pricing.js";
 export async function requireMember(tx: Tx, groupId: string, userId: string) {
   const [m] = await tx
     .select()
@@ -76,6 +77,9 @@ export async function saveDraft(
     new Set(input.data.items.map((i) => i.id)).size !== input.data.items.length
   )
     throw new BillError(400, "Item IDs must be unique.");
+  // Canonicalize before the idempotency comparison as well as persistence.
+  // A supplied final cost matters only when its manual override is enabled.
+  input.data.items = priceDraft(input.data).items;
   await db.transaction((tx) => requireMember(tx, groupId, userId));
   const photo =
     input.photoBase64 === undefined
@@ -276,23 +280,27 @@ export async function initializeDraft(
     const draft = await ownDraft(tx, id, userId, true);
     if (draft.billId) return { id: draft.billId, groupId: draft.groupId };
     editable(draft, revision);
-    const {
-      mode,
-      items: draftItems,
-      receipt: _receipt,
-      ...data
-    } = checked(draftInput, draft.data);
+    const reviewed = checked(draftInput, draft.data);
+    const { mode, items: _draftItems, receipt: _receipt, ...data } = reviewed;
     const items =
       mode === "items"
         ? checked(
             z.array(itemInput).min(1).max(200),
-            draftItems.map(
+            priceDraft(reviewed).items.map(
               ({
                 taxable: _taxable,
                 manualFinal: _manualFinal,
-                allocatedTaxCents: _allocatedTaxCents,
+                allocatedTaxCents,
+                allocatedDiscountCents: _allocatedDiscountCents,
+                allocatedExtraCents,
                 ...item
-              }) => item,
+              }) => ({
+                ...item,
+                // Keep the legacy published-item representation until #40.
+                // A manual final can be usable when its derivation is unknown.
+                taxCents: allocatedTaxCents ?? 0,
+                extraCents: allocatedExtraCents ?? 0,
+              }),
             ),
           )
         : [];

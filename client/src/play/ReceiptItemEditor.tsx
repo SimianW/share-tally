@@ -1,7 +1,7 @@
 import { requestId } from "./request-id";
 import { useState } from "react";
 import { money, parseMoney } from "./bill-api";
-import type { ReceiptDraftItem } from "./receipt-api";
+import type { ReceiptCorrectionItem } from "./receipt-api";
 import { Button } from "./ui";
 export function ReceiptAmount({
   label,
@@ -9,12 +9,14 @@ export function ReceiptAmount({
   change,
   signed = false,
   emptyAsZero = false,
+  required = !emptyAsZero,
 }: {
   label: string;
   value: number | null;
   change: (n: number | null) => void;
   signed?: boolean;
   emptyAsZero?: boolean;
+  required?: boolean;
 }) {
   const [input, setInput] = useState({
     value,
@@ -30,7 +32,7 @@ export function ReceiptAmount({
     <label>
       {label}
       <input
-        required={!emptyAsZero}
+        required={required}
         aria-label={label}
         inputMode="decimal"
         value={text}
@@ -58,22 +60,20 @@ export function ReceiptAmount({
           }
         }}
       />
-      {value === null && <span className="field-error">Enter an amount.</span>}
+      {value === null && required && <span className="field-error">Enter an amount.</span>}
     </label>
   );
 }
 export function ReceiptItemEditor({
   items,
   change,
-  draftMode = false,
 }: {
-  items: ReceiptDraftItem[];
-  change: (items: ReceiptDraftItem[]) => void;
-  draftMode?: boolean;
+  items: ReceiptCorrectionItem[];
+  change: (items: ReceiptCorrectionItem[]) => void;
 }) {
   function update(
     id: string,
-    patch: Partial<ReceiptDraftItem>,
+    patch: Partial<ReceiptCorrectionItem>,
     recalculate = false,
   ) {
     change(
@@ -131,28 +131,6 @@ export function ReceiptItemEditor({
               }
             />
           </div>
-          {draftMode && (
-            <label className="receipt-tax-toggle">
-              <input
-                type="checkbox"
-                aria-label="Taxable"
-                checked={item.taxable !== false}
-                onChange={(e) => update(item.id, { taxable: e.target.checked })}
-              />
-              {item.taxable === false ? "Not taxable" : "Taxable"}
-            </label>
-          )}
-          {item.manualFinal && draftMode && (
-            <p>
-              Final cost entered manually.{" "}
-              <Button
-                variant="text"
-                onClick={() => update(item.id, { manualFinal: false }, true)}
-              >
-                Use calculated cost
-              </Button>
-            </p>
-          )}
           <details>
             <summary>Original text & price details</summary>
             <p className="receipt-original">
