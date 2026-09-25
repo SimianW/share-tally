@@ -12,14 +12,15 @@ Three discounted, taxed **CORD v2** receipts provide non-Canadian coverage. Five
 
 CORD's official v2 dataset card explicitly specifies CC BY 4.0. The related [maintainer discussion in issue #4](https://github.com/clovaai/cord/issues/4) explains why the **complete corpus** was difficult to release owing to owner-consent contact issues, then offers the improved existing sample as CORD v2. It does not assert a consent defect in the released v2 images. That context is recorded in each manifest entry; this benchmark includes released v2 samples only.
 
-Three owner slots remain empty for #50. They are not counted among public-source receipts. Receipt selection favors legibility and reconcilable arithmetic; it is a curated regression suite, not a representative estimate of real-world OCR accuracy.
+Four receipts photographed by the owner (#50) are in `owner/`: two Costco (a 33-item warehouse receipt with four product-code discounts, and a food-court kiosk receipt), one T&T Supermarket (bilingual names, weighted and multi-quantity rows) and one Walmart (four tax codes, rewards tender). They count toward the release denominator like any other source directory; no empty owner slots remain. Receipt selection favors legibility and reconcilable arithmetic; it is a curated regression suite, not a representative estimate of real-world OCR accuracy.
 
 ## Layout
 
 - `open-prices/`: Canadian receipt proofs; each `manifest.json` entry refers to a redacted PNG and its label JSON.
 - `express-expense/`: five MIT-licensed SRD image samples, substituted for Enterprise because of its image-rights uncertainty.
 - `cord/`: non-Canadian CORD v2 receipts, labelled in their original currency.
-- `owner-slots/manifest.json`: three **empty** slots for the owner to fill under #50, not benchmark observations.
+- `owner/`: four owner-photographed, redacted Canadian receipts (CC BY 4.0).
+- `owner-slots/manifest.json`: reserved for **empty** placeholder slots (currently none); not benchmark observations.
 - `FORMAT.json`: versioned, machine-readable contract, examples, and conventions.
 - `ATTRIBUTION.txt`: dataset-wide licence and attribution notice. Per-image provenance, rights evidence and redaction details live in the corpus manifests.
 - `../validate_receipts.py`: offline dataset-integrity checker, using only Python's standard library.

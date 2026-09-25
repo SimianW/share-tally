@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "id": "owner-004",
+  "currency": "CAD",
+  "currencyExponent": 2,
+  "country": "CA",
+  "region": "ON",
+  "merchant": "COSTCO WHOLESALE",
+  "items": [
+    {
+      "id": "item-001",
+      "description": "REG HOT DOG",
+      "productCode": null,
+      "quantity": "3",
+      "quantityBasis": "printed",
+      "unit": null,
+      "unitPrice": 150,
+      "linePrice": 450,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": [
+        "Printed '3 @ 1.50' above the row.",
+        "Product code printed as 1??5986; the middle digits are smudged, so it is not transcribed."
+      ]
+    },
+    {
+      "id": "item-002",
+      "description": "REG FRIES",
+      "productCode": "10067",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 349,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    }
+  ],
+  "receiptDiscounts": [],
+  "subtotal": 799,
+  "subtotalBasis": "derived-items",
+  "subtotalStage": "after-discounts",
+  "taxLines": [
+    {
+      "label": "P (H)HST 13%",
+      "rate": "0.13",
+      "rateBasis": "printed",
+      "amount": 104
+    }
+  ],
+  "taxTotal": 104,
+  "taxMode": "exclusive",
+  "charges": [],
+  "rounding": 0,
+  "total": 903,
+  "taxability": [
+    {
+      "itemId": "item-001",
+      "taxable": true,
+      "basis": "printed-code",
+      "evidence": "Printed H code; footer legend H = HST and P (H)HST 13%; (4.50 + 3.49) × 13% = 1.04.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-002",
+      "taxable": true,
+      "basis": "printed-code",
+      "evidence": "Printed H code; footer legend H = HST and P (H)HST 13%; (4.50 + 3.49) × 13% = 1.04.",
+      "sourceUrls": []
+    }
+  ],
+  "notes": [
+    "No SUBTOTAL line is printed. Items sum to $7.99 and the printed TAX 1.04 + $7.99 = printed TOTAL 9.03.",
+    "Printed TAX 1.04 and P (H)HST 13% 1.04 are the same single tax.",
+    "Total number of items sold 4 = 3 hot dogs + 1 fries. '457' at the top is the kiosk order number.",
+    "Prepared food-court items bear HST."
+  ],
+  "review": {
+    "method": "manual visual transcription with arithmetic reconciliation",
+    "date": "2026-09-25"
+  }
+}

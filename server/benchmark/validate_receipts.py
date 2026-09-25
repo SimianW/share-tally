@@ -220,8 +220,8 @@ def validate_corpus(root: Path) -> tuple[Counter, int]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path(__file__).parent / "receipts")
-    parser.add_argument("--expected-receipts", type=int, default=20)
-    parser.add_argument("--expected-owner-slots", type=int, default=3)
+    parser.add_argument("--expected-receipts", type=int, default=24)
+    parser.add_argument("--expected-owner-slots", type=int, default=0)
     args = parser.parse_args()
     try:
         counts, slots = validate_corpus(args.root)

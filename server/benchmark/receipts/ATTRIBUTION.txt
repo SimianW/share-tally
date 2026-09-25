@@ -46,10 +46,16 @@ Changes: privacy redactions described per image; metadata stripping. Associated
 benchmark transcriptions follow CC BY 4.0. Original annotation omissions or
 errors are not silently accepted; the labels are checked against the image.
 
-OWNER SLOTS
-owner-slots/manifest.json contains placeholders only. No owner's photo is
-included, and no ownership, consent or redistribution licence is inferred.
-The owner must supply these explicitly before adding images in issue #50.
+OWNER RECEIPTS
+owner/ contains four receipts photographed by the ShareTally repository owner
+(SimianW), who consents to their public redistribution. Redacted images and
+their transcriptions are under Creative Commons Attribution 4.0 International
+(CC BY 4.0).
+https://creativecommons.org/licenses/by/4.0/
+Changes: privacy redactions described per image in owner/manifest.json;
+metadata stripping (including GPS). The original photos are not committed.
+owner-slots/manifest.json is now empty; any new slot is a placeholder only and
+conveys no consent or licence.
 
 GENERAL
 These licences do not imply endorsement by the source contributors, stores,

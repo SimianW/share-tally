@@ -216,7 +216,7 @@ test("default CLI compares the actual built-in candidate across all synthetic20 
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
 
-test("default one-command diagnostic reports useful legacy11 and all60 missing recordings, not pass", async () => {
+test("default one-command diagnostic reports useful legacy11 and all72 missing recordings, not pass", async () => {
   const report = await runBenchmark({ root });
   assert.equal(report.gate.status, "incomplete");
   assert.equal(report.mode, "candidate-comparison");
@@ -224,14 +224,14 @@ test("default one-command diagnostic reports useful legacy11 and all60 missing r
   // The default genuinely executes #52, rather than relabelling a frozen self-comparison.
   const discounted = report.legacy.receipts.find((row) => row.id === "sroie-001")!;
   assert.notDeepEqual(discounted.candidate.score, discounted.baseline.score);
-  assert.equal(report.coverage.publicReceipts, 20);
-  assert.equal(report.coverage.missingAzure.length, 60);
+  assert.equal(report.coverage.publicReceipts, 24);
+  assert.equal(report.coverage.missingAzure.length, 72);
   assert.equal(report.coverage.legacyReceipts, 11);
   assert.ok(report.legacy.baseline.scored > 0);
   assert.equal(report.legacy.receipts.filter((r) => r.errors.length).length, 0);
   const process = cli(["--allow-incomplete"]);
   assert.equal(process.status, 0, process.stderr);
   assert.match(process.stdout, /Gate: INCOMPLETE/);
-  assert.match(process.stdout, /Missing public Azure recordings \(60\)/);
+  assert.match(process.stdout, /Missing public Azure recordings \(72\)/);
   assert.match(process.stdout, /sroie-001/);
 });
