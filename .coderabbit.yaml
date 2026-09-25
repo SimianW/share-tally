@@ -127,9 +127,12 @@ knowledge_base:
   code_guidelines:
     enabled: true
     # Added to CodeRabbit's defaults, which already include AGENTS.md and CLAUDE.md.
+    # A plain string only governs files under the guideline's own directory, so
+    # the ADRs need an explicit applyTo to reach the code they constrain.
     filePatterns:
       - "CONTEXT.md"
-      - "docs/adr/*.md"
+      - files: "docs/adr/*.md"
+        applyTo: "**/*"
 
 chat:
   auto_reply: true
