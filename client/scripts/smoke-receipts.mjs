@@ -196,6 +196,38 @@ try {
   await alice.getByRole("button", { name: "Discard changes", exact: true }).click();
   await expect(alice).toHaveURL(groupRoute);
   assert.equal((await api(`/groups/${group.id}/receipt-drafts`)).drafts.length, 0);
+  // Pre-migration browser recovery must preserve an explicitly reduced item tax.
+  const reducedTaxId = randomUUID();
+  const reducedTaxDraft = (await api(`/groups/${group.id}/receipt-drafts/${reducedTaxId}`, "alice-token", "PUT", {
+    revision: 0,
+    data: {
+      mode: "items", title: "Reduced tax recovery", purchaseDate: "2026-09-24",
+      timeZone: "America/Toronto", notes: "", totalCents: 1000, ownShareCents: 0,
+      participantIds: [],
+      receipt: { subtotalCents: 1000, discountCents: 0, taxCents: 100, extraCents: 0, pricesIncludeTax: false },
+      items: [{ id: randomUUID(), name: "Reduced tax", originalText: "", quantity: "1",
+        amountCents: 1000, discountCents: 0, taxable: true, finalCents: 1100, manualFinal: false }],
+    },
+  })).draft;
+  await alice.goto(`${newBillRoute}/${reducedTaxId}`);
+  await expect(alice.getByRole("button", { name: "Edit Reduced tax", exact: true })).toBeVisible();
+  await alice.evaluate(({ id, draft }) => {
+    const key = Object.keys(sessionStorage).find(entry => entry.startsWith("receipt-draft:") && entry.endsWith(`:${id}`));
+    if (!key) throw new Error("Missing browser draft recovery entry");
+    draft.data.items[0] = { ...draft.data.items[0], taxCents: 0, allocatedTaxCents: 100, extraCents: 0, finalCents: 1000 };
+    sessionStorage.setItem(key, JSON.stringify(draft));
+  }, { id: reducedTaxId, draft: reducedTaxDraft });
+  await alice.reload();
+  await expect(alice.getByRole("button", { name: "Edit Reduced tax", exact: true })).toContainText("10.00");
+  await expect(alice.getByRole("button", { name: "Edit Reduced tax", exact: true })).toContainText("Manual");
+  await alice.getByRole("button", { name: "Save draft & close", exact: true }).click();
+  await expect(alice).toHaveURL(groupRoute);
+  const recoveredReducedTax = (await api(`/receipt-drafts/${reducedTaxId}`)).draft;
+  assert.equal(recoveredReducedTax.data.items[0].finalCents, 1000);
+  assert.equal(recoveredReducedTax.data.items[0].manualFinal, true);
+  await alice.getByRole("button", { name: "Delete Reduced tax recovery", exact: true }).click();
+  await alice.getByRole("button", { name: "Delete draft", exact: true }).click();
+  await expect(alice.locator(".draft-list-row")).toHaveCount(0);
   // Explicit save, edit/discard, overwrite and delete on the production list.
   await alice.getByRole("button", { name: "New bill", exact: true }).click();
   await alice.getByRole("button", { name: "Split by amounts instead" }).click();
