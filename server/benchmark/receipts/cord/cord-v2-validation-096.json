@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "currency": "IDR",
+  "currencyExponent": 2,
+  "country": "ID",
+  "region": null,
+  "rounding": 0,
+  "taxMode": "exclusive",
+  "review": {
+    "method": "manual visual transcription with arithmetic reconciliation",
+    "date": "2026-09-24"
+  },
+  "id": "cord-v2-validation-096",
+  "merchant": "D'Crepes",
+  "items": [
+    {
+      "id": "item-001",
+      "description": "Choco Cheese",
+      "productCode": null,
+      "quantity": "1",
+      "quantityBasis": "printed",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 1363600,
+      "ownDiscount": 204500,
+      "discountLabels": [
+        "Exclusive Member Car"
+      ],
+      "notes": [
+        "The printed Rp13,636 amount is on the single-item row, but not explicitly labelled as a unit price."
+      ]
+    }
+  ],
+  "receiptDiscounts": [],
+  "subtotal": 1363600,
+  "subtotalBasis": "printed",
+  "subtotalStage": "before-discounts",
+  "taxLines": [
+    {
+      "label": "PB1",
+      "rate": null,
+      "rateBasis": "unprinted",
+      "amount": 115900
+    }
+  ],
+  "taxTotal": 115900,
+  "charges": [],
+  "total": 1275000,
+  "notes": [
+    "Printed SubTotal: Rp13,636 precedes the printed -Rp2,045 discount, also repeated in the item section. The post-discount taxable base is Rp11,591; the printed subtotal is recorded at the before-discounts stage. PB1: Rp1,159 is additional tax. The 10% ratio is arithmetic evidence, not a printed rate. Discount label is printed truncated as \"Exclusive Member Car\"; do not complete the word."
+  ],
+  "taxability": [
+    {
+      "itemId": "item-001",
+      "taxable": true,
+      "basis": "printed-tax",
+      "evidence": "The receipt has just one product line and prints a positive PB1 tax amount after its discount; therefore this item is taxed.",
+      "sourceUrls": []
+    }
+  ]
+}

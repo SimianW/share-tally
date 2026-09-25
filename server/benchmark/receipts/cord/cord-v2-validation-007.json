@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "currency": "IDR",
+  "currencyExponent": 2,
+  "country": "ID",
+  "region": null,
+  "rounding": 0,
+  "taxMode": "exclusive",
+  "review": {
+    "method": "manual visual transcription with arithmetic reconciliation",
+    "date": "2026-09-24"
+  },
+  "id": "cord-v2-validation-007",
+  "merchant": "D'Crepes",
+  "items": [
+    {
+      "id": "item-001",
+      "description": "Choco Devil",
+      "productCode": null,
+      "quantity": "4",
+      "quantityBasis": "printed",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 6363600,
+      "ownDiscount": 954500,
+      "discountLabels": [
+        "CP 360 Club Card"
+      ],
+      "notes": [
+        "The printed 63,636 is the four-unit line total; no per-unit price is printed."
+      ]
+    }
+  ],
+  "receiptDiscounts": [],
+  "subtotal": 6363600,
+  "subtotalBasis": "printed",
+  "subtotalStage": "before-discounts",
+  "taxLines": [
+    {
+      "label": "PB1",
+      "rate": null,
+      "rateBasis": "unprinted",
+      "amount": 540900
+    }
+  ],
+  "taxTotal": 540900,
+  "charges": [],
+  "total": 5950000,
+  "notes": [
+    "Printed SubTotal: Rp63,636 is the pre-discount sum; printed Discount: -Rp9,545 repeats the item promotion, not a second discount. The post-discount taxable base is Rp54,091; the printed subtotal is recorded at the before-discounts stage. PB1: Rp5,409 is additional tax. The 10% ratio is arithmetic evidence, not a printed rate."
+  ],
+  "taxability": [
+    {
+      "itemId": "item-001",
+      "taxable": true,
+      "basis": "printed-tax",
+      "evidence": "The receipt has just one product line and prints a positive PB1 tax amount after its discount; therefore this item is taxed.",
+      "sourceUrls": []
+    }
+  ]
+}

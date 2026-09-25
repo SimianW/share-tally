@@ -20,7 +20,7 @@ type Field = {
   valueCountryRegion?: string;
   boundingRegions?: { pageNumber: number; polygon: number[] }[];
 };
-type AnalyzeResult = {
+export type AnalyzeResult = {
   modelId?: string;
   apiVersion?: string;
   content?: string;
@@ -34,6 +34,18 @@ function amount(field?: Field) {
 function string(field?: Field) {
   return field?.valueString ?? field?.content ?? null;
 }
+function lineAmount(row: Field) {
+  const total = amount(row.valueObject?.TotalPrice);
+  const price = amount(row.valueObject?.Price);
+  return total ?? (price !== null && price < 0 ? price : null);
+}
+
+/** Transient row selection shared with benchmark provenance; never serialized in draft/evidence. */
+export function azureItemRowIndices(result: AnalyzeResult): number[] {
+  return (result.documents?.[0]?.fields?.Items?.valueArray ?? [])
+    .flatMap((row, index) => (lineAmount(row) ?? 0) >= 0 ? [index] : []);
+}
+
 export function normalizeAzure(result: AnalyzeResult) {
   const documents = result.documents ?? [];
   if (documents.length !== 1)
@@ -42,12 +54,7 @@ export function normalizeAzure(result: AnalyzeResult) {
     );
   const f = documents[0]!.fields ?? {};
   const rows = f.Items?.valueArray ?? [];
-  const lineAmount = (row: Field) => {
-    const total = amount(row.valueObject?.TotalPrice);
-    const price = amount(row.valueObject?.Price);
-    return total ?? (price !== null && price < 0 ? price : null);
-  };
-  const itemRows = rows.filter((row) => (lineAmount(row) ?? 0) >= 0);
+  const itemRows = azureItemRowIndices(result).map((index) => rows[index]!);
   const cents = (value: number | null) => value === null ? null : Math.round(value * 100);
   const discountResult = attachReceiptDiscounts(
     itemRows.map((row) => ({
@@ -224,6 +231,44 @@ async function azureReceipt(
   }
 }
 
+/** Pure production mapping, shared by the extractor and offline benchmark. */
+export function mapAzureAnalysis(result: AnalyzeResult) {
+  const data = normalizeAzure(result);
+  const content = result.content;
+  return extractedReceipt.parse({
+    merchant: data.merchant,
+    evidence: data.evidence,
+    rawAnalysis: result as Record<string, unknown>,
+    text: content?.slice(0, 100000),
+    currency: data.currency,
+    total: data.total,
+    subtotal: data.subtotal,
+    pricesIncludeTax:
+      /(?:prices?\s+(?:include|inclusive\s+of)\s+(?:tax|gst|hst|vat)|(?:tax|gst|hst|vat)\s+included)/i.test(
+        content ?? "",
+      ),
+    items: data.items.map((item) => ({
+      description: item.description,
+      evidence: item.evidence,
+      plainEnglish: null,
+      quantity: item.quantity === null ? null : String(item.quantity),
+      amount: item.totalPrice,
+      discount: item.discountCents / 100,
+      ...(item.discountCents ? { discountSource: "receipt" as const } : {}),
+      tax: null,
+      taxable: null,
+    })),
+    taxTotal: data.taxes.length
+      ? data.taxes.reduce((sum, tax) => sum + tax.amount, 0)
+      : null,
+    // extractionDefaults subtracts own discounts from this overall total.
+    discountTotal: (data.discountTotal + data.items.reduce((sum, item) => sum + item.discountCents, 0)) / 100,
+    discountFallback: data.discountFallback,
+    otherCharges: null,
+    warnings: data.warnings,
+  });
+}
+
 export function createAzureExtractor(
   env: NodeJS.ProcessEnv = process.env,
   request: typeof fetch = fetch,
@@ -242,40 +287,7 @@ export function createAzureExtractor(
     try {
       const { analyzeResult, azureSubmitMs, azurePollMs } = await azureReceipt(image, request, wait, env);
       const mappingStart = performance.now();
-      const data = normalizeAzure(analyzeResult);
-      const content = analyzeResult.content;
-      const mapped = extractedReceipt.parse({
-        merchant: data.merchant,
-        evidence: data.evidence,
-        rawAnalysis: analyzeResult as Record<string, unknown>,
-        text: content?.slice(0, 100000),
-        currency: data.currency,
-        total: data.total,
-        subtotal: data.subtotal,
-        pricesIncludeTax:
-          /(?:prices?\s+(?:include|inclusive\s+of)\s+(?:tax|gst|hst|vat)|(?:tax|gst|hst|vat)\s+included)/i.test(
-            content ?? "",
-          ),
-        items: data.items.map((item) => ({
-          description: item.description,
-          evidence: item.evidence,
-          plainEnglish: null,
-          quantity: item.quantity === null ? null : String(item.quantity),
-          amount: item.totalPrice,
-          discount: item.discountCents / 100,
-          ...(item.discountCents ? { discountSource: "receipt" as const } : {}),
-          tax: null,
-          taxable: null,
-        })),
-        taxTotal: data.taxes.length
-          ? data.taxes.reduce((sum, tax) => sum + tax.amount, 0)
-          : null,
-        // extractionDefaults subtracts own discounts from this overall total.
-        discountTotal: (data.discountTotal + data.items.reduce((sum, item) => sum + item.discountCents, 0)) / 100,
-        discountFallback: data.discountFallback,
-        otherCharges: null,
-        warnings: data.warnings,
-      });
+      const mapped = mapAzureAnalysis(analyzeResult);
       return {
         ...mapped,
         scanTimings: {

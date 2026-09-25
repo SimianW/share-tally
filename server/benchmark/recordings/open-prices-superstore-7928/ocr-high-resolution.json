@@ -1,0 +1,4618 @@
+{
+  "schemaVersion": 1,
+  "imageSha256": "97fc74183d29707ec997f0f5d2da9bb2ddd41ab813371bac54d0753453651f9b",
+  "request": {
+    "apiVersion": "2024-11-30",
+    "modelId": "prebuilt-receipt",
+    "options": {
+      "features": [
+        "ocrHighResolution"
+      ]
+    }
+  },
+  "analyzeResult": {
+    "apiVersion": "2024-11-30",
+    "modelId": "prebuilt-receipt",
+    "stringIndexType": "textElements",
+    "content": "REAL CANADIAN®\nSUPERSTORE\nRCSS 1519 - 1301 Lougheed HWY, Coquitlam BC\n(604) 520-8339\nBig on Fresh, Low on Price\nWelcome #\n21-GROCERY\n(2)77670325840 TT SEWD SHTS MRJ\n2 @ $3.49\n880100556051 MINATSU BKWHT N MRJ\n6.98\n$6.99 1mt 4, $8.49 ea\n1 @ $6.99 ea\n6.99\n885002500002 UFC COCONUT WTR MRJ\n$2.99 1mt 4, $3.89 ea\n2 @ $2.99 ea\n5.98\nDEPOSIT 1\n2@$0.10\n0.20\n22-DAIRY\n06038313741 XTRA OLD WHT CHD MRJ\n$5.79 1mt 2, $6.99 ea\n1 @ $5.79 ea\n5.79\n23-FROZEN\n05693690706 CHMO RST GRL PRG MRJ\n$2.99 1mt 1, $3.79 ea\n1 @ $2.99 ea\n2.99\n25-NATURAL FOODS\n(2)06038320688 PCO BR SPROUTS MRJ\n$5.49 ea or 2/$9.00\n2 @ 2/$9. 00\n9.00\n34-BAKERY COMMERCIAL\n(2)06038382046 PC BM BUN WG MRJ\n2 @ $4.49\n8.98\nSUBTOTAL\n46.91\nTOTAL\n46.91",
+    "pages": [
+      {
+        "pageNumber": 1,
+        "angle": 0.5909683704376221,
+        "width": 1563,
+        "height": 2811,
+        "unit": "pixel",
+        "words": [
+          {
+            "content": "REAL",
+            "polygon": [
+              553,
+              8,
+              772,
+              13,
+              770,
+              85,
+              551,
+              78
+            ],
+            "confidence": 0.988,
+            "span": {
+              "offset": 0,
+              "length": 4
+            }
+          },
+          {
+            "content": "CANADIAN®",
+            "polygon": [
+              798,
+              14,
+              1275,
+              29,
+              1275,
+              100,
+              796,
+              85
+            ],
+            "confidence": 0.459,
+            "span": {
+              "offset": 5,
+              "length": 9
+            }
+          },
+          {
+            "content": "SUPERSTORE",
+            "polygon": [
+              549,
+              78,
+              1266,
+              100,
+              1266,
+              183,
+              548,
+              165
+            ],
+            "confidence": 0.977,
+            "span": {
+              "offset": 15,
+              "length": 10
+            }
+          },
+          {
+            "content": "RCSS",
+            "polygon": [
+              164,
+              235,
+              284,
+              238,
+              283,
+              302,
+              164,
+              299
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 26,
+              "length": 4
+            }
+          },
+          {
+            "content": "1519",
+            "polygon": [
+              324,
+              239,
+              435,
+              242,
+              435,
+              306,
+              323,
+              303
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 31,
+              "length": 4
+            }
+          },
+          {
+            "content": "-",
+            "polygon": [
+              468,
+              243,
+              494,
+              244,
+              493,
+              308,
+              467,
+              307
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 36,
+              "length": 1
+            }
+          },
+          {
+            "content": "1301",
+            "polygon": [
+              533,
+              245,
+              638,
+              247,
+              637,
+              312,
+              533,
+              309
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 38,
+              "length": 4
+            }
+          },
+          {
+            "content": "Lougheed",
+            "polygon": [
+              676,
+              248,
+              911,
+              253,
+              910,
+              320,
+              676,
+              313
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 43,
+              "length": 8
+            }
+          },
+          {
+            "content": "HWY,",
+            "polygon": [
+              944,
+              254,
+              1047,
+              256,
+              1047,
+              323,
+              944,
+              321
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 52,
+              "length": 4
+            }
+          },
+          {
+            "content": "Coquitlam",
+            "polygon": [
+              1093,
+              257,
+              1353,
+              265,
+              1352,
+              332,
+              1092,
+              324
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 57,
+              "length": 9
+            }
+          },
+          {
+            "content": "BC",
+            "polygon": [
+              1387,
+              266,
+              1446,
+              267,
+              1446,
+              334,
+              1387,
+              333
+            ],
+            "confidence": 0.996,
+            "span": {
+              "offset": 67,
+              "length": 2
+            }
+          },
+          {
+            "content": "(604)",
+            "polygon": [
+              169,
+              307,
+              310,
+              310,
+              310,
+              378,
+              169,
+              377
+            ],
+            "confidence": 0.985,
+            "span": {
+              "offset": 70,
+              "length": 5
+            }
+          },
+          {
+            "content": "520-8339",
+            "polygon": [
+              351,
+              311,
+              587,
+              317,
+              587,
+              382,
+              351,
+              379
+            ],
+            "confidence": 0.996,
+            "span": {
+              "offset": 76,
+              "length": 8
+            }
+          },
+          {
+            "content": "Big",
+            "polygon": [
+              433,
+              389,
+              522,
+              391,
+              522,
+              456,
+              432,
+              454
+            ],
+            "confidence": 0.977,
+            "span": {
+              "offset": 85,
+              "length": 3
+            }
+          },
+          {
+            "content": "on",
+            "polygon": [
+              557,
+              391,
+              610,
+              392,
+              609,
+              458,
+              556,
+              457
+            ],
+            "confidence": 0.997,
+            "span": {
+              "offset": 89,
+              "length": 2
+            }
+          },
+          {
+            "content": "Fresh,",
+            "polygon": [
+              644,
+              392,
+              807,
+              396,
+              806,
+              461,
+              644,
+              459
+            ],
+            "confidence": 0.993,
+            "span": {
+              "offset": 92,
+              "length": 6
+            }
+          },
+          {
+            "content": "Low",
+            "polygon": [
+              853,
+              397,
+              939,
+              399,
+              938,
+              463,
+              852,
+              462
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 99,
+              "length": 3
+            }
+          },
+          {
+            "content": "on",
+            "polygon": [
+              973,
+              399,
+              1025,
+              400,
+              1025,
+              465,
+              972,
+              465
+            ],
+            "confidence": 0.997,
+            "span": {
+              "offset": 103,
+              "length": 2
+            }
+          },
+          {
+            "content": "Price",
+            "polygon": [
+              1062,
+              401,
+              1208,
+              406,
+              1208,
+              469,
+              1061,
+              466
+            ],
+            "confidence": 0.997,
+            "span": {
+              "offset": 106,
+              "length": 5
+            }
+          },
+          {
+            "content": "Welcome",
+            "polygon": [
+              163,
+              459,
+              373,
+              462,
+              372,
+              526,
+              162,
+              522
+            ],
+            "confidence": 0.989,
+            "span": {
+              "offset": 112,
+              "length": 7
+            }
+          },
+          {
+            "content": "#",
+            "polygon": [
+              407,
+              463,
+              436,
+              464,
+              436,
+              526,
+              406,
+              526
+            ],
+            "confidence": 0.996,
+            "span": {
+              "offset": 120,
+              "length": 1
+            }
+          },
+          {
+            "content": "21-GROCERY",
+            "polygon": [
+              169,
+              608,
+              467,
+              612,
+              467,
+              675,
+              168,
+              672
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 122,
+              "length": 10
+            }
+          },
+          {
+            "content": "(2)77670325840",
+            "polygon": [
+              232,
+              681,
+              643,
+              689,
+              642,
+              754,
+              232,
+              748
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 133,
+              "length": 14
+            }
+          },
+          {
+            "content": "TT",
+            "polygon": [
+              674,
+              689,
+              729,
+              690,
+              728,
+              755,
+              673,
+              754
+            ],
+            "confidence": 0.99,
+            "span": {
+              "offset": 148,
+              "length": 2
+            }
+          },
+          {
+            "content": "SEWD",
+            "polygon": [
+              762,
+              691,
+              874,
+              693,
+              873,
+              758,
+              761,
+              756
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 151,
+              "length": 4
+            }
+          },
+          {
+            "content": "SHTS",
+            "polygon": [
+              907,
+              693,
+              1022,
+              695,
+              1021,
+              760,
+              906,
+              758
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 156,
+              "length": 4
+            }
+          },
+          {
+            "content": "MRJ",
+            "polygon": [
+              1084,
+              697,
+              1169,
+              699,
+              1169,
+              761,
+              1083,
+              761
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 161,
+              "length": 3
+            }
+          },
+          {
+            "content": "2",
+            "polygon": [
+              290,
+              759,
+              319,
+              759,
+              318,
+              820,
+              289,
+              819
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 165,
+              "length": 1
+            }
+          },
+          {
+            "content": "@",
+            "polygon": [
+              351,
+              760,
+              379,
+              760,
+              378,
+              821,
+              350,
+              821
+            ],
+            "confidence": 0.988,
+            "span": {
+              "offset": 167,
+              "length": 1
+            }
+          },
+          {
+            "content": "$3.49",
+            "polygon": [
+              413,
+              761,
+              558,
+              764,
+              558,
+              825,
+              412,
+              822
+            ],
+            "confidence": 0.925,
+            "span": {
+              "offset": 169,
+              "length": 5
+            }
+          },
+          {
+            "content": "880100556051",
+            "polygon": [
+              229,
+              828,
+              582,
+              834,
+              581,
+              896,
+              229,
+              889
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 175,
+              "length": 12
+            }
+          },
+          {
+            "content": "MINATSU",
+            "polygon": [
+              612,
+              834,
+              813,
+              838,
+              812,
+              901,
+              611,
+              897
+            ],
+            "confidence": 0.993,
+            "span": {
+              "offset": 188,
+              "length": 7
+            }
+          },
+          {
+            "content": "BKWHT",
+            "polygon": [
+              846,
+              838,
+              989,
+              841,
+              988,
+              904,
+              845,
+              901
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 196,
+              "length": 5
+            }
+          },
+          {
+            "content": "N",
+            "polygon": [
+              1020,
+              842,
+              1045,
+              842,
+              1044,
+              905,
+              1020,
+              905
+            ],
+            "confidence": 0.977,
+            "span": {
+              "offset": 202,
+              "length": 1
+            }
+          },
+          {
+            "content": "MRJ",
+            "polygon": [
+              1108,
+              844,
+              1193,
+              845,
+              1193,
+              907,
+              1108,
+              906
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 204,
+              "length": 3
+            }
+          },
+          {
+            "content": "6.98",
+            "polygon": [
+              1341,
+              780,
+              1457,
+              782,
+              1457,
+              841,
+              1341,
+              840
+            ],
+            "confidence": 0.973,
+            "span": {
+              "offset": 208,
+              "length": 4
+            }
+          },
+          {
+            "content": "$6.99",
+            "polygon": [
+              289,
+              900,
+              438,
+              904,
+              437,
+              969,
+              289,
+              967
+            ],
+            "confidence": 0.977,
+            "span": {
+              "offset": 213,
+              "length": 5
+            }
+          },
+          {
+            "content": "1mt",
+            "polygon": [
+              472,
+              905,
+              548,
+              907,
+              548,
+              970,
+              472,
+              969
+            ],
+            "confidence": 0.907,
+            "span": {
+              "offset": 219,
+              "length": 3
+            }
+          },
+          {
+            "content": "4,",
+            "polygon": [
+              586,
+              907,
+              625,
+              907,
+              624,
+              972,
+              585,
+              971
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 223,
+              "length": 2
+            }
+          },
+          {
+            "content": "$8.49",
+            "polygon": [
+              673,
+              908,
+              815,
+              910,
+              814,
+              974,
+              672,
+              973
+            ],
+            "confidence": 0.989,
+            "span": {
+              "offset": 226,
+              "length": 5
+            }
+          },
+          {
+            "content": "ea",
+            "polygon": [
+              844,
+              911,
+              901,
+              913,
+              901,
+              975,
+              843,
+              975
+            ],
+            "confidence": 0.994,
+            "span": {
+              "offset": 232,
+              "length": 2
+            }
+          },
+          {
+            "content": "1",
+            "polygon": [
+              293,
+              975,
+              306,
+              975,
+              306,
+              1036,
+              293,
+              1036
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 235,
+              "length": 1
+            }
+          },
+          {
+            "content": "@",
+            "polygon": [
+              350,
+              975,
+              378,
+              976,
+              378,
+              1037,
+              349,
+              1036
+            ],
+            "confidence": 0.989,
+            "span": {
+              "offset": 237,
+              "length": 1
+            }
+          },
+          {
+            "content": "$6.99",
+            "polygon": [
+              412,
+              976,
+              553,
+              980,
+              552,
+              1039,
+              411,
+              1037
+            ],
+            "confidence": 0.951,
+            "span": {
+              "offset": 239,
+              "length": 5
+            }
+          },
+          {
+            "content": "ea",
+            "polygon": [
+              582,
+              980,
+              638,
+              982,
+              638,
+              1039,
+              582,
+              1039
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 245,
+              "length": 2
+            }
+          },
+          {
+            "content": "6.99",
+            "polygon": [
+              1333,
+              993,
+              1452,
+              994,
+              1452,
+              1050,
+              1333,
+              1050
+            ],
+            "confidence": 0.966,
+            "span": {
+              "offset": 248,
+              "length": 4
+            }
+          },
+          {
+            "content": "885002500002",
+            "polygon": [
+              230,
+              1044,
+              580,
+              1049,
+              580,
+              1110,
+              229,
+              1106
+            ],
+            "confidence": 0.993,
+            "span": {
+              "offset": 253,
+              "length": 12
+            }
+          },
+          {
+            "content": "UFC",
+            "polygon": [
+              610,
+              1049,
+              694,
+              1050,
+              693,
+              1112,
+              609,
+              1111
+            ],
+            "confidence": 0.989,
+            "span": {
+              "offset": 266,
+              "length": 3
+            }
+          },
+          {
+            "content": "COCONUT",
+            "polygon": [
+              726,
+              1050,
+              926,
+              1053,
+              925,
+              1115,
+              726,
+              1112
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 270,
+              "length": 7
+            }
+          },
+          {
+            "content": "WTR",
+            "polygon": [
+              959,
+              1053,
+              1040,
+              1054,
+              1040,
+              1117,
+              958,
+              1116
+            ],
+            "confidence": 0.973,
+            "span": {
+              "offset": 278,
+              "length": 3
+            }
+          },
+          {
+            "content": "MRJ",
+            "polygon": [
+              1102,
+              1056,
+              1186,
+              1058,
+              1186,
+              1119,
+              1101,
+              1118
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 282,
+              "length": 3
+            }
+          },
+          {
+            "content": "$2.99",
+            "polygon": [
+              289,
+              1116,
+              434,
+              1119,
+              434,
+              1181,
+              288,
+              1179
+            ],
+            "confidence": 0.973,
+            "span": {
+              "offset": 286,
+              "length": 5
+            }
+          },
+          {
+            "content": "1mt",
+            "polygon": [
+              470,
+              1120,
+              544,
+              1121,
+              543,
+              1183,
+              470,
+              1181
+            ],
+            "confidence": 0.916,
+            "span": {
+              "offset": 292,
+              "length": 3
+            }
+          },
+          {
+            "content": "4,",
+            "polygon": [
+              583,
+              1121,
+              622,
+              1121,
+              621,
+              1184,
+              582,
+              1183
+            ],
+            "confidence": 0.982,
+            "span": {
+              "offset": 296,
+              "length": 2
+            }
+          },
+          {
+            "content": "$3.89",
+            "polygon": [
+              670,
+              1122,
+              812,
+              1124,
+              811,
+              1187,
+              670,
+              1186
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 299,
+              "length": 5
+            }
+          },
+          {
+            "content": "ea",
+            "polygon": [
+              843,
+              1124,
+              899,
+              1126,
+              899,
+              1188,
+              842,
+              1188
+            ],
+            "confidence": 0.993,
+            "span": {
+              "offset": 305,
+              "length": 2
+            }
+          },
+          {
+            "content": "2",
+            "polygon": [
+              287,
+              1189,
+              316,
+              1190,
+              315,
+              1250,
+              287,
+              1249
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 308,
+              "length": 1
+            }
+          },
+          {
+            "content": "@",
+            "polygon": [
+              347,
+              1190,
+              375,
+              1190,
+              375,
+              1251,
+              346,
+              1250
+            ],
+            "confidence": 0.988,
+            "span": {
+              "offset": 310,
+              "length": 1
+            }
+          },
+          {
+            "content": "$2.99",
+            "polygon": [
+              409,
+              1191,
+              549,
+              1193,
+              549,
+              1252,
+              408,
+              1251
+            ],
+            "confidence": 0.977,
+            "span": {
+              "offset": 312,
+              "length": 5
+            }
+          },
+          {
+            "content": "ea",
+            "polygon": [
+              580,
+              1194,
+              636,
+              1195,
+              636,
+              1253,
+              579,
+              1253
+            ],
+            "confidence": 0.993,
+            "span": {
+              "offset": 318,
+              "length": 2
+            }
+          },
+          {
+            "content": "5.98",
+            "polygon": [
+              1336,
+              1200,
+              1454,
+              1202,
+              1454,
+              1260,
+              1336,
+              1259
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 321,
+              "length": 4
+            }
+          },
+          {
+            "content": "DEPOSIT",
+            "polygon": [
+              283,
+              1259,
+              488,
+              1262,
+              488,
+              1321,
+              282,
+              1318
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 326,
+              "length": 7
+            }
+          },
+          {
+            "content": "1",
+            "polygon": [
+              526,
+              1263,
+              548,
+              1264,
+              548,
+              1321,
+              526,
+              1321
+            ],
+            "confidence": 0.993,
+            "span": {
+              "offset": 334,
+              "length": 1
+            }
+          },
+          {
+            "content": "2@$0.10",
+            "polygon": [
+              285,
+              1332,
+              492,
+              1334,
+              492,
+              1392,
+              285,
+              1390
+            ],
+            "confidence": 0.692,
+            "span": {
+              "offset": 336,
+              "length": 7
+            }
+          },
+          {
+            "content": "0.20",
+            "polygon": [
+              1333,
+              1343,
+              1453,
+              1344,
+              1453,
+              1401,
+              1333,
+              1400
+            ],
+            "confidence": 0.963,
+            "span": {
+              "offset": 344,
+              "length": 4
+            }
+          },
+          {
+            "content": "22-DAIRY",
+            "polygon": [
+              161,
+              1401,
+              401,
+              1403,
+              401,
+              1461,
+              161,
+              1461
+            ],
+            "confidence": 0.993,
+            "span": {
+              "offset": 349,
+              "length": 8
+            }
+          },
+          {
+            "content": "06038313741",
+            "polygon": [
+              220,
+              1472,
+              537,
+              1474,
+              537,
+              1537,
+              220,
+              1533
+            ],
+            "confidence": 0.994,
+            "span": {
+              "offset": 358,
+              "length": 11
+            }
+          },
+          {
+            "content": "XTRA",
+            "polygon": [
+              575,
+              1474,
+              688,
+              1475,
+              688,
+              1538,
+              575,
+              1537
+            ],
+            "confidence": 0.963,
+            "span": {
+              "offset": 370,
+              "length": 4
+            }
+          },
+          {
+            "content": "OLD",
+            "polygon": [
+              722,
+              1475,
+              806,
+              1476,
+              806,
+              1539,
+              722,
+              1538
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 375,
+              "length": 3
+            }
+          },
+          {
+            "content": "WHT",
+            "polygon": [
+              839,
+              1476,
+              922,
+              1477,
+              922,
+              1540,
+              839,
+              1539
+            ],
+            "confidence": 0.994,
+            "span": {
+              "offset": 379,
+              "length": 3
+            }
+          },
+          {
+            "content": "CHD",
+            "polygon": [
+              955,
+              1477,
+              1038,
+              1478,
+              1038,
+              1542,
+              955,
+              1540
+            ],
+            "confidence": 0.998,
+            "span": {
+              "offset": 383,
+              "length": 3
+            }
+          },
+          {
+            "content": "MRJ",
+            "polygon": [
+              1099,
+              1479,
+              1186,
+              1480,
+              1186,
+              1542,
+              1099,
+              1542
+            ],
+            "confidence": 0.989,
+            "span": {
+              "offset": 387,
+              "length": 3
+            }
+          },
+          {
+            "content": "$5.79",
+            "polygon": [
+              278,
+              1543,
+              425,
+              1546,
+              424,
+              1608,
+              278,
+              1607
+            ],
+            "confidence": 0.977,
+            "span": {
+              "offset": 391,
+              "length": 5
+            }
+          },
+          {
+            "content": "1mt",
+            "polygon": [
+              461,
+              1547,
+              538,
+              1547,
+              538,
+              1610,
+              460,
+              1609
+            ],
+            "confidence": 0.885,
+            "span": {
+              "offset": 397,
+              "length": 3
+            }
+          },
+          {
+            "content": "2,",
+            "polygon": [
+              576,
+              1548,
+              645,
+              1548,
+              645,
+              1611,
+              576,
+              1610
+            ],
+            "confidence": 0.977,
+            "span": {
+              "offset": 401,
+              "length": 2
+            }
+          },
+          {
+            "content": "$6.99",
+            "polygon": [
+              664,
+              1548,
+              808,
+              1550,
+              807,
+              1612,
+              664,
+              1612
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 404,
+              "length": 5
+            }
+          },
+          {
+            "content": "ea",
+            "polygon": [
+              837,
+              1550,
+              895,
+              1552,
+              895,
+              1612,
+              837,
+              1612
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 410,
+              "length": 2
+            }
+          },
+          {
+            "content": "1",
+            "polygon": [
+              280,
+              1617,
+              297,
+              1617,
+              297,
+              1679,
+              279,
+              1679
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 413,
+              "length": 1
+            }
+          },
+          {
+            "content": "@",
+            "polygon": [
+              334,
+              1617,
+              363,
+              1617,
+              363,
+              1679,
+              334,
+              1679
+            ],
+            "confidence": 0.926,
+            "span": {
+              "offset": 415,
+              "length": 1
+            }
+          },
+          {
+            "content": "$5.79",
+            "polygon": [
+              396,
+              1617,
+              541,
+              1619,
+              541,
+              1681,
+              396,
+              1680
+            ],
+            "confidence": 0.964,
+            "span": {
+              "offset": 417,
+              "length": 5
+            }
+          },
+          {
+            "content": "ea",
+            "polygon": [
+              571,
+              1619,
+              629,
+              1621,
+              629,
+              1681,
+              571,
+              1681
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 423,
+              "length": 2
+            }
+          },
+          {
+            "content": "5.79",
+            "polygon": [
+              1337,
+              1629,
+              1455,
+              1631,
+              1455,
+              1691,
+              1337,
+              1689
+            ],
+            "confidence": 0.991,
+            "span": {
+              "offset": 426,
+              "length": 4
+            }
+          },
+          {
+            "content": "23-FROZEN",
+            "polygon": [
+              151,
+              1689,
+              421,
+              1690,
+              421,
+              1750,
+              150,
+              1750
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 431,
+              "length": 9
+            }
+          },
+          {
+            "content": "05693690706",
+            "polygon": [
+              209,
+              1761,
+              537,
+              1762,
+              536,
+              1826,
+              209,
+              1823
+            ],
+            "confidence": 0.989,
+            "span": {
+              "offset": 441,
+              "length": 11
+            }
+          },
+          {
+            "content": "CHMO",
+            "polygon": [
+              568,
+              1762,
+              684,
+              1763,
+              683,
+              1827,
+              568,
+              1826
+            ],
+            "confidence": 0.989,
+            "span": {
+              "offset": 453,
+              "length": 4
+            }
+          },
+          {
+            "content": "RST",
+            "polygon": [
+              717,
+              1763,
+              801,
+              1763,
+              801,
+              1828,
+              717,
+              1827
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 458,
+              "length": 3
+            }
+          },
+          {
+            "content": "GRL",
+            "polygon": [
+              835,
+              1763,
+              919,
+              1764,
+              918,
+              1829,
+              834,
+              1828
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 462,
+              "length": 3
+            }
+          },
+          {
+            "content": "PRG",
+            "polygon": [
+              952,
+              1764,
+              1036,
+              1765,
+              1036,
+              1830,
+              952,
+              1829
+            ],
+            "confidence": 0.976,
+            "span": {
+              "offset": 466,
+              "length": 3
+            }
+          },
+          {
+            "content": "MRJ",
+            "polygon": [
+              1099,
+              1766,
+              1187,
+              1767,
+              1187,
+              1831,
+              1099,
+              1830
+            ],
+            "confidence": 0.99,
+            "span": {
+              "offset": 470,
+              "length": 3
+            }
+          },
+          {
+            "content": "$2.99",
+            "polygon": [
+              267,
+              1833,
+              416,
+              1836,
+              416,
+              1900,
+              267,
+              1898
+            ],
+            "confidence": 0.976,
+            "span": {
+              "offset": 474,
+              "length": 5
+            }
+          },
+          {
+            "content": "1mt",
+            "polygon": [
+              453,
+              1837,
+              531,
+              1837,
+              530,
+              1901,
+              452,
+              1900
+            ],
+            "confidence": 0.915,
+            "span": {
+              "offset": 480,
+              "length": 3
+            }
+          },
+          {
+            "content": "1,",
+            "polygon": [
+              565,
+              1837,
+              637,
+              1837,
+              636,
+              1902,
+              565,
+              1901
+            ],
+            "confidence": 0.993,
+            "span": {
+              "offset": 484,
+              "length": 2
+            }
+          },
+          {
+            "content": "$3.79",
+            "polygon": [
+              659,
+              1837,
+              802,
+              1838,
+              802,
+              1902,
+              658,
+              1902
+            ],
+            "confidence": 0.994,
+            "span": {
+              "offset": 487,
+              "length": 5
+            }
+          },
+          {
+            "content": "ea",
+            "polygon": [
+              834,
+              1839,
+              891,
+              1841,
+              891,
+              1902,
+              834,
+              1902
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 493,
+              "length": 2
+            }
+          },
+          {
+            "content": "1",
+            "polygon": [
+              269,
+              1909,
+              286,
+              1909,
+              286,
+              1971,
+              269,
+              1971
+            ],
+            "confidence": 0.993,
+            "span": {
+              "offset": 496,
+              "length": 1
+            }
+          },
+          {
+            "content": "@",
+            "polygon": [
+              325,
+              1909,
+              355,
+              1909,
+              354,
+              1972,
+              325,
+              1971
+            ],
+            "confidence": 0.926,
+            "span": {
+              "offset": 498,
+              "length": 1
+            }
+          },
+          {
+            "content": "$2.99",
+            "polygon": [
+              389,
+              1909,
+              533,
+              1912,
+              533,
+              1974,
+              389,
+              1972
+            ],
+            "confidence": 0.972,
+            "span": {
+              "offset": 500,
+              "length": 5
+            }
+          },
+          {
+            "content": "ea",
+            "polygon": [
+              565,
+              1912,
+              622,
+              1913,
+              622,
+              1974,
+              565,
+              1974
+            ],
+            "confidence": 0.989,
+            "span": {
+              "offset": 506,
+              "length": 2
+            }
+          },
+          {
+            "content": "2.99",
+            "polygon": [
+              1338,
+              1923,
+              1461,
+              1924,
+              1461,
+              1986,
+              1338,
+              1984
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 509,
+              "length": 4
+            }
+          },
+          {
+            "content": "25-NATURAL",
+            "polygon": [
+              138,
+              1982,
+              442,
+              1982,
+              442,
+              2045,
+              138,
+              2045
+            ],
+            "confidence": 0.988,
+            "span": {
+              "offset": 514,
+              "length": 10
+            }
+          },
+          {
+            "content": "FOODS",
+            "polygon": [
+              474,
+              1982,
+              624,
+              1983,
+              624,
+              2045,
+              474,
+              2045
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 525,
+              "length": 5
+            }
+          },
+          {
+            "content": "(2)06038320688",
+            "polygon": [
+              199,
+              2055,
+              619,
+              2058,
+              619,
+              2123,
+              198,
+              2122
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 531,
+              "length": 14
+            }
+          },
+          {
+            "content": "PCO",
+            "polygon": [
+              650,
+              2058,
+              736,
+              2059,
+              736,
+              2124,
+              649,
+              2123
+            ],
+            "confidence": 0.962,
+            "span": {
+              "offset": 546,
+              "length": 3
+            }
+          },
+          {
+            "content": "BR",
+            "polygon": [
+              770,
+              2059,
+              825,
+              2059,
+              824,
+              2126,
+              769,
+              2125
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 550,
+              "length": 2
+            }
+          },
+          {
+            "content": "SPROUTS",
+            "polygon": [
+              860,
+              2059,
+              1065,
+              2061,
+              1065,
+              2129,
+              860,
+              2126
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 553,
+              "length": 7
+            }
+          },
+          {
+            "content": "MRJ",
+            "polygon": [
+              1128,
+              2063,
+              1217,
+              2065,
+              1217,
+              2129,
+              1128,
+              2129
+            ],
+            "confidence": 0.989,
+            "span": {
+              "offset": 561,
+              "length": 3
+            }
+          },
+          {
+            "content": "$5.49",
+            "polygon": [
+              253,
+              2132,
+              407,
+              2135,
+              406,
+              2198,
+              253,
+              2196
+            ],
+            "confidence": 0.972,
+            "span": {
+              "offset": 565,
+              "length": 5
+            }
+          },
+          {
+            "content": "ea",
+            "polygon": [
+              437,
+              2135,
+              494,
+              2136,
+              493,
+              2199,
+              437,
+              2198
+            ],
+            "confidence": 0.989,
+            "span": {
+              "offset": 571,
+              "length": 2
+            }
+          },
+          {
+            "content": "or",
+            "polygon": [
+              528,
+              2136,
+              584,
+              2135,
+              583,
+              2200,
+              528,
+              2199
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 574,
+              "length": 2
+            }
+          },
+          {
+            "content": "2/$9.00",
+            "polygon": [
+              621,
+              2135,
+              830,
+              2137,
+              830,
+              2202,
+              620,
+              2200
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 577,
+              "length": 7
+            }
+          },
+          {
+            "content": "2",
+            "polygon": [
+              251,
+              2208,
+              280,
+              2209,
+              280,
+              2273,
+              250,
+              2272
+            ],
+            "confidence": 0.988,
+            "span": {
+              "offset": 585,
+              "length": 1
+            }
+          },
+          {
+            "content": "@",
+            "polygon": [
+              312,
+              2209,
+              342,
+              2209,
+              341,
+              2274,
+              311,
+              2273
+            ],
+            "confidence": 0.973,
+            "span": {
+              "offset": 587,
+              "length": 1
+            }
+          },
+          {
+            "content": "2/$9.",
+            "polygon": [
+              376,
+              2210,
+              509,
+              2210,
+              508,
+              2275,
+              375,
+              2274
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 589,
+              "length": 5
+            }
+          },
+          {
+            "content": "00",
+            "polygon": [
+              528,
+              2210,
+              588,
+              2211,
+              588,
+              2275,
+              528,
+              2275
+            ],
+            "confidence": 0.999,
+            "span": {
+              "offset": 595,
+              "length": 2
+            }
+          },
+          {
+            "content": "9.00",
+            "polygon": [
+              1342,
+              2226,
+              1467,
+              2228,
+              1467,
+              2290,
+              1342,
+              2289
+            ],
+            "confidence": 0.993,
+            "span": {
+              "offset": 598,
+              "length": 4
+            }
+          },
+          {
+            "content": "34-BAKERY",
+            "polygon": [
+              124,
+              2284,
+              400,
+              2287,
+              400,
+              2351,
+              124,
+              2348
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 603,
+              "length": 9
+            }
+          },
+          {
+            "content": "COMMERCIAL",
+            "polygon": [
+              432,
+              2287,
+              733,
+              2290,
+              733,
+              2353,
+              431,
+              2351
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 613,
+              "length": 10
+            }
+          },
+          {
+            "content": "(2)06038382046",
+            "polygon": [
+              183,
+              2361,
+              610,
+              2365,
+              610,
+              2433,
+              183,
+              2431
+            ],
+            "confidence": 0.96,
+            "span": {
+              "offset": 624,
+              "length": 14
+            }
+          },
+          {
+            "content": "PC",
+            "polygon": [
+              642,
+              2366,
+              699,
+              2367,
+              698,
+              2435,
+              641,
+              2434
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 639,
+              "length": 2
+            }
+          },
+          {
+            "content": "BM",
+            "polygon": [
+              732,
+              2367,
+              790,
+              2368,
+              790,
+              2436,
+              732,
+              2435
+            ],
+            "confidence": 0.993,
+            "span": {
+              "offset": 642,
+              "length": 2
+            }
+          },
+          {
+            "content": "BUN",
+            "polygon": [
+              824,
+              2368,
+              909,
+              2369,
+              909,
+              2437,
+              824,
+              2436
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 645,
+              "length": 3
+            }
+          },
+          {
+            "content": "WG",
+            "polygon": [
+              947,
+              2370,
+              1004,
+              2370,
+              1004,
+              2437,
+              947,
+              2437
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 649,
+              "length": 2
+            }
+          },
+          {
+            "content": "MRJ",
+            "polygon": [
+              1069,
+              2372,
+              1158,
+              2372,
+              1158,
+              2438,
+              1068,
+              2438
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 652,
+              "length": 3
+            }
+          },
+          {
+            "content": "2",
+            "polygon": [
+              239,
+              2442,
+              270,
+              2442,
+              269,
+              2507,
+              239,
+              2506
+            ],
+            "confidence": 0.988,
+            "span": {
+              "offset": 656,
+              "length": 1
+            }
+          },
+          {
+            "content": "@",
+            "polygon": [
+              302,
+              2442,
+              331,
+              2442,
+              330,
+              2508,
+              301,
+              2508
+            ],
+            "confidence": 0.99,
+            "span": {
+              "offset": 658,
+              "length": 1
+            }
+          },
+          {
+            "content": "$4.49",
+            "polygon": [
+              366,
+              2442,
+              519,
+              2444,
+              519,
+              2510,
+              365,
+              2509
+            ],
+            "confidence": 0.934,
+            "span": {
+              "offset": 660,
+              "length": 5
+            }
+          },
+          {
+            "content": "8.98",
+            "polygon": [
+              1344,
+              2455,
+              1469,
+              2456,
+              1469,
+              2518,
+              1345,
+              2518
+            ],
+            "confidence": 0.983,
+            "span": {
+              "offset": 666,
+              "length": 4
+            }
+          },
+          {
+            "content": "SUBTOTAL",
+            "polygon": [
+              112,
+              2514,
+              599,
+              2524,
+              599,
+              2588,
+              110,
+              2577
+            ],
+            "confidence": 0.994,
+            "span": {
+              "offset": 671,
+              "length": 8
+            }
+          },
+          {
+            "content": "46.91",
+            "polygon": [
+              1166,
+              2532,
+              1458,
+              2532,
+              1458,
+              2600,
+              1166,
+              2600
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 680,
+              "length": 5
+            }
+          },
+          {
+            "content": "TOTAL",
+            "polygon": [
+              107,
+              2669,
+              408,
+              2678,
+              408,
+              2745,
+              105,
+              2737
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 686,
+              "length": 5
+            }
+          },
+          {
+            "content": "46.91",
+            "polygon": [
+              1168,
+              2691,
+              1465,
+              2693,
+              1465,
+              2761,
+              1167,
+              2759
+            ],
+            "confidence": 0.994,
+            "span": {
+              "offset": 692,
+              "length": 5
+            }
+          }
+        ],
+        "lines": [
+          {
+            "content": "REAL CANADIAN®",
+            "polygon": [
+              553,
+              8,
+              1275,
+              28,
+              1273,
+              100,
+              551,
+              77
+            ],
+            "spans": [
+              {
+                "offset": 0,
+                "length": 14
+              }
+            ]
+          },
+          {
+            "content": "SUPERSTORE",
+            "polygon": [
+              549,
+              78,
+              1266,
+              99,
+              1265,
+              183,
+              547,
+              164
+            ],
+            "spans": [
+              {
+                "offset": 15,
+                "length": 10
+              }
+            ]
+          },
+          {
+            "content": "RCSS 1519 - 1301 Lougheed HWY, Coquitlam BC",
+            "polygon": [
+              165,
+              235,
+              1446,
+              267,
+              1445,
+              333,
+              163,
+              298
+            ],
+            "spans": [
+              {
+                "offset": 26,
+                "length": 43
+              }
+            ]
+          },
+          {
+            "content": "(604) 520-8339",
+            "polygon": [
+              169,
+              307,
+              587,
+              313,
+              586,
+              381,
+              168,
+              375
+            ],
+            "spans": [
+              {
+                "offset": 70,
+                "length": 14
+              }
+            ]
+          },
+          {
+            "content": "Big on Fresh, Low on Price",
+            "polygon": [
+              433,
+              389,
+              1208,
+              403,
+              1207,
+              469,
+              431,
+              454
+            ],
+            "spans": [
+              {
+                "offset": 85,
+                "length": 26
+              }
+            ]
+          },
+          {
+            "content": "Welcome #",
+            "polygon": [
+              163,
+              458,
+              436,
+              464,
+              434,
+              526,
+              162,
+              521
+            ],
+            "spans": [
+              {
+                "offset": 112,
+                "length": 9
+              }
+            ]
+          },
+          {
+            "content": "21-GROCERY",
+            "polygon": [
+              169,
+              608,
+              467,
+              611,
+              466,
+              675,
+              168,
+              671
+            ],
+            "spans": [
+              {
+                "offset": 122,
+                "length": 10
+              }
+            ]
+          },
+          {
+            "content": "(2)77670325840 TT SEWD SHTS MRJ",
+            "polygon": [
+              232,
+              681,
+              1169,
+              695,
+              1168,
+              761,
+              231,
+              747
+            ],
+            "spans": [
+              {
+                "offset": 133,
+                "length": 31
+              }
+            ]
+          },
+          {
+            "content": "2 @ $3.49",
+            "polygon": [
+              290,
+              758,
+              558,
+              764,
+              556,
+              825,
+              288,
+              819
+            ],
+            "spans": [
+              {
+                "offset": 165,
+                "length": 9
+              }
+            ]
+          },
+          {
+            "content": "880100556051 MINATSU BKWHT N MRJ",
+            "polygon": [
+              230,
+              828,
+              1193,
+              845,
+              1193,
+              907,
+              228,
+              889
+            ],
+            "spans": [
+              {
+                "offset": 175,
+                "length": 32
+              }
+            ]
+          },
+          {
+            "content": "6.98",
+            "polygon": [
+              1341,
+              780,
+              1457,
+              781,
+              1456,
+              841,
+              1340,
+              840
+            ],
+            "spans": [
+              {
+                "offset": 208,
+                "length": 4
+              }
+            ]
+          },
+          {
+            "content": "$6.99 1mt 4, $8.49 ea",
+            "polygon": [
+              289,
+              900,
+              901,
+              910,
+              900,
+              975,
+              288,
+              966
+            ],
+            "spans": [
+              {
+                "offset": 213,
+                "length": 21
+              }
+            ]
+          },
+          {
+            "content": "1 @ $6.99 ea",
+            "polygon": [
+              293,
+              975,
+              638,
+              980,
+              637,
+              1039,
+              293,
+              1035
+            ],
+            "spans": [
+              {
+                "offset": 235,
+                "length": 12
+              }
+            ]
+          },
+          {
+            "content": "6.99",
+            "polygon": [
+              1333,
+              993,
+              1451,
+              993,
+              1451,
+              1050,
+              1333,
+              1050
+            ],
+            "spans": [
+              {
+                "offset": 248,
+                "length": 4
+              }
+            ]
+          },
+          {
+            "content": "885002500002 UFC COCONUT WTR MRJ",
+            "polygon": [
+              230,
+              1044,
+              1186,
+              1056,
+              1185,
+              1118,
+              229,
+              1105
+            ],
+            "spans": [
+              {
+                "offset": 253,
+                "length": 32
+              }
+            ]
+          },
+          {
+            "content": "$2.99 1mt 4, $3.89 ea",
+            "polygon": [
+              289,
+              1116,
+              899,
+              1125,
+              898,
+              1188,
+              288,
+              1180
+            ],
+            "spans": [
+              {
+                "offset": 286,
+                "length": 21
+              }
+            ]
+          },
+          {
+            "content": "2 @ $2.99 ea",
+            "polygon": [
+              287,
+              1189,
+              636,
+              1194,
+              635,
+              1253,
+              286,
+              1249
+            ],
+            "spans": [
+              {
+                "offset": 308,
+                "length": 12
+              }
+            ]
+          },
+          {
+            "content": "5.98",
+            "polygon": [
+              1336,
+              1200,
+              1453,
+              1201,
+              1453,
+              1260,
+              1335,
+              1259
+            ],
+            "spans": [
+              {
+                "offset": 321,
+                "length": 4
+              }
+            ]
+          },
+          {
+            "content": "DEPOSIT 1",
+            "polygon": [
+              283,
+              1259,
+              548,
+              1263,
+              547,
+              1321,
+              282,
+              1317
+            ],
+            "spans": [
+              {
+                "offset": 326,
+                "length": 9
+              }
+            ]
+          },
+          {
+            "content": "2@$0.10",
+            "polygon": [
+              285,
+              1331,
+              492,
+              1334,
+              491,
+              1392,
+              285,
+              1389
+            ],
+            "spans": [
+              {
+                "offset": 336,
+                "length": 7
+              }
+            ]
+          },
+          {
+            "content": "0.20",
+            "polygon": [
+              1333,
+              1342,
+              1453,
+              1343,
+              1452,
+              1401,
+              1332,
+              1399
+            ],
+            "spans": [
+              {
+                "offset": 344,
+                "length": 4
+              }
+            ]
+          },
+          {
+            "content": "22-DAIRY",
+            "polygon": [
+              161,
+              1401,
+              400,
+              1402,
+              400,
+              1461,
+              161,
+              1460
+            ],
+            "spans": [
+              {
+                "offset": 349,
+                "length": 8
+              }
+            ]
+          },
+          {
+            "content": "06038313741 XTRA OLD WHT CHD MRJ",
+            "polygon": [
+              220,
+              1472,
+              1186,
+              1479,
+              1186,
+              1542,
+              220,
+              1534
+            ],
+            "spans": [
+              {
+                "offset": 358,
+                "length": 32
+              }
+            ]
+          },
+          {
+            "content": "$5.79 1mt 2, $6.99 ea",
+            "polygon": [
+              278,
+              1543,
+              895,
+              1550,
+              894,
+              1612,
+              278,
+              1606
+            ],
+            "spans": [
+              {
+                "offset": 391,
+                "length": 21
+              }
+            ]
+          },
+          {
+            "content": "1 @ $5.79 ea",
+            "polygon": [
+              280,
+              1616,
+              629,
+              1620,
+              628,
+              1681,
+              279,
+              1678
+            ],
+            "spans": [
+              {
+                "offset": 413,
+                "length": 12
+              }
+            ]
+          },
+          {
+            "content": "5.79",
+            "polygon": [
+              1337,
+              1629,
+              1455,
+              1629,
+              1455,
+              1690,
+              1336,
+              1689
+            ],
+            "spans": [
+              {
+                "offset": 426,
+                "length": 4
+              }
+            ]
+          },
+          {
+            "content": "23-FROZEN",
+            "polygon": [
+              150,
+              1689,
+              421,
+              1689,
+              420,
+              1749,
+              150,
+              1749
+            ],
+            "spans": [
+              {
+                "offset": 431,
+                "length": 9
+              }
+            ]
+          },
+          {
+            "content": "05693690706 CHMO RST GRL PRG MRJ",
+            "polygon": [
+              209,
+              1760,
+              1187,
+              1766,
+              1186,
+              1831,
+              209,
+              1822
+            ],
+            "spans": [
+              {
+                "offset": 441,
+                "length": 32
+              }
+            ]
+          },
+          {
+            "content": "$2.99 1mt 1, $3.79 ea",
+            "polygon": [
+              267,
+              1833,
+              891,
+              1839,
+              890,
+              1902,
+              267,
+              1897
+            ],
+            "spans": [
+              {
+                "offset": 474,
+                "length": 21
+              }
+            ]
+          },
+          {
+            "content": "1 @ $2.99 ea",
+            "polygon": [
+              269,
+              1908,
+              622,
+              1912,
+              622,
+              1974,
+              268,
+              1970
+            ],
+            "spans": [
+              {
+                "offset": 496,
+                "length": 12
+              }
+            ]
+          },
+          {
+            "content": "2.99",
+            "polygon": [
+              1338,
+              1923,
+              1461,
+              1924,
+              1461,
+              1985,
+              1338,
+              1984
+            ],
+            "spans": [
+              {
+                "offset": 509,
+                "length": 4
+              }
+            ]
+          },
+          {
+            "content": "25-NATURAL FOODS",
+            "polygon": [
+              138,
+              1981,
+              624,
+              1982,
+              623,
+              2045,
+              138,
+              2044
+            ],
+            "spans": [
+              {
+                "offset": 514,
+                "length": 16
+              }
+            ]
+          },
+          {
+            "content": "(2)06038320688 PCO BR SPROUTS MRJ",
+            "polygon": [
+              199,
+              2054,
+              1217,
+              2062,
+              1217,
+              2129,
+              198,
+              2121
+            ],
+            "spans": [
+              {
+                "offset": 531,
+                "length": 33
+              }
+            ]
+          },
+          {
+            "content": "$5.49 ea or 2/$9.00",
+            "polygon": [
+              253,
+              2131,
+              830,
+              2136,
+              829,
+              2201,
+              253,
+              2197
+            ],
+            "spans": [
+              {
+                "offset": 565,
+                "length": 19
+              }
+            ]
+          },
+          {
+            "content": "2 @ 2/$9. 00",
+            "polygon": [
+              251,
+              2208,
+              588,
+              2210,
+              587,
+              2275,
+              250,
+              2273
+            ],
+            "spans": [
+              {
+                "offset": 585,
+                "length": 12
+              }
+            ]
+          },
+          {
+            "content": "9.00",
+            "polygon": [
+              1342,
+              2226,
+              1467,
+              2228,
+              1466,
+              2290,
+              1341,
+              2288
+            ],
+            "spans": [
+              {
+                "offset": 598,
+                "length": 4
+              }
+            ]
+          },
+          {
+            "content": "34-BAKERY COMMERCIAL",
+            "polygon": [
+              124,
+              2284,
+              733,
+              2289,
+              733,
+              2353,
+              124,
+              2348
+            ],
+            "spans": [
+              {
+                "offset": 603,
+                "length": 20
+              }
+            ]
+          },
+          {
+            "content": "(2)06038382046 PC BM BUN WG MRJ",
+            "polygon": [
+              183,
+              2360,
+              1158,
+              2368,
+              1157,
+              2438,
+              183,
+              2430
+            ],
+            "spans": [
+              {
+                "offset": 624,
+                "length": 31
+              }
+            ]
+          },
+          {
+            "content": "2 @ $4.49",
+            "polygon": [
+              239,
+              2441,
+              519,
+              2443,
+              518,
+              2510,
+              239,
+              2507
+            ],
+            "spans": [
+              {
+                "offset": 656,
+                "length": 9
+              }
+            ]
+          },
+          {
+            "content": "8.98",
+            "polygon": [
+              1344,
+              2455,
+              1469,
+              2456,
+              1468,
+              2518,
+              1344,
+              2517
+            ],
+            "spans": [
+              {
+                "offset": 666,
+                "length": 4
+              }
+            ]
+          },
+          {
+            "content": "SUBTOTAL",
+            "polygon": [
+              112,
+              2514,
+              599,
+              2523,
+              598,
+              2588,
+              110,
+              2579
+            ],
+            "spans": [
+              {
+                "offset": 671,
+                "length": 8
+              }
+            ]
+          },
+          {
+            "content": "46.91",
+            "polygon": [
+              1166,
+              2532,
+              1458,
+              2532,
+              1458,
+              2599,
+              1166,
+              2599
+            ],
+            "spans": [
+              {
+                "offset": 680,
+                "length": 5
+              }
+            ]
+          },
+          {
+            "content": "TOTAL",
+            "polygon": [
+              107,
+              2669,
+              408,
+              2678,
+              406,
+              2745,
+              105,
+              2736
+            ],
+            "spans": [
+              {
+                "offset": 686,
+                "length": 5
+              }
+            ]
+          },
+          {
+            "content": "46.91",
+            "polygon": [
+              1168,
+              2691,
+              1465,
+              2693,
+              1464,
+              2761,
+              1167,
+              2759
+            ],
+            "spans": [
+              {
+                "offset": 692,
+                "length": 5
+              }
+            ]
+          }
+        ],
+        "spans": [
+          {
+            "offset": 0,
+            "length": 697
+          }
+        ]
+      }
+    ],
+    "styles": [],
+    "documents": [
+      {
+        "docType": "receipt.retailMeal",
+        "boundingRegions": [
+          {
+            "pageNumber": 1,
+            "polygon": [
+              0,
+              0,
+              1563,
+              0,
+              1563,
+              2811,
+              0,
+              2811
+            ]
+          }
+        ],
+        "fields": {
+          "CountryRegion": {
+            "type": "countryRegion",
+            "valueCountryRegion": "CAN",
+            "confidence": 0.995
+          },
+          "Items": {
+            "type": "array",
+            "valueArray": [
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "TT SEWD SHTS",
+                    "content": "TT SEWD SHTS",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          674,
+                          689,
+                          1022,
+                          695,
+                          1021,
+                          761,
+                          673,
+                          754
+                        ]
+                      }
+                    ],
+                    "confidence": 0.98,
+                    "spans": [
+                      {
+                        "offset": 148,
+                        "length": 12
+                      }
+                    ]
+                  },
+                  "Price": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "currencySymbol": "$",
+                      "amount": 3.49,
+                      "currencyCode": "CAD"
+                    },
+                    "content": "$3.49",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          413,
+                          761,
+                          558,
+                          764,
+                          558,
+                          825,
+                          412,
+                          822
+                        ]
+                      }
+                    ],
+                    "confidence": 0.983,
+                    "spans": [
+                      {
+                        "offset": 169,
+                        "length": 5
+                      }
+                    ]
+                  },
+                  "ProductCode": {
+                    "type": "string",
+                    "valueString": "(2)77670325840",
+                    "content": "(2)77670325840",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          232,
+                          681,
+                          643,
+                          689,
+                          642,
+                          754,
+                          232,
+                          748
+                        ]
+                      }
+                    ],
+                    "confidence": 0.963,
+                    "spans": [
+                      {
+                        "offset": 133,
+                        "length": 14
+                      }
+                    ]
+                  },
+                  "Quantity": {
+                    "type": "number",
+                    "valueNumber": 2,
+                    "content": "2",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          290,
+                          759,
+                          319,
+                          759,
+                          318,
+                          820,
+                          289,
+                          819
+                        ]
+                      }
+                    ],
+                    "confidence": 0.983,
+                    "spans": [
+                      {
+                        "offset": 165,
+                        "length": 1
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "amount": 6.98,
+                      "currencyCode": "CAD"
+                    },
+                    "content": "6.98",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          1341,
+                          780,
+                          1457,
+                          782,
+                          1457,
+                          841,
+                          1341,
+                          840
+                        ]
+                      }
+                    ],
+                    "confidence": 0.986,
+                    "spans": [
+                      {
+                        "offset": 208,
+                        "length": 4
+                      }
+                    ]
+                  }
+                },
+                "content": "(2)77670325840 TT SEWD SHTS MRJ\n2 @ $3.49\n6.98",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      232,
+                      681,
+                      1459,
+                      702,
+                      1457,
+                      842,
+                      230,
+                      821
+                    ]
+                  }
+                ],
+                "confidence": 0.975,
+                "spans": [
+                  {
+                    "offset": 133,
+                    "length": 41
+                  },
+                  {
+                    "offset": 208,
+                    "length": 4
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "MINATSU BKWHT N",
+                    "content": "MINATSU BKWHT N",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          612,
+                          833,
+                          1045,
+                          842,
+                          1044,
+                          906,
+                          611,
+                          897
+                        ]
+                      }
+                    ],
+                    "confidence": 0.98,
+                    "spans": [
+                      {
+                        "offset": 188,
+                        "length": 15
+                      }
+                    ]
+                  },
+                  "Price": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "currencySymbol": "$",
+                      "amount": 6.99,
+                      "currencyCode": "CAD"
+                    },
+                    "content": "$6.99 ea",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          412,
+                          976,
+                          639,
+                          981,
+                          638,
+                          1042,
+                          411,
+                          1037
+                        ]
+                      }
+                    ],
+                    "confidence": 0.98,
+                    "spans": [
+                      {
+                        "offset": 239,
+                        "length": 8
+                      }
+                    ]
+                  },
+                  "ProductCode": {
+                    "type": "string",
+                    "valueString": "880100556051",
+                    "content": "880100556051",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          229,
+                          828,
+                          582,
+                          834,
+                          581,
+                          896,
+                          229,
+                          889
+                        ]
+                      }
+                    ],
+                    "confidence": 0.963,
+                    "spans": [
+                      {
+                        "offset": 175,
+                        "length": 12
+                      }
+                    ]
+                  },
+                  "Quantity": {
+                    "type": "number",
+                    "valueNumber": 1,
+                    "content": "1",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          293,
+                          975,
+                          306,
+                          975,
+                          306,
+                          1036,
+                          293,
+                          1036
+                        ]
+                      }
+                    ],
+                    "confidence": 0.983,
+                    "spans": [
+                      {
+                        "offset": 235,
+                        "length": 1
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "amount": 6.99,
+                      "currencyCode": "CAD"
+                    },
+                    "content": "6.99",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          1333,
+                          993,
+                          1452,
+                          994,
+                          1452,
+                          1050,
+                          1333,
+                          1050
+                        ]
+                      }
+                    ],
+                    "confidence": 0.986,
+                    "spans": [
+                      {
+                        "offset": 248,
+                        "length": 4
+                      }
+                    ]
+                  }
+                },
+                "content": "880100556051 MINATSU BKWHT N MRJ\n$6.99 1mt 4, $8.49 ea\n1 @ $6.99 ea\n6.99",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      229,
+                      827,
+                      1456,
+                      849,
+                      1452,
+                      1057,
+                      225,
+                      1035
+                    ]
+                  }
+                ],
+                "confidence": 0.955,
+                "spans": [
+                  {
+                    "offset": 175,
+                    "length": 32
+                  },
+                  {
+                    "offset": 213,
+                    "length": 39
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "UFC COCONUT WTR",
+                    "content": "UFC COCONUT WTR",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          610,
+                          1049,
+                          1041,
+                          1054,
+                          1040,
+                          1117,
+                          609,
+                          1112
+                        ]
+                      }
+                    ],
+                    "confidence": 0.98,
+                    "spans": [
+                      {
+                        "offset": 266,
+                        "length": 15
+                      }
+                    ]
+                  },
+                  "Price": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "currencySymbol": "$",
+                      "amount": 2.99,
+                      "currencyCode": "CAD"
+                    },
+                    "content": "$2.99 ea",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          409,
+                          1191,
+                          637,
+                          1193,
+                          636,
+                          1254,
+                          408,
+                          1251
+                        ]
+                      }
+                    ],
+                    "confidence": 0.98,
+                    "spans": [
+                      {
+                        "offset": 312,
+                        "length": 8
+                      }
+                    ]
+                  },
+                  "ProductCode": {
+                    "type": "string",
+                    "valueString": "885002500002",
+                    "content": "885002500002",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          230,
+                          1044,
+                          580,
+                          1049,
+                          580,
+                          1110,
+                          229,
+                          1106
+                        ]
+                      }
+                    ],
+                    "confidence": 0.963,
+                    "spans": [
+                      {
+                        "offset": 253,
+                        "length": 12
+                      }
+                    ]
+                  },
+                  "Quantity": {
+                    "type": "number",
+                    "valueNumber": 2,
+                    "content": "2",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          287,
+                          1189,
+                          316,
+                          1190,
+                          315,
+                          1250,
+                          287,
+                          1249
+                        ]
+                      }
+                    ],
+                    "confidence": 0.983,
+                    "spans": [
+                      {
+                        "offset": 308,
+                        "length": 1
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "amount": 5.98,
+                      "currencyCode": "CAD"
+                    },
+                    "content": "5.98",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          1336,
+                          1200,
+                          1454,
+                          1202,
+                          1454,
+                          1260,
+                          1336,
+                          1259
+                        ]
+                      }
+                    ],
+                    "confidence": 0.986,
+                    "spans": [
+                      {
+                        "offset": 321,
+                        "length": 4
+                      }
+                    ]
+                  }
+                },
+                "content": "885002500002 UFC COCONUT WTR MRJ\n$2.99 1mt 4, $3.89 ea\n2 @ $2.99 ea\n5.98\nDEPOSIT 1\n2@$0.10\n0.20",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      230,
+                      1044,
+                      1457,
+                      1059,
+                      1453,
+                      1405,
+                      225,
+                      1389
+                    ]
+                  }
+                ],
+                "confidence": 0.937,
+                "spans": [
+                  {
+                    "offset": 253,
+                    "length": 95
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "XTRA OLD WHT CHD",
+                    "content": "XTRA OLD WHT CHD",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          575,
+                          1472,
+                          1039,
+                          1478,
+                          1038,
+                          1543,
+                          574,
+                          1537
+                        ]
+                      }
+                    ],
+                    "confidence": 0.978,
+                    "spans": [
+                      {
+                        "offset": 370,
+                        "length": 16
+                      }
+                    ]
+                  },
+                  "Price": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "currencySymbol": "$",
+                      "amount": 5.79,
+                      "currencyCode": "CAD"
+                    },
+                    "content": "$5.79 ea",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          396,
+                          1616,
+                          630,
+                          1620,
+                          629,
+                          1684,
+                          395,
+                          1680
+                        ]
+                      }
+                    ],
+                    "confidence": 0.98,
+                    "spans": [
+                      {
+                        "offset": 417,
+                        "length": 8
+                      }
+                    ]
+                  },
+                  "ProductCode": {
+                    "type": "string",
+                    "valueString": "06038313741",
+                    "content": "06038313741",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          220,
+                          1472,
+                          537,
+                          1474,
+                          537,
+                          1537,
+                          220,
+                          1533
+                        ]
+                      }
+                    ],
+                    "confidence": 0.963,
+                    "spans": [
+                      {
+                        "offset": 358,
+                        "length": 11
+                      }
+                    ]
+                  },
+                  "Quantity": {
+                    "type": "number",
+                    "valueNumber": 1,
+                    "content": "1",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          280,
+                          1617,
+                          297,
+                          1617,
+                          297,
+                          1679,
+                          279,
+                          1679
+                        ]
+                      }
+                    ],
+                    "confidence": 0.983,
+                    "spans": [
+                      {
+                        "offset": 413,
+                        "length": 1
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "amount": 5.79,
+                      "currencyCode": "CAD"
+                    },
+                    "content": "5.79",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          1337,
+                          1629,
+                          1455,
+                          1631,
+                          1455,
+                          1691,
+                          1337,
+                          1689
+                        ]
+                      }
+                    ],
+                    "confidence": 0.986,
+                    "spans": [
+                      {
+                        "offset": 426,
+                        "length": 4
+                      }
+                    ]
+                  }
+                },
+                "content": "06038313741 XTRA OLD WHT CHD MRJ\n$5.79 1mt 2, $6.99 ea\n1 @ $5.79 ea\n5.79",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      220,
+                      1469,
+                      1457,
+                      1482,
+                      1455,
+                      1691,
+                      218,
+                      1678
+                    ]
+                  }
+                ],
+                "confidence": 0.952,
+                "spans": [
+                  {
+                    "offset": 358,
+                    "length": 72
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "CHMO RST GRL PRG",
+                    "content": "CHMO RST GRL PRG",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          568,
+                          1759,
+                          1037,
+                          1765,
+                          1036,
+                          1832,
+                          567,
+                          1826
+                        ]
+                      }
+                    ],
+                    "confidence": 0.979,
+                    "spans": [
+                      {
+                        "offset": 453,
+                        "length": 16
+                      }
+                    ]
+                  },
+                  "Price": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "currencySymbol": "$",
+                      "amount": 2.99,
+                      "currencyCode": "CAD"
+                    },
+                    "content": "$2.99 ea",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          389,
+                          1909,
+                          623,
+                          1913,
+                          622,
+                          1976,
+                          388,
+                          1972
+                        ]
+                      }
+                    ],
+                    "confidence": 0.98,
+                    "spans": [
+                      {
+                        "offset": 500,
+                        "length": 8
+                      }
+                    ]
+                  },
+                  "ProductCode": {
+                    "type": "string",
+                    "valueString": "05693690706",
+                    "content": "05693690706",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          209,
+                          1761,
+                          537,
+                          1762,
+                          536,
+                          1826,
+                          209,
+                          1823
+                        ]
+                      }
+                    ],
+                    "confidence": 0.963,
+                    "spans": [
+                      {
+                        "offset": 441,
+                        "length": 11
+                      }
+                    ]
+                  },
+                  "Quantity": {
+                    "type": "number",
+                    "valueNumber": 1,
+                    "content": "1",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          269,
+                          1909,
+                          286,
+                          1909,
+                          286,
+                          1971,
+                          269,
+                          1971
+                        ]
+                      }
+                    ],
+                    "confidence": 0.983,
+                    "spans": [
+                      {
+                        "offset": 496,
+                        "length": 1
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "amount": 2.99,
+                      "currencyCode": "CAD"
+                    },
+                    "content": "2.99",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          1338,
+                          1923,
+                          1461,
+                          1924,
+                          1461,
+                          1986,
+                          1338,
+                          1984
+                        ]
+                      }
+                    ],
+                    "confidence": 0.986,
+                    "spans": [
+                      {
+                        "offset": 509,
+                        "length": 4
+                      }
+                    ]
+                  }
+                },
+                "content": "05693690706 CHMO RST GRL PRG MRJ\n$2.99 1mt 1, $3.79 ea\n1 @ $2.99 ea\n2.99",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      209,
+                      1756,
+                      1463,
+                      1770,
+                      1461,
+                      1986,
+                      207,
+                      1972
+                    ]
+                  }
+                ],
+                "confidence": 0.953,
+                "spans": [
+                  {
+                    "offset": 441,
+                    "length": 72
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "PCO BR SPROUTS",
+                    "content": "PCO BR SPROUTS",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          650,
+                          2056,
+                          1066,
+                          2061,
+                          1065,
+                          2129,
+                          649,
+                          2124
+                        ]
+                      }
+                    ],
+                    "confidence": 0.98,
+                    "spans": [
+                      {
+                        "offset": 546,
+                        "length": 14
+                      }
+                    ]
+                  },
+                  "Price": {
+                    "type": "currency",
+                    "content": "2/$9. 00",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          376,
+                          2209,
+                          589,
+                          2211,
+                          588,
+                          2276,
+                          375,
+                          2274
+                        ]
+                      }
+                    ],
+                    "confidence": 0.98,
+                    "spans": [
+                      {
+                        "offset": 589,
+                        "length": 8
+                      }
+                    ]
+                  },
+                  "ProductCode": {
+                    "type": "string",
+                    "valueString": "(2)06038320688",
+                    "content": "(2)06038320688",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          199,
+                          2055,
+                          619,
+                          2058,
+                          619,
+                          2123,
+                          198,
+                          2122
+                        ]
+                      }
+                    ],
+                    "confidence": 0.963,
+                    "spans": [
+                      {
+                        "offset": 531,
+                        "length": 14
+                      }
+                    ]
+                  },
+                  "Quantity": {
+                    "type": "number",
+                    "valueNumber": 2,
+                    "content": "2",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          251,
+                          2208,
+                          280,
+                          2209,
+                          280,
+                          2273,
+                          250,
+                          2272
+                        ]
+                      }
+                    ],
+                    "confidence": 0.983,
+                    "spans": [
+                      {
+                        "offset": 585,
+                        "length": 1
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "amount": 9,
+                      "currencyCode": "CAD"
+                    },
+                    "content": "9.00",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          1342,
+                          2226,
+                          1467,
+                          2228,
+                          1467,
+                          2290,
+                          1342,
+                          2289
+                        ]
+                      }
+                    ],
+                    "confidence": 0.986,
+                    "spans": [
+                      {
+                        "offset": 598,
+                        "length": 4
+                      }
+                    ]
+                  }
+                },
+                "content": "(2)06038320688 PCO BR SPROUTS MRJ\n$5.49 ea or 2/$9.00\n2 @ 2/$9. 00\n9.00",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      199,
+                      2051,
+                      1470,
+                      2066,
+                      1467,
+                      2290,
+                      196,
+                      2276
+                    ]
+                  }
+                ],
+                "confidence": 0.961,
+                "spans": [
+                  {
+                    "offset": 531,
+                    "length": 71
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "PC BM BUN WG",
+                    "content": "PC BM BUN WG",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          642,
+                          2364,
+                          1005,
+                          2370,
+                          1004,
+                          2440,
+                          641,
+                          2434
+                        ]
+                      }
+                    ],
+                    "confidence": 0.979,
+                    "spans": [
+                      {
+                        "offset": 639,
+                        "length": 12
+                      }
+                    ]
+                  },
+                  "Price": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "currencySymbol": "$",
+                      "amount": 4.49,
+                      "currencyCode": "CAD"
+                    },
+                    "content": "$4.49",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          366,
+                          2442,
+                          519,
+                          2444,
+                          519,
+                          2510,
+                          365,
+                          2509
+                        ]
+                      }
+                    ],
+                    "confidence": 0.983,
+                    "spans": [
+                      {
+                        "offset": 660,
+                        "length": 5
+                      }
+                    ]
+                  },
+                  "ProductCode": {
+                    "type": "string",
+                    "valueString": "(2)06038382046",
+                    "content": "(2)06038382046",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          183,
+                          2361,
+                          610,
+                          2365,
+                          610,
+                          2433,
+                          183,
+                          2431
+                        ]
+                      }
+                    ],
+                    "confidence": 0.962,
+                    "spans": [
+                      {
+                        "offset": 624,
+                        "length": 14
+                      }
+                    ]
+                  },
+                  "Quantity": {
+                    "type": "number",
+                    "valueNumber": 2,
+                    "content": "2",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          239,
+                          2442,
+                          270,
+                          2442,
+                          269,
+                          2507,
+                          239,
+                          2506
+                        ]
+                      }
+                    ],
+                    "confidence": 0.983,
+                    "spans": [
+                      {
+                        "offset": 656,
+                        "length": 1
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "amount": 8.98,
+                      "currencyCode": "CAD"
+                    },
+                    "content": "8.98",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          1344,
+                          2455,
+                          1469,
+                          2456,
+                          1469,
+                          2518,
+                          1345,
+                          2518
+                        ]
+                      }
+                    ],
+                    "confidence": 0.986,
+                    "spans": [
+                      {
+                        "offset": 666,
+                        "length": 4
+                      }
+                    ]
+                  }
+                },
+                "content": "(2)06038382046 PC BM BUN WG MRJ\n2 @ $4.49\n8.98",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      183,
+                      2361,
+                      1470,
+                      2373,
+                      1469,
+                      2520,
+                      182,
+                      2507
+                    ]
+                  }
+                ],
+                "confidence": 0.972,
+                "spans": [
+                  {
+                    "offset": 624,
+                    "length": 46
+                  }
+                ]
+              }
+            ]
+          },
+          "MerchantAddress": {
+            "type": "address",
+            "content": "1301 Lougheed HWY, Coquitlam BC",
+            "boundingRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  533,
+                  244,
+                  1448,
+                  265,
+                  1446,
+                  334,
+                  531,
+                  313
+                ]
+              }
+            ],
+            "confidence": 0.984,
+            "spans": [
+              {
+                "offset": 38,
+                "length": 31
+              }
+            ],
+            "valueAddress": {
+              "houseNumber": "1301",
+              "road": "Lougheed HWY",
+              "city": "Coquitlam",
+              "state": "BC",
+              "streetAddress": "1301 Lougheed HWY"
+            }
+          },
+          "MerchantName": {
+            "type": "string",
+            "valueString": "REAL CANADIAN®\nSUPERSTORE",
+            "content": "REAL CANADIAN®\nSUPERSTORE",
+            "boundingRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  551,
+                  7,
+                  1277,
+                  27,
+                  1273,
+                  185,
+                  547,
+                  165
+                ]
+              }
+            ],
+            "confidence": 0.94,
+            "spans": [
+              {
+                "offset": 0,
+                "length": 25
+              }
+            ]
+          },
+          "MerchantPhoneNumber": {
+            "type": "phoneNumber",
+            "valuePhoneNumber": "+16045208339",
+            "content": "(604) 520-8339",
+            "boundingRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  169,
+                  307,
+                  588,
+                  315,
+                  587,
+                  385,
+                  168,
+                  377
+                ]
+              }
+            ],
+            "confidence": 0.985,
+            "spans": [
+              {
+                "offset": 70,
+                "length": 14
+              }
+            ]
+          },
+          "ReceiptType": {
+            "type": "string",
+            "valueString": "Supplies",
+            "confidence": 0.972
+          },
+          "Subtotal": {
+            "type": "currency",
+            "valueCurrency": {
+              "amount": 46.91,
+              "currencyCode": "CAD"
+            },
+            "content": "46.91",
+            "boundingRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1166,
+                  2532,
+                  1458,
+                  2532,
+                  1458,
+                  2600,
+                  1166,
+                  2600
+                ]
+              }
+            ],
+            "confidence": 0.983,
+            "spans": [
+              {
+                "offset": 680,
+                "length": 5
+              }
+            ]
+          },
+          "Total": {
+            "type": "currency",
+            "valueCurrency": {
+              "amount": 46.91,
+              "currencyCode": "CAD"
+            },
+            "content": "46.91",
+            "boundingRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1168,
+                  2691,
+                  1465,
+                  2693,
+                  1465,
+                  2761,
+                  1167,
+                  2759
+                ]
+              }
+            ],
+            "confidence": 0.983,
+            "spans": [
+              {
+                "offset": 692,
+                "length": 5
+              }
+            ]
+          }
+        },
+        "confidence": 0.972,
+        "spans": [
+          {
+            "offset": 0,
+            "length": 697
+          }
+        ]
+      }
+    ],
+    "contentFormat": "text"
+  }
+}

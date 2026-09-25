@@ -12,7 +12,6 @@ import {
   editable,
   saveProcessingDraft,
   deleteDraft,
-  normalizeReceiptPhoto,
   requireMember,
   readDraft,
   listDrafts,
@@ -20,6 +19,7 @@ import {
   photoBytes,
   initializeDraft,
 } from "./receipt-drafts.js";
+import { normalizeReceiptPhoto } from "./receipt-photo.js";
 import { startReceiptModel } from "./receipt-reading.js";
 import { type ReceiptExtractor } from "./receipt-extraction.js";
 import { azureExtract } from "./azure-receipt.js";

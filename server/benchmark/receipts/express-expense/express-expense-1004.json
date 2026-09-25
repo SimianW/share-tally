@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "id": "express-expense-1004",
+  "currency": "USD",
+  "currencyExponent": 2,
+  "country": "US",
+  "region": "CA",
+  "merchant": "Golden Bowl Teriyaki",
+  "items": [
+    {
+      "id": "item-001",
+      "description": "#1 CHKN PLATE",
+      "productCode": null,
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 939,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-002",
+      "description": "+ AVOCADO",
+      "productCode": null,
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 195,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-003",
+      "description": "MD. DRINK",
+      "productCode": null,
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 229,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    }
+  ],
+  "receiptDiscounts": [],
+  "subtotal": 1363,
+  "subtotalBasis": "derived-items",
+  "taxLines": [
+    {
+      "label": "TAX",
+      "rate": null,
+      "rateBasis": "unprinted",
+      "amount": 140
+    }
+  ],
+  "taxTotal": 140,
+  "taxMode": "exclusive",
+  "charges": [],
+  "rounding": 0,
+  "total": 1503,
+  "taxability": [
+    {
+      "itemId": "item-001",
+      "taxable": true,
+      "basis": "printed-tax",
+      "evidence": "Printed positive tax 1.40 on full restaurant-food subtotal 13.63; this item participates in the taxed order.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-002",
+      "taxable": true,
+      "basis": "printed-tax",
+      "evidence": "Printed positive tax 1.40 on full restaurant-food subtotal 13.63; this item participates in the taxed order.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-003",
+      "taxable": true,
+      "basis": "printed-tax",
+      "evidence": "Printed positive tax 1.40 on full restaurant-food subtotal 13.63; this item participates in the taxed order.",
+      "sourceUrls": []
+    }
+  ],
+  "notes": [
+    "Printed subtotal is absent: 9.39 + 1.95 + 2.29 = 13.63; printed 1.40 tax and 15.03 total reconcile."
+  ],
+  "review": {
+    "method": "manual visual transcription with arithmetic reconciliation",
+    "date": "2026-09-24"
+  }
+}
