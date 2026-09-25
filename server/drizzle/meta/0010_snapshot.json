@@ -54,7 +54,7 @@
           "name": "tax_cents",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "discount_cents": {
           "name": "discount_cents",
@@ -66,7 +66,7 @@
           "name": "extra_cents",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "final_cents": {
           "name": "final_cents",
@@ -88,6 +88,18 @@
         },
         "allocated_discount_cents": {
           "name": "allocated_discount_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "frozen_discount_weight_cents": {
+          "name": "frozen_discount_weight_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "frozen_net_weight_cents": {
+          "name": "frozen_net_weight_cents",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
