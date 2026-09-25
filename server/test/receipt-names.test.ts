@@ -32,11 +32,16 @@ test("model request sends structured receipt evidence without images and only as
     assert.ok(init?.signal);
     const body = JSON.parse(String(init?.body));
     assert.equal(body.model, "model-from-env");
-    assert.deepEqual(body.reasoning, { effort: "medium" });
+    assert.deepEqual(body.reasoning, { effort: "low" });
     assert.equal(body.store, false);
     assert.equal(body.text.format.type, "json_schema");
     assert.deepEqual(body.text.format.schema.properties.items.items.required, ["id", "name", "taxable"]);
     assert.equal(body.text.format.schema.properties.items.items.additionalProperties, false);
+    // Only this request's IDs, exactly once each by count, can be returned.
+    assert.equal(body.text.format.strict, true);
+    assert.deepEqual(new Set(body.text.format.schema.properties.items.items.properties.id.enum), new Set(["a", "b"]));
+    assert.equal(body.text.format.schema.properties.items.minItems, 2);
+    assert.equal(body.text.format.schema.properties.items.maxItems, 2);
     assert.match(body.input, /GF-table lamp\/switch-I/);
     assert.match(body.input, /T = taxable/);
     assert.match(body.input, /01123 LAMP 12.00 T/);
