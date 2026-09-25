@@ -674,7 +674,7 @@ try {
     const { draft: photoDraft } = await api(`/groups/${group.id}/receipt-drafts/${draftId}`, "alice-token", "PUT", {
       revision: 0, data, photoBase64: image.toString("base64"),
     });
-    // Evidence is produced by a scan of the already stored photo, not by photo upload.
+    // Simulate scan evidence from the stored photo; an unscanned upload has no regions.
     await api(`/groups/${group.id}/receipt-drafts/${draftId}`, "alice-token", "PUT", {
       revision: photoDraft.revision,
       data: { ...data,
