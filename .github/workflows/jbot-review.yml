@@ -88,7 +88,7 @@ jobs:
       - name: Check GLM configuration
         env:
           GLM_KEY: ${{ secrets.ZAI_API_KEY }}
-          GLM_MODEL: ${{ vars.JBOT_GLM_MODEL || 'glm-5.3' }}
+          GLM_MODEL: ${{ vars.JBOT_GLM_MODEL || 'glm-5.3-flash' }}
           GLM_BASE_URL: ${{ vars.JBOT_GLM_BASE_URL || 'https://open.bigmodel.cn/api/coding/paas/v4' }}
         shell: bash
         run: |
@@ -97,7 +97,7 @@ jobs:
             exit 1
           fi
           if [[ ! "$GLM_MODEL" =~ ^glm-[a-zA-Z0-9.-]+$ ]]; then
-            echo "::error::JBOT_GLM_MODEL must be a GLM model ID such as glm-5.3."
+            echo "::error::JBOT_GLM_MODEL must be a GLM model ID such as glm-5.3-flash."
             exit 1
           fi
           case "$GLM_BASE_URL" in
@@ -117,7 +117,7 @@ jobs:
       - name: Review with GLM Coding Plan
         uses: pgup-ai/jbot-review-action/slim@v0
         with:
-          model: openai-compatible/${{ vars.JBOT_GLM_MODEL || 'glm-5.3' }}
+          model: openai-compatible/${{ vars.JBOT_GLM_MODEL || 'glm-5.3-flash' }}
           openai-compatible-api-key: ${{ secrets.ZAI_API_KEY }}
           openai-compatible-base-url: ${{ vars.JBOT_GLM_BASE_URL || 'https://open.bigmodel.cn/api/coding/paas/v4' }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
