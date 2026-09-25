@@ -4,10 +4,13 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import type { AnalyzeResult } from "../src/azure-receipt.js";
+import { candidateRecorder as builtInCandidateRecorder } from "./candidate-recorder.js";
+import { candidateAdapter, candidateConfig } from "./candidate.js";
+import { invokeAdapter } from "./adapter.js";
 import { baselineAdapter, BASELINE_MODEL_VERSION } from "./baseline.js";
 import { loadDataset } from "./dataset.js";
 import { analyzeAzureImage, type Wait } from "./recording-provider.js";
-import { AZURE_CONFIGS, inputHash, readJson, validateAzureRecording, validateModelRecording, type AzureConfig, type ModelRecording, type ModelOutcome } from "./recordings.js";
+import { AZURE_CONFIGS, inputHash, noModelInput, readJson, validateAzureRecording, validateModelRecording, type AzureConfig, type ModelRecording, type ModelOutcome } from "./recordings.js";
 import { mapAzureAnalysis } from "./frozen-baseline/azure-receipt.js";
 import { processReceipt } from "./frozen-baseline/receipt-processing.js";
 import { buildReceiptNameRequest, parseReceiptNameResponse, receiptNameConfig } from "./frozen-baseline/receipt-names.js";
@@ -90,7 +93,12 @@ async function recordBaseline(analysis: AnalyzeResult, env: NodeJS.ProcessEnv, r
   const scanned = mapAzureAnalysis(analysis);
   let recording: ModelRecording | null = null;
   await processReceipt(scanned, async (items, _unusedConfig, _unusedRequest, context) => {
-    if (!items.length) return [];
+    if (!items.length) {
+      const input = noModelInput({ config, items, context });
+      recording = { schemaVersion: 1, version: BASELINE_MODEL_VERSION, config, input,
+        inputSha256: inputHash(input), itemIds: [], outcome: { kind: "skipped", reason: "no-items" } };
+      return [];
+    }
     const input = buildReceiptNameRequest(items, { ...config, apiKey }, context);
     const itemIds = items.map((item) => item.id);
     let outcome: ModelOutcome;
@@ -122,7 +130,7 @@ export async function recordBenchmark(options: RecordOptions): Promise<string[]>
   if (!options.confirmPaidRequests) throw new Error("Live paid requests require --confirm-paid-requests.");
   if (options.receipt && !safeId.test(options.receipt)) throw new Error("Invalid receipt ID.");
   if (options.config && !Object.hasOwn(AZURE_CONFIGS, options.config)) throw new Error("Unknown Azure configuration.");
-  const candidate = options.candidateRecorder;
+  const candidate = options.candidateRecorder ?? builtInCandidateRecorder;
   if (candidate && (!safeId.test(candidate.id) || candidate.id === baselineAdapter.id || !candidate.version || typeof candidate.record !== "function"))
     throw new Error("Candidate recorder needs a distinct filename-safe id, version and record function.");
   const env = options.env ?? process.env;
@@ -165,7 +173,7 @@ export async function recordBenchmark(options: RecordOptions): Promise<string[]>
       let expectedInput: unknown;
       let expectedItemIds: string[] = [];
       await processReceipt(mapAzureAnalysis(analysis), async (items, _config, _request, context) => {
-        expectedInput = buildReceiptNameRequest(items, { baseURL, model, apiKey }, context);
+        expectedInput = items.length ? buildReceiptNameRequest(items, { baseURL, model, apiKey }, context) : noModelInput({ config: { baseURL, model }, items, context });
         expectedItemIds = items.map((item) => item.id);
         return [];
       });
@@ -184,6 +192,13 @@ export async function recordBenchmark(options: RecordOptions): Promise<string[]>
       if (candidateExisting !== null && !options.overwrite) {
         const parsed = validateModelRecording(candidateExisting);
         if (parsed.version !== candidate.version) throw new Error("Existing candidate version differs; use --overwrite to replace.");
+        if (candidate === builtInCandidateRecorder) {
+          const { baseURL, model } = receiptNameConfig(env);
+          if (!isDeepStrictEqual(candidateConfig(parsed.config), { baseURL, model }))
+            throw new Error("Existing candidate model configuration differs; use --overwrite to replace.");
+          // Rebuild with saved IDs and validate exact wire input without contacting a provider.
+          await invokeAdapter(candidateAdapter, analysis, parsed);
+        }
       } else {
         const recorded = await candidate.record({ analysis: structuredClone(analysis), env, request });
         const envelope: ModelRecording = { schemaVersion: 1, version: candidate.version,
@@ -199,7 +214,7 @@ export async function recordBenchmark(options: RecordOptions): Promise<string[]>
   return written;
 }
 
-const usage = `OWNER-ONLY live recording (paid API traffic):\n  pnpm --dir server benchmark:record --confirm-paid-requests [--receipt ID] [--config default|locale-en|ocr-high-resolution] [--candidate-recorder PATH] [--azure-only] [--overwrite]\nWithout --azure-only, records baseline model requests too. Existing valid recordings are reused; --overwrite replaces them. Set AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT, AZURE_DOCUMENT_INTELLIGENCE_KEY, RECEIPT_NAME_BASE_URL (optional), RECEIPT_NAME_API_KEY (or OPENAI_API_KEY for default endpoint), RECEIPT_NAME_MODEL in the environment.\n`;
+const usage = `OWNER-ONLY live recording (paid API traffic):\n  pnpm --dir server benchmark:record --confirm-paid-requests [--receipt ID] [--config default|locale-en|ocr-high-resolution] [--candidate-recorder PATH] [--azure-only] [--overwrite]\nWithout --azure-only, records frozen baseline and built-in two-stage model requests too; --candidate-recorder overrides the candidate. Existing valid recordings are reused; --overwrite replaces them. Set AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT, AZURE_DOCUMENT_INTELLIGENCE_KEY, RECEIPT_NAME_BASE_URL (optional), RECEIPT_NAME_API_KEY (or OPENAI_API_KEY for default endpoint), RECEIPT_NAME_MODEL in the environment.\n`;
 async function main(args: string[]) {
   if (args.includes("--help") || args.includes("-h")) { process.stdout.write(usage); return; }
   const parsed: Record<string, string | boolean> = {};

@@ -1,13 +1,17 @@
 import { requestId } from "./request-id";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useReceiptDraftSync } from "./receipt-draft-sync";
 import { BillApiError, localToday, money, type Bill } from "./bill-api";
-import { errorMessage, type GroupDetail } from "./group-api";
+import { errorMessage, useGroupApi, type GroupDetail } from "./group-api";
+import { blockRouteNavigation, replaceRoute } from "./route";
 import {
   useReceiptApi,
   type ReceiptDraft,
   type ReceiptData,
 } from "./receipt-api";
-import { ReceiptItemEditor, ReceiptAmount } from "./ReceiptItemEditor";
+import { ReceiptAmount } from "./ReceiptAmount";
+import { ReceiptReviewItems, ReceiptSummary, ReceiptReconciliation } from "./ReceiptReview";
+import { deriveReceiptItems, recoverReceiptData } from "./receipt-pricing";
 import { ReceiptCrop, ReceiptPhoto } from "./ReceiptPhoto";
 import Dialog from "./Dialog";
 import { Notification } from "./Notification";
@@ -25,6 +29,7 @@ import {
   LockKeyhole,
 } from "lucide-react";
 import "./receipts.css";
+import "./receipt-review.css";
 
 function comparable(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(comparable).join(",")}]`;
@@ -38,6 +43,13 @@ function comparable(value: unknown): string {
         ]),
     );
   return JSON.stringify(value);
+}
+
+function hasUnsavedChanges(draft: ReceiptDraft, baseline: ReceiptDraft | null, file: File | null, loading: boolean) {
+  return !loading && !draft.initializationRevision && (
+    !!file || !!draft.pendingPhoto || !baseline ||
+    comparable(draft.data) !== comparable(baseline.data)
+  );
 }
 
 function clearDeletedDraft(id: string) {
@@ -105,23 +117,11 @@ export function ReceiptDrafts({
   const [retry, setRetry] = useState(0);
   const [deleting, setDeleting] = useState<ReceiptDraft | null>(null);
   const [busy, setBusy] = useState(false);
-  useEffect(() => {
-    let live = true;
-    api
-      .list(groupId)
-      .then((r) => {
-        if (live) {
-          setDrafts(r.drafts);
-          setError("");
-        }
-      })
-      .catch((e) => {
-        if (live) setError(errorMessage(e));
-      });
-    return () => {
-      live = false;
-    };
-  }, [api, groupId, retry]);
+  const applyDrafts = useCallback((updated: ReceiptDraft[]) => {
+    setDrafts(updated);
+    setError("");
+  }, []);
+  useReceiptDraftSync(groupId, null, applyDrafts, setError, true, retry);
   return (
     <section className="receipt-drafts">
       {drafts.length > 0 && (
@@ -142,6 +142,8 @@ export function ReceiptDrafts({
             <strong>{d.data.title || "Untitled bill"}</strong>
             <small>
               {d.data.mode === "items" ? "Split by items" : "Split by amount"}
+              {d.processingStatus === "processing" && " · Checking names and tax"}
+              {d.processingStatus === "fallback" && " · Tax not checked"}
               {d.updatedAt &&
                 ` · Saved ${new Date(d.updatedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`}
             </small>
@@ -157,6 +159,7 @@ export function ReceiptDrafts({
           <button
             className="draft-delete"
             aria-label={`Delete ${d.data.title || "untitled bill"}`}
+            disabled={d.processingStatus === "processing"}
             onClick={() => {
               setError("");
               setDeleting(d);
@@ -204,6 +207,8 @@ function emptyDraft(userId: string, id = requestId()): ReceiptDraft {
   return {
     id,
     revision: 0,
+    processingStatus: "ready",
+    processingStartedAt: null,
     data: {
       mode: "items",
       title: "",
@@ -223,6 +228,25 @@ function emptyDraft(userId: string, id = requestId()): ReceiptDraft {
       },
     },
   };
+}
+
+export function NewBillPage({ groupId, draftId }: { groupId: string; draftId?: string }) {
+  const api = useGroupApi();
+  const [group, setGroup] = useState<GroupDetail | null>(null);
+  const [error, setError] = useState("");
+  const [retry, setRetry] = useState(0);
+  useEffect(() => {
+    let live = true;
+    api.detail(groupId).then(({ group }) => {
+      if (live) { setGroup(group); setError(""); }
+    }).catch((e) => { if (live) setError(errorMessage(e)); });
+    return () => { live = false; };
+  }, [api, groupId, retry]);
+  return <section className="receipt-page">
+    {error && <Notification tone="error" title="Could not open this group"><p>{error}</p><Button onClick={() => setRetry(n => n + 1)}>Try again</Button></Notification>}
+    {!group && !error && <p role="status">Opening group…</p>}
+    {group && <ReceiptDraftForm group={group} id={draftId} close={() => { window.location.hash = `/group-bills/${groupId}`; }} created={bill => { window.location.hash = `/bills/${bill.id}`; }} />}
+  </section>;
 }
 
 export function ReceiptDraftForm({
@@ -246,7 +270,10 @@ export function ReceiptDraftForm({
   const [draft, setDraft] = useState<ReceiptDraft>(() => {
     try {
       const stored = sessionStorage.getItem(key);
-      if (stored) return JSON.parse(stored);
+      if (stored) {
+        const recovered = JSON.parse(stored) as ReceiptDraft;
+        return { ...recovered, data: recoverReceiptData(recovered.data) };
+      }
     } catch {
       /* Saved server draft remains available. */
     }
@@ -256,6 +283,7 @@ export function ReceiptDraftForm({
     id ? null : emptyDraft(me.id, draft.id),
   );
   const [discard, setDiscard] = useState(false);
+  const [leaveTo, setLeaveTo] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const recoveredDraft = useRef(draft.revision > 0 ? draft : null);
   const [loading, setLoading] = useState(!!id);
@@ -271,12 +299,10 @@ export function ReceiptDraftForm({
   useEffect(() => {
     if (loading) return;
     sessionStorage.setItem(stepKey, String(step));
-    stepHeading.current?.closest("dialog")?.scrollTo({ top: 0 });
+    window.scrollTo({ top: 0 });
     stepHeading.current?.focus({ preventScroll: true });
   }, [step, stepKey, loading]);
   const [busy, setBusy] = useState("");
-  const [naming, setNaming] = useState(false);
-  const [nameError, setNameError] = useState("");
   const cameraInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const pending = useRef(false);
@@ -286,6 +312,27 @@ export function ReceiptDraftForm({
   const [warnings, setWarnings] = useState<string[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [replace, setReplace] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [syncError, setSyncError] = useState("");
+  const applyProcessingDraft = useCallback((drafts: ReceiptDraft[]) => {
+    const latest = drafts[0];
+    if (!latest) return;
+    if (latest.processingStatus === "processing" && latest.data.mode === "items") setStep(1);
+    setDraft((current) => {
+      // Keep the original idempotent initiation revision if its response was lost.
+      if (current.initializationRevision || latest.revision <= current.revision) return current;
+      const clean = !current.pendingPhoto && baseline.current &&
+        comparable(current.data) === comparable(baseline.current.data);
+      // A scan always wins: the server rejects edits while it is processing.
+      // Otherwise preserve unrelated local edits for the normal revision conflict.
+      if (!clean && latest.processingStatus !== "processing" &&
+        current.processingStatus !== "processing") return current;
+      baseline.current = latest;
+      return latest;
+    });
+  }, []);
+  useReceiptDraftSync(group.id, draft.id, applyProcessingDraft, setSyncError,
+    draft.revision > 0 && !loading);
   useEffect(() => {
     if (!id) return;
     let live = true;
@@ -303,6 +350,9 @@ export function ReceiptDraftForm({
             const local = recoveredDraft.current;
             if (
               local?.id === r.draft.id &&
+              r.draft.processingStatus !== "processing" &&
+              local.processingStatus !== "processing" &&
+              local.revision === r.draft.revision &&
               (local.initializationRevision ||
                 comparable(local.data) !== comparable(r.draft.data) ||
                 local.pendingPhoto)
@@ -318,7 +368,9 @@ export function ReceiptDraftForm({
                   : "Recovered your local changes. The saved draft has changed elsewhere; saving will check for a conflict.",
               );
             } else setDraft(r.draft);
-            if (sessionStorage.getItem(stepKey) === null)
+            if (r.draft.processingStatus === "processing" && r.draft.data.mode === "items")
+              setStep(1);
+            else if (sessionStorage.getItem(stepKey) === null)
               setStep(
                 r.draft.data.mode === "manual"
                   ? 2
@@ -362,7 +414,11 @@ export function ReceiptDraftForm({
     }
   }
   function update(patch: Partial<ReceiptData>) {
-    setDraft((d) => ({ ...d, data: { ...d.data, ...patch } }));
+    if (draft.processingStatus === "processing") return;
+    setDraft((d) => {
+      const data = { ...d.data, ...patch };
+      return { ...d, data: data.mode === "items" ? { ...data, items: deriveReceiptItems(data) } : data };
+    });
     setNotice("Unsaved changes");
   }
   async function run(label: string, action: () => Promise<void>) {
@@ -379,96 +435,71 @@ export function ReceiptDraftForm({
       setBusy("");
     }
   }
-  async function prepare(value = draft) {
-    setDraft(value);
-    setNotice("Unsaved changes");
-    return value;
-  }
   async function save() {
     const { draft: saved } = await api.save(group.id, draft);
     setDraft(saved);
     baseline.current = saved;
     return saved;
   }
-  function closeEditor() {
+  function closeEditor(destination: string | null = null) {
     if (pending.current) return;
-    if (draft.initializationRevision) {
-      close();
-      return;
-    }
-    if (loading) {
-      close();
-      return;
-    }
-    if (
-      file ||
-      draft.pendingPhoto ||
-      !baseline.current ||
-      comparable(draft.data) !== comparable(baseline.current.data)
-    )
+    // The server read has not yet established whether local recovery differs.
+    if (loading) { close(); return; }
+    if (hasUnsavedChanges(draft, baseline.current, file, loading)) {
+      setLeaveTo(destination);
       setDiscard(true);
-    else {
+    } else {
       clearLocal();
       close();
     }
   }
-  async function scan() {
-    const current = await prepare();
-    // Persist the photo before scanning so its raw analysis is retained with it.
-    const saved = current.pendingPhoto
-      ? (await api.save(group.id, current)).draft
-      : current;
-    if (saved !== current) {
-      setDraft(saved);
-      baseline.current = saved;
-    }
-    const { extraction } = await api.previewExtract(group.id, saved);
-    await prepare({
-      ...saved,
-      data: {
-        ...saved.data,
-        mode: "items",
-        items: extraction.items,
-        receipt: extraction.receipt,
-        totalCents: extraction.totalCents,
-        title: saved.data.title || extraction.title,
-      },
+  useEffect(() => {
+    const isDirty = () => hasUnsavedChanges(draft, baseline.current, file, loading);
+    const unblock = blockRouteNavigation((destination) => {
+      if (ended.current) return false;
+      if (pending.current) return true;
+      if (loading) return false; // Preserve recovery until the server read completes.
+      if (!isDirty()) {
+        ended.current = true;
+        sessionStorage.removeItem(key);
+        return false;
+      }
+      setLeaveTo(destination);
+      setDiscard(true);
+      return true;
+    });
+    const warn = (event: BeforeUnloadEvent) => {
+      if (!isDirty()) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => { unblock(); window.removeEventListener("beforeunload", warn); };
+  }, [draft, file, key, loading]);
+  async function scan(value = draft) {
+    // Save both the draft and photo first: the saved scan owns the Azure result.
+    const { draft: saved } = await api.save(group.id, value);
+    setDraft(saved);
+    baseline.current = saved;
+    const { draft: scanned, extraction } = await api.extract(saved.id, saved.revision);
+    setDraft((current) => {
+      // Completion can arrive over the stream before the scan response.
+      if (scanned.revision < current.revision) return current;
+      baseline.current = scanned;
+      return scanned;
     });
     setWarnings(extraction.warnings);
     setReplace(false);
     setStep(1);
-    setNameError("");
-  }
-  async function nameItems(snapshot: ReceiptDraft) {
-    setNaming(true);
-    setNameError("");
-    try {
-      const result = await api.previewNames(group.id, snapshot.data);
-      if (ended.current) return;
-      setDraft((current) => ({
-        ...current,
-        data: {
-          ...current.data,
-          items: current.data.items.map((item) => {
-            const source = snapshot.data.items.find((i) => i.id === item.id);
-            const name = result.names.find((n) => n.id === item.id)?.name;
-            return source &&
-              source.name === item.name &&
-              source.originalText === item.originalText &&
-              name
-              ? { ...item, name }
-              : item;
-          }),
-        },
-      }));
-    } catch (e) {
-      setNameError(errorMessage(e));
-    } finally {
-      setNaming(false);
-    }
   }
   const data = draft.data;
+  const processing = draft.processingStatus === "processing";
   const itemTotal = data.items.reduce((sum, i) => sum + (i.finalCents ?? 0), 0);
+  const displayWarnings = (data.receipt?.taxCents ?? 0) > 0 &&
+    !data.receipt?.pricesIncludeTax && data.items.length > 0 &&
+    data.items.every((item) => item.taxable === false)
+    ? [...warnings, `Receipt tax ${money(data.receipt!.taxCents)} isn't assigned to any item — mark taxable items.`]
+    : warnings;
   const valid =
     data.totalCents !== null &&
     data.totalCents > 0 &&
@@ -484,12 +515,12 @@ export function ReceiptDraftForm({
             i.name.trim(),
         ));
   const editor = (
-    <Dialog
-      title={id ? "Continue your draft" : "New bill"}
-      kicker={group.name}
-      className="receipt-dialog receipt-wizard"
-      close={closeEditor}
-    >
+    <div className="receipt-wizard">
+      <header className="receipt-page-heading">
+        <Button variant="text" onClick={() => closeEditor()}> <ArrowLeft size={18} aria-hidden="true" /> Back to group</Button>
+        <div className="eyebrow">SHARETALLY / NEW BILL</div>
+        <h1>{id ? "Continue your draft" : "New bill"} <span>· {group.name}</span></h1>
+      </header>
       {loading ? (
         <p>Opening draft…</p>
       ) : (
@@ -498,7 +529,7 @@ export function ReceiptDraftForm({
           noValidate
           onSubmit={(e) => {
             e.preventDefault();
-            if (step !== 2 || !e.currentTarget.reportValidity()) return;
+            if (processing || step !== 2 || !e.currentTarget.reportValidity()) return;
             if (valid)
               void run("Initiating…", async () => {
                 const saved = draft.initializationRevision
@@ -520,7 +551,7 @@ export function ReceiptDraftForm({
           }}
         >
           <nav aria-label="New bill steps" className="receipt-steps">
-            {["Bring your receipt", "Check the items", "Share the bill"].map(
+            {["Receipt", "Items", "People"].map(
               (label, index) => (
                 <button
                   type="button"
@@ -529,12 +560,13 @@ export function ReceiptDraftForm({
                   disabled={
                     !!busy ||
                     !!draft.initializationRevision ||
+                    processing ||
                     (index === 1 && data.mode === "manual")
                   }
                   onClick={() => setStep(index)}
                 >
                   <span>
-                    {step > index ? (
+                    {step > index && !(index === 1 && data.mode === "manual") ? (
                       <Check size={16} aria-hidden="true" />
                     ) : (
                       `0${index + 1}`
@@ -563,7 +595,18 @@ export function ReceiptDraftForm({
               ][step]
             }
           </p>
-          <fieldset disabled={!!busy || !!draft.initializationRevision}>
+          {processing && (
+            <Notification tone="info" title="Checking names and tax">
+              Review your receipt while the tax check finishes. Editing and initiation are paused.
+            </Notification>
+          )}
+          {draft.processingStatus === "fallback" && (
+            <Notification tone="warning" title="Tax not checked">
+              The AI tax check did not finish. Please confirm which items are taxable before initiating.
+            </Notification>
+          )}
+          {syncError && processing && <p role="status">{syncError}</p>}
+          <fieldset disabled={!!busy || !!draft.initializationRevision || processing}>
             {step === 0 && (
               <>
                 <div className="receipt-source">
@@ -624,13 +667,15 @@ export function ReceiptDraftForm({
                       file={file}
                       cancel={() => setFile(null)}
                       save={async (base64) => {
-                        setDraft((current) => ({
-                          ...current,
+                        const next = {
+                          ...draft,
                           pendingPhoto: base64,
                           photo: { expiresAt: "", expired: false },
-                        }));
+                        };
+                        setDraft(next);
                         setNotice("Unsaved changes");
                         setFile(null);
+                        void run("Reading receipt…", () => scan(next));
                       }}
                     />
                   )}
@@ -708,6 +753,7 @@ export function ReceiptDraftForm({
                         version={draft.revision}
                         localPhoto={draft.pendingPhoto}
                         expired={draft.photo.expired}
+                        review
                       />
                     )}
 
@@ -748,134 +794,13 @@ export function ReceiptDraftForm({
                         )}
                       </div>
                     )}
-                    <ReceiptItemEditor
+                    <ReceiptReviewItems
                       items={data.items}
                       change={(items) => update({ items })}
-                      draftMode
+                      processing={processing}
                     />
                   </div>
                 </div>
-                <details className="receipt-adjustments">
-                  <summary>Tax, discounts & receipt adjustments</summary>
-                  {data.receipt && (
-                    <fieldset>
-                      <legend>Receipt adjustments</legend>
-                      <label className="participant-choice">
-                        <input
-                          type="checkbox"
-                          checked={data.receipt.pricesIncludeTax}
-                          onChange={(e) => {
-                            const next = {
-                              ...draft,
-                              data: {
-                                ...data,
-                                receipt: {
-                                  ...data.receipt!,
-                                  pricesIncludeTax: e.target.checked,
-                                },
-                              },
-                            };
-                            setDraft(next);
-                            void run("Calculating…", async () => {
-                              const saved = await prepare(next);
-                              const result = await api.previewPrices(
-                                group.id,
-                                saved.data,
-                              );
-                              setWarnings(result.warnings);
-                              await prepare({
-                                ...saved,
-                                data: { ...saved.data, items: result.items },
-                              });
-                            });
-                          }}
-                        />
-                        Printed prices include tax
-                      </label>
-                      {data.receipt.subtotalCents !== null && (
-                        <p>
-                          Printed subtotal: {money(data.receipt.subtotalCents)}
-                        </p>
-                      )}
-                      <div className="receipt-costs">
-                        {(
-                          ["taxCents", "discountCents", "extraCents"] as const
-                        ).map((field, i) => (
-                          <ReceiptAmount
-                            key={field}
-                            emptyAsZero
-                            label={
-                              [
-                                "Receipt tax",
-                                "Receipt discount",
-                                "Receipt other charges",
-                              ][i]
-                            }
-                            value={data.receipt![field]}
-                            signed={field === "extraCents"}
-                            change={(value) => {
-                              if (value !== null)
-                                update({
-                                  receipt: {
-                                    ...data.receipt!,
-                                    [field]: value,
-                                  },
-                                });
-                            }}
-                          />
-                        ))}
-                      </div>
-                      <p>
-                        Tax is reference only when prices include tax. Receipt
-                        adjustments are additional to item-specific entries.
-                      </p>
-                      <Button
-                        variant="secondary"
-                        onClick={() =>
-                          void run("Calculating…", async () => {
-                            const saved = await prepare();
-                            const result = await api.previewPrices(
-                              group.id,
-                              saved.data,
-                            );
-                            setWarnings(result.warnings);
-                            await prepare({
-                              ...saved,
-                              data: { ...saved.data, items: result.items },
-                            });
-                          })
-                        }
-                      >
-                        Apply adjustments to final costs
-                      </Button>
-                      <p>
-                        This calculates final costs while keeping any final
-                        costs you entered manually.
-                      </p>
-                    </fieldset>
-                  )}
-                </details>
-                {data.items.length > 0 && (
-                  <Button
-                    variant="text"
-                    disabled={naming}
-                    onClick={() =>
-                      void run("Saving…", async () => {
-                        const saved = await prepare();
-                        void nameItems(saved);
-                      })
-                    }
-                  >
-                    Retry names, replacing unchanged names
-                  </Button>
-                )}
-                {nameError && <p role="alert">{nameError}</p>}
-                {naming && (
-                  <p role="status">
-                    Interpreting product names… You can keep editing or initiate
-                    without waiting.
-                  </p>
-                )}
               </>
             )}
             {step === 2 && (
@@ -1007,7 +932,7 @@ export function ReceiptDraftForm({
               </div>
             )}
           </fieldset>
-          {warnings.map((w, i) => (
+          {displayWarnings.map((w, i) => (
             <Notification tone="warning" title="Check the receipt" key={i}>
               {w}
             </Notification>
@@ -1038,12 +963,13 @@ export function ReceiptDraftForm({
             </p>
           )}
 
-          <div className="receipt-wizard-actions">
+          <div className={`receipt-wizard-actions${step === 1 ? " receipt-review-footer" : ""}`}>
+            {step === 1 && <ReceiptReconciliation data={data} openSummary={() => setSummaryOpen(true)} />}
             <div>
               {step > 0 && (
                 <Button
                   variant="text"
-                  disabled={!!busy || !!draft.initializationRevision}
+                  disabled={!!busy || !!draft.initializationRevision || processing}
                   onClick={() =>
                     setStep(step === 2 && data.mode === "manual" ? 0 : step - 1)
                   }
@@ -1053,7 +979,7 @@ export function ReceiptDraftForm({
               )}
               <Button
                 variant="text"
-                disabled={!!busy || !!draft.initializationRevision}
+                disabled={!!busy || !!draft.initializationRevision || processing}
                 onClick={() =>
                   void run("Saving draft…", async () => {
                     await save();
@@ -1068,7 +994,7 @@ export function ReceiptDraftForm({
                 <Button
                   variant="text"
                   className="draft-delete-text"
-                  disabled={!!busy || !!draft.initializationRevision}
+                  disabled={!!busy || !!draft.initializationRevision || processing}
                   onClick={() => setDeleting(true)}
                 >
                   <Trash2 size={16} /> Delete draft
@@ -1076,12 +1002,12 @@ export function ReceiptDraftForm({
               )}
             </div>
             {step === 1 && (
-              <Button onClick={() => setStep(2)} disabled={!!busy}>
+              <Button onClick={() => setStep(2)} disabled={!!busy || processing}>
                 Continue to sharing <ArrowRight size={16} aria-hidden="true" />
               </Button>
             )}
             {step === 2 && (
-              <Button type="submit" disabled={!!busy || !valid}>
+              <Button type="submit" disabled={!!busy || !valid || processing}>
                 {draft.initializationRevision
                   ? "Retry initiation"
                   : "Initiate bill"}
@@ -1098,31 +1024,33 @@ export function ReceiptDraftForm({
           )}
         </form>
       )}
-    </Dialog>
+    </div>
   );
   return (
     <>
       {editor}
+      {summaryOpen && <ReceiptSummary data={data} disabled={!!busy || !!draft.initializationRevision || processing} change={update} close={() => setSummaryOpen(false)} />}
       {discard && (
         <Dialog
           title="Discard unsaved changes?"
           kicker="BEFORE YOU CLOSE"
-          close={() => setDiscard(false)}
+          close={() => { setDiscard(false); setLeaveTo(null); }}
         >
           <p>
-            {id
-              ? "Your last saved draft will stay as it was. Changes made since opening it will be lost."
-              : "This bill has not been saved. Its details and receipt photo will be discarded."}
+            {draft.revision > 0
+              ? "Only unsaved edits will be discarded. Your last saved draft, including its saved receipt scan and photo, will stay as it was."
+              : "This bill has not been saved. Its unsaved details and receipt photo will be discarded."}
           </p>
           <div className="dialog-actions">
-            <Button variant="secondary" onClick={() => setDiscard(false)}>
+            <Button variant="secondary" onClick={() => { setDiscard(false); setLeaveTo(null); }}>
               Keep editing
             </Button>
             <Button
               className="draft-danger"
               onClick={() => {
                 clearLocal();
-                close();
+                if (leaveTo) replaceRoute(leaveTo);
+                else close();
               }}
             >
               Discard changes

@@ -9,7 +9,9 @@ import test from "node:test";
 import { recordBenchmark, type CandidateRecorder } from "../benchmark/record.js";
 import { AZURE_CONFIGS, inputHash, validateAzureRecording, validateModelRecording } from "../benchmark/recordings.js";
 import { loadDataset } from "../benchmark/dataset.js";
-import { BASELINE_MODEL_VERSION } from "../benchmark/baseline.js";
+import { candidateAdapter, CANDIDATE_MODEL_VERSION } from "../benchmark/candidate.js";
+import { invokeAdapter } from "../benchmark/adapter.js";
+import { baselineAdapter, BASELINE_MODEL_VERSION } from "../benchmark/baseline.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../benchmark");
 const env = {
@@ -79,7 +81,7 @@ test("records all three real Azure request configurations, SHA and exact frozen 
   try {
     const calls: { url: string; init?: RequestInit }[] = [];
     const written = await recordBenchmark({ root, recordings, receipt: entry.id, confirmPaidRequests: true, env, request: mockRequest(calls), wait });
-    assert.equal(written.length, 6);
+    assert.equal(written.length, 9);
     const azureRequests = calls.filter((call) => call.url.includes(":analyze"));
     assert.equal(azureRequests.length, 3);
     for (const [config, options] of Object.entries(AZURE_CONFIGS)) {
@@ -102,6 +104,12 @@ test("records all three real Azure request configurations, SHA and exact frozen 
       assert.ok(!JSON.stringify(azure).includes(env.AZURE_DOCUMENT_INTELLIGENCE_KEY));
       const modelCall = calls.find((call) => call.url === `${env.RECEIPT_NAME_BASE_URL}/responses` && JSON.stringify(model.input) === call.init?.body);
       assert.ok(modelCall, "recorded exact HTTP body, not a synthetic reconstruction");
+      const candidate = validateModelRecording(JSON.parse(await readFile(resolve(recordings, entry.id, `${config}.model.two-stage.json`), "utf8")));
+      assert.equal(candidate.version, CANDIDATE_MODEL_VERSION);
+      assert.equal(candidate.itemIds?.length, 1);
+      assert.ok(calls.some((call) => call.init?.body === JSON.stringify(candidate.input)));
+      assert.deepEqual(candidate.outcome, { kind: "result", value: modelResponse });
+      assert.equal((await invokeAdapter(candidateAdapter, analysis, candidate)).complete, true);
     }
     const callsBeforeResume = calls.length;
     assert.deepEqual(await recordBenchmark({ root, recordings, receipt: entry.id, confirmPaidRequests: true, env, request: mockRequest(calls), wait }), []);
@@ -118,10 +126,24 @@ test("records all three real Azure request configurations, SHA and exact frozen 
       env, request: mockRequest(calls), wait }), /input differs/);
     await writeFile(modelPath, savedModel);
     assert.equal(calls.length, callsBeforeResume);
+    const candidatePath = resolve(recordings, entry.id, "default.model.two-stage.json");
+    const savedCandidate = await readFile(candidatePath, "utf8");
+    for (const change of [
+      (value: { version: string; config: { model: string }; input: { model: string }; inputSha256: string }) => { value.version = "stale"; },
+      (value: { version: string; config: { model: string }; input: { model: string }; inputSha256: string }) => { value.config.model = "other"; },
+      (value: { version: string; config: { model: string }; input: { model: string }; inputSha256: string }) => { value.input.model = "stale"; value.inputSha256 = inputHash(value.input); },
+    ]) {
+      const value = JSON.parse(savedCandidate); change(value);
+      await writeFile(candidatePath, JSON.stringify(value));
+      await assert.rejects(recordBenchmark({ root, recordings, receipt: entry.id, config: "default", confirmPaidRequests: true,
+        env, request: mockRequest(calls), wait }), /version|configuration|input drift/i);
+    }
+    await writeFile(candidatePath, savedCandidate);
+    assert.equal(calls.length, callsBeforeResume);
     await writeFile(resolve(recordings, entry.id, "default.json"), "{}\n");
     await assert.rejects(recordBenchmark({ root, recordings, receipt: entry.id, config: "default", confirmPaidRequests: true, env, request: mockRequest(calls), wait }), /invalid|expected|schema|imageSha256|request|documents/i);
     const overwrite = await recordBenchmark({ root, recordings, receipt: entry.id, config: "default", confirmPaidRequests: true, overwrite: true, env, request: mockRequest(calls), wait });
-    assert.equal(overwrite.length, 2);
+    assert.equal(overwrite.length, 3);
   } finally { await cleanup(); }
 });
 
@@ -203,5 +225,30 @@ test("sanitizes model errors and refuses secret-bearing candidate recordings", a
     } };
     await assert.rejects(recordBenchmark({ root, recordings, receipt: entry.id, config: "default", confirmPaidRequests: true,
       env, request: mockRequest(calls), candidateRecorder: signedUrl, wait }), /URL with credentials/);
+  } finally { await cleanup(); }
+});
+
+
+test("empty Azure recordings save explicit no-call markers for both pipelines and can resume without model traffic", async () => {
+  const { entry, recordings, cleanup } = await fixture();
+  const empty = { documents: [{ fields: {} }] };
+  let calls = 0;
+  const request: typeof fetch = async (url) => {
+    calls++;
+    if (String(url).includes(":analyze")) return new Response(null, { status: 202, headers: { "operation-location": "https://azure.example.test/documentintelligence/documentModels/prebuilt-receipt/analyzeResults/empty" } });
+    if (String(url).includes("analyzeResults")) return Response.json({ status: "succeeded", analyzeResult: empty });
+    throw Error("Empty production receipt must not call model");
+  };
+  try {
+    assert.equal((await recordBenchmark({ root, recordings, receipt: entry.id, config: "default", confirmPaidRequests: true, env, request, wait })).length, 3);
+    assert.equal(calls, 2);
+    for (const adapter of [baselineAdapter, candidateAdapter]) {
+      const saved = validateModelRecording(JSON.parse(await readFile(resolve(recordings, entry.id, `default.model.${adapter.id}.json`), "utf8")));
+      assert.deepEqual(saved.itemIds, []);
+      assert.deepEqual(saved.outcome, { kind: "skipped", reason: "no-items" });
+      assert.equal((await invokeAdapter(adapter, empty, saved)).complete, true);
+    }
+    assert.deepEqual(await recordBenchmark({ root, recordings, receipt: entry.id, config: "default", confirmPaidRequests: true, env, request, wait }), []);
+    assert.equal(calls, 2);
   } finally { await cleanup(); }
 });

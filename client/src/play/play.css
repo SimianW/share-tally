@@ -1,13 +1,4 @@
 .play {
-  --bg: #fafbf8;
-  --surface: #fff;
-  --ink: #273323;
-  --muted: #7b8275;
-  --line: #e8ebe3;
-  --accent: #c4f178;
-  --accent-ink: #2a4020;
-  --heading: "Nunito", sans-serif;
-  --radius: 22px;
   background: var(--bg);
   color: var(--ink);
   min-height: 100vh;
@@ -713,6 +704,7 @@ h1 {
     z-index: 10;
     display: flex;
     justify-content: space-around;
+    height: var(--app-bottom-inset);
     padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
     background: var(--surface);
     border-top: 1px solid var(--line);
@@ -726,7 +718,7 @@ h1 {
   }
   .main-content {
     width: 100%;
-    padding: 26px 20px 110px;
+    padding: 26px 20px calc(var(--app-bottom-inset) + var(--space-8));
   }
   .page-header h1 {
     font-size: 28px;

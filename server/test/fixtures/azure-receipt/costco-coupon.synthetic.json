@@ -1,0 +1,18 @@
+{
+  "_note": "SYNTHETIC Azure-shaped test input, NOT a recorded Costco response. Replace with owner's sanitized recording from #50 when available.",
+  "modelId": "prebuilt-receipt",
+  "apiVersion": "2024-11-30",
+  "content": "1234567 PAPER TOWELS 20.00\n1234567 COUPON -3.00\n8901234 COFFEE 10.00\n8901234 COUPON -2.00\nSUBTOTAL 25.00",
+  "documents": [{
+    "fields": {
+      "Items": { "type": "array", "valueArray": [
+        { "content": "1234567 PAPER TOWELS 20.00", "valueObject": { "ProductCode": { "type": "string", "valueString": "1234567" }, "Description": { "type": "string", "valueString": "PAPER TOWELS" }, "TotalPrice": { "type": "currency", "valueCurrency": { "amount": 20, "currencyCode": "CAD" } } } },
+        { "content": "1234567 COUPON -3.00", "valueObject": { "Description": { "type": "string", "valueString": "COUPON" }, "TotalPrice": { "type": "currency", "valueCurrency": { "amount": -3, "currencyCode": "CAD" } } } },
+        { "content": "8901234 COFFEE 10.00", "valueObject": { "ProductCode": { "type": "string", "valueString": "8901234" }, "Description": { "type": "string", "valueString": "COFFEE" }, "TotalPrice": { "type": "currency", "valueCurrency": { "amount": 10, "currencyCode": "CAD" } } } },
+        { "content": "8901234 COUPON -2.00", "valueObject": { "Description": { "type": "string", "valueString": "COUPON" }, "TotalPrice": { "type": "currency", "valueCurrency": { "amount": -2, "currencyCode": "CAD" } } } }
+      ] },
+      "Subtotal": { "type": "currency", "valueCurrency": { "amount": 25, "currencyCode": "CAD" } },
+      "Total": { "type": "currency", "valueCurrency": { "amount": 25, "currencyCode": "CAD" } }
+    }
+  }]
+}

@@ -12,7 +12,7 @@ Usage: pnpm benchmark [--candidate ./candidate.ts] [--json [report.json]] [--all
   --allow-incomplete   Diagnostics only: return 0 for INCOMPLETE, never for a regression.
   --help               Show this help.
 Exit codes: 0 pass; 1 any regression; 2 incomplete, malformed input or usage error.
-The default is a baseline self-check, not a candidate release gate. No network is permitted.
+The default compares the frozen baseline with the built-in two-stage (#51+#52) candidate. No network is permitted.
 `;
 async function main() {
   const args = process.argv.slice(2).filter((arg) => arg !== "--");

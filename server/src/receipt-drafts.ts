@@ -1,3 +1,5 @@
+import type { extractionDefaults, ExtractedReceipt } from "./receipt-extraction.js";
+import { applyReceiptModelResult } from "./receipt-processing.js";
 import { isDeepStrictEqual } from "node:util";
 import { and, eq, isNull, lte, ne, sql } from "drizzle-orm";
 import sharp from "sharp";
@@ -18,10 +20,13 @@ import {
   draftInput,
   itemInput,
   revisionInput,
+  type ReceiptDraftData,
 } from "./receipt-input.js";
 import { BillError, parseBill } from "./bills.js";
 import type { Tx } from "./item-accounting.js";
 import { notifyGroupChanged } from "./group-events.js";
+import { priceDraft } from "./receipt-pricing.js";
+import { frozenBases, roundingOffset } from "./frozen-receipt-pricing.js";
 export async function requireMember(tx: Tx, groupId: string, userId: string) {
   const [m] = await tx
     .select()
@@ -48,7 +53,9 @@ export async function ownDraft(
   await requireMember(tx, row.groupId, userId);
   return row;
 }
-function editable(row: typeof receiptDrafts.$inferSelect, revision: number) {
+export function editable(row: typeof receiptDrafts.$inferSelect, revision: number) {
+  if (row.processingStatus === "processing")
+    throw new BillError(409, "Receipt is checking names and tax. Please wait.");
   if (row.billId)
     throw new BillError(409, "This draft has already been initialized.");
   if (row.revision !== revision)
@@ -77,6 +84,9 @@ export async function saveDraft(
     new Set(input.data.items.map((i) => i.id)).size !== input.data.items.length
   )
     throw new BillError(400, "Item IDs must be unique.");
+  // Canonicalize before the idempotency comparison as well as persistence.
+  // A supplied final cost matters only when its manual override is enabled.
+  input.data.items = priceDraft(input.data).items;
   await db.transaction((tx) => requireMember(tx, groupId, userId));
   const photo =
     input.photoBase64 === undefined
@@ -93,6 +103,7 @@ export async function saveDraft(
     if (old) {
       if (old.initiatorId !== userId || old.groupId !== groupId)
         throw new BillError(404, "Draft not found.");
+      if (old.processingStatus === "processing") editable(old, input.revision);
       const [oldPhoto] = await tx
         .select({
           expiresAt: receiptPhotos.expiresAt,
@@ -182,6 +193,8 @@ export async function deleteDraft(id: string, userId: string, body: unknown) {
   });
 }
 export async function listDrafts(groupId: string, userId: string) {
+  await db.transaction((tx) => requireMember(tx, groupId, userId));
+  await sweepStaleProcessingDrafts({ groupId, userId });
   return db.transaction(async (tx) => {
     await requireMember(tx, groupId, userId);
     return tx
@@ -190,6 +203,8 @@ export async function listDrafts(groupId: string, userId: string) {
         data: receiptDrafts.data,
         revision: receiptDrafts.revision,
         updatedAt: receiptDrafts.updatedAt,
+        processingStatus: receiptDrafts.processingStatus,
+        processingStartedAt: receiptDrafts.processingStartedAt,
       })
       .from(receiptDrafts)
       .where(
@@ -203,6 +218,8 @@ export async function listDrafts(groupId: string, userId: string) {
   });
 }
 export async function readDraft(id: string, userId: string) {
+  await db.transaction((tx) => ownDraft(tx, id, userId));
+  await sweepStaleProcessingDrafts({ id, userId });
   return db.transaction(async (tx) => {
     const draft = await ownDraft(tx, id, userId);
     const [photo] = await tx
@@ -280,25 +297,31 @@ export async function initializeDraft(
     const draft = await ownDraft(tx, id, userId, true);
     if (draft.billId) return { id: draft.billId, groupId: draft.groupId };
     editable(draft, revision);
-    const {
-      mode,
-      items: draftItems,
-      receipt: _receipt,
-      ...data
-    } = checked(draftInput, draft.data);
+    const reviewed = checked(draftInput, draft.data);
+    const { mode, items: _draftItems, receipt: _receipt, ...data } = reviewed;
+    const priced = mode === "items" ? priceDraft(reviewed).items : [];
+    const bases = frozenBases({ ...reviewed, items: priced });
+    const receipt = mode === "items" ? {
+      subtotalCents: reviewed.receipt?.subtotalCents ?? null,
+      discountCents: reviewed.receipt?.discountCents ?? 0,
+      taxCents: reviewed.receipt?.taxCents ?? 0,
+      extraCents: reviewed.receipt?.extraCents ?? 0,
+      pricesIncludeTax: reviewed.receipt?.pricesIncludeTax ?? false,
+      totalCents: reviewed.totalCents!,
+    } : null;
     const items =
       mode === "items"
         ? checked(
             z.array(itemInput).min(1).max(200),
-            draftItems.map(
-              ({
-                taxable: _taxable,
-                manualFinal: _manualFinal,
-                allocatedTaxCents: _allocatedTaxCents,
-                evidence: _evidence,
-                ...item
-              }) => item,
-            ),
+            // Publish only bill-item fields, not draft-only derivations, fallback
+            // markers, discount provenance or Azure evidence.
+            priced.map((item) => ({
+              id: item.id, name: item.name, originalText: item.originalText,
+              quantity: item.quantity, amountCents: item.amountCents,
+              discountCents: item.discountCents, finalCents: item.finalCents,
+              taxCents: item.allocatedTaxCents ?? 0,
+              extraCents: item.allocatedExtraCents ?? 0,
+            })),
           )
         : [];
     const input = parseBill({
@@ -331,6 +354,10 @@ export async function initializeDraft(
         groupId: draft.groupId,
         initiatorId: userId,
         mode,
+        receipt,
+        frozenTaxBaseCents: bases.taxableBase,
+        frozenDiscountBaseCents: bases.discountBase,
+        frozenExtraBaseCents: bases.extraBase,
         requestPayload: JSON.stringify(draft.data),
       })
       .returning();
@@ -345,11 +372,20 @@ export async function initializeDraft(
     );
     if (mode === "items")
       await tx.insert(billItems).values(
-        items.map((item, position) => ({
-          ...item,
-          billId: bill!.id,
-          position,
-        })),
+        items.map((item, position) => {
+          const source = priced[position]!;
+          const base = item.amountCents - item.discountCents;
+          const net = source.allocatedDiscountCents === null ? null : base - source.allocatedDiscountCents!;
+          return {
+            ...item, billId: bill!.id, position,
+            taxable: source.taxable !== false,
+            manualFinal: source.manualFinal,
+            allocatedDiscountCents: source.allocatedDiscountCents,
+            frozenDiscountRoundingCents: roundingOffset(source.allocatedDiscountCents ?? null, receipt!.discountCents, base, bases.discountBase),
+            frozenTaxRoundingCents: roundingOffset(source.allocatedTaxCents ?? null, receipt!.pricesIncludeTax ? 0 : receipt!.taxCents, source.taxable === false ? 0 : net, bases.taxableBase),
+            frozenExtraRoundingCents: roundingOffset(source.allocatedExtraCents ?? null, receipt!.extraCents, net, bases.extraBase),
+          };
+        }),
       );
     if (
       mode === "manual" &&
@@ -372,28 +408,6 @@ export async function initializeDraft(
   notifyGroupChanged(result.groupId);
   return result.id;
 }
-// A scan may finish after a concurrent edit; never retain evidence for stale drafts.
-export async function storeReceiptEvidence(
-  id: string,
-  userId: string,
-  revision: number,
-  analysis: Record<string, unknown> | undefined,
-) {
-  return db.transaction(async (tx) => {
-    const draft = await ownDraft(tx, id, userId, true);
-    if (draft.billId || draft.revision !== revision)
-      throw new BillError(409, "Draft changed during scanning. Saved edits were kept. Scan again from the current draft.");
-    if (analysis) {
-      const [photo] = await tx.select({ expiresAt: receiptPhotos.expiresAt })
-        .from(receiptPhotos).where(eq(receiptPhotos.draftId, id));
-      if (!photo || photo.expiresAt <= new Date())
-        throw new BillError(409, "Receipt photo expired during scanning.");
-      await tx.insert(receiptEvidence).values({ draftId: id, analysis })
-        .onConflictDoUpdate({ target: receiptEvidence.draftId, set: { analysis, scannedAt: new Date() } });
-    }
-  });
-}
-
 function withoutEvidence(data: typeof receiptDrafts.$inferSelect.data) {
   const { evidence: _receiptEvidence, ...receipt } = data.receipt ?? {};
   return {
@@ -488,4 +502,98 @@ async function storePhoto(tx: Tx, id: string, bytes: Buffer) {
         expiresAt,
       },
     });
+}
+
+// Persist the Azure result and its evidence under the same revision check. The
+// model never runs against a draft that changed while Azure was reading it.
+export async function saveProcessingDraft(
+  id: string,
+  userId: string,
+  revision: number,
+  extraction: ReturnType<typeof extractionDefaults>,
+  analysis: ExtractedReceipt["rawAnalysis"],
+) {
+  const result = await db.transaction(async (tx) => {
+    const old = await ownDraft(tx, id, userId, true);
+    editable(old, revision);
+    const [photo] = await tx.select({ expiresAt: receiptPhotos.expiresAt })
+      .from(receiptPhotos).where(eq(receiptPhotos.draftId, id));
+    if (!photo || photo.expiresAt <= new Date())
+      throw new BillError(409, "Receipt photo expired during scanning.");
+    // Replace rather than retain an earlier scan's evidence when an adapter
+    // supplies no analysis (for example a test or manually entered receipt).
+    await tx.delete(receiptEvidence).where(eq(receiptEvidence.draftId, id));
+    if (analysis) await tx.insert(receiptEvidence).values({ draftId: id, analysis });
+    const now = new Date();
+    const [draft] = await tx.update(receiptDrafts).set({
+      data: checked(draftInput, {
+        ...old.data,
+        mode: "items",
+        title: old.data.title || extraction.title,
+        items: extraction.items,
+        receipt: extraction.receipt,
+        totalCents: extraction.totalCents,
+      }),
+      processingStatus: "processing",
+      processingStartedAt: now,
+      revision: old.revision + 1,
+      updatedAt: now,
+    }).where(eq(receiptDrafts.id, id)).returning();
+    return { ...draft!, photo: { ...photo, expired: false } };
+  });
+  notifyGroupChanged(result.groupId);
+  return result;
+}
+
+export const RECEIPT_MODEL_TIMEOUT_MS = 20_000;
+
+// Holding the row lock lets either the model or recovery complete this scan,
+// never both. The start time identifies the processing operation.
+export async function completeProcessingDraft(
+  id: string,
+  startedAt: Date,
+  attempt: Parameters<typeof applyReceiptModelResult>[1],
+) {
+  const result = await db.transaction(async (tx) => {
+    const [draft] = await tx.select().from(receiptDrafts)
+      .where(eq(receiptDrafts.id, id)).for("update");
+    if (!draft || draft.processingStatus !== "processing" ||
+        draft.processingStartedAt?.getTime() !== startedAt.getTime()) return null;
+    const expired = Date.now() - startedAt.getTime() >= RECEIPT_MODEL_TIMEOUT_MS;
+    const applied = applyReceiptModelResult(draft.data.items, expired ? { kind: "timeout" } : attempt);
+    const data: ReceiptDraftData = { ...draft.data, items: applied.items };
+    // Reallocate the same Azure tax, never change the receipt's amounts.
+    data.items = priceDraft(data).items;
+    await tx.update(receiptDrafts).set({
+      data,
+      processingStatus: applied.fellBack ? "fallback" : "ready",
+      processingStartedAt: null,
+      revision: draft.revision + 1,
+      updatedAt: new Date(),
+    }).where(eq(receiptDrafts.id, id));
+    return { groupId: draft.groupId, outcome: applied.outcome, reason: applied.reason };
+  });
+  if (result) notifyGroupChanged(result.groupId);
+  return result;
+}
+
+export async function sweepStaleProcessingDrafts(
+  scope: { id?: string; groupId?: string; userId?: string } = {},
+) {
+  const stale = await db.select({ id: receiptDrafts.id, startedAt: receiptDrafts.processingStartedAt })
+    .from(receiptDrafts).where(and(
+      eq(receiptDrafts.processingStatus, "processing"),
+      lte(receiptDrafts.processingStartedAt, new Date(Date.now() - RECEIPT_MODEL_TIMEOUT_MS)),
+      scope.id ? eq(receiptDrafts.id, scope.id) : undefined,
+      scope.groupId ? eq(receiptDrafts.groupId, scope.groupId) : undefined,
+      scope.userId ? eq(receiptDrafts.initiatorId, scope.userId) : undefined,
+    ));
+  for (const draft of stale) {
+    if (!draft.startedAt) continue;
+    const result = await completeProcessingDraft(draft.id, draft.startedAt, { kind: "timeout" });
+    if (result) console.info("Receipt processing recovered", {
+      outcome: result.outcome, reason: result.reason,
+      elapsedMs: Date.now() - draft.startedAt.getTime(),
+    });
+  }
 }

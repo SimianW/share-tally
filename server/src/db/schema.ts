@@ -1,5 +1,6 @@
 import {
   check,
+  boolean,
   jsonb,
   date,
   integer,
@@ -111,6 +112,10 @@ export const bills = pgTable('bills', {
   purchaseDate: date('purchase_date').notNull(),
   notes: text('notes').notNull().default(''),
   totalCents: integer('total_cents').notNull(),
+  receipt: jsonb('receipt').$type<{ subtotalCents: number | null; discountCents: number; taxCents: number; extraCents: number; totalCents: number; pricesIncludeTax: boolean }>(),
+  frozenTaxBaseCents: integer('frozen_tax_base_cents'),
+  frozenDiscountBaseCents: integer('frozen_discount_base_cents'),
+  frozenExtraBaseCents: integer('frozen_extra_base_cents'),
   adjustmentCents: integer('adjustment_cents'),
   completedAt: timestamp('completed_at', { withTimezone: true }),
   canceledAt: timestamp('canceled_at', { withTimezone: true }),
@@ -165,8 +170,13 @@ export const receiptDrafts = pgTable('receipt_drafts', {
   data: jsonb('data').$type<import('../receipt-input.js').ReceiptDraftData>().notNull(),
   revision: integer('revision').notNull().default(1),
   billId: uuid('bill_id').references(() => bills.id),
+  processingStatus: text('processing_status').$type<'ready' | 'processing' | 'fallback'>().notNull().default('ready'),
+  processingStartedAt: timestamp('processing_started_at', { withTimezone: true }),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-}, table => [index('receipt_drafts_owner_idx').on(table.initiatorId, table.groupId)]);
+}, table => [
+  index('receipt_drafts_owner_idx').on(table.initiatorId, table.groupId),
+  check('receipt_drafts_processing_state', sql`(${table.processingStatus} = 'processing' and ${table.processingStartedAt} is not null and ${table.billId} is null) or (${table.processingStatus} in ('ready', 'fallback') and ${table.processingStartedAt} is null)`),
+]);
 
 export const receiptPhotos = pgTable('receipt_photos', {
   draftId: uuid('draft_id').primaryKey().references(() => receiptDrafts.id, { onDelete: 'cascade' }),
@@ -191,6 +201,12 @@ export const billItems = pgTable('bill_items', {
   amountCents: integer('amount_cents').notNull(), taxCents: integer('tax_cents').notNull(),
   discountCents: integer('discount_cents').notNull(), extraCents: integer('extra_cents').notNull(),
   finalCents: integer('final_cents').notNull(),
+  taxable: boolean('taxable'),
+  manualFinal: boolean('manual_final'),
+  allocatedDiscountCents: integer('allocated_discount_cents'),
+  frozenTaxRoundingCents: integer('frozen_tax_rounding_cents'),
+  frozenDiscountRoundingCents: integer('frozen_discount_rounding_cents'),
+  frozenExtraRoundingCents: integer('frozen_extra_rounding_cents'),
 }, table => [index('bill_items_bill_idx').on(table.billId), check('bill_items_cost', sql`${table.finalCents} between 0 and 1000000`)]);
 
 export const itemClaims = pgTable('item_claims', {

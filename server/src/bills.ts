@@ -1,4 +1,5 @@
 import { itemDetails, recalculateItemBill } from './item-accounting.js';
+import { selectFrozenTaxRate } from './frozen-receipt-pricing.js';
 import { notifyGroupChanged } from './group-events.js';
 import { cents, isUuid } from "./input-validation.js";
 export { isUuid } from "./input-validation.js";
@@ -470,6 +471,7 @@ async function readBillsInSnapshot(tx: Tx, userId: string, groupId?: string, id?
     const submittedCents = safeCents(
       participants.reduce((n, s) => n + BigInt(s.amountCents ?? 0), 0n),
     );
+    const details = bill.mode === 'items' ? await itemDetails(tx, bill.id) : null;
     const {
       requestId: _requestId,
       requestPayload: _payload,
@@ -477,7 +479,15 @@ async function readBillsInSnapshot(tx: Tx, userId: string, groupId?: string, id?
     } = bill;
     return {
       ...fields,
-      ...(bill.mode === 'items' ? await itemDetails(tx, bill.id) : {}),
+      frozenTaxRate: bill.receipt && bill.frozenTaxBaseCents !== null
+        ? selectFrozenTaxRate(bill.receipt, bill.frozenTaxBaseCents) : null,
+      ...(details ? { ...details, items: details.items.map(item => ({
+        ...item,
+        allocatedTaxCents: bill.receipt && bill.receipt.taxCents !== 0 && item.manualFinal && item.frozenTaxRoundingCents === null
+          ? null : item.allocatedTaxCents,
+        allocatedExtraCents: bill.receipt && bill.receipt.extraCents !== 0 && item.manualFinal && item.frozenExtraRoundingCents === null
+          ? null : item.allocatedExtraCents,
+      })) } : {}),
       participants,
       submittedCents,
       differenceCents: bill.totalCents - submittedCents,

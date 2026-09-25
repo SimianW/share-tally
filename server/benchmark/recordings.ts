@@ -35,6 +35,7 @@ const modelSchema = z.object({
   outcome: z.discriminatedUnion("kind", [
     z.object({ kind: z.literal("result"), value: z.unknown().refine((v) => v !== undefined, "value is required") }).strict(),
     z.object({ kind: z.literal("timeout") }).strict(),
+    z.object({ kind: z.literal("skipped"), reason: z.literal("no-items") }).strict(),
     z.object({ kind: z.literal("error"), message: z.string().optional() }).strict(),
   ]),
 }).strict();
@@ -90,4 +91,9 @@ export function replayModel(recording: ModelRecording | null, input: unknown, ex
   const wireInput: unknown = JSON.parse(JSON.stringify(input));
   if (inputHash(wireInput) !== recording.inputSha256 || !isDeepStrictEqual(wireInput, recording.input)) throw new RecordingError("Model input drift; record this exact pipeline input before replay.");
   return structuredClone(recording.outcome);
+}
+
+/** Explicit evidence of a production no-call path, not a fabricated provider request/response. */
+export function noModelInput(evidence: unknown) {
+  return JSON.parse(JSON.stringify({ kind: "no-model-call", reason: "no-items", evidence })) as Record<string, unknown>;
 }

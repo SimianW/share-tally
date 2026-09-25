@@ -1,0 +1,3 @@
+ALTER TABLE "receipt_drafts" ADD COLUMN "processing_status" text DEFAULT 'ready' NOT NULL;--> statement-breakpoint
+ALTER TABLE "receipt_drafts" ADD COLUMN "processing_started_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "receipt_drafts" ADD CONSTRAINT "receipt_drafts_processing_state" CHECK (("receipt_drafts"."processing_status" = 'processing' and "receipt_drafts"."processing_started_at" is not null and "receipt_drafts"."bill_id" is null) or ("receipt_drafts"."processing_status" in ('ready', 'fallback') and "receipt_drafts"."processing_started_at" is null));

@@ -3,6 +3,7 @@ import { useCached } from './query-cache';
 import { AttentionList } from './AttentionList';
 import { BillDetails, OverviewBalance } from './Bills';
 import GroupWorkspace from './GroupWorkspace';
+import { NewBillPage } from './ReceiptDraft';
 import { useRoute } from './route';
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
@@ -49,6 +50,7 @@ export default function PlayApp({
   const route = useRoute();
   const selectedId = route.startsWith('#/groups/') ? route.slice('#/groups/'.length) : null;
   const billId = route.startsWith('#/bills/') ? route.slice('#/bills/'.length) : null;
+  const newBill = route.match(/^#\/new-bill\/([^/]+)(?:\/([^/]+))?$/);
   const billGroupId = route.startsWith('#/group-bills/') ? route.slice('#/group-bills/'.length).split('?')[0] : null;
   const invitationToken = route.startsWith('#/join/') ? route.slice('#/join/'.length) : null;
   const groupQuery = useCached<{ groups: GroupView[] }>('/groups');
@@ -88,8 +90,8 @@ export default function PlayApp({
             {navigation.map((item) => (
               <button
                 key={item.id}
-                className={(billGroupId ? item.id === "groups" : view === item.id) ? "active" : ""}
-                aria-current={(billGroupId ? item.id === "groups" : view === item.id) ? "page" : undefined}
+                className={(billGroupId || newBill ? item.id === "groups" : view === item.id) ? "active" : ""}
+                aria-current={(billGroupId || newBill ? item.id === "groups" : view === item.id) ? "page" : undefined}
                 onClick={() => { setView(item.id); closeGroup(); }}
               >
                 <Icon name={item.icon} />
@@ -116,7 +118,7 @@ export default function PlayApp({
           </div>
         </aside>
         <main className="main-content" id="main-content" tabIndex={-1}>
-          {!billId && <header className="page-header">
+          {!billId && !newBill && <header className="page-header">
             <div>
               <div className="eyebrow">YOUR SHARED PURCHASES</div>
               <h1>
@@ -142,7 +144,7 @@ export default function PlayApp({
               </Button>
             )}
           </header>}
-          {billId ? <BillDetails key={billId} id={billId} /> : (billGroupId || view === "groups") ? <GroupWorkspace groups={groups} selectedId={billGroupId ?? undefined} selectedRepaymentId={new URLSearchParams(route.split('?')[1]).get('repayment') ?? undefined} loading={loading} error={error} retry={() => setRevision(value => value + 1)} onCreate={() => setCreating(true)} /> : view === "account" ? (
+          {billId ? <BillDetails key={billId} id={billId} /> : newBill ? <NewBillPage key={`${newBill[1]}:${newBill[2] ?? "new"}`} groupId={newBill[1]} draftId={newBill[2]} /> : (billGroupId || view === "groups") ? <GroupWorkspace groups={groups} selectedId={billGroupId ?? undefined} selectedRepaymentId={new URLSearchParams(route.split('?')[1]).get('repayment') ?? undefined} loading={loading} error={error} retry={() => setRevision(value => value + 1)} onCreate={() => setCreating(true)} /> : view === "account" ? (
             <section className="account-panel">
               <AccountCheck />
             </section>

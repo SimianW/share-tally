@@ -9,7 +9,8 @@ import { BillError, isUuid, readBills } from "./bills.js";
 import { checked, revisionInput, draftInput } from "./receipt-input.js";
 import {
   saveDraft,
-  storeReceiptEvidence,
+  editable,
+  saveProcessingDraft,
   deleteDraft,
   normalizeReceiptPhoto,
   requireMember,
@@ -19,9 +20,10 @@ import {
   photoBytes,
   initializeDraft,
 } from "./receipt-drafts.js";
+import { startReceiptModel } from "./receipt-reading.js";
 import { type ReceiptExtractor } from "./receipt-extraction.js";
 import { azureExtract } from "./azure-receipt.js";
-import { confirmClaims, editItems } from "./item-bills.js";
+import { confirmClaims, editItems, correctItem } from "./item-bills.js";
 export function createReceiptRouter(
   displayName: (id: string) => Promise<string>,
   extract: ReceiptExtractor = azureExtract,
@@ -55,7 +57,8 @@ export function createReceiptRouter(
     await deleteDraft(req.params.draftId, u.id, req.body);
     res.json({ deleted: true });
   });
-  // Previews never save a draft or replace its photo.
+  // Unsaved previews do not persist; the legacy saved-preview route uses the
+  // same two-stage lifecycle as the saved draft scan endpoint.
   router.post(
     "/groups/:groupId/receipt-preview/:operation",
     async (req, res) => {
@@ -66,50 +69,40 @@ export function createReceiptRouter(
         res.json(priceDraft(checked(draftInput, req.body)));
         return;
       }
-      if (operation !== "extract" && operation !== "names")
+      if (operation !== "extract")
         throw new BillError(404, "Preview not found.");
       if (active.has(u.id))
         throw new BillError(429, "A receipt request is already running.");
       consumeRequest(u.id);
       active.add(u.id);
       try {
-        if (operation === "names") {
-          const { items } = checked(draftInput, req.body);
-          try {
-            res.json({ names: await names(items) });
-          } catch {
-            throw new BillError(
-              502,
-              "Name service unavailable. Original descriptions and amounts were kept. Retry names, edit them yourself, or initiate now.",
-            );
-          }
+        const input = checked(
+          z.union([
+            z.object({ base64: z.string().max(11_184_812) }).strict(),
+            z.object({ draftId: z.uuid(), revision: revisionInput }).strict(),
+          ]),
+          req.body,
+        );
+        let bytes: Buffer;
+        if ("base64" in input)
+          bytes = await normalizeReceiptPhoto(input.base64);
+        else {
+          const draft = await readDraft(input.draftId, u.id);
+          if (draft.groupId !== req.params.groupId)
+            throw new BillError(404, "Draft not found.");
+          editable(draft, input.revision);
+          bytes = await photoBytes(input.draftId, u.id, true);
+        }
+        const scanned = await extract(bytes);
+        const mappingStart = performance.now();
+        const extraction = processReceipt(scanned);
+        if (scanned.scanTimings) scanned.scanTimings.mappingMs += performance.now() - mappingStart;
+        if ("draftId" in input) {
+          const draft = await saveProcessingDraft(input.draftId, u.id, input.revision, extraction, scanned.rawAnalysis);
+          startReceiptModel(draft, scanned, names);
+          res.json({ draft, extraction });
         } else {
-          const input = checked(
-            z.union([
-              z.object({ base64: z.string().max(11_184_812) }).strict(),
-              z.object({ draftId: z.uuid(), revision: revisionInput }).strict(),
-            ]),
-            req.body,
-          );
-          let bytes: Buffer;
-          if ("base64" in input)
-            bytes = await normalizeReceiptPhoto(input.base64);
-          else {
-            const draft = await readDraft(input.draftId, u.id);
-            if (draft.groupId !== req.params.groupId)
-              throw new BillError(404, "Draft not found.");
-            if (draft.billId || draft.revision !== input.revision)
-              throw new BillError(
-                409,
-                "Draft changed. Reopen the saved version.",
-              );
-            bytes = await photoBytes(input.draftId, u.id, true);
-          }
-          const scanned = await extract(bytes);
-          const extraction = await processReceipt(scanned, names);
-          if ("draftId" in input) {
-            await storeReceiptEvidence(input.draftId, u.id, input.revision, scanned.rawAnalysis);
-          }
+          // Unsaved previews map Azure only; saved scans own background work.
           res.json({ extraction });
         }
       } finally {
@@ -155,8 +148,7 @@ export function createReceiptRouter(
       req.body,
     );
     const draft = await readDraft(req.params.draftId, u.id);
-    if (draft.billId || draft.revision !== revision)
-      throw new BillError(409, "Draft changed. Reopen it before scanning.");
+    editable(draft, revision);
     if (active.has(u.id))
       throw new BillError(
         429,
@@ -166,9 +158,12 @@ export function createReceiptRouter(
     active.add(u.id);
     try {
       const scanned = await extract(await photoBytes(req.params.draftId, u.id, true));
-      const data = await processReceipt(scanned, names);
-      await storeReceiptEvidence(req.params.draftId, u.id, revision, scanned.rawAnalysis);
-      res.json({ extraction: data });
+      const mappingStart = performance.now();
+      const extraction = processReceipt(scanned);
+      if (scanned.scanTimings) scanned.scanTimings.mappingMs += performance.now() - mappingStart;
+      const processing = await saveProcessingDraft(req.params.draftId, u.id, revision, extraction, scanned.rawAnalysis);
+      startReceiptModel(processing, scanned, names);
+      res.json({ draft: processing, extraction });
     } finally {
       active.delete(u.id);
     }
@@ -180,41 +175,8 @@ export function createReceiptRouter(
       req.body,
     );
     const draft = await readDraft(req.params.draftId, u.id);
-    if (draft.billId || draft.revision !== revision)
-      throw new BillError(409, "Draft changed. Reopen the saved version.");
+    editable(draft, revision);
     res.json(priceDraft(draft.data));
-  });
-  router.post("/receipt-drafts/:draftId/names", async (req, res) => {
-    const u = await user(res.locals.clerkUserId);
-    const { revision } = checked(
-      z.object({ revision: revisionInput }).strict(),
-      req.body,
-    );
-    const draft = await readDraft(req.params.draftId, u.id);
-    if (draft.billId || draft.revision !== revision)
-      throw new BillError(409, "Draft changed. Reopen the saved version.");
-    if (active.has(u.id))
-      throw new BillError(429, "A receipt request is already running.");
-    consumeRequest(u.id);
-    active.add(u.id);
-    try {
-      const result = await names(draft.data.items);
-      const latest = await readDraft(req.params.draftId, u.id);
-      if (latest.billId || latest.revision !== revision)
-        throw new BillError(
-          409,
-          "Draft changed during naming. Your edits were kept.",
-        );
-      res.json({ names: result });
-    } catch (error) {
-      if (error instanceof BillError) throw error;
-      throw new BillError(
-        502,
-        "Name service unavailable. Original descriptions and amounts were kept. Retry names, edit them yourself, or initiate now.",
-      );
-    } finally {
-      active.delete(u.id);
-    }
   });
   router.post("/receipt-drafts/:draftId/initialize", async (req, res) => {
     const u = await user(res.locals.clerkUserId);
@@ -227,6 +189,11 @@ export function createReceiptRouter(
     res.json({
       bill: (await readBills(u.id, undefined, req.params.billId))[0],
     });
+  });
+  router.patch("/bills/:billId/items/:itemId", async (req, res) => {
+    const u = await user(res.locals.clerkUserId);
+    await correctItem(req.params.billId, req.params.itemId, u.id, req.body);
+    res.json({ bill: (await readBills(u.id, undefined, req.params.billId))[0] });
   });
   router.put("/bills/:billId/items", async (req, res) => {
     const u = await user(res.locals.clerkUserId);

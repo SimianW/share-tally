@@ -26,25 +26,20 @@ test('rejects empty, invisible, control and multiple Unicode characters', () => 
 });
 
 test('POST /api/groups rejects invalid icons with 400 before database access', async () => {
-  const { fork } = await import('node:child_process');
-  const { once } = await import('node:events');
-  // An unreachable database makes accidental DB access fail this test.
-  const child = fork(new URL('./server-process.ts', import.meta.url), {
-    execArgv: ['--import=tsx'],
-    env: { PATH: process.env.PATH, DATABASE_URL: 'postgresql://test:test@127.0.0.1:1/test?connect_timeout=1' },
-    stdio: ['ignore', 'inherit', 'inherit', 'ipc'],
-  });
+  const previousDatabaseUrl = process.env.DATABASE_URL;
+  process.env.DATABASE_URL = 'postgresql://test:test@127.0.0.1:1/test?connect_timeout=1';
+  const { createApp } = await import('../src/app.js');
+  // Listen without the production startup sweep: this case deliberately has no
+  // database and verifies validation stops requests before accessing one.
+  const server = createApp({
+    middleware: (_req, _res, next) => next(),
+    userId: () => 'user_test_alice',
+  }).listen(0, '127.0.0.1');
   try {
-    const port = await new Promise<number>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('Server startup timed out')), 10_000);
-      child.once('message', message => {
-        clearTimeout(timer);
-        if (typeof message === 'number') resolve(message);
-        else reject(new Error('Invalid server port'));
-      });
-      child.once('error', error => { clearTimeout(timer); reject(error); });
-      child.once('exit', code => { clearTimeout(timer); reject(new Error(`Server exited: ${code}`)); });
-    });
+    if (!server.listening) await new Promise<void>(resolve => server.once('listening', resolve));
+    const address = server.address();
+    assert.ok(address && typeof address !== 'string');
+    const port = address.port;
     for (const icon of ['lucide:house', null, { type: 'lucide', value: 'not-real' }, { type: 'unicode', value: 'ab' }]) {
       const response = await fetch(`http://127.0.0.1:${port}/api/groups`, {
         method: 'POST',
@@ -57,11 +52,9 @@ test('POST /api/groups rejects invalid icons with 400 before database access', a
       assert.equal(typeof body.error, 'string');
     }
   } finally {
-    if (child.exitCode === null && child.signalCode === null) {
-      const exited = once(child, 'exit');
-      const timer = setTimeout(() => child.kill('SIGKILL'), 5_000);
-      child.kill('SIGTERM');
-      try { await exited; } finally { clearTimeout(timer); }
-    }
+    await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+    await (await import('../src/db/index.js')).closeDatabase();
+    if (previousDatabaseUrl === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = previousDatabaseUrl;
   }
 });

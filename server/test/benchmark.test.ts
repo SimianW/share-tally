@@ -7,10 +7,10 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
 import { createAzureExtractor, mapAzureAnalysis, type AnalyzeResult } from "../src/azure-receipt.js";
-import { interpretReceiptNames } from "../src/receipt-names.js";
-import { processReceipt } from "../src/receipt-processing.js";
 import { mapAzureAnalysis as frozenMap } from "../benchmark/frozen-baseline/azure-receipt.js";
 import { buildReceiptNameRequest, parseReceiptNameResponse } from "../benchmark/frozen-baseline/receipt-names.js";
+import { candidateRecorder } from "../benchmark/candidate-recorder.js";
+import { CANDIDATE_MODEL_VERSION } from "../benchmark/candidate.js";
 import { baselineAdapter, BASELINE_MODEL_VERSION } from "../benchmark/baseline.js";
 import { invokeAdapter, projectAzureDescriptions } from "../benchmark/adapter.js";
 import { aggregateScores, scoreReceipt } from "../benchmark/scorer.js";
@@ -27,17 +27,20 @@ const synthetic: AnalyzeResult = { apiVersion: "2024-11-30", modelId: "prebuilt-
 const syntheticResponse = { output: [{ content: [{ type: "output_text", text: JSON.stringify({ items: [{ id: "0", name: "Milk", taxable: false }] }) }] }] };
 const config = { baseURL: "https://synthetic-test.invalid/v1", model: "synthetic-test-model" };
 async function syntheticRecording(): Promise<ModelRecording> {
-  let input: {} | null = null;
-  await processReceipt(mapAzureAnalysis(synthetic), async (items, _config, _request, context) => interpretReceiptNames(items, { ...config, apiKey: "test-only" }, async (_url, init) => {
-    input = JSON.parse(String(init?.body));
-    return new Response(JSON.stringify(syntheticResponse));
-  }, context));
-  return { schemaVersion: 1, version: BASELINE_MODEL_VERSION, config, input, inputSha256: inputHash(input), outcome: { kind: "result", value: syntheticResponse } };
+  const snapshot = JSON.parse(await readFile(resolve(server, "test/fixtures/benchmark/frozen-names-request-1650993.json"), "utf8"));
+  assert.equal(snapshot.commit, "16509935cb34d505ee8d48c5616c2a22ff908e2f");
+  assert.deepEqual(snapshot.analysis, synthetic);
+  assert.deepEqual(snapshot.config, config);
+  assert.deepEqual(snapshot.response, syntheticResponse);
+  return { schemaVersion: 1, version: BASELINE_MODEL_VERSION, config: snapshot.config,
+    input: snapshot.input, inputSha256: inputHash(snapshot.input), outcome: { kind: "result", value: snapshot.response } };
 }
 const json = (path: string, value: unknown) => writeFile(path, JSON.stringify(value));
 const cli = (args: string[]) => spawnSync(process.execPath, ["--import=tsx", resolve(root, "cli.ts"), ...args], { cwd: server, encoding: "utf8", maxBuffer: 20 * 1024 * 1024 });
 
 test("pure Azure mapper matches production extractor for all 11 real raw fixtures", async () => {
+  const snapshot = JSON.parse(await readFile(resolve(server, "test/fixtures/benchmark/frozen-azure-1650993.json"), "utf8"));
+  assert.equal(snapshot.commit, "16509935cb34d505ee8d48c5616c2a22ff908e2f");
   for (const id of ["000", "001", "002", "010", "075", "175", "225", "275", "450", "525", "550"]) {
     const raw = JSON.parse(await readFile(resolve(server, "test/fixtures/azure-receipt", `azure-${id}.json`), "utf8")) as AnalyzeResult;
     let calls = 0;
@@ -45,8 +48,12 @@ test("pure Azure mapper matches production extractor for all 11 real raw fixture
       calls++;
       return calls === 1 ? new Response(null, { status: 202, headers: { "operation-location": "https://azure-test.invalid/operation" } }) : new Response(JSON.stringify({ status: "succeeded", analyzeResult: raw }));
     }, async () => undefined);
-    assert.deepEqual(await extractor(Buffer.from("test-only")), mapAzureAnalysis(raw), id);
-    assert.deepEqual(frozenMap(raw), mapAzureAnalysis(raw), `Frozen #48 Azure mapping parity ${id}`);
+    const { scanTimings, ...extracted } = await extractor(Buffer.from("test-only"));
+    assert.ok(scanTimings && Object.values(scanTimings).every((value) => value >= 0));
+    assert.deepEqual(extracted, mapAzureAnalysis(raw), id);
+    const { rawAnalysis, ...frozen } = frozenMap(raw);
+    assert.deepEqual(rawAnalysis, raw, `Frozen #48 raw evidence ${id}`);
+    assert.deepEqual(frozen, snapshot.outputs[id], `Frozen #48 pinned production snapshot ${id}`);
     assert.equal(calls, 2);
   }
 });
@@ -139,6 +146,14 @@ async function testDataset() {
   const bytes = Buffer.from("explicit synthetic TEST ONLY image bytes");
   const imageSha256 = createHash("sha256").update(bytes).digest("hex");
   const recording = await syntheticRecording();
+  const candidate = await candidateRecorder.record({ analysis: synthetic,
+    env: { RECEIPT_NAME_BASE_URL: config.baseURL, RECEIPT_NAME_MODEL: config.model, RECEIPT_NAME_API_KEY: "fake-test-key" },
+    request: async (_url, init) => {
+      const input = JSON.parse(String(init?.body));
+      const evidence = JSON.parse(input.input.slice(input.input.indexOf("{")));
+      return Response.json({ output: [{ content: [{ type: "output_text", text: JSON.stringify({ items: evidence.items.map((item: { id: string }) => ({ id: item.id, name: "Milk", taxable: false })) }) }] }] });
+    } });
+  const candidateRecording = { ...candidate, schemaVersion: 1, version: CANDIDATE_MODEL_VERSION, inputSha256: inputHash(candidate.input) };
   const manifest = [];
   for (let i = 0; i < 20; i++) {
     const id = `test-${i}`;
@@ -151,6 +166,7 @@ async function testDataset() {
       await json(resolve(dir, `${name}.json`), { schemaVersion: 1, imageSha256, request, analyzeResult: synthetic });
       await json(resolve(dir, `${name}.model.baseline.json`), recording);
       await json(resolve(dir, `${name}.model.candidate.json`), recording);
+      await json(resolve(dir, `${name}.model.two-stage.json`), candidateRecording);
     }
   }
   await json(resolve(corpus, "manifest.json"), manifest);
@@ -182,10 +198,32 @@ test("CLI public20 x3 candidate gate passes, detects local field regressions, an
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
 
+test("default CLI compares the actual built-in candidate across all synthetic20 x3 cases and rejects absent model coverage", async () => {
+  const { directory } = await testDataset();
+  try {
+    const result = cli(["--root", directory, "--json"]);
+    assert.equal(result.status, 0, result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.equal(report.candidateId, "two-stage");
+    assert.equal(report.mode, "candidate-comparison");
+    assert.equal(report.coverage.completePairs, 60);
+    assert.equal(report.gate.status, "pass");
+    await rm(resolve(directory, "recordings/test-0/default.model.two-stage.json"));
+    const missing = cli(["--root", directory, "--json"]);
+    assert.equal(missing.status, 2);
+    assert.equal(JSON.parse(missing.stdout).coverage.completePairs, 59);
+    assert.deepEqual(JSON.parse(missing.stdout).coverage.missingCandidateModel, ["test-0/default"]);
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
 test("default one-command diagnostic reports useful legacy11 and all60 missing recordings, not pass", async () => {
   const report = await runBenchmark({ root });
   assert.equal(report.gate.status, "incomplete");
-  assert.equal(report.mode, "baseline-self-check");
+  assert.equal(report.mode, "candidate-comparison");
+  assert.equal(report.candidateId, "two-stage");
+  // The default genuinely executes #52, rather than relabelling a frozen self-comparison.
+  const discounted = report.legacy.receipts.find((row) => row.id === "sroie-001")!;
+  assert.notDeepEqual(discounted.candidate.score, discounted.baseline.score);
   assert.equal(report.coverage.publicReceipts, 20);
   assert.equal(report.coverage.missingAzure.length, 60);
   assert.equal(report.coverage.legacyReceipts, 11);

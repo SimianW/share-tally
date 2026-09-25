@@ -17,6 +17,7 @@ export const extractedReceipt = z.object({
         quantity: z.string().nullable(),
         amount: money.nullable(),
         discount: money.nullable(),
+        discountSource: z.literal("receipt").optional(),
         tax: money.nullable(),
         taxable: z.boolean().nullable(),
       }),
@@ -25,8 +26,15 @@ export const extractedReceipt = z.object({
   subtotal: money.nullable().optional(),
   evidence: receiptEvidenceFields.optional(),
   rawAnalysis: z.record(z.string(), z.unknown()).optional(),
+  // Per-scan durations only; the lifecycle logs these without receipt contents.
+  scanTimings: z.object({
+    azureSubmitMs: z.number().nonnegative(),
+    azurePollMs: z.number().nonnegative(),
+    mappingMs: z.number().nonnegative(),
+  }).optional(),
   pricesIncludeTax: z.boolean().default(false),
   discountTotal: money.nullable(),
+  discountFallback: z.boolean().optional(),
   taxTotal: money.nullable(),
   otherCharges: z.number().min(-10000).max(10000).nullable(),
   warnings: z.array(z.string()),
@@ -54,17 +62,13 @@ export function extractionDefaults(data: ExtractedReceipt) {
     quantity: (i.quantity || "1").slice(0, 40),
     amountCents: i.amount === null ? null : cents(i.amount),
     discountCents: cents(i.discount),
-    taxCents: cents(i.tax),
-    allocatedTaxCents: 0,
-    extraCents: 0,
+    ...(i.discountSource ? { discountSource: i.discountSource } : {}),
     finalCents: 0,
   }));
   const receipt = {
     subtotalCents: data.subtotal == null ? null : cents(data.subtotal),
-    taxCents: Math.max(
-      0,
-      cents(data.taxTotal) - items.reduce((sum, i) => sum + i.taxCents, 0),
-    ),
+    // Tax is allocated only from the receipt summary, never added per item.
+    taxCents: cents(data.taxTotal),
     discountCents: Math.max(
       0,
       cents(data.discountTotal) -
@@ -72,6 +76,7 @@ export function extractionDefaults(data: ExtractedReceipt) {
     ),
     extraCents: cents(data.otherCharges),
     pricesIncludeTax: data.pricesIncludeTax,
+    ...(data.discountFallback !== undefined ? { discountFallback: data.discountFallback } : {}),
     ...(data.evidence ? { evidence: data.evidence } : {}),
   };
   const priced = priceDraft({

@@ -42,8 +42,13 @@ export const receiptEvidenceFields = z.object({
     description: z.string().optional(),
   })).optional(),
 });
-export const draftItemInput = itemInput.extend({
-  allocatedTaxCents: amount.optional(),
+export const draftItemInput = itemInput.omit({ taxCents: true, extraCents: true }).extend({
+  // Response-only derivation metadata: accepted for round trips, never trusted.
+  allocatedTaxCents: amount.nullable().optional(),
+  allocatedDiscountCents: amount.nullable().optional(),
+  allocatedExtraCents: z.number().int().min(-1_000_000).max(1_000_000).nullable().optional(),
+  discountSource: z.literal("receipt").optional(),
+  taxNotChecked: z.boolean().optional(),
   evidence: itemEvidence.optional(),
   manualFinal: z.boolean().default(false),
   name: z.string().max(160),
@@ -60,6 +65,7 @@ export const draftInput = z
         discountCents: amount,
         extraCents: z.number().int().min(-1_000_000).max(1_000_000),
         pricesIncludeTax: z.boolean(),
+        discountFallback: z.boolean().optional(),
         evidence: receiptEvidenceFields.optional(),
       })
       .strict()
