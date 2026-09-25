@@ -25,7 +25,7 @@ export function ReceiptReviewItems({ items, change, mode = "review", hasFrozenRa
     fields.current?.querySelector<HTMLInputElement>("[data-autofocus]")?.focus({ preventScroll: true });
   }, [selected]);
   const close = () => { if (fieldsValid(fields.current)) setSelected(null); };
-  const update = (patch: Partial<ReceiptDraftItem>) => change(items.map((item) => item.id === selected ? { ...item, ...patch } : item));
+  const update = (patch: Partial<ReceiptDraftItem>) => change(items.map((item) => item.id === selected ? { ...item, ...patch, ...("discountCents" in patch ? { discountSource: undefined } : {}) } : item));
   const move = (offset: number) => { if (fieldsValid(fields.current)) setSelected(items[index + offset].id); };
   return <section className="receipt-review-items" aria-label="Receipt items">
     <div className="receipt-list-heading"><strong>{items.length} {items.length === 1 ? "item" : "items"}</strong><span>Tap an item to edit</span></div>
@@ -45,7 +45,7 @@ export function ReceiptReviewItems({ items, change, mode = "review", hasFrozenRa
           <label className="receipt-field-wide">Item name<input data-autofocus required={mode === "correction"} maxLength={160} value={active.name} onChange={(event) => update({ name: event.target.value })} /></label>
           <label>Quantity<input maxLength={40} value={active.quantity} onChange={(event) => update({ quantity: event.target.value })} /></label>
           <ReceiptAmount label="Printed price" required={mode === "correction"} value={active.amountCents} change={(amountCents) => update({ amountCents })} />
-          <ReceiptAmount label="Item discount" emptyAsZero value={active.discountCents} change={(discountCents) => update({ discountCents: discountCents ?? 0 })} />
+          <ReceiptAmount label={active.discountSource === "receipt" ? "Item discount (from receipt)" : "Item discount"} emptyAsZero value={active.discountCents} change={(discountCents) => update({ discountCents: discountCents ?? 0 })} />
           <label className="receipt-tax-toggle"><input type="checkbox" checked={active.taxable !== false} onChange={(event) => update({ taxable: event.target.checked })} />Taxable</label>
         </div>
         <p className="receipt-field-help">Printed price is the whole line amount, including its quantity.{mode === "correction" && hasFrozenRate && " Corrections use the tax rate frozen when this bill was initiated; only this item's claims need reconfirmation."}</p>

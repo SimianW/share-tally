@@ -154,6 +154,20 @@ test("Azure adapter retains recorded evidence without changing prices", async ()
   assert.equal(noObservations.items[0]?.evidence?.priceConfidence, undefined);
   assert.equal(noObservations.items[0]?.evidence?.priceRegions, undefined);
 });
+test("Azure discount total preserves both own and receipt-wide discounts through draft pricing", async () => {
+  const raw = structuredClone(recorded("costco-coupon.synthetic"));
+  raw.documents[0].fields.Items.valueArray.push({
+    content: "general coupon -1.00",
+    valueObject: { TotalPrice: { valueCurrency: { amount: -1, currencyCode: "CAD" } } },
+  });
+  raw.documents[0].fields.Subtotal.valueCurrency.amount = 24;
+  const extraction = await extractorFor(raw).extract(Buffer.from("image"));
+  const draft = extractionDefaults(extraction);
+  assert.deepEqual(draft.items.map((item) => item.discountCents), [300, 200]);
+  assert.equal(draft.receipt.discountCents, 100);
+  assert.equal(draft.receipt.discountFallback, false);
+  assert.equal(draft.items.length, 2);
+});
 test("Azure rejects foreign polling URLs without forwarding credentials and returns recoverable errors", async () => {
   let calls = 0;
   const request: typeof fetch = async () => {
