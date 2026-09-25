@@ -1030,7 +1030,10 @@ try {
     await route.fulfill({ response, body: JSON.stringify(body) });
   });
   await alice.goto(`${base}#/bills/${correctionBill.id}`);
-  await expect(alice.getByRole("region", { name: "Receipt summary" })).toContainText("HST (13%)");
+  await alice.getByRole("button", { name: "Receipt summary", exact: true }).click();
+  const receiptSummary = alice.getByRole("dialog", { name: "Receipt summary", exact: true });
+  await expect(receiptSummary).toContainText("HST (13%)");
+  await receiptSummary.getByRole("button", { name: "Done", exact: true }).click();
   for (const viewport of [{ width: 1280, height: 1000 }, { width: 390, height: 844 }]) {
     await alice.setViewportSize(viewport);
     await alice.getByRole("button", { name: /View Taxable pears · \$/ }).click();
