@@ -1,15 +1,16 @@
 -- Legacy item tax included both its own input and the receipt allocation.
--- Only residual tax or a nonzero item adjustment makes a draft affected.
+-- An entered tax differing in either direction from its allocation, or a
+-- nonzero item adjustment, makes a draft affected. Missing tax is not an edit;
+-- a missing allocation means zero, as in legacy browser recovery.
 -- Preserve ALL its final costs as manual overrides, not only the edited row:
 -- removing legacy inputs must never silently change reviewed sibling amounts.
 -- Keep the receipt summary and paid total byte-for-byte as JSON values.
 WITH legacy_drafts AS (
   SELECT id, EXISTS (
     SELECT 1 FROM jsonb_array_elements(data->'items') AS item
-    WHERE greatest(0,
-      coalesce((item->>'taxCents')::integer, 0) -
-      coalesce((item->>'allocatedTaxCents')::integer, 0)
-    ) <> 0 OR coalesce((item->>'extraCents')::integer, 0) <> 0
+    WHERE ((item->>'taxCents') IS NOT NULL AND
+      (item->>'taxCents')::integer <> coalesce((item->>'allocatedTaxCents')::integer, 0)
+    ) OR coalesce((item->>'extraCents')::integer, 0) <> 0
   ) AS affected
   FROM receipt_drafts
   WHERE bill_id IS NULL

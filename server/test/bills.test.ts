@@ -1822,8 +1822,12 @@ test('legacy draft migration preserves every final and receipt summary, and only
   const receipt = { subtotalCents: 3000, taxCents: 300, discountCents: 0, extraCents: 0, pricesIncludeTax: false };
   const examples = [
     { residualTax: 50, extra: 0, affected: true },
+    { residualTax: -100, extra: 0, affected: true },
     { residualTax: 0, extra: -25, affected: true },
     { residualTax: 0, extra: 0, affected: false },
+    { residualTax: 0, extra: 0, affected: false, missingTax: true },
+    { residualTax: 0, extra: 0, affected: false, nullTax: true },
+    { residualTax: 0, extra: 0, affected: true, missingAllocation: true },
   ];
   const drafts = [];
   for (const example of examples) {
@@ -1831,7 +1835,7 @@ test('legacy draft migration preserves every final and receipt summary, and only
     const data = { ...fields, mode: 'items', totalCents: 3350, receipt, items: [] };
     await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data }));
     const legacy = { ...data, items: [
-      { id: crypto.randomUUID(), name: 'Taxable', originalText: '', quantity: '1', amountCents: 1000, discountCents: 0, taxable: true, manualFinal: false, taxCents: 100 + example.residualTax, allocatedTaxCents: 100, extraCents: example.extra, finalCents: 1100 + example.residualTax + example.extra },
+      { id: crypto.randomUUID(), name: 'Taxable', originalText: '', quantity: '1', amountCents: 1000, discountCents: 0, taxable: true, manualFinal: false, ...(example.missingTax ? {} : { taxCents: example.nullTax ? null : 100 + example.residualTax }), ...(example.missingAllocation ? {} : { allocatedTaxCents: 100 }), extraCents: example.extra, finalCents: 1100 + example.residualTax + example.extra },
       { id: crypto.randomUUID(), name: 'Also taxable', originalText: '', quantity: '1', amountCents: 2000, discountCents: 0, taxable: true, manualFinal: false, taxCents: 200, allocatedTaxCents: 200, extraCents: 0, finalCents: 2200 },
     ] };
     // Legacy fixture setup only; results are observed through authenticated HTTP.
