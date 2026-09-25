@@ -153,7 +153,7 @@ Plugins are trusted repository code, not sandboxed untrusted uploads. The runner
 
 [FORMAT.json](receipts/FORMAT.json) defines the label contract. All money uses integer minor units with exponent 2, including IDR. Rate strings are fractions (`"0.13"` means 13%). Null labels are unprinted/unverified and are excluded from that field's denominator, **not** treated as correct zeros. Verified empty discounts/taxes are meaningful expectations. Derived subtotals are not scored as printed-field extraction.
 
-The scorer compares purchased items one-to-one without runtime UUIDs. Extra predictions, including negative coupons incorrectly emitted as purchased items, must not disappear. Compare raw line amounts to `linePrice`, never to tax-allocated `finalCents`. Item discounts and receipt-wide discounts are separate expectations; arithmetic gaps are not labelled discounts. Taxability has its own field/denominator and cannot be hidden by improvements in amounts.
+The scorer compares purchased items one-to-one without runtime UUIDs. Extra predictions, including negative coupons incorrectly emitted as purchased items, must not disappear. Compare raw line amounts to `linePrice`, never to tax-allocated `finalCents`. Item discounts and receipt-wide discounts are separate expectations; arithmetic gaps are not labelled discounts. Tax lines, receipt discounts and charges also score their aligned attributes independently: an existing label mismatch must not hide a newly wrong amount or rate. Collection-wide exact-match scores are supplementary, not the only regression check. Taxability has its own field/denominator and cannot be hidden by improvements in amounts. Existing files containing JSON `null` are malformed documents, never treated as missing files, even with `--allow-incomplete`.
 
 The legacy labels deliberately allow partial/unknown fields and have `labelKind: "diagnostic-partial"`. They are separate from the strict image-corpus validator. Only 22 item descriptions verified verbatim against prior source annotations remain scoreable; 13 shortened/normalized descriptions are null, with their prior annotation text preserved in item notes. These are not everyday-name model labels. Two image-reviewed discount examples are 001 (item-owned discount 559 cents; rounding −1) and 525 (own discounts 257, 190 and 700 cents; rounding −2). Legacy taxability is unlabelled, so it contributes no taxability accuracy claim. The old pipeline preserves whole OCR rows in `originalText`, so low `items.description` accuracy is genuine old behavior rather than permission to substitute cleaner fields or model names.
 
@@ -162,7 +162,7 @@ The legacy labels deliberately allow partial/unknown fields and have `labelKind:
 ```sh
 python3 server/benchmark/validate_receipts.py
 python3 -m unittest discover -s server/benchmark -p test_validate_receipts.py
-corepack pnpm@12.3.4 --dir server exec node --import=tsx --test test/benchmark-scorer.test.ts test/benchmark.test.ts test/benchmark-record.test.ts
+corepack pnpm@12.3.4 --dir server exec node --import=tsx --test test/benchmark-scorer.test.ts test/benchmark-collections.test.ts test/benchmark.test.ts test/benchmark-record.test.ts
 corepack pnpm@12.3.4 --dir server typecheck
 corepack pnpm@12.3.4 --dir server build
 ```

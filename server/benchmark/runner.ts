@@ -5,7 +5,7 @@ import { invokeAdapter, type BenchmarkAdapter } from "./adapter.js";
 import { baselineAdapter, BASELINE_COMMIT } from "./baseline.js";
 import { loadDataset, type DatasetEntry } from "./dataset.js";
 import { AZURE_CONFIGS, readJson, validateAzureRecording, validateModelRecording, type AzureConfig, type ModelRecording } from "./recordings.js";
-import { aggregateScores, compareScores, scoreReceipt, type BenchmarkPrediction, type ScoreResult } from "./scorer.js";
+import { SUPPORTED_FIELDS, aggregateScores, compareScores, scoreReceipt, type BenchmarkPrediction, type ScoreResult } from "./scorer.js";
 import { offline } from "./offline.js";
 
 export interface RunOptions { root: string; recordings?: string; candidate?: string }
@@ -34,7 +34,7 @@ async function runPipeline(adapter: BenchmarkAdapter, entry: DatasetEntry, analy
 }
 function validatePrediction(prediction: BenchmarkPrediction) {
   if (!prediction || !Array.isArray(prediction.supportedFields) || (prediction.items != null && !Array.isArray(prediction.items))) throw new Error("Invalid adapter prediction.");
-  const valid = new Set(["merchant", "currency", "items", "items.description", "items.azureDescription", "items.productCode", "items.quantity", "items.unit", "items.unitPrice", "items.linePrice", "items.ownDiscount", "receiptDiscounts", "subtotal", "taxLines", "taxTotal", "taxMode", "charges", "rounding", "total", "taxability"]);
+  const valid = new Set<string>(SUPPORTED_FIELDS);
   if (prediction.supportedFields.some((field) => !valid.has(field))) throw new Error("Unknown supported prediction field.");
   for (const field of ["subtotal", "taxTotal", "rounding", "total"] as const) if (prediction[field] != null && !Number.isSafeInteger(prediction[field])) throw new Error(`Prediction ${field} must use integer minor units.`);
   for (const item of prediction.items ?? []) for (const field of ["unitPrice", "linePrice", "ownDiscount"] as const) if (item[field] != null && !Number.isSafeInteger(item[field])) throw new Error(`Prediction ${field} must use integer minor units.`);

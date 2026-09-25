@@ -162,6 +162,30 @@ test("explicit Azure-only mode records no fabricated model response", async () =
   } finally { await cleanup(); }
 });
 
+test("JSON null recordings are malformed, not absent, even with allow-incomplete", async () => {
+  const { entry, recordings, cleanup } = await fixture();
+  try {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    await recordBenchmark({ root, recordings, receipt: entry.id, config: "default", confirmPaidRequests: true,
+      env, request: mockRequest(calls), wait });
+    const before = calls.length;
+    for (const filename of ["default.json", "default.model.baseline.json"]) {
+      const path = resolve(recordings, entry.id, filename);
+      const saved = await readFile(path, "utf8");
+      await writeFile(path, "null\n");
+      const cli = spawnSync(process.execPath, ["--import=tsx", "benchmark/cli.ts", "--recordings", recordings, "--allow-incomplete", "--json"],
+        { cwd: resolve(root, ".."), encoding: "utf8", maxBuffer: 20 * 1024 * 1024 });
+      assert.equal(cli.status, 2, `${filename} must not be accepted as missing coverage`);
+      const report = JSON.parse(cli.stdout);
+      assert.ok(report.public.receipts.some((row: { errors: string[] }) => row.errors.some((error) => error.includes("JSON null"))));
+      await assert.rejects(recordBenchmark({ root, recordings, receipt: entry.id, config: "default", confirmPaidRequests: true,
+        env, request: mockRequest(calls), wait }), /JSON null/);
+      assert.equal(calls.length, before, "malformed existing files must fail without making paid replacement calls");
+      await writeFile(path, saved);
+    }
+  } finally { await cleanup(); }
+});
+
 test("sanitizes model errors and refuses secret-bearing candidate recordings", async () => {
   const { entry, recordings, cleanup } = await fixture();
   try {

@@ -6,9 +6,18 @@ export const SCORED_FIELDS = [
   "items.unitPrice", "items.linePrice", "items.ownDiscount",
   "receiptDiscounts", "subtotal", "taxLines", "taxTotal", "taxMode",
   "charges", "rounding", "total", "taxability",
+  "taxLines.count", "taxLines.missing", "taxLines.extra", "taxLines.label", "taxLines.amount", "taxLines.rate",
+  "receiptDiscounts.count", "receiptDiscounts.missing", "receiptDiscounts.extra", "receiptDiscounts.label", "receiptDiscounts.amount",
+  "charges.count", "charges.missing", "charges.extra", "charges.label", "charges.amount", "charges.stage",
 ] as const;
 export type ScoredField = (typeof SCORED_FIELDS)[number];
 export type SupportedField = Exclude<ScoredField, "items.count" | "items.missing" | "items.extra"> | "items";
+
+/** Canonical runtime vocabulary, derived from the same fields as the TypeScript contract. */
+export const SUPPORTED_FIELDS: readonly SupportedField[] = [
+  "items", ...SCORED_FIELDS.filter((field): field is Exclude<ScoredField, "items.count" | "items.missing" | "items.extra"> =>
+    field !== "items.count" && field !== "items.missing" && field !== "items.extra"),
+];
 
 type Maybe<T> = T | null;
 export interface ReceiptItemLabel {
@@ -121,7 +130,9 @@ function supported(prediction: BenchmarkPrediction | null, field: ScoredField): 
   if (field.startsWith("items.") && ["items.count", "items.missing", "items.extra"].includes(field)) {
     return prediction.supportedFields.includes("items") || prediction.supportedFields.some((f) => f.startsWith("items."));
   }
-  return prediction.supportedFields.includes(field as SupportedField);
+  const parent = COLLECTIONS.find((collection) => field.startsWith(`${collection}.`));
+  return prediction.supportedFields.includes(field as SupportedField) ||
+    (parent !== undefined && prediction.supportedFields.includes(parent));
 }
 function record(result: ScoreResult, field: ScoredField, groundTruth: unknown, actual: unknown, isSupported: boolean, same = Object.is): void {
   const score = result.fields[field];
@@ -139,7 +150,7 @@ function valueEqual(field: ScoredField, a: unknown, b: unknown): boolean {
   if (typeof a === "string" && typeof b === "string") {
     if (field === "items.description" || field === "items.azureDescription" || field === "merchant") return normalizedText(a) === normalizedText(b);
     // Decimal strings are normalized without using floating point.
-    if (field === "items.quantity") return decimalEqual(a, b);
+    if (field === "items.quantity" || field === "taxLines.rate") return decimalEqual(a, b);
     return a.trim().toLowerCase() === b.trim().toLowerCase();
   }
   return Object.is(a, b);
@@ -185,14 +196,17 @@ function affinity(a: ReceiptItemLabel, b: ReceiptItemPrediction): number {
   return score;
 }
 function alignItems(label: ReceiptItemLabel[], predicted: ReceiptItemPrediction[]): Array<number | null> {
-  const n = label.length;
-  const m = predicted.length + n;
+  return alignRows(label.length, predicted.length, (i, j) => affinity(label[i]!, predicted[j]!), 3);
+}
+/** One shared assignment for all attributes, never a fresh pairing for each field. */
+function alignRows(n: number, predictedCount: number, strengthAt: (i: number, j: number) => number, minimum: number): Array<number | null> {
+  const m = predictedCount + n;
   if (!n) return [];
   // Rectangular Hungarian minimum-cost assignment. Ties follow input order deterministically.
-  const costs = label.map((item, i) => Array.from({ length: m }, (_, j) => {
-    const strength = j < predicted.length ? affinity(item, predicted[j]!) : 0;
+  const costs = Array.from({ length: n }, (_, i) => Array.from({ length: m }, (_, j) => {
+    const strength = j < predictedCount ? strengthAt(i, j) : 0;
     // On equivalent printed rows, prefer minimum displacement then source order.
-    return strength >= 3 ? 10000 - Math.round(strength * 100) + Math.abs(i - j) * 0.001 : 10000;
+    return strength >= minimum ? 10000 - Math.round(strength * 100) + Math.abs(i - j) * 0.001 : 10000;
   }));
   const u = Array<number>(n + 1).fill(0);
   const v = Array<number>(m + 1).fill(0);
@@ -226,7 +240,7 @@ function alignItems(label: ReceiptItemLabel[], predicted: ReceiptItemPrediction[
   for (let j = 1; j <= m; j++) {
     if (!p[j]) continue;
     const i = p[j]! - 1;
-    if (j <= predicted.length && costs[i]![j - 1]! < 10000) assignment[i] = j - 1;
+    if (j <= predictedCount && costs[i]![j - 1]! < 10000) assignment[i] = j - 1;
   }
   return assignment;
 }
@@ -253,6 +267,45 @@ function collectionEqual(a: unknown, b: unknown): boolean {
   return a.every((_: unknown, row: number) => visit(row, new Set()));
 }
 
+const COLLECTION_ATTRIBUTES = {
+  taxLines: ["label", "amount", "rate"],
+  receiptDiscounts: ["label", "amount"],
+  charges: ["label", "amount", "stage"],
+} as const;
+type CollectionRow = { label?: Maybe<string>; amount?: Maybe<number>; rate?: Maybe<string>; stage?: Maybe<string> };
+function scoreCollection(result: ScoreResult, collection: typeof COLLECTIONS[number], expected: CollectionRow[] | null | undefined, actual: CollectionRow[] | null | undefined, prediction: BenchmarkPrediction | null) {
+  const attributes = COLLECTION_ATTRIBUTES[collection];
+  const field = (attribute: string) => `${collection}.${attribute}` as ScoredField;
+  const alignment = expected && actual ? alignRows(expected.length, actual.length, (i, j) => {
+    // A wrong label must not erase an independently correct amount. Prefer exact
+    // labels, then amount/rate/stage, and pair remaining rows deterministically.
+    let strength = 1;
+    for (const attribute of attributes) {
+      if (defined(expected[i]![attribute]) && defined(actual[j]![attribute]) && valueEqual(field(attribute), expected[i]![attribute], actual[j]![attribute])) {
+        strength += attribute === "label" ? 8 : attribute === "amount" ? 4 : 2;
+      }
+    }
+    return strength;
+  }, 1) : expected?.map(() => null) ?? [];
+  const used = new Set(alignment.filter((index): index is number => index !== null));
+  record(result, field("count"), expected?.length, actual?.length, supported(prediction, field("count")));
+  record(result, field("missing"), expected ? 0 : null, actual ? (expected?.length ?? 0) - used.size : undefined, supported(prediction, field("missing")));
+  record(result, field("extra"), expected ? 0 : null, actual ? actual.length - used.size : undefined, supported(prediction, field("extra")));
+  if (!expected) {
+    for (const attribute of attributes) result.fields[field(attribute)].unprinted++;
+    return;
+  }
+  expected.forEach((row, i) => {
+    const index = alignment[i];
+    const observed = index === null ? undefined : actual?.[index!];
+    for (const attribute of attributes) record(result, field(attribute), row[attribute], observed?.[attribute], supported(prediction, field(attribute)), (a, b) => valueEqual(field(attribute), a, b));
+  });
+  actual?.forEach((row, i) => {
+    if (used.has(i)) return;
+    for (const attribute of attributes) if (defined(row[attribute]) && supported(prediction, field(attribute))) result.fields[field(attribute)].scored++;
+  });
+}
+
 export function scoreReceipt(label: ReceiptLabel, prediction: BenchmarkPrediction | null): ScoreResult {
   const result = emptyResult();
   if (label.id) result.receiptIds.push(label.id);
@@ -264,6 +317,7 @@ export function scoreReceipt(label: ReceiptLabel, prediction: BenchmarkPredictio
     prediction?.subtotal, supported(prediction, "subtotal"));
   for (const field of COLLECTIONS) {
     record(result, field, label[field], prediction?.[field], supported(prediction, field), collectionEqual);
+    scoreCollection(result, field, label[field], prediction?.[field], prediction);
   }
   const items = label.items;
   const predicted = prediction?.items;

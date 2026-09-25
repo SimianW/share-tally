@@ -51,7 +51,12 @@ export function canonicalJson(value: unknown): string {
 }
 export function inputHash(input: unknown) { return createHash("sha256").update(canonicalJson(input)).digest("hex"); }
 export async function readJson(path: string): Promise<unknown | null> {
-  try { return JSON.parse(await readFile(path, "utf8")); }
+  try {
+    const value: unknown = JSON.parse(await readFile(path, "utf8"));
+    // null is the absence sentinel only for ENOENT, never a valid file envelope.
+    if (value === null) throw new RecordingError("JSON null is not a valid benchmark document.");
+    return value;
+  }
   catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
     throw new RecordingError(`Cannot read ${path}: ${String(error)}`);

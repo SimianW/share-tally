@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
 import { z } from "zod";
 import { readJson, RecordingError } from "./recordings.js";
 import type { ReceiptLabel } from "./scorer.js";
 
-export interface DatasetEntry { id: string; label: ReceiptLabel; imageSha256?: string; fixture?: string }
+export interface DatasetEntry { id: string; label: ReceiptLabel; imageSha256?: string; imagePath?: string; fixture?: string }
 const entrySchema = z.object({ id: z.string().regex(/^[a-zA-Z0-9_-]+$/), groundTruth: z.string().min(1), image: z.string().nullable().optional(), imageSha256: z.string().regex(/^[a-f0-9]{64}$/).optional(), fixture: z.string().optional() }).passthrough();
 // Full corpus arithmetic/provenance validation stays in validate_receipts.py.
 // Here reject malformed inputs instead of quietly treating them as missing recordings.
@@ -34,10 +34,13 @@ async function readManifest(path: string, legacy: boolean): Promise<DatasetEntry
       result.push({ id: entry.id, label: label as ReceiptLabel, fixture: resolve(dirname(path), entry.fixture) });
     } else {
       if (!entry.image || !entry.imageSha256) throw new RecordingError(`Missing image provenance: ${entry.id}`);
-      const bytes = await readFile(resolve(dirname(path), entry.image));
+      if (basename(entry.image) !== entry.image || !entry.image.endsWith(".png"))
+        throw new RecordingError(`Public image must be a PNG filename in its manifest directory: ${entry.id}`);
+      const imagePath = resolve(dirname(path), entry.image);
+      const bytes = await readFile(imagePath);
       const digest = createHash("sha256").update(bytes).digest("hex");
       if (digest !== entry.imageSha256) throw new RecordingError(`Committed image hash mismatch: ${entry.id}`);
-      result.push({ id: entry.id, label: label as ReceiptLabel, imageSha256: digest });
+      result.push({ id: entry.id, label: label as ReceiptLabel, imageSha256: digest, imagePath });
     }
   }
   return result;

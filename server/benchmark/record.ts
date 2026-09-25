@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
-import { link, lstat, mkdir, readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";
-import { basename, dirname, resolve } from "node:path";
+import { link, lstat, mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import type { AnalyzeResult } from "../src/azure-receipt.js";
@@ -72,25 +72,14 @@ async function saveRecording(path: string, value: unknown, overwrite: boolean, e
     await unlink(temporary).catch(() => {});
   }
 }
-async function imageFor(root: string, id: string): Promise<Buffer> {
-  const receipts = resolve(root, "receipts");
-  for (const dir of await readdir(receipts, { withFileTypes: true })) {
-    if (!dir.isDirectory() || dir.name === "owner-slots") continue;
-    const manifest = await readJson(resolve(receipts, dir.name, "manifest.json"));
-    if (!Array.isArray(manifest)) throw new Error("Invalid public manifest.");
-    for (const entry of manifest) {
-      if (entry?.id !== id) continue;
-      if (typeof entry.image !== "string" || basename(entry.image) !== entry.image || !entry.image.endsWith(".png"))
-        throw new Error("Public image must be a committed PNG in its manifest directory.");
-      const imagePath = resolve(receipts, dir.name, entry.image);
-      if (!(await lstat(imagePath)).isFile()) throw new Error("Public image must be a regular committed PNG.");
-      const bytes = await readFile(imagePath);
-      if (!bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])))
-        throw new Error("Public image is not a PNG.");
-      return bytes;
-    }
-  }
-  throw new Error(`No public image for ${id}.`);
+async function imageFor(imagePath: string): Promise<Buffer> {
+  // Dataset loading already vetted the manifest's local filename and hash.
+  // Recheck the file immediately before submission to catch any later change.
+  if (!(await lstat(imagePath)).isFile()) throw new Error("Public image must be a regular committed PNG.");
+  const bytes = await readFile(imagePath);
+  if (!bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])))
+    throw new Error("Public image is not a PNG.");
+  return bytes;
 }
 function timeout(error: unknown): boolean {
   return error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
@@ -156,7 +145,8 @@ export async function recordBenchmark(options: RecordOptions): Promise<string[]>
     } else {
       if (!env.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT || !env.AZURE_DOCUMENT_INTELLIGENCE_KEY)
         throw new Error("Set AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT and AZURE_DOCUMENT_INTELLIGENCE_KEY.");
-      const image = await imageFor(options.root, entry.id);
+      if (!entry.imagePath) throw new Error(`No vetted public image for ${entry.id}.`);
+      const image = await imageFor(entry.imagePath);
       if (createHash("sha256").update(image).digest("hex") !== entry.imageSha256) throw new Error("Committed image SHA-256 changed.");
       analysis = await analyzeAzureImage(image, config, env, request, options.wait);
       const envelope = { schemaVersion: 1, imageSha256: entry.imageSha256!, request: AZURE_CONFIGS[config], analyzeResult: analysis };
