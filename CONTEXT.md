@@ -52,6 +52,14 @@ _Avoid_: Receipt adjustments, which names only part of it
 **Bill draft**:
 An uninitialized bill visible only to its initiator, who can review and correct it before opening it for participation.
 
+**Processing draft**:
+A bill draft whose receipt is still being interpreted after scanning. Its initiator can view it but cannot edit or initiate it until interpretation finishes or falls back.
+_Avoid_: Pending draft, since "pending" already describes repayment records.
+
+**Receipt evidence**:
+The complete raw analysis the receipt reader returned for a scanned receipt photo, retained with the photo and deleted with it. The receipt text and reviewed items outlive it.
+_Avoid_: OCR data, scan result.
+
 **Bill initiation**:
 The initiator's publication of a reviewed bill draft, making it visible to the group and opening it to its selected participants. For item-based bills, initiation does not itself confirm any item claims.
 
