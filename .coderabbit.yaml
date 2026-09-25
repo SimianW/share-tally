@@ -47,21 +47,14 @@ reviews:
           locking or conditional updates. Flag lost-update and double-submit races.
         - Validate request input at the boundary (zod / input-validation.ts) and return errors via BillError
           with an accurate status code.
-        - Enforce the ADRs in docs/adr, notably: completed bills are final (0006), settlement cannot be
-          reversed (0002), an item-price correction invalidates only that item's confirmations (0007),
-          item completion uses claims rather than amount tolerance (0008), and small bill differences
-          belong to the initiator (0004).
+        - Read the ADRs in docs/adr that touch the changed behaviour and flag any contradiction, naming
+          the ADR.
 
     - path: "server/src/{receipt-*,azure-receipt}.ts"
       instructions: |
-        Receipt pipeline. Check against ADR-0009 to ADR-0012:
-        - Azure Document Intelligence owns every amount; the language model may only classify or name
-          items and must never create or change a price (0011).
-        - Item costs derive from the printed price plus a proportional share of the receipt summary (0009).
-        - Receipt discounts attach by generic rules and must be guarded by reconciliation against the
-          receipt total (0012).
-        - Receipt evidence is retained with the photo and deleted with it (0010).
-        - External provider failures and timeouts must leave the bill draft usable (fallback, not data loss).
+        Receipt pipeline. Read the receipt-related ADRs in docs/adr and flag changes that contradict them,
+        naming the ADR. External provider failures and timeouts must leave the bill draft usable
+        (fallback, not data loss).
 
     - path: "server/{src/db/schema.ts,drizzle/*.sql}"
       instructions: |
