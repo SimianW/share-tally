@@ -108,7 +108,7 @@ export function buildReceiptNameRequest(evidence: ReceiptModelEvidence, config: 
         },
       },
       max_output_tokens: 8192,
-      reasoning: { effort: "low" },
+      reasoning: { effort: "high" },
       store: false,
     };
 }
