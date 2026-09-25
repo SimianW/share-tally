@@ -41,8 +41,24 @@ A participant's acknowledgment of their claim on a bill item at its current pric
 **Claim reservation**:
 A previously claimed fraction held for its claimant after an item-price correction, awaiting their renewed confirmation or release. It is unavailable to other claimants and contributes no confirmed amount until reconfirmed.
 
+**Printed price**:
+A bill item's amount as printed on the receipt, before its discount and its share of the receipt-wide discount, tax and other adjustments.
+_Avoid_: Original price, OCR price
+
+**Receipt summary**:
+The receipt-wide subtotal, discount, tax, other adjustments and total of an item-based bill, from which item costs receive their proportional shares.
+_Avoid_: Receipt adjustments, which names only part of it
+
 **Bill draft**:
 An uninitialized bill visible only to its initiator, who can review and correct it before opening it for participation.
+
+**Processing draft**:
+A bill draft whose receipt is still being interpreted after scanning. Its initiator can view it but cannot edit or initiate it until interpretation finishes or falls back.
+_Avoid_: Pending draft, since "pending" already describes repayment records.
+
+**Receipt evidence**:
+The complete raw analysis the receipt reader returned for a scanned receipt photo, retained with the photo and deleted with it. The receipt text and reviewed items outlive it.
+_Avoid_: OCR data, scan result.
 
 **Bill initiation**:
 The initiator's publication of a reviewed bill draft, making it visible to the group and opening it to its selected participants. For item-based bills, initiation does not itself confirm any item claims.
