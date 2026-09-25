@@ -10,6 +10,9 @@ RUN pnpm typecheck && pnpm build
 
 # Run this image with the host Docker socket, so tests can create disposable DBs.
 FROM server-build AS checks
+# Client/server pricing parity tests import the client's type-only pricing mirror
+# from ../../client/src relative to /app/test.
+COPY client/src/ /client/src/
 CMD ["pnpm", "test"]
 
 FROM server-build AS server-production-deps

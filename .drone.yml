@@ -7,9 +7,10 @@ name: share-tally
 trigger:
   event: [push]
 
-# Serialize releases so migrations and application updates cannot overlap.
+# Run up to three builds at once. This no longer serializes main releases, so
+# overlapping pushes to main can run migrations and deploys concurrently.
 concurrency:
-  limit: 1
+  limit: 3
 
 volumes:
   - name: docker-socket
