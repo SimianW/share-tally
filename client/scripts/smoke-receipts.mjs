@@ -296,6 +296,7 @@ try {
   await alice
     .getByRole("button", { name: "Add an item", exact: true })
     .click();
+  await expect(alice.getByRole("dialog", { name: "Edit receipt item" }).getByRole("img", { name: "Receipt line" })).toHaveCount(0);
   const taxBox = await alice.getByRole("checkbox", { name: "Taxable", exact: true }).boundingBox();
   assert.ok(taxBox.width <= 24, "Tax checkbox must not inherit full-width input styling");
   await alice.getByLabel("Item name", { exact: true }).fill("Apples");
