@@ -142,7 +142,7 @@ export function ReceiptDrafts({
             <strong>{d.data.title || "Untitled bill"}</strong>
             <small>
               {d.data.mode === "items" ? "Split by items" : "Split by amount"}
-              {d.processingStatus === "processing" && " · Checking names and tax"}
+              {d.processingStatus === "processing" && <span className="draft-processing-status"> · Checking names & tax…</span>}
               {d.processingStatus === "fallback" && " · Tax not checked"}
               {d.updatedAt &&
                 ` · Saved ${new Date(d.updatedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`}
@@ -595,18 +595,8 @@ export function ReceiptDraftForm({
               ][step]
             }
           </p>
-          {processing && (
-            <Notification tone="info" title="Checking names and tax">
-              Review your receipt while the tax check finishes. Editing and initiation are paused.
-            </Notification>
-          )}
-          {draft.processingStatus === "fallback" && (
-            <Notification tone="warning" title="Tax not checked">
-              The AI tax check did not finish. Please confirm which items are taxable before initiating.
-            </Notification>
-          )}
           {syncError && processing && <p role="status">{syncError}</p>}
-          <fieldset disabled={!!busy || !!draft.initializationRevision || processing}>
+          <fieldset disabled={!!busy || !!draft.initializationRevision || (processing && step !== 1)}>
             {step === 0 && (
               <>
                 <div className="receipt-source">
@@ -757,7 +747,7 @@ export function ReceiptDraftForm({
                       />
                     )}
 
-                    <Button variant="secondary" onClick={() => setStep(0)}>
+                    <Button variant="secondary" disabled={processing} onClick={() => setStep(0)}>
                       <Upload size={18} aria-hidden="true" />
                       {draft.photo
                         ? "Replace receipt photo"
@@ -770,6 +760,7 @@ export function ReceiptDraftForm({
                         {data.items.length > 0 && !replace ? (
                           <Button
                             variant="secondary"
+                            disabled={processing}
                             onClick={() => setReplace(true)}
                           >
                             Scan and replace current items…
@@ -777,6 +768,7 @@ export function ReceiptDraftForm({
                         ) : (
                           <Button
                             variant="secondary"
+                            disabled={processing}
                             onClick={() => void run("Reading receipt…", scan)}
                           >
                             {replace
@@ -798,7 +790,9 @@ export function ReceiptDraftForm({
                       items={data.items}
                       change={(items) => update({ items })}
                       processing={processing}
-                      onConfirm={async (itemId) => {
+                      processingStatus={draft.processingStatus}
+                      scanned={!!draft.photo && data.items.length > 0}
+                      onConfirm={async (itemId, flag) => {
                         if (pending.current || draft.processingStatus === "processing") return false;
                         pending.current = true;
                         setBusy("Confirming item…");
@@ -806,8 +800,8 @@ export function ReceiptDraftForm({
                         try {
                           const latest = hasUnsavedChanges(draft, baseline.current, file, loading)
                             ? (await api.save(group.id, draft)).draft : draft;
-                          const confirmed = latest.data.items.find((item) => item.id === itemId)?.needsCheck === false
-                            ? latest : (await api.confirmItem(latest.id, itemId, latest.revision)).draft;
+                          const confirmed = latest.data.items.find((item) => item.id === itemId)?.[flag] === false
+                            ? latest : (await api.confirmItem(latest.id, itemId, latest.revision, flag)).draft;
                           baseline.current = confirmed;
                           setDraft(confirmed);
                           setNotice("");
@@ -989,7 +983,7 @@ export function ReceiptDraftForm({
           )}
 
           <div className={`receipt-wizard-actions${step === 1 ? " receipt-review-footer" : ""}`}>
-            {step === 1 && <ReceiptReconciliation data={data} openSummary={() => setSummaryOpen(true)} />}
+            {step === 1 && <ReceiptReconciliation data={data} processing={processing} openSummary={() => setSummaryOpen(true)} />}
             <div>
               {step > 0 && (
                 <Button
