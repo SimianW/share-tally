@@ -11,7 +11,7 @@ import {
 } from "./receipt-api";
 import { ReceiptAmount } from "./ReceiptAmount";
 import { ReceiptReviewItems, ReceiptSummary, ReceiptReconciliation } from "./ReceiptReview";
-import { deriveReceiptItems, recoverReceiptData } from "./receipt-pricing";
+import { deriveReceiptItems, recoverReceiptData, unassignedReceiptTaxMessage } from "./receipt-pricing";
 import { ReceiptCrop, ReceiptPhoto } from "./ReceiptPhoto";
 import Dialog from "./Dialog";
 import { Notification } from "./Notification";
@@ -495,11 +495,7 @@ export function ReceiptDraftForm({
   const data = draft.data;
   const processing = draft.processingStatus === "processing";
   const itemTotal = data.items.reduce((sum, i) => sum + (i.finalCents ?? 0), 0);
-  const displayWarnings = (data.receipt?.taxCents ?? 0) > 0 &&
-    !data.receipt?.pricesIncludeTax && data.items.length > 0 &&
-    data.items.every((item) => item.taxable === false)
-    ? [...warnings, `Receipt tax ${money(data.receipt!.taxCents)} isn't assigned to any item — mark taxable items.`]
-    : warnings;
+  const unassignedTaxMessage = unassignedReceiptTaxMessage(data);
   const valid =
     data.totalCents !== null &&
     data.totalCents > 0 &&
@@ -529,7 +525,7 @@ export function ReceiptDraftForm({
           noValidate
           onSubmit={(e) => {
             e.preventDefault();
-            if (processing || step !== 2 || !e.currentTarget.reportValidity()) return;
+            if (processing || step !== 2 || unassignedTaxMessage || !e.currentTarget.reportValidity()) return;
             if (valid)
               void run("Initiating…", async () => {
                 const saved = draft.initializationRevision
@@ -786,6 +782,11 @@ export function ReceiptDraftForm({
                         )}
                       </div>
                     )}
+                    {unassignedTaxMessage && !processing && (
+                      <Notification tone="error" title="Receipt tax needs an item">
+                        {unassignedTaxMessage}
+                      </Notification>
+                    )}
                     <ReceiptReviewItems
                       items={data.items}
                       change={(items) => update({ items })}
@@ -951,7 +952,15 @@ export function ReceiptDraftForm({
               </div>
             )}
           </fieldset>
-          {displayWarnings.map((w, i) => (
+          {step === 2 && unassignedTaxMessage && (
+            <Notification tone="error" title="Receipt tax needs an item">
+              {unassignedTaxMessage}
+              <Button variant="text" onClick={() => setStep(1)} disabled={!!busy || processing}>
+                Edit items <ArrowRight size={16} aria-hidden="true" />
+              </Button>
+            </Notification>
+          )}
+          {warnings.map((w, i) => (
             <Notification tone="warning" title="Check the receipt" key={i}>
               {w}
             </Notification>
@@ -1026,7 +1035,7 @@ export function ReceiptDraftForm({
               </Button>
             )}
             {step === 2 && (
-              <Button type="submit" disabled={!!busy || !valid || processing}>
+              <Button type="submit" disabled={!!busy || !valid || processing || !!unassignedTaxMessage}>
                 {draft.initializationRevision
                   ? "Retry initiation"
                   : "Initiate bill"}

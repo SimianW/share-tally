@@ -2252,6 +2252,64 @@ test('production startup sequence recovers processing drafts left stale by a sto
   assert.ok(recovered.data.items.every((item: { taxable: boolean; taxNotChecked: boolean }) => item.taxable && item.taxNotChecked));
 });
 
+test('an unassigned positive receipt tax saves as a draft but blocks initiation until tax is assignable', async () => {
+  const { group, draft } = await setup();
+  const { requestId: _requestId, ...fields } = draft;
+  const id = crypto.randomUUID();
+  const path = `/groups/${group.id}/receipt-drafts/${id}`;
+  const data = {
+    ...fields, mode: 'items', totalCents: 1125,
+    receipt: { subtotalCents: 1000, taxCents: 125, discountCents: 0, extraCents: 0, pricesIncludeTax: false },
+    items: [{ id: crypto.randomUUID(), name: 'Bread', originalText: '', quantity: '1',
+      amountCents: 1000, discountCents: 0, taxable: false, manualFinal: false, finalCents: 999 }],
+  };
+  const saved = (await json(await api(path, 'alice-token', 'PUT', { revision: 0, data }))).draft;
+  assert.equal(saved.data.items[0].finalCents, 1000);
+  const error = await json(await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST', { revision: saved.revision }), 400);
+  assert.equal(error.error, "Receipt tax $1.25 isn't assigned to any item. Mark the taxable items or set final costs manually.");
+  assert.equal((await json(await api(`/receipt-drafts/${id}`))).draft.billId, null);
+  const resolved = (await json(await api(path, 'alice-token', 'PUT', {
+    revision: saved.revision, data: { ...saved.data, items: [{ ...saved.data.items[0], taxable: true }] },
+  }))).draft;
+  const bill = (await json(await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST', { revision: resolved.revision }))).bill;
+  assert.equal(bill.items[0].finalCents, 1125);
+});
+
+test('receipt tax initiation guard leaves manual finals, inclusive and zero tax, and taxable derived items available', async () => {
+  const { group, draft } = await setup();
+  const { requestId: _requestId, ...fields } = draft;
+  const receipt = { subtotalCents: 2000, taxCents: 125, discountCents: 0, extraCents: 0, pricesIncludeTax: false };
+  const item = (taxable: boolean | null, manualFinal = false, amountCents = 1000, discountCents = 0) => ({
+    id: crypto.randomUUID(), name: 'Item', originalText: '', quantity: '1',
+    amountCents, discountCents, taxable, manualFinal, finalCents: 1000,
+  });
+  const cases = [
+    { name: 'manual finals', items: [item(false, true)], receipt, blocked: false },
+    { name: 'inclusive prices', items: [item(false)], receipt: { ...receipt, pricesIncludeTax: true }, blocked: false },
+    { name: 'zero tax', items: [item(false)], receipt: { ...receipt, taxCents: 0 }, blocked: false },
+    { name: 'derived taxable', items: [item(false), item(true)], receipt, blocked: false },
+    { name: 'unknown taxable', items: [item(null)], receipt, blocked: false },
+    { name: 'manual taxable does not excuse derived exempt', items: [item(true, true), item(false)], receipt, blocked: true },
+    { name: 'fully discounted taxable cannot receive tax', items: [item(true, false, 1000, 1000), item(false)], receipt, blocked: true },
+  ];
+  for (const example of cases) {
+    const id = crypto.randomUUID();
+    const data = { ...fields, mode: 'items', totalCents: 2125, receipt: example.receipt, items: example.items };
+    const saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data }))).draft;
+    const response = await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST', { revision: saved.revision });
+    if (example.blocked) {
+      const error = await json(response, 400);
+      assert.equal(error.error, "Receipt tax $1.25 isn't assigned to any item. Mark the taxable items or set final costs manually.", example.name);
+      const stillDraft = (await json(await api(`/receipt-drafts/${id}`))).draft;
+      assert.equal(stillDraft.billId, null, example.name);
+      assert.equal(stillDraft.revision, saved.revision, example.name);
+    } else {
+      const bill = (await json(response)).bill;
+      assert.equal(bill.items.length, example.items.length, example.name);
+    }
+  }
+});
+
 test('draft saves derive receipt shares from printed prices rather than submitted costs', async () => {
   const { group, draft } = await setup();
   const { requestId: _requestId, ...fields } = draft;

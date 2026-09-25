@@ -26,7 +26,7 @@ import {
 import { BillError, parseBill } from "./bills.js";
 import type { Tx } from "./item-accounting.js";
 import { notifyGroupChanged } from "./group-events.js";
-import { priceDraft } from "./receipt-pricing.js";
+import { priceDraft, unassignedReceiptTaxMessage } from "./receipt-pricing.js";
 import { frozenBases, roundingOffset, printedTax, selectFrozenTaxRate } from "./frozen-receipt-pricing.js";
 import { itemWasEdited } from "./receipt-needs-check.js";
 export async function requireMember(tx: Tx, groupId: string, userId: string) {
@@ -352,6 +352,8 @@ export async function initializeDraft(
     if (draft.billId) return { id: draft.billId, groupId: draft.groupId };
     editable(draft, revision);
     const reviewed = checked(draftInput, draft.data);
+    const taxError = unassignedReceiptTaxMessage(reviewed);
+    if (taxError) throw new BillError(400, taxError);
     const { mode, items: _draftItems, receipt: _receipt, ...data } = reviewed;
     const priced = mode === "items" ? priceDraft(reviewed).items : [];
     const bases = frozenBases({ ...reviewed, items: priced });

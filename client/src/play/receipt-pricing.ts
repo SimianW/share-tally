@@ -1,4 +1,5 @@
 import type { ReceiptData, ReceiptDraftItem } from "./receipt-api";
+import { money } from "./bill-api";
 
 // Live preview only. The server re-derives every amount when saving. Keep these
 // largest-remainder rules aligned with server/src/receipt-pricing.ts.
@@ -46,6 +47,20 @@ export function deriveReceiptItems(data: ReceiptData): ReceiptDraftItem[] {
       finalCents: item.manualFinal ? item.finalCents : final === null || final < 0 || final > 1_000_000 ? null : final,
     };
   });
+}
+
+// Mirror the initiation-only server guard. Use freshly derived discount shares,
+// not response metadata that may be stale after local edits.
+export function unassignedReceiptTaxMessage(data: ReceiptData): string | null {
+  const receipt = data.receipt;
+  if (data.mode !== "items" || !receipt || receipt.taxCents <= 0 || receipt.pricesIncludeTax)
+    return null;
+  const derived = deriveReceiptItems(data).filter((item) => item.manualFinal !== true);
+  if (!derived.length || derived.some((item) => item.taxable !== false &&
+    item.amountCents !== null && item.allocatedDiscountCents !== null &&
+    item.allocatedDiscountCents !== undefined &&
+    item.amountCents - item.discountCents - item.allocatedDiscountCents > 0)) return null;
+  return `Receipt tax ${money(receipt.taxCents)} isn't assigned to any item. Mark the taxable items or set final costs manually.`;
 }
 
 // Unsaved session recovery can predate the server migration. Match its rule:
