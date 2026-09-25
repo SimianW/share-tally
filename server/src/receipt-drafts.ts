@@ -296,13 +296,13 @@ export async function initializeDraft(
     const items =
       mode === "items"
         ? checked(
-            z.array(itemInput).min(1).max(200),
+            z.array(itemInput.extend({ taxCents: itemInput.shape.taxCents.nullable(), extraCents: itemInput.shape.extraCents.nullable() })).min(1).max(200),
             priced.map((item) => ({
               id: item.id, name: item.name, originalText: item.originalText,
               quantity: item.quantity, amountCents: item.amountCents,
               discountCents: item.discountCents, finalCents: item.finalCents,
-              taxCents: item.allocatedTaxCents ?? 0,
-              extraCents: item.allocatedExtraCents ?? 0,
+              taxCents: item.allocatedTaxCents,
+              extraCents: item.allocatedExtraCents,
             })),
           )
         : [];
@@ -363,6 +363,8 @@ export async function initializeDraft(
             taxable: source.taxable !== false,
             manualFinal: source.manualFinal,
             allocatedDiscountCents: source.allocatedDiscountCents,
+            frozenDiscountWeightCents: base,
+            frozenNetWeightCents: net,
             frozenDiscountRoundingCents: roundingOffset(source.allocatedDiscountCents ?? null, receipt!.discountCents, base, bases.discountBase),
             frozenTaxRoundingCents: roundingOffset(source.allocatedTaxCents ?? null, receipt!.pricesIncludeTax ? 0 : receipt!.taxCents, source.taxable === false ? 0 : net, bases.taxableBase),
             frozenExtraRoundingCents: roundingOffset(source.allocatedExtraCents ?? null, receipt!.extraCents, net, bases.extraBase),
