@@ -824,12 +824,24 @@ try {
         items: [{ ...data.items[0], evidence: { regions: [{ pageNumber: 1, polygon: [30, 100, 180, 100, 180, 140, 30, 140] }] } }, data.items[1]],
       },
     });
+    await alice.route(`**/api/receipt-drafts/${draftId}`, async (route) => {
+      if (route.request().method() !== "GET") return route.continue();
+      const upstream = new URL(route.request().url());
+      upstream.hostname = "127.0.0.1";
+      const response = await route.fetch({ url: upstream.href });
+      const body = await response.json();
+      body.draft.data.receipt.taxLabel = "HST (13%)";
+      await route.fulfill({ response, body: JSON.stringify(body) });
+    });
     await alice.setViewportSize(viewport);
     await alice.goto(`${newBillRoute}/${draftId}`);
     await stepButton("Items").click();
     const row = name => alice.getByRole("button", { name: `Edit ${name}`, exact: true, includeHidden: true });
     await expect(row("Apples")).toContainText("10.00");
     await expect(reconciliation()).toContainText("Matches receipt");
+    await reconciliation().click();
+    await expect(alice.getByText("HST (13%)", { exact: true })).toBeVisible();
+    await alice.getByRole("button", { name: "Close summary", exact: true }).click();
     await reconciliation().scrollIntoViewIfNeeded();
     if (viewport.width <= 640) {
       const footerBox = await alice.locator(".receipt-review-footer").boundingBox();
@@ -1029,7 +1041,20 @@ try {
   const correctionBill = (await api(`/receipt-drafts/${correctionDraftId}/initialize`, "alice-token", "POST", { revision: correctionDraft.revision })).bill;
   assert.deepEqual(correctionBill.items.map(item => item.finalCents), [1090, 1820]);
   assert.deepEqual(correctionBill.frozenTaxRate, { taxCents: 180, taxableBaseCents: 900 });
+  await alice.route(`**/api/bills/${correctionBill.id}`, async (route) => {
+    if (route.request().method() !== "GET") return route.continue();
+    const upstream = new URL(route.request().url());
+    upstream.hostname = "127.0.0.1";
+    const response = await route.fetch({ url: upstream.href });
+    const body = await response.json();
+    body.bill.receipt.taxLabel = "HST (13%)";
+    await route.fulfill({ response, body: JSON.stringify(body) });
+  });
   await alice.goto(`${base}#/bills/${correctionBill.id}`);
+  await alice.getByRole("button", { name: "Receipt summary", exact: true }).click();
+  const receiptSummary = alice.getByRole("dialog", { name: "Receipt summary", exact: true });
+  await expect(receiptSummary).toContainText("HST (13%)");
+  await receiptSummary.getByRole("button", { name: "Done", exact: true }).click();
   for (const viewport of [{ width: 1280, height: 1000 }, { width: 390, height: 844 }]) {
     await alice.setViewportSize(viewport);
     await alice.getByRole("button", { name: /View Taxable pears · \$/ }).click();
@@ -1120,6 +1145,41 @@ try {
   await alice.getByRole("button", { name: "Save item changes" }).click();
   await expect.poll(async () => (await api(`/bills/${inclusiveBill.id}`)).bill.items[0].finalCents).toBe(1001);
   assert.equal((await api(`/bills/${inclusiveBill.id}`)).bill.items[0].taxCents, 0);
+  // Printed Azure rate controls corrections even when printed tax ÷ base differs.
+  const printedRateId = randomUUID();
+  const printedRateDraft = (await api(`/groups/${group.id}/receipt-drafts/${printedRateId}`, "alice-token", "PUT", {
+    revision: 0,
+    data: {
+      mode: "items", title: "Printed-rate correction", purchaseDate: "2026-09-24", timeZone: "America/Toronto",
+      notes: "", totalCents: 305, ownShareCents: 0, participantIds: [initiatorId],
+      receipt: { subtotalCents: 300, discountCents: 0, taxCents: 5, extraCents: 0, pricesIncludeTax: false,
+        evidence: { taxDetails: [{ rate: 0.13, description: "HST" }] } },
+      items: [100, 200].map((amountCents, index) => ({ id: randomUUID(), name: `Taxed item ${index + 1}`,
+        originalText: "PRINTED RATE", quantity: "1", amountCents, discountCents: 0,
+        taxable: true, finalCents: 0, manualFinal: false })),
+    },
+  })).draft;
+  const printedRateBill = (await api(`/receipt-drafts/${printedRateId}/initialize`, "alice-token", "POST",
+    { revision: printedRateDraft.revision })).bill;
+  assert.deepEqual(printedRateBill.frozenTaxRate, { taxCents: 13, taxableBaseCents: 100 });
+  assert.equal(printedRateBill.items.reduce((sum, item) => sum + item.allocatedTaxCents, 0), 5);
+  await alice.goto(`${base}#/bills/${printedRateBill.id}`);
+  for (const scenario of [
+    { printed: "2.00", cost: "2.26", finalCents: 226, taxCents: 26 },
+    { printed: "0.01", cost: "0.01", finalCents: 1, taxCents: 0 },
+    { printed: "1.00", cost: "1.02", finalCents: 102, taxCents: 2 },
+  ]) {
+    await alice.getByRole("button", { name: "Edit items & prices" }).click();
+    await alice.getByRole("button", { name: "Edit Taxed item 1", exact: true }).click();
+    await alice.getByLabel("Printed price", { exact: true }).fill(scenario.printed);
+    await expect(alice.getByRole("button", { name: "Edit Taxed item 1", exact: true })).toContainText(scenario.cost);
+    await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+    await alice.getByRole("button", { name: "Save item changes" }).click();
+    await expect.poll(async () => (await api(`/bills/${printedRateBill.id}`)).bill.items[0].finalCents).toBe(scenario.finalCents);
+    const corrected = (await api(`/bills/${printedRateBill.id}`)).bill;
+    assert.equal(corrected.items[0].allocatedTaxCents, scenario.taxCents);
+    assert.deepEqual(corrected.items[1], printedRateBill.items[1]);
+  }
   // A failed background check retains the Azure item and marks tax unchecked.
   await alice.goto(`${base}#/group-bills/${group.id}`);
   await alice.getByRole("button", { name: "New bill", exact: true }).click();

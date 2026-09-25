@@ -83,6 +83,9 @@
 .receipt-cost-breakdown > div { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
 .receipt-cost-breakdown dt { color: var(--muted); }
 .receipt-cost-breakdown dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.receipt-tax-label { color: var(--muted); font-size: var(--text-xs); }
+.receipt-bill-summary { display: grid; gap: var(--space-3); padding: var(--space-4); border-radius: var(--radius-sm); background: var(--surface-soft); }
+.receipt-bill-summary h3 { margin: 0; font-family: var(--heading); font-size: var(--text-base); }
 .receipt-cost-breakdown .receipt-final-cost { border-top: 1px solid var(--line); padding-top: var(--space-4); font-weight: 700; }
 .receipt-final-cost dt { color: var(--ink); }
 .receipt-final-cost output { font-family: var(--heading); font-size: var(--text-lg); }

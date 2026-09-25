@@ -80,6 +80,7 @@ export type BillItem = Omit<ReceiptItem, "taxCents" | "extraCents"> & {
 export type ReceiptPricing = {
   subtotalCents: number | null;
   taxCents: number;
+  taxLabel?: string | null;
   discountCents: number;
   extraCents: number;
   pricesIncludeTax: boolean;

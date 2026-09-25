@@ -91,6 +91,7 @@ export function ReceiptSummary({ data, change, close, disabled = false }: { data
           <ReceiptAmount label="Receipt subtotal" required={false} value={receipt.subtotalCents} change={(subtotalCents) => change({ receipt: { ...receipt, subtotalCents } })} />
           <ReceiptAmount label="Receipt discount" emptyAsZero value={receipt.discountCents} change={(discountCents) => change({ receipt: { ...receipt, discountCents: discountCents ?? 0 } })} />
           <ReceiptAmount label="Receipt tax" emptyAsZero value={receipt.taxCents} change={(taxCents) => change({ receipt: { ...receipt, taxCents: taxCents ?? 0 } })} />
+          {receipt.taxLabel && <small className="receipt-tax-label">{receipt.taxLabel}</small>}
           <ReceiptAmount label="Other adjustments" emptyAsZero signed value={receipt.extraCents} change={(extraCents) => change({ receipt: { ...receipt, extraCents: extraCents ?? 0 } })} />
           <ReceiptAmount label="Receipt total" required={false} value={data.totalCents} change={(totalCents) => change({ totalCents })} />
         </div>

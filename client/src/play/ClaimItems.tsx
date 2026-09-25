@@ -111,7 +111,7 @@ export function ClaimItems({ bill, selection, change, busy, terminal, confirmAct
         {bill.receipt ? <dl className="receipt-cost-breakdown">
           <div><dt>Subtotal</dt><dd>{bill.receipt.subtotalCents == null ? "Not available" : money(bill.receipt.subtotalCents)}</dd></div>
           <div><dt>Discount</dt><dd>{money(bill.receipt.discountCents)}</dd></div>
-          <div><dt>Tax</dt><dd>{money(bill.receipt.taxCents)}</dd></div>
+          <div><dt>Tax{bill.receipt.taxLabel ? ` · ${bill.receipt.taxLabel}` : ""}</dt><dd>{money(bill.receipt.taxCents)}</dd></div>
           <div><dt>Other adjustments</dt><dd>{signed(bill.receipt.extraCents)}</dd></div>
           <div><dt>Printed prices include tax</dt><dd>{bill.receipt.pricesIncludeTax ? "Yes" : "No"}</dd></div>
           <div className="receipt-final-cost"><dt>Receipt total</dt><dd>{money(bill.receipt.totalCents)}</dd></div>

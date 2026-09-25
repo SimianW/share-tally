@@ -17,6 +17,7 @@ for (let i = 1; i <= 17; i++)
   identities.set(`Bearer member-${i}-token`, `user_test_member_${i}`);
 let scans = 0;
 let recordedScans = 0;
+let nextRecordedFixture: string | null = null;
 let useRecorded = false;
 let emptyReceipt = false;
 let numericLegend = false;
@@ -26,7 +27,7 @@ const recordedExtract = createAzureExtractor(
   { AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT: 'https://azure.example.test', AZURE_DOCUMENT_INTELLIGENCE_KEY: 'test-only' },
   async (_url, init) => init?.method === 'POST'
     ? new Response(null, { status: 202, headers: { 'operation-location': 'https://azure.example.test/results/1' } })
-    : Response.json({ status: 'succeeded', analyzeResult: JSON.parse(readFileSync(new URL(`./fixtures/azure-receipt/${fixtures[(recordedScans++ % fixtures.length)]}.json`, import.meta.url), 'utf8')) }),
+    : Response.json({ status: 'succeeded', analyzeResult: JSON.parse(readFileSync(new URL(`./fixtures/azure-receipt/${(nextRecordedFixture ?? fixtures[(recordedScans++ % fixtures.length)])}.json`, import.meta.url), 'utf8')) }),
   async () => {},
 );
 let holdExtraction = false;
@@ -47,7 +48,8 @@ process.on('message', message => {
     modelMode = message.slice('model-mode-'.length) as typeof modelMode;
     process.send?.(`model-mode-${modelMode}-ready`);
   }
-  if (message === 'recorded-evidence-off') { useRecorded = false; process.send?.('recorded-evidence-stopped'); }
+  if (message === 'recorded-fixture-175') { nextRecordedFixture = 'azure-175'; process.send?.('recorded-fixture-175-ready'); }
+  if (message === 'recorded-evidence-off') { nextRecordedFixture = null; useRecorded = false; process.send?.('recorded-evidence-stopped'); }
   if (message === 'recorded-evidence') { recordedScans = 0; useRecorded = true; process.send?.('recorded-evidence-ready'); }
   if (message === 'hold-extraction') { holdExtraction = true; process.send?.('holding-extraction'); }
   if (message === 'release-extraction') { holdExtraction = false; releaseExtraction?.(); releaseExtraction = undefined; }
