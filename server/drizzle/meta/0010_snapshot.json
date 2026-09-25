@@ -1,6 +1,6 @@
 {
-  "id": "4f41439b-8df6-48d5-8bee-487ad9544107",
-  "prevId": "bfacdcb4-fe0e-460b-b6c2-8255a0167064",
+  "id": "980e1ed9-d768-4499-a9ac-575e44384977",
+  "prevId": "4f41439b-8df6-48d5-8bee-487ad9544107",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -73,6 +73,42 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "taxable": {
+          "name": "taxable",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "manual_final": {
+          "name": "manual_final",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "allocated_discount_cents": {
+          "name": "allocated_discount_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "frozen_tax_rounding_cents": {
+          "name": "frozen_tax_rounding_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "frozen_discount_rounding_cents": {
+          "name": "frozen_discount_rounding_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "frozen_extra_rounding_cents": {
+          "name": "frozen_extra_rounding_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -87,24 +123,24 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "bill_items_bill_id_bills_id_fk": {
           "name": "bill_items_bill_id_bills_id_fk",
           "tableFrom": "bill_items",
+          "tableTo": "bills",
           "columnsFrom": [
             "bill_id"
           ],
-          "tableTo": "bills",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -152,28 +188,28 @@
         "bill_shares_bill_id_bills_id_fk": {
           "name": "bill_shares_bill_id_bills_id_fk",
           "tableFrom": "bill_shares",
+          "tableTo": "bills",
           "columnsFrom": [
             "bill_id"
           ],
-          "tableTo": "bills",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "bill_shares_user_id_users_id_fk": {
           "name": "bill_shares_user_id_users_id_fk",
           "tableFrom": "bill_shares",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -266,6 +302,30 @@
           "primaryKey": false,
           "notNull": true
         },
+        "receipt": {
+          "name": "receipt",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "frozen_tax_base_cents": {
+          "name": "frozen_tax_base_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "frozen_discount_base_cents": {
+          "name": "frozen_discount_base_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "frozen_extra_base_cents": {
+          "name": "frozen_extra_base_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "adjustment_cents": {
           "name": "adjustment_cents",
           "type": "integer",
@@ -311,48 +371,48 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "bills_group_id_groups_id_fk": {
           "name": "bills_group_id_groups_id_fk",
           "tableFrom": "bills",
+          "tableTo": "groups",
           "columnsFrom": [
             "group_id"
           ],
-          "tableTo": "groups",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "bills_initiator_id_users_id_fk": {
           "name": "bills_initiator_id_users_id_fk",
           "tableFrom": "bills",
+          "tableTo": "users",
           "columnsFrom": [
             "initiator_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "bills_creation_request": {
           "name": "bills_creation_request",
+          "nullsNotDistinct": false,
           "columns": [
             "initiator_id",
             "request_id"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -424,37 +484,37 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "group_members_group_id_groups_id_fk": {
           "name": "group_members_group_id_groups_id_fk",
           "tableFrom": "group_members",
+          "tableTo": "groups",
           "columnsFrom": [
             "group_id"
           ],
-          "tableTo": "groups",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "group_members_user_id_users_id_fk": {
           "name": "group_members_user_id_users_id_fk",
           "tableFrom": "group_members",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -520,25 +580,25 @@
         "groups_created_by_users_id_fk": {
           "name": "groups_created_by_users_id_fk",
           "tableFrom": "groups",
+          "tableTo": "users",
           "columnsFrom": [
             "created_by"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "groups_invitation_token_unique": {
           "name": "groups_invitation_token_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "invitation_token"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -594,28 +654,28 @@
         "item_claims_item_id_bill_items_id_fk": {
           "name": "item_claims_item_id_bill_items_id_fk",
           "tableFrom": "item_claims",
+          "tableTo": "bill_items",
           "columnsFrom": [
             "item_id"
           ],
-          "tableTo": "bill_items",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "item_claims_user_id_users_id_fk": {
           "name": "item_claims_user_id_users_id_fk",
           "tableFrom": "item_claims",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -704,50 +764,50 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "receipt_drafts_group_id_groups_id_fk": {
           "name": "receipt_drafts_group_id_groups_id_fk",
           "tableFrom": "receipt_drafts",
+          "tableTo": "groups",
           "columnsFrom": [
             "group_id"
           ],
-          "tableTo": "groups",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "receipt_drafts_initiator_id_users_id_fk": {
           "name": "receipt_drafts_initiator_id_users_id_fk",
           "tableFrom": "receipt_drafts",
+          "tableTo": "users",
           "columnsFrom": [
             "initiator_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "receipt_drafts_bill_id_bills_id_fk": {
           "name": "receipt_drafts_bill_id_bills_id_fk",
           "tableFrom": "receipt_drafts",
+          "tableTo": "bills",
           "columnsFrom": [
             "bill_id"
           ],
-          "tableTo": "bills",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -791,15 +851,15 @@
         "receipt_photos_draft_id_receipt_drafts_id_fk": {
           "name": "receipt_photos_draft_id_receipt_drafts_id_fk",
           "tableFrom": "receipt_photos",
+          "tableTo": "receipt_drafts",
           "columnsFrom": [
             "draft_id"
           ],
-          "tableTo": "receipt_drafts",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -882,61 +942,61 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "repayments_group_id_groups_id_fk": {
           "name": "repayments_group_id_groups_id_fk",
           "tableFrom": "repayments",
+          "tableTo": "groups",
           "columnsFrom": [
             "group_id"
           ],
-          "tableTo": "groups",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "repayments_sender_id_users_id_fk": {
           "name": "repayments_sender_id_users_id_fk",
           "tableFrom": "repayments",
+          "tableTo": "users",
           "columnsFrom": [
             "sender_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "repayments_recipient_id_users_id_fk": {
           "name": "repayments_recipient_id_users_id_fk",
           "tableFrom": "repayments",
+          "tableTo": "users",
           "columnsFrom": [
             "recipient_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "repayments_creation_request": {
           "name": "repayments_creation_request",
+          "nullsNotDistinct": false,
           "columns": [
             "sender_id",
             "request_id"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -993,10 +1053,10 @@
       "uniqueConstraints": {
         "users_clerk_user_id_unique": {
           "name": "users_clerk_user_id_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "clerk_user_id"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -1006,10 +1066,10 @@
   },
   "enums": {},
   "schemas": {},
-  "views": {},
   "sequences": {},
   "roles": {},
   "policies": {},
+  "views": {},
   "_meta": {
     "columns": {},
     "schemas": {},

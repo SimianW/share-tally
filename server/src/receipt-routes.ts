@@ -21,7 +21,7 @@ import {
 } from "./receipt-drafts.js";
 import { type ReceiptExtractor } from "./receipt-extraction.js";
 import { azureExtract } from "./azure-receipt.js";
-import { confirmClaims, editItems } from "./item-bills.js";
+import { confirmClaims, editItems, correctItem } from "./item-bills.js";
 export function createReceiptRouter(
   displayName: (id: string) => Promise<string>,
   extract: ReceiptExtractor = azureExtract,
@@ -227,6 +227,11 @@ export function createReceiptRouter(
     res.json({
       bill: (await readBills(u.id, undefined, req.params.billId))[0],
     });
+  });
+  router.patch("/bills/:billId/items/:itemId", async (req, res) => {
+    const u = await user(res.locals.clerkUserId);
+    await correctItem(req.params.billId, req.params.itemId, u.id, req.body);
+    res.json({ bill: (await readBills(u.id, undefined, req.params.billId))[0] });
   });
   router.put("/bills/:billId/items", async (req, res) => {
     const u = await user(res.locals.clerkUserId);

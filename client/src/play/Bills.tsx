@@ -1,4 +1,4 @@
-import { ReceiptDraftForm, ReceiptDrafts } from './ReceiptDraft';
+import { ReceiptDrafts } from './ReceiptDraft';
 import { ItemClaims } from './ItemClaims';
 import { Notification } from './Notification';
 import { useCached, denied, useCachedRequest, hideProtectedQueries, AccessError } from './query-cache';
@@ -81,7 +81,6 @@ export function GroupBills({ id, selectedRepaymentId }: { id: string; selectedRe
   const data = !accessError && billsQuery.data && groupQuery.data ? { ...billsQuery.data, ...groupQuery.data } : null;
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
-  const [receiptDraft, setReceiptDraft] = useState<string | null>(null);
   const { getToken } = useAuth();
   useEffect(() => {
     const sync = startGroupSync({
@@ -112,7 +111,7 @@ export function GroupBills({ id, selectedRepaymentId }: { id: string; selectedRe
         {data && <p className="group-member-count">{data.group.memberCount} {data.group.memberCount === 1 ? 'member' : 'members'} · CAD</p>}</div>
         {data && <div className="group-actions">
           <Button variant="secondary" onClick={() => setMembersOpen(true)}><Icon name="people" /> Members & invites</Button>
-          <Button onClick={() => setReceiptDraft('')}><Icon name="plus" /> New bill</Button>
+          <Button onClick={() => { window.location.hash = `/new-bill/${id}`; }}><Icon name="plus" /> New bill</Button>
         </div>}
       </div>
       {!data && (error || accessError) && <Notification><p>{accessError ? errorMessage(accessError) : "Couldn't load this group."}</p><Button onClick={() => setRevision(n => n + 1)}>Try again</Button></Notification>}
@@ -133,7 +132,7 @@ export function GroupBills({ id, selectedRepaymentId }: { id: string; selectedRe
               repaymentHistory.current?.focus({ preventScroll: true });
             }} />
           </div>
-          <ReceiptDrafts key={`${id}:${revision}:${receiptDraft}`} groupId={id} open={setReceiptDraft} />
+          <ReceiptDrafts key={`${id}:${revision}`} groupId={id} open={draftId => { window.location.hash = `/new-bill/${id}/${draftId}`; }} />
           <div className="bill-heading">
             <h2>
               Shared purchases <small>{data.bills.length}</small>
@@ -170,7 +169,6 @@ export function GroupBills({ id, selectedRepaymentId }: { id: string; selectedRe
           <div ref={repaymentHistory} tabIndex={-1} className="repayment-history-anchor">
             <Repayments key={`${id}:${selectedRepaymentId ?? ""}`} selectedId={selectedRepaymentId} group={data.group} records={data.repayments} api={api} refresh={() => setRevision(n => n + 1)} />
           </div>
-          {receiptDraft !== null && <ReceiptDraftForm key={receiptDraft} group={data.group} id={receiptDraft || undefined} close={() => { setReceiptDraft(null); setRevision(n => n + 1); }} created={bill => { window.location.hash = `/bills/${bill.id}`; }} />}
 
         </>
       )}
