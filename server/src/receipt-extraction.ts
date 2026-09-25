@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { priceDraft } from "./receipt-pricing.js";
-import type { DraftItemInput } from "./receipt-input.js";
+import { itemEvidence, receiptEvidenceFields, type DraftItemInput } from "./receipt-input.js";
 const money = z.number().min(0).max(10000);
 export const extractedReceipt = z.object({
   merchant: z.string().nullable(),
@@ -12,6 +12,7 @@ export const extractedReceipt = z.object({
     .array(
       z.object({
         description: z.string(),
+        evidence: itemEvidence.optional(),
         plainEnglish: z.string().nullable(),
         quantity: z.string().nullable(),
         amount: money.nullable(),
@@ -22,6 +23,8 @@ export const extractedReceipt = z.object({
     )
     .max(200),
   subtotal: money.nullable().optional(),
+  evidence: receiptEvidenceFields.optional(),
+  rawAnalysis: z.record(z.string(), z.unknown()).optional(),
   pricesIncludeTax: z.boolean().default(false),
   discountTotal: money.nullable(),
   taxTotal: money.nullable(),
@@ -43,6 +46,7 @@ export function extractionDefaults(data: ExtractedReceipt) {
     manualFinal: false,
     taxable: i.taxable,
     originalText: i.description.slice(0, 1000),
+    ...(i.evidence ? { evidence: i.evidence } : {}),
     name:
       i.plainEnglish?.trim().slice(0, 160) ||
       i.description.trim().slice(0, 160) ||
@@ -63,6 +67,7 @@ export function extractionDefaults(data: ExtractedReceipt) {
     ),
     extraCents: cents(data.otherCharges),
     pricesIncludeTax: data.pricesIncludeTax,
+    ...(data.evidence ? { evidence: data.evidence } : {}),
   };
   const priced = priceDraft({
     receipt,

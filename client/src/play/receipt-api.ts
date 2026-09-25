@@ -14,6 +14,24 @@ export type ReceiptItem = {
   extraCents: number;
   finalCents: number;
 };
+export type BoundingRegion = { pageNumber: number; polygon: number[] };
+export type ItemEvidence = {
+  descriptionConfidence?: number;
+  priceConfidence?: number;
+  unitPriceConfidence?: number;
+  descriptionRegions?: BoundingRegion[];
+  priceRegions?: BoundingRegion[];
+  unitPriceRegions?: BoundingRegion[];
+  regions?: BoundingRegion[];
+  productCode?: string;
+  quantityUnit?: string;
+  unitPrice?: number;
+  content?: string;
+};
+export type ReceiptEvidenceFields = {
+  countryRegion?: string;
+  taxDetails?: { amount?: number; rate?: number; netAmount?: number; description?: string }[];
+};
 export type ReceiptDraftItem = Omit<
   ReceiptItem,
   "amountCents" | "finalCents" | "taxCents" | "extraCents"
@@ -25,6 +43,7 @@ export type ReceiptDraftItem = Omit<
   allocatedExtraCents?: number | null;
   taxable?: boolean | null;
   manualFinal?: boolean;
+  evidence?: ItemEvidence;
 };
 export type LegacyReceiptItem = ReceiptItem & { manualFinal?: boolean | null };
 export type LegacyCorrectionItem = Omit<LegacyReceiptItem, "amountCents" | "finalCents"> & {
@@ -61,6 +80,7 @@ export type ReceiptPricing = {
   discountCents: number;
   extraCents: number;
   pricesIncludeTax: boolean;
+  evidence?: ReceiptEvidenceFields;
 };
 export type ReceiptData = {
   receipt?: ReceiptPricing;

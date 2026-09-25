@@ -15,6 +15,8 @@ type Field = {
   valueArray?: Field[];
   valueObject?: Record<string, Field>;
   confidence?: number;
+  valueCountryRegion?: string;
+  boundingRegions?: { pageNumber: number; polygon: number[] }[];
 };
 type AnalyzeResult = {
   modelId?: string;
@@ -57,13 +59,39 @@ export function normalizeAzure(result: AnalyzeResult) {
             ? []
             : [{ label: string(fields.Description) || "Tax", amount: n }];
         });
+  const taxDetails = f.TaxDetails?.valueArray?.map((entry) => {
+    const detail = entry.valueObject ?? {};
+    return {
+      ...(amount(detail.Amount) !== null ? { amount: amount(detail.Amount)! } : {}),
+      ...(amount(detail.Rate) !== null ? { rate: amount(detail.Rate)! } : {}),
+      ...(amount(detail.NetAmount) !== null ? { netAmount: amount(detail.NetAmount)! } : {}),
+      ...(string(detail.Description) !== null ? { description: string(detail.Description)! } : {}),
+    };
+  });
   return {
+    evidence: {
+      ...(f.CountryRegion?.valueCountryRegion ? { countryRegion: f.CountryRegion.valueCountryRegion } : {}),
+      ...(taxDetails ? { taxDetails } : {}),
+    },
     merchant: string(f.MerchantName),
     currency: currencies.size === 1 ? [...currencies][0] : null,
     items: rows.map((row) => {
       const item = row.valueObject ?? {};
       return {
         description: row.content || string(item.Description) || "Unclear Item",
+        evidence: {
+          ...(item.Description?.confidence !== undefined ? { descriptionConfidence: item.Description.confidence } : {}),
+          ...(item.TotalPrice?.confidence !== undefined ? { priceConfidence: item.TotalPrice.confidence } : {}),
+          ...(item.Price?.confidence !== undefined ? { unitPriceConfidence: item.Price.confidence } : {}),
+          ...(item.Description?.boundingRegions ? { descriptionRegions: item.Description.boundingRegions } : {}),
+          ...(item.TotalPrice?.boundingRegions ? { priceRegions: item.TotalPrice.boundingRegions } : {}),
+          ...(item.Price?.boundingRegions ? { unitPriceRegions: item.Price.boundingRegions } : {}),
+          ...(row.boundingRegions ? { regions: row.boundingRegions } : {}),
+          ...(string(item.ProductCode) !== null ? { productCode: string(item.ProductCode)! } : {}),
+          ...(string(item.QuantityUnit) !== null ? { quantityUnit: string(item.QuantityUnit)! } : {}),
+          ...(amount(item.Price) !== null ? { unitPrice: amount(item.Price)! } : {}),
+          ...(row.content !== undefined ? { content: row.content } : {}),
+        },
         quantity: amount(item.Quantity),
         unitPrice: amount(item.Price),
         totalPrice: amount(item.TotalPrice),
@@ -187,9 +215,11 @@ export function createAzureExtractor(
         "Receipt scanning is not configured. You can enter items manually.",
       );
     try {
-      const { data, content } = await azureReceipt(image, request, wait, env);
+      const { data, content, raw } = await azureReceipt(image, request, wait, env);
       return extractedReceipt.parse({
         merchant: data.merchant,
+        evidence: data.evidence,
+        rawAnalysis: JSON.parse(raw) as Record<string, unknown>,
         text: content?.slice(0, 100000),
         currency: data.currency,
         total: data.total,
@@ -200,6 +230,7 @@ export function createAzureExtractor(
           ),
         items: data.items.map((item) => ({
           description: item.description,
+          evidence: item.evidence,
           plainEnglish: null,
           quantity: item.quantity === null ? null : String(item.quantity),
           amount: item.totalPrice,

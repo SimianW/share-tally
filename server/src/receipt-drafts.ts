@@ -6,6 +6,7 @@ import { db } from "./db/index.js";
 import {
   receiptDrafts,
   receiptPhotos,
+  receiptEvidence,
   groupMembers,
   groups,
   bills,
@@ -136,8 +137,11 @@ export async function saveDraft(
         .select({ expiresAt: receiptPhotos.expiresAt })
         .from(receiptPhotos)
         .where(eq(receiptPhotos.draftId, id));
+      const [current] = photo
+        ? await tx.select().from(receiptDrafts).where(eq(receiptDrafts.id, id))
+        : [updated!];
       return {
-        ...updated!,
+        ...current!,
         photo: savedPhoto
           ? { ...savedPhoto, expired: savedPhoto.expiresAt <= new Date() }
           : null,
@@ -297,6 +301,7 @@ export async function initializeDraft(
       mode === "items"
         ? checked(
             z.array(itemInput.extend({ taxCents: itemInput.shape.taxCents.nullable(), extraCents: itemInput.shape.extraCents.nullable() })).min(1).max(200),
+            // Publish only bill-item fields, not draft-only derivations or Azure evidence.
             priced.map((item) => ({
               id: item.id, name: item.name, originalText: item.originalText,
               quantity: item.quantity, amountCents: item.amountCents,
@@ -392,16 +397,64 @@ export async function initializeDraft(
   notifyGroupChanged(result.groupId);
   return result.id;
 }
+// A scan may finish after a concurrent edit; never retain evidence for stale drafts.
+export async function storeReceiptEvidence(
+  id: string,
+  userId: string,
+  revision: number,
+  analysis: Record<string, unknown> | undefined,
+) {
+  return db.transaction(async (tx) => {
+    const draft = await ownDraft(tx, id, userId, true);
+    if (draft.billId || draft.revision !== revision)
+      throw new BillError(409, "Draft changed during scanning. Saved edits were kept. Scan again from the current draft.");
+    if (analysis) {
+      const [photo] = await tx.select({ expiresAt: receiptPhotos.expiresAt })
+        .from(receiptPhotos).where(eq(receiptPhotos.draftId, id));
+      if (!photo || photo.expiresAt <= new Date())
+        throw new BillError(409, "Receipt photo expired during scanning.");
+      await tx.insert(receiptEvidence).values({ draftId: id, analysis })
+        .onConflictDoUpdate({ target: receiptEvidence.draftId, set: { analysis, scannedAt: new Date() } });
+    }
+  });
+}
+
+function withoutEvidence(data: typeof receiptDrafts.$inferSelect.data) {
+  const { evidence: _receiptEvidence, ...receipt } = data.receipt ?? {};
+  return {
+    ...data,
+    ...(data.receipt ? { receipt: receipt as NonNullable<typeof data.receipt> } : {}),
+    items: data.items.map(({ evidence: _itemEvidence, ...item }) => item),
+  };
+}
+
 export async function purgeExpiredPhotos() {
-  await db
-    .update(receiptPhotos)
-    .set({ base64: "" })
-    .where(
-      and(
-        lte(receiptPhotos.expiresAt, new Date()),
-        ne(receiptPhotos.base64, ""),
-      ),
+  await db.transaction(async (tx) => {
+    const expired = await tx.select({ draftId: receiptPhotos.draftId })
+      .from(receiptPhotos).where(and(
+        lte(receiptPhotos.expiresAt, new Date()), ne(receiptPhotos.base64, ""),
+      ));
+    for (const { draftId } of expired) {
+      const [draft] = await tx.select().from(receiptDrafts)
+        .where(eq(receiptDrafts.id, draftId)).for("update");
+      const [photo] = await tx.select({ expiresAt: receiptPhotos.expiresAt })
+        .from(receiptPhotos).where(eq(receiptPhotos.draftId, draftId));
+      if (draft && photo && photo.expiresAt <= new Date() &&
+          (draft.data.receipt?.evidence || draft.data.items.some((item) => item.evidence)))
+        await tx.update(receiptDrafts).set({
+          data: withoutEvidence(draft.data),
+          revision: draft.revision + 1,
+          updatedAt: new Date(),
+        }).where(eq(receiptDrafts.id, draftId));
+    }
+    // The evidence and photo become unavailable together, even for initialized bills.
+    await tx.delete(receiptEvidence).where(
+      sql`${receiptEvidence.draftId} in (select draft_id from receipt_photos where expires_at <= now())`,
     );
+    await tx.update(receiptPhotos).set({ base64: "" }).where(
+      and(lte(receiptPhotos.expiresAt, new Date()), ne(receiptPhotos.base64, "")),
+    );
+  });
 }
 
 export async function normalizeReceiptPhoto(base64: string) {
@@ -444,6 +497,11 @@ async function storePhoto(tx: Tx, id: string, bytes: Buffer) {
     Date.UTC(expiresAt.getUTCFullYear(), expiresAt.getUTCMonth() + 1, 0),
   ).getUTCDate();
   expiresAt.setUTCDate(Math.min(day, lastDay));
+  await tx.delete(receiptEvidence).where(eq(receiptEvidence.draftId, id));
+  // Replacing the photo invalidates evidence mapped from the previous image.
+  const [draft] = await tx.select().from(receiptDrafts).where(eq(receiptDrafts.id, id));
+  if (draft) await tx.update(receiptDrafts).set({ data: withoutEvidence(draft.data) })
+    .where(eq(receiptDrafts.id, id));
   await tx
     .insert(receiptPhotos)
     .values({ draftId: id, base64: bytes.toString("base64"), expiresAt })

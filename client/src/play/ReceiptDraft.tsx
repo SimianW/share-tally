@@ -464,7 +464,15 @@ export function ReceiptDraftForm({
     return () => { unblock(); window.removeEventListener("beforeunload", warn); };
   }, [draft, file, key, loading]);
   async function scan(value = draft) {
-    const saved = await prepare(value);
+    const current = await prepare(value);
+    // Persist the photo before scanning so its raw analysis is retained with it.
+    const saved = current.pendingPhoto
+      ? (await api.save(group.id, current)).draft
+      : current;
+    if (saved !== current) {
+      setDraft(saved);
+      baseline.current = saved;
+    }
     const { extraction } = await api.previewExtract(group.id, saved);
     await prepare({
       ...saved,

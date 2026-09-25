@@ -15,11 +15,39 @@ export const itemInput = z
     finalCents: amount,
   })
   .strict();
+// Azure source observations are optional: drafts created before this mapping have none.
+export const boundingRegion = z.object({
+  pageNumber: z.number(),
+  polygon: z.array(z.number()),
+});
+export const itemEvidence = z.object({
+  descriptionConfidence: z.number().optional(),
+  priceConfidence: z.number().optional(),
+  unitPriceConfidence: z.number().optional(),
+  descriptionRegions: z.array(boundingRegion).optional(),
+  priceRegions: z.array(boundingRegion).optional(),
+  unitPriceRegions: z.array(boundingRegion).optional(),
+  regions: z.array(boundingRegion).optional(),
+  productCode: z.string().optional(),
+  quantityUnit: z.string().optional(),
+  unitPrice: z.number().optional(),
+  content: z.string().optional(),
+});
+export const receiptEvidenceFields = z.object({
+  countryRegion: z.string().optional(),
+  taxDetails: z.array(z.object({
+    amount: z.number().optional(),
+    rate: z.number().optional(),
+    netAmount: z.number().optional(),
+    description: z.string().optional(),
+  })).optional(),
+});
 export const draftItemInput = itemInput.omit({ taxCents: true, extraCents: true }).extend({
   // Response-only derivation metadata: accepted for round trips, never trusted.
   allocatedTaxCents: amount.nullable().optional(),
   allocatedDiscountCents: amount.nullable().optional(),
   allocatedExtraCents: z.number().int().min(-1_000_000).max(1_000_000).nullable().optional(),
+  evidence: itemEvidence.optional(),
   manualFinal: z.boolean().default(false),
   name: z.string().max(160),
   amountCents: amount.nullable(),
@@ -35,6 +63,7 @@ export const draftInput = z
         discountCents: amount,
         extraCents: z.number().int().min(-1_000_000).max(1_000_000),
         pricesIncludeTax: z.boolean(),
+        evidence: receiptEvidenceFields.optional(),
       })
       .strict()
       .optional(),

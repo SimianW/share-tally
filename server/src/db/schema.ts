@@ -180,6 +180,13 @@ export const receiptPhotos = pgTable('receipt_photos', {
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
 });
 
+// Receipt evidence is kept only as long as the associated photo. One analysis per draft.
+export const receiptEvidence = pgTable('receipt_evidence', {
+  draftId: uuid('draft_id').primaryKey().references(() => receiptDrafts.id, { onDelete: 'cascade' }),
+  analysis: jsonb('analysis').$type<Record<string, unknown>>().notNull(),
+  scannedAt: timestamp('scanned_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const billItems = pgTable('bill_items', {
   id: uuid('id').primaryKey(),
   billId: uuid('bill_id').notNull().references(() => bills.id),
