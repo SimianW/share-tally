@@ -1,5 +1,5 @@
 import { interpretReceiptNames, receiptNameConfig } from "../src/receipt-names.js";
-import { candidateDraft, CANDIDATE_ID, CANDIDATE_MODEL_VERSION } from "./candidate.js";
+import { candidateDraft, candidateScanFailedInput, candidateScanFails, CANDIDATE_ID, CANDIDATE_MODEL_VERSION } from "./candidate.js";
 import type { CandidateRecorder } from "./record.js";
 import { noModelInput, type ModelOutcome } from "./recordings.js";
 
@@ -9,6 +9,9 @@ export const candidateRecorder: CandidateRecorder = {
   async record({ analysis, env, request }) {
     const provider = receiptNameConfig(env);
     const config = { baseURL: provider.baseURL, model: provider.model };
+    if (candidateScanFails(analysis)) {
+      return { config, input: candidateScanFailedInput(config), itemIds: [], outcome: { kind: "skipped", reason: "scan-failed" } };
+    }
     const { evidence, items } = candidateDraft(analysis);
     const itemIds = items.map((item) => item.id);
     let input: unknown;

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { azureItemRowIndices, mapAzureAnalysis, type AnalyzeResult } from "../src/azure-receipt.js";
 import { buildReceiptNameRequest, parseReceiptNameResponse, receiptNameConfig, type ReceiptModelEvidence } from "../src/receipt-names.js";
 import { applyReceiptModelResult, processReceipt, receiptModelEvidence, type ReceiptModelAttempt } from "../src/receipt-processing.js";
-import type { BenchmarkAdapter } from "./adapter.js";
+import { PIPELINE_FIELDS, scanFailedPrediction, type BenchmarkAdapter } from "./adapter.js";
 import type { BenchmarkPrediction } from "./scorer.js";
 import { noModelInput, RecordingError, type ModelOutcome } from "./recordings.js";
 
@@ -30,6 +30,12 @@ export function candidateDraft(analysis: AnalyzeResult, itemIds?: (count: number
   return { scanned, processed, items, evidence: receiptModelEvidence(scanned, items) };
 }
 
+/** True where current production mapping throws and the extractor answers with a 502 (see scanFailedPrediction). */
+export function candidateScanFails(analysis: AnalyzeResult): boolean {
+  try { mapAzureAnalysis(analysis); return false; } catch { return true; }
+}
+export const candidateScanFailedInput = (config: { baseURL: string; model: string }) => noModelInput({ config }, "scan-failed");
+
 export function candidateInput(evidence: ReceiptModelEvidence, config: { baseURL: string; model: string }): unknown {
   return evidence.items.length
     ? JSON.parse(JSON.stringify(buildReceiptNameRequest(evidence, config))) as unknown
@@ -52,6 +58,14 @@ const cents = (amount: number | undefined) => amount === undefined ? null : Math
 export const candidateAdapter: BenchmarkAdapter = {
   id: CANDIDATE_ID, requiresModel: true,
   run(input): BenchmarkPrediction {
+    if (candidateScanFails(input.analysis)) {
+      if (input.recording) {
+        const config = candidateConfig(input.recording.config);
+        const outcome = input.replay(candidateScanFailedInput(config), { version: CANDIDATE_MODEL_VERSION, config });
+        if (outcome.kind !== "skipped" || outcome.reason !== "scan-failed") throw new RecordingError("Candidate scan-failure drift.");
+      }
+      return scanFailedPrediction(!!input.recording);
+    }
     const { scanned, processed, items, evidence } = candidateDraft(input.analysis, input.itemIds);
     let attempt: ReceiptModelAttempt = { kind: "error" };
     if (input.recording) {
@@ -67,7 +81,7 @@ export const candidateAdapter: BenchmarkAdapter = {
     // No repricing is needed: final allocations are not benchmark fields. In particular,
     // never validate saved benchmark IDs as draft UUIDs or let the model replace money.
     return {
-      supportedFields: ["merchant", "currency", "items", "items.description", "items.productCode", "items.quantity", "items.unit", "items.unitPrice", "items.linePrice", "items.ownDiscount", "receiptDiscounts", "charges", "subtotal", "taxLines", "taxTotal", "taxMode", "total", ...(input.recording ? ["taxability" as const] : [])],
+      supportedFields: [...PIPELINE_FIELDS, ...(input.recording ? ["taxability" as const] : [])],
       merchant: scanned.merchant, currency: scanned.currency,
       items: applied.items.map((item, index) => ({
         sourceIndex: sourceIndices[index]!, description: item.originalText,

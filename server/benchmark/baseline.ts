@@ -3,7 +3,7 @@ import type { AnalyzeResult } from "../src/azure-receipt.js";
 import { mapAzureAnalysis } from "./frozen-baseline/azure-receipt.js";
 import { processReceipt } from "./frozen-baseline/receipt-processing.js";
 import { interpretReceiptNames } from "./frozen-baseline/receipt-names.js";
-import type { BenchmarkAdapter } from "./adapter.js";
+import { PIPELINE_FIELDS, scanFailedPrediction, type BenchmarkAdapter } from "./adapter.js";
 import type { BenchmarkPrediction } from "./scorer.js";
 import { noModelInput, RecordingError } from "./recordings.js";
 
@@ -11,12 +11,7 @@ export const BASELINE_COMMIT = "16509935cb34d505ee8d48c5616c2a22ff908e2f";
 export const BASELINE_MODEL_VERSION = "receipt-names-responses-v1";
 const configSchema = z.object({ baseURL: z.string().url(), model: z.string().min(1) }).strict();
 const cents = (amount: number | undefined) => amount === undefined ? null : Math.round(amount * 100);
-const SUPPORTED: BenchmarkPrediction["supportedFields"] = ["merchant", "currency", "items", "items.description", "items.productCode", "items.quantity", "items.unit", "items.unitPrice", "items.linePrice", "items.ownDiscount", "receiptDiscounts", "charges", "subtotal", "taxLines", "taxTotal", "taxMode", "total"];
-/**
- * Frozen #48 production parsed the mapped Azure result inside its extractor and answered any
- * failure with a 502, so the user received no extraction and no model call was made. Negative
- * Azure item rows (for example Costco coupon lines) fail that parse.
- */
+/** Frozen #48 mapping, or null where #48 answered with a 502 (see scanFailedPrediction). */
 export function frozenScan(analysis: AnalyzeResult): ReturnType<typeof mapAzureAnalysis> | null {
   try { return mapAzureAnalysis(analysis); } catch { return null; }
 }
@@ -34,9 +29,7 @@ export const baselineAdapter: BenchmarkAdapter = {
         const outcome = input.replay(scanFailedInput(modelConfig!), { version: BASELINE_MODEL_VERSION, config: modelConfig! });
         if (outcome.kind !== "skipped" || outcome.reason !== "scan-failed") throw new RecordingError("Baseline scan-failure drift.");
       }
-      // Every supported field is a real miss: the user got an error instead of an extraction.
-      return { supportedFields: [...SUPPORTED, ...(input.recording ? ["taxability" as const] : [])], merchant: null, currency: null,
-        items: [], receiptDiscounts: null, charges: null, subtotal: null, taxLines: null, taxTotal: null, taxMode: null, total: null };
+      return scanFailedPrediction(!!input.recording);
     }
     if (input.recording?.outcome.kind === "skipped" && scanned.items.length)
       throw new RecordingError("Baseline no-items/model-call drift.");
@@ -67,7 +60,7 @@ export const baselineAdapter: BenchmarkAdapter = {
     if (replayFailure) throw replayFailure;
     if (input.recording && input.recording.version !== BASELINE_MODEL_VERSION) throw new RecordingError("Baseline model version drift.");
     return {
-      supportedFields: [...SUPPORTED, ...(input.recording ? ["taxability" as const] : [])],
+      supportedFields: [...PIPELINE_FIELDS, ...(input.recording ? ["taxability" as const] : [])],
       merchant: scanned.merchant, currency: scanned.currency,
       items: processed.items.map((item, index) => ({
         sourceIndex: index, // Frozen #48 never filters or reorders Azure item rows.

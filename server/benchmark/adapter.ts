@@ -31,6 +31,17 @@ export function azurePrintedDescription(rawItem: { valueObject?: { Description?:
   const field = rawItem?.valueObject?.Description;
   return field?.valueString ?? field?.content ?? null;
 }
+export const PIPELINE_FIELDS: BenchmarkPrediction["supportedFields"] = ["merchant", "currency", "items", "items.description", "items.productCode", "items.quantity", "items.unit", "items.unitPrice", "items.linePrice", "items.ownDiscount", "receiptDiscounts", "charges", "subtotal", "taxLines", "taxTotal", "taxMode", "total"];
+/**
+ * Both frozen #48 and current production map the Azure result inside the extractor and answer any
+ * mapping failure with a 502: the user gets no extraction and no model call is made. Examples are
+ * negative coupon rows in #48 and any amount above the 10,000 cap (e.g. IDR receipts) in both.
+ * Every supported field is therefore a real miss, not a missing recording.
+ */
+export function scanFailedPrediction(recorded: boolean): BenchmarkPrediction {
+  return { supportedFields: [...PIPELINE_FIELDS, ...(recorded ? ["taxability" as const] : [])], merchant: null, currency: null,
+    items: [], receiptDiscounts: null, charges: null, subtotal: null, taxLines: null, taxTotal: null, taxMode: null, total: null };
+}
 /** Shared projection: no labels and no assumptions that output rows retain Azure order/count. */
 export function projectAzureDescriptions(analysis: AnalyzeResult, prediction: BenchmarkPrediction): BenchmarkPrediction {
   if (!prediction || !Array.isArray(prediction.supportedFields)) throw new Error("Invalid adapter prediction.");

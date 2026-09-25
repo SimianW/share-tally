@@ -284,3 +284,32 @@ test("a frozen #48 scan failure is recorded as a no-call baseline outcome and re
     assert.equal(calls.length, before, "resume revalidates the marker without traffic");
   } finally { await cleanup(); }
 });
+
+test("when both production versions fail to scan (amount over the cap), neither calls the model and both replay as empty", async () => {
+  const { entry, recordings, cleanup } = await fixture();
+  // Both #48 and current production cap amounts at 10,000, so e.g. an IDR receipt returns a 502.
+  const large = structuredClone(analysis);
+  large.documents[0]!.fields.Items.valueArray[0]!.valueObject.TotalPrice = { valueCurrency: { amount: 45000 } };
+  large.documents[0]!.fields.Total = { valueCurrency: { amount: 45000 } };
+  const calls: string[] = [];
+  const request: typeof fetch = async (url) => {
+    calls.push(String(url));
+    if (String(url).includes(":analyze")) return new Response(null, { status: 202, headers: { "operation-location": "https://azure.example.test/documentintelligence/documentModels/prebuilt-receipt/analyzeResults/large" } });
+    if (String(url).includes("analyzeResults")) return Response.json({ status: "succeeded", analyzeResult: large });
+    throw Error("A failed scan must not call the model");
+  };
+  try {
+    assert.equal((await recordBenchmark({ root, recordings, receipt: entry.id, config: "default", confirmPaidRequests: true, env, request, wait })).length, 3);
+    for (const adapter of [baselineAdapter, candidateAdapter]) {
+      const saved = validateModelRecording(JSON.parse(await readFile(resolve(recordings, entry.id, `default.model.${adapter.id}.json`), "utf8")));
+      assert.deepEqual(saved.outcome, { kind: "skipped", reason: "scan-failed" });
+      const replay = await invokeAdapter(adapter, large, saved);
+      assert.equal(replay.complete, true);
+      assert.deepEqual(replay.prediction.items, []);
+      await assert.rejects(async () => invokeAdapter(adapter, analysis, saved), /drift|do not match/);
+    }
+    const before = calls.length;
+    assert.deepEqual(await recordBenchmark({ root, recordings, receipt: entry.id, config: "default", confirmPaidRequests: true, env, request, wait }), []);
+    assert.equal(calls.length, before);
+  } finally { await cleanup(); }
+});
