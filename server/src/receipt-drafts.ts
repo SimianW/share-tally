@@ -1,3 +1,4 @@
+import { RECEIPT_MODEL_TIMEOUT_MS } from "./receipt-names.js";
 import type { extractionDefaults, ExtractedReceipt } from "./receipt-extraction.js";
 import { applyReceiptModelResult } from "./receipt-processing.js";
 import { isDeepStrictEqual } from "node:util";
@@ -547,7 +548,7 @@ export async function saveProcessingDraft(
   return result;
 }
 
-export const RECEIPT_MODEL_TIMEOUT_MS = 20_000;
+export { RECEIPT_MODEL_TIMEOUT_MS } from "./receipt-names.js";
 
 // Holding the row lock lets either the model or recovery complete this scan,
 // never both. The start time identifies the processing operation.
@@ -562,7 +563,9 @@ export async function completeProcessingDraft(
     if (!draft || draft.processingStatus !== "processing" ||
         draft.processingStartedAt?.getTime() !== startedAt.getTime()) return null;
     const expired = Date.now() - startedAt.getTime() >= RECEIPT_MODEL_TIMEOUT_MS;
-    const applied = applyReceiptModelResult(draft.data.items, expired ? { kind: "timeout" } : attempt);
+    const receipt = draft.data.receipt;
+    const applied = applyReceiptModelResult(draft.data.items, expired ? { kind: "timeout" } : attempt,
+      receipt && { taxCents: receipt.taxCents, subtotalCents: receipt.subtotalCents, totalCents: draft.data.totalCents });
     const data: ReceiptDraftData = { ...draft.data, items: applied.items };
     // Reallocate the same Azure tax, never change the receipt's amounts.
     data.items = priceDraft(data).items;

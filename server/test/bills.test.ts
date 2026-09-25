@@ -2021,7 +2021,7 @@ test('model errors, invalid results, and partial answers fall back only for affe
   }
 });
 
-test('a model still running after 20 seconds falls back and its late answer cannot overwrite the draft', { timeout: 50_000 }, async () => {
+test('a model still running after 40 seconds falls back and its late answer cannot overwrite the draft', { timeout: 70_000 }, async () => {
   const { id, saved } = await scannedDraft();
   await modelControl('recorded-evidence', 'recorded-evidence-ready');
   await modelControl('hold-model', 'holding-model');
@@ -2030,7 +2030,7 @@ test('a model still running after 20 seconds falls back and its late answer cann
     const scanned = await json(await api(`/receipt-drafts/${id}/extract`, 'alice-token', 'POST', { revision: saved.revision }));
     assert.equal((await held)[0], 'model-held');
     assert.equal(scanned.draft.processingStatus, 'processing');
-    const finished = await awaitModelDraft(id, 25_000);
+    const finished = await awaitModelDraft(id, 45_000);
     assert.equal(finished.processingStatus, 'fallback');
     assert.equal(finished.revision, scanned.draft.revision + 1);
     assert.ok(finished.data.items.every((item: { taxable: boolean; taxNotChecked: boolean }) => item.taxable && item.taxNotChecked));
@@ -2103,7 +2103,7 @@ test('reading a stale processing draft falls back without a restart', async () =
     const held = once(child!, 'message');
     const scanned = await json(await api(`/receipt-drafts/${id}/extract`, 'alice-token', 'POST', { revision: saved.revision }));
     assert.equal((await held)[0], 'model-held');
-    await pool.query("UPDATE receipt_drafts SET processing_started_at = now() - interval '21 seconds' WHERE id = $1", [id]);
+    await pool.query("UPDATE receipt_drafts SET processing_started_at = now() - interval '41 seconds' WHERE id = $1", [id]);
     const recovered = (await json(await api(`/receipt-drafts/${id}`))).draft;
     assert.equal(recovered.processingStatus, 'fallback');
     assert.equal(recovered.revision, scanned.draft.revision + 1);
@@ -2131,9 +2131,9 @@ test('a near-deadline draft recovers promptly after restart without any draft re
   try {
     await eventually(() => watching.frames.some(frame => frame.includes('event: ready')));
     assert.equal((await pool.query('SELECT processing_status FROM receipt_drafts WHERE id = $1', [id])).rows[0].processing_status, 'processing');
-    // Simulate a server coming back near the original 20-second deadline. No GET
+    // Simulate a server coming back near the original 40-second deadline. No GET
     // is made until after the restarted server's periodic recovery and SSE event.
-    await pool.query("UPDATE receipt_drafts SET processing_started_at = now() - interval '19 seconds' WHERE id = $1", [id]);
+    await pool.query("UPDATE receipt_drafts SET processing_started_at = now() - interval '39 seconds' WHERE id = $1", [id]);
     await eventually(async () => (await pool.query('SELECT processing_status FROM receipt_drafts WHERE id = $1', [id])).rows[0].processing_status === 'fallback', 5_000);
     await eventually(() => watching.frames.some(frame => frame.includes('event: changed')));
     const recovered = (await json(await api(`/receipt-drafts/${id}`))).draft;
@@ -2151,7 +2151,7 @@ test('production startup sequence recovers processing drafts left stale by a sto
   const held = once(child!, 'message');
   const scanned = await json(await api(`/receipt-drafts/${id}/extract`, 'alice-token', 'POST', { revision: saved.revision }));
   assert.equal((await held)[0], 'model-held');
-  await pool.query("UPDATE receipt_drafts SET processing_started_at = now() - interval '21 seconds' WHERE id = $1", [id]);
+  await pool.query("UPDATE receipt_drafts SET processing_started_at = now() - interval '41 seconds' WHERE id = $1", [id]);
   await stopServer();
   await startServer();
   // Query before GET so the read-time sweep cannot account for this transition.
