@@ -128,6 +128,8 @@ test("Azure adapter retains recorded evidence without changing prices", async ()
   const result = await withTax.extract(Buffer.from("image"));
   assert.equal(withTax.calls(), 3);
   assert.equal(result.evidence?.countryRegion, "MYS");
+  assert.deepEqual(result.evidence?.pages, [{ pageNumber: 1, width: 4961, height: 7016, unit: "pixel" }]);
+  assert.deepEqual(extractionDefaults(result).receipt.evidence?.pages, result.evidence?.pages);
   assert.ok(result.evidence?.taxDetails?.length);
   assert.equal(result.evidence.taxDetails[0]?.rate, 0);
   assert.ok(result.items[0]?.evidence?.productCode);

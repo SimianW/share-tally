@@ -1,0 +1,1562 @@
+{
+  "schemaVersion": 1,
+  "imageSha256": "689baf500b6dedfb90efd6c4123385a7f79dc7f10ac2e484dce05ff748e5b915",
+  "request": {
+    "apiVersion": "2024-11-30",
+    "modelId": "prebuilt-receipt",
+    "options": {
+      "locale": "en"
+    }
+  },
+  "analyzeResult": {
+    "apiVersion": "2024-11-30",
+    "modelId": "prebuilt-receipt",
+    "stringIndexType": "textElements",
+    "content": "GOLDEN BOWL TERIYAKI\n8610 GARFIELD AVE.\nSOUTH GATE, CA. 90280\nTEL: (562) 928-8999\n1 #1 CHKN PLATE\n$9.39\n1 + AVOCADO\n$1.95\n1 MD. DRINK\n$2.29\n>HERE\nTAX\n$1.40\nTOTAL\n$15.03\nCASH\n$20.00\nCG\n$4.97",
+    "pages": [
+      {
+        "pageNumber": 1,
+        "angle": -0.5770999789237976,
+        "width": 750,
+        "height": 1000,
+        "unit": "pixel",
+        "words": [
+          {
+            "content": "GOLDEN",
+            "polygon": [
+              190,
+              164,
+              294,
+              170,
+              293,
+              196,
+              189,
+              189
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 0,
+              "length": 6
+            }
+          },
+          {
+            "content": "BOWL",
+            "polygon": [
+              311,
+              171,
+              377,
+              174,
+              376,
+              200,
+              310,
+              197
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 7,
+              "length": 4
+            }
+          },
+          {
+            "content": "TERIYAKI",
+            "polygon": [
+              395,
+              175,
+              522,
+              180,
+              522,
+              205,
+              394,
+              201
+            ],
+            "confidence": 0.993,
+            "span": {
+              "offset": 12,
+              "length": 8
+            }
+          },
+          {
+            "content": "8610",
+            "polygon": [
+              206,
+              196,
+              276,
+              200,
+              275,
+              225,
+              205,
+              220
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 21,
+              "length": 4
+            }
+          },
+          {
+            "content": "GARFIELD",
+            "polygon": [
+              294,
+              201,
+              427,
+              208,
+              426,
+              232,
+              293,
+              226
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 26,
+              "length": 8
+            }
+          },
+          {
+            "content": "AVE.",
+            "polygon": [
+              445,
+              208,
+              505,
+              210,
+              505,
+              234,
+              445,
+              233
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 35,
+              "length": 4
+            }
+          },
+          {
+            "content": "SOUTH",
+            "polygon": [
+              169,
+              223,
+              258,
+              229,
+              257,
+              254,
+              168,
+              248
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 40,
+              "length": 5
+            }
+          },
+          {
+            "content": "GATE,",
+            "polygon": [
+              277,
+              230,
+              354,
+              234,
+              353,
+              259,
+              276,
+              255
+            ],
+            "confidence": 0.993,
+            "span": {
+              "offset": 46,
+              "length": 5
+            }
+          },
+          {
+            "content": "CA.",
+            "polygon": [
+              379,
+              235,
+              423,
+              235,
+              423,
+              261,
+              378,
+              260
+            ],
+            "confidence": 0.997,
+            "span": {
+              "offset": 52,
+              "length": 3
+            }
+          },
+          {
+            "content": "90280",
+            "polygon": [
+              446,
+              236,
+              531,
+              236,
+              531,
+              261,
+              446,
+              261
+            ],
+            "confidence": 0.997,
+            "span": {
+              "offset": 56,
+              "length": 5
+            }
+          },
+          {
+            "content": "TEL:",
+            "polygon": [
+              187,
+              255,
+              252,
+              258,
+              252,
+              284,
+              186,
+              280
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 62,
+              "length": 4
+            }
+          },
+          {
+            "content": "(562)",
+            "polygon": [
+              279,
+              260,
+              361,
+              263,
+              361,
+              289,
+              278,
+              286
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 67,
+              "length": 5
+            }
+          },
+          {
+            "content": "928-8999",
+            "polygon": [
+              380,
+              263,
+              517,
+              265,
+              517,
+              290,
+              379,
+              290
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 73,
+              "length": 8
+            }
+          },
+          {
+            "content": "1",
+            "polygon": [
+              106,
+              493,
+              117,
+              493,
+              117,
+              522,
+              106,
+              522
+            ],
+            "confidence": 0.975,
+            "span": {
+              "offset": 82,
+              "length": 1
+            }
+          },
+          {
+            "content": "#1",
+            "polygon": [
+              141,
+              493,
+              173,
+              493,
+              173,
+              522,
+              141,
+              522
+            ],
+            "confidence": 0.977,
+            "span": {
+              "offset": 84,
+              "length": 2
+            }
+          },
+          {
+            "content": "CHKN",
+            "polygon": [
+              197,
+              493,
+              272,
+              492,
+              272,
+              521,
+              197,
+              522
+            ],
+            "confidence": 0.99,
+            "span": {
+              "offset": 87,
+              "length": 4
+            }
+          },
+          {
+            "content": "PLATE",
+            "polygon": [
+              292,
+              492,
+              386,
+              492,
+              386,
+              521,
+              292,
+              521
+            ],
+            "confidence": 0.996,
+            "span": {
+              "offset": 92,
+              "length": 5
+            }
+          },
+          {
+            "content": "$9.39",
+            "polygon": [
+              530,
+              489,
+              626,
+              488,
+              626,
+              517,
+              532,
+              519
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 98,
+              "length": 5
+            }
+          },
+          {
+            "content": "1",
+            "polygon": [
+              104,
+              530,
+              114,
+              530,
+              114,
+              558,
+              104,
+              558
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 104,
+              "length": 1
+            }
+          },
+          {
+            "content": "+",
+            "polygon": [
+              139,
+              529,
+              158,
+              529,
+              158,
+              558,
+              139,
+              558
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 106,
+              "length": 1
+            }
+          },
+          {
+            "content": "AVOCADO",
+            "polygon": [
+              179,
+              529,
+              311,
+              528,
+              311,
+              558,
+              179,
+              558
+            ],
+            "confidence": 0.993,
+            "span": {
+              "offset": 108,
+              "length": 7
+            }
+          },
+          {
+            "content": "$1.95",
+            "polygon": [
+              533,
+              525,
+              629,
+              523,
+              630,
+              553,
+              535,
+              555
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 116,
+              "length": 5
+            }
+          },
+          {
+            "content": "1",
+            "polygon": [
+              101,
+              566,
+              112,
+              566,
+              112,
+              595,
+              101,
+              595
+            ],
+            "confidence": 0.986,
+            "span": {
+              "offset": 122,
+              "length": 1
+            }
+          },
+          {
+            "content": "MD.",
+            "polygon": [
+              137,
+              566,
+              187,
+              566,
+              187,
+              595,
+              137,
+              595
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 124,
+              "length": 3
+            }
+          },
+          {
+            "content": "DRINK",
+            "polygon": [
+              216,
+              565,
+              311,
+              565,
+              311,
+              595,
+              217,
+              595
+            ],
+            "confidence": 0.993,
+            "span": {
+              "offset": 128,
+              "length": 5
+            }
+          },
+          {
+            "content": "$2.29",
+            "polygon": [
+              536,
+              561,
+              631,
+              560,
+              632,
+              590,
+              537,
+              592
+            ],
+            "confidence": 0.996,
+            "span": {
+              "offset": 134,
+              "length": 5
+            }
+          },
+          {
+            "content": ">HERE",
+            "polygon": [
+              134,
+              604,
+              328,
+              603,
+              328,
+              632,
+              135,
+              632
+            ],
+            "confidence": 0.654,
+            "span": {
+              "offset": 140,
+              "length": 5
+            }
+          },
+          {
+            "content": "TAX",
+            "polygon": [
+              132,
+              642,
+              195,
+              641,
+              195,
+              673,
+              132,
+              673
+            ],
+            "confidence": 0.996,
+            "span": {
+              "offset": 146,
+              "length": 3
+            }
+          },
+          {
+            "content": "$1.40",
+            "polygon": [
+              540,
+              636,
+              635,
+              635,
+              635,
+              665,
+              540,
+              668
+            ],
+            "confidence": 0.989,
+            "span": {
+              "offset": 150,
+              "length": 5
+            }
+          },
+          {
+            "content": "TOTAL",
+            "polygon": [
+              131,
+              681,
+              328,
+              680,
+              328,
+              711,
+              132,
+              713
+            ],
+            "confidence": 0.665,
+            "span": {
+              "offset": 156,
+              "length": 5
+            }
+          },
+          {
+            "content": "$15.03",
+            "polygon": [
+              407,
+              675,
+              634,
+              673,
+              635,
+              705,
+              408,
+              710
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 162,
+              "length": 6
+            }
+          },
+          {
+            "content": "CASH",
+            "polygon": [
+              129,
+              722,
+              213,
+              721,
+              213,
+              752,
+              129,
+              754
+            ],
+            "confidence": 0.989,
+            "span": {
+              "offset": 169,
+              "length": 4
+            }
+          },
+          {
+            "content": "$20.00",
+            "polygon": [
+              522,
+              712,
+              639,
+              711,
+              639,
+              742,
+              523,
+              745
+            ],
+            "confidence": 0.991,
+            "span": {
+              "offset": 174,
+              "length": 6
+            }
+          },
+          {
+            "content": "CG",
+            "polygon": [
+              128,
+              764,
+              171,
+              763,
+              171,
+              794,
+              128,
+              794
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 181,
+              "length": 2
+            }
+          },
+          {
+            "content": "$4.97",
+            "polygon": [
+              543,
+              751,
+              639,
+              750,
+              639,
+              781,
+              544,
+              784
+            ],
+            "confidence": 0.972,
+            "span": {
+              "offset": 184,
+              "length": 5
+            }
+          }
+        ],
+        "lines": [
+          {
+            "content": "GOLDEN BOWL TERIYAKI",
+            "polygon": [
+              190,
+              164,
+              522,
+              180,
+              521,
+              205,
+              189,
+              191
+            ],
+            "spans": [
+              {
+                "offset": 0,
+                "length": 20
+              }
+            ]
+          },
+          {
+            "content": "8610 GARFIELD AVE.",
+            "polygon": [
+              206,
+              196,
+              505,
+              210,
+              504,
+              234,
+              205,
+              222
+            ],
+            "spans": [
+              {
+                "offset": 21,
+                "length": 18
+              }
+            ]
+          },
+          {
+            "content": "SOUTH GATE, CA. 90280",
+            "polygon": [
+              169,
+              223,
+              531,
+              236,
+              530,
+              261,
+              168,
+              252
+            ],
+            "spans": [
+              {
+                "offset": 40,
+                "length": 21
+              }
+            ]
+          },
+          {
+            "content": "TEL: (562) 928-8999",
+            "polygon": [
+              187,
+              255,
+              517,
+              265,
+              516,
+              291,
+              186,
+              283
+            ],
+            "spans": [
+              {
+                "offset": 62,
+                "length": 19
+              }
+            ]
+          },
+          {
+            "content": "1 #1 CHKN PLATE",
+            "polygon": [
+              106,
+              493,
+              385,
+              492,
+              385,
+              521,
+              106,
+              521
+            ],
+            "spans": [
+              {
+                "offset": 82,
+                "length": 15
+              }
+            ]
+          },
+          {
+            "content": "$9.39",
+            "polygon": [
+              530,
+              489,
+              625,
+              488,
+              626,
+              517,
+              531,
+              519
+            ],
+            "spans": [
+              {
+                "offset": 98,
+                "length": 5
+              }
+            ]
+          },
+          {
+            "content": "1 + AVOCADO",
+            "polygon": [
+              104,
+              529,
+              311,
+              528,
+              311,
+              557,
+              104,
+              558
+            ],
+            "spans": [
+              {
+                "offset": 104,
+                "length": 11
+              }
+            ]
+          },
+          {
+            "content": "$1.95",
+            "polygon": [
+              533,
+              525,
+              628,
+              523,
+              629,
+              553,
+              534,
+              555
+            ],
+            "spans": [
+              {
+                "offset": 116,
+                "length": 5
+              }
+            ]
+          },
+          {
+            "content": "1 MD. DRINK",
+            "polygon": [
+              101,
+              566,
+              311,
+              565,
+              311,
+              594,
+              101,
+              595
+            ],
+            "spans": [
+              {
+                "offset": 122,
+                "length": 11
+              }
+            ]
+          },
+          {
+            "content": "$2.29",
+            "polygon": [
+              536,
+              561,
+              631,
+              559,
+              631,
+              590,
+              537,
+              591
+            ],
+            "spans": [
+              {
+                "offset": 134,
+                "length": 5
+              }
+            ]
+          },
+          {
+            "content": ">HERE",
+            "polygon": [
+              134,
+              604,
+              327,
+              602,
+              328,
+              631,
+              135,
+              632
+            ],
+            "spans": [
+              {
+                "offset": 140,
+                "length": 5
+              }
+            ]
+          },
+          {
+            "content": "TAX",
+            "polygon": [
+              132,
+              642,
+              194,
+              641,
+              195,
+              672,
+              132,
+              673
+            ],
+            "spans": [
+              {
+                "offset": 146,
+                "length": 3
+              }
+            ]
+          },
+          {
+            "content": "$1.40",
+            "polygon": [
+              540,
+              636,
+              634,
+              634,
+              635,
+              665,
+              540,
+              667
+            ],
+            "spans": [
+              {
+                "offset": 150,
+                "length": 5
+              }
+            ]
+          },
+          {
+            "content": "TOTAL",
+            "polygon": [
+              131,
+              681,
+              327,
+              679,
+              328,
+              710,
+              132,
+              712
+            ],
+            "spans": [
+              {
+                "offset": 156,
+                "length": 5
+              }
+            ]
+          },
+          {
+            "content": "$15.03",
+            "polygon": [
+              407,
+              675,
+              634,
+              672,
+              634,
+              707,
+              408,
+              709
+            ],
+            "spans": [
+              {
+                "offset": 162,
+                "length": 6
+              }
+            ]
+          },
+          {
+            "content": "CASH",
+            "polygon": [
+              128,
+              722,
+              213,
+              721,
+              213,
+              752,
+              129,
+              753
+            ],
+            "spans": [
+              {
+                "offset": 169,
+                "length": 4
+              }
+            ]
+          },
+          {
+            "content": "$20.00",
+            "polygon": [
+              522,
+              712,
+              638,
+              711,
+              639,
+              742,
+              523,
+              745
+            ],
+            "spans": [
+              {
+                "offset": 174,
+                "length": 6
+              }
+            ]
+          },
+          {
+            "content": "CG",
+            "polygon": [
+              127,
+              763,
+              171,
+              763,
+              171,
+              793,
+              128,
+              794
+            ],
+            "spans": [
+              {
+                "offset": 181,
+                "length": 2
+              }
+            ]
+          },
+          {
+            "content": "$4.97",
+            "polygon": [
+              543,
+              751,
+              638,
+              749,
+              639,
+              781,
+              544,
+              783
+            ],
+            "spans": [
+              {
+                "offset": 184,
+                "length": 5
+              }
+            ]
+          }
+        ],
+        "spans": [
+          {
+            "offset": 0,
+            "length": 189
+          }
+        ]
+      }
+    ],
+    "styles": [],
+    "documents": [
+      {
+        "docType": "receipt.retailMeal",
+        "boundingRegions": [
+          {
+            "pageNumber": 1,
+            "polygon": [
+              0,
+              0,
+              750,
+              0,
+              750,
+              1000,
+              0,
+              1000
+            ]
+          }
+        ],
+        "fields": {
+          "CountryRegion": {
+            "type": "countryRegion",
+            "valueCountryRegion": "USA",
+            "confidence": 0.995
+          },
+          "Items": {
+            "type": "array",
+            "valueArray": [
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "#1 CHKN PLATE",
+                    "content": "#1 CHKN PLATE",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          141,
+                          492,
+                          386,
+                          492,
+                          386,
+                          522,
+                          141,
+                          522
+                        ]
+                      }
+                    ],
+                    "confidence": 0.985,
+                    "spans": [
+                      {
+                        "offset": 84,
+                        "length": 13
+                      }
+                    ]
+                  },
+                  "Quantity": {
+                    "type": "number",
+                    "valueNumber": 1,
+                    "content": "1",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          106,
+                          493,
+                          117,
+                          493,
+                          117,
+                          522,
+                          106,
+                          522
+                        ]
+                      }
+                    ],
+                    "confidence": 0.989,
+                    "spans": [
+                      {
+                        "offset": 82,
+                        "length": 1
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "currencySymbol": "$",
+                      "amount": 9.39,
+                      "currencyCode": "USD"
+                    },
+                    "content": "$9.39",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          530,
+                          489,
+                          626,
+                          488,
+                          626,
+                          517,
+                          532,
+                          519
+                        ]
+                      }
+                    ],
+                    "confidence": 0.993,
+                    "spans": [
+                      {
+                        "offset": 98,
+                        "length": 5
+                      }
+                    ]
+                  }
+                },
+                "content": "1 #1 CHKN PLATE\n$9.39",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      106,
+                      488,
+                      626,
+                      488,
+                      626,
+                      522,
+                      106,
+                      522
+                    ]
+                  }
+                ],
+                "confidence": 0.984,
+                "spans": [
+                  {
+                    "offset": 82,
+                    "length": 21
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "+ AVOCADO",
+                    "content": "+ AVOCADO",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          139,
+                          528,
+                          311,
+                          528,
+                          311,
+                          558,
+                          139,
+                          558
+                        ]
+                      }
+                    ],
+                    "confidence": 0.98,
+                    "spans": [
+                      {
+                        "offset": 106,
+                        "length": 9
+                      }
+                    ]
+                  },
+                  "Quantity": {
+                    "type": "number",
+                    "valueNumber": 1,
+                    "content": "1",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          104,
+                          530,
+                          114,
+                          530,
+                          114,
+                          558,
+                          104,
+                          558
+                        ]
+                      }
+                    ],
+                    "confidence": 0.989,
+                    "spans": [
+                      {
+                        "offset": 104,
+                        "length": 1
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "currencySymbol": "$",
+                      "amount": 1.95,
+                      "currencyCode": "USD"
+                    },
+                    "content": "$1.95",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          533,
+                          525,
+                          629,
+                          523,
+                          630,
+                          553,
+                          535,
+                          555
+                        ]
+                      }
+                    ],
+                    "confidence": 0.993,
+                    "spans": [
+                      {
+                        "offset": 116,
+                        "length": 5
+                      }
+                    ]
+                  }
+                },
+                "content": "1 + AVOCADO\n$1.95",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      104,
+                      523,
+                      630,
+                      523,
+                      630,
+                      558,
+                      104,
+                      558
+                    ]
+                  }
+                ],
+                "confidence": 0.985,
+                "spans": [
+                  {
+                    "offset": 104,
+                    "length": 17
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "MD. DRINK",
+                    "content": "MD. DRINK",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          137,
+                          565,
+                          311,
+                          565,
+                          311,
+                          595,
+                          137,
+                          595
+                        ]
+                      }
+                    ],
+                    "confidence": 0.98,
+                    "spans": [
+                      {
+                        "offset": 124,
+                        "length": 9
+                      }
+                    ]
+                  },
+                  "Quantity": {
+                    "type": "number",
+                    "valueNumber": 1,
+                    "content": "1",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          101,
+                          566,
+                          112,
+                          566,
+                          112,
+                          595,
+                          101,
+                          595
+                        ]
+                      }
+                    ],
+                    "confidence": 0.989,
+                    "spans": [
+                      {
+                        "offset": 122,
+                        "length": 1
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "currencySymbol": "$",
+                      "amount": 2.29,
+                      "currencyCode": "USD"
+                    },
+                    "content": "$2.29",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          536,
+                          561,
+                          631,
+                          560,
+                          632,
+                          590,
+                          537,
+                          592
+                        ]
+                      }
+                    ],
+                    "confidence": 0.993,
+                    "spans": [
+                      {
+                        "offset": 134,
+                        "length": 5
+                      }
+                    ]
+                  }
+                },
+                "content": "1 MD. DRINK\n$2.29",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      101,
+                      560,
+                      632,
+                      560,
+                      632,
+                      595,
+                      101,
+                      595
+                    ]
+                  }
+                ],
+                "confidence": 0.983,
+                "spans": [
+                  {
+                    "offset": 122,
+                    "length": 17
+                  }
+                ]
+              }
+            ]
+          },
+          "MerchantAddress": {
+            "type": "address",
+            "content": "8610 GARFIELD AVE.\nSOUTH GATE, CA. 90280",
+            "boundingRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  170,
+                  194,
+                  533,
+                  211,
+                  531,
+                  268,
+                  168,
+                  250
+                ]
+              }
+            ],
+            "confidence": 0.987,
+            "spans": [
+              {
+                "offset": 21,
+                "length": 40
+              }
+            ],
+            "valueAddress": {
+              "houseNumber": "8610",
+              "road": "GARFIELD AVE.",
+              "postalCode": "90280",
+              "city": "SOUTH GATE",
+              "state": "CA.",
+              "streetAddress": "8610 GARFIELD AVE."
+            }
+          },
+          "MerchantName": {
+            "type": "string",
+            "valueString": "GOLDEN BOWL TERIYAKI",
+            "content": "GOLDEN BOWL TERIYAKI",
+            "boundingRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  190,
+                  164,
+                  523,
+                  179,
+                  522,
+                  207,
+                  189,
+                  192
+                ]
+              }
+            ],
+            "confidence": 0.981,
+            "spans": [
+              {
+                "offset": 0,
+                "length": 20
+              }
+            ]
+          },
+          "MerchantPhoneNumber": {
+            "type": "phoneNumber",
+            "valuePhoneNumber": "+15629288999",
+            "content": "(562) 928-8999",
+            "boundingRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  279,
+                  256,
+                  518,
+                  265,
+                  517,
+                  295,
+                  278,
+                  286
+                ]
+              }
+            ],
+            "confidence": 0.994,
+            "spans": [
+              {
+                "offset": 67,
+                "length": 14
+              }
+            ]
+          },
+          "ReceiptType": {
+            "type": "string",
+            "valueString": "Meal",
+            "confidence": 0.957
+          },
+          "Total": {
+            "type": "currency",
+            "valueCurrency": {
+              "currencySymbol": "$",
+              "amount": 15.03,
+              "currencyCode": "USD"
+            },
+            "content": "$15.03",
+            "boundingRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  407,
+                  675,
+                  634,
+                  673,
+                  635,
+                  705,
+                  408,
+                  710
+                ]
+              }
+            ],
+            "confidence": 0.984,
+            "spans": [
+              {
+                "offset": 162,
+                "length": 6
+              }
+            ]
+          },
+          "TotalTax": {
+            "type": "currency",
+            "valueCurrency": {
+              "currencySymbol": "$",
+              "amount": 1.4,
+              "currencyCode": "USD"
+            },
+            "content": "$1.40",
+            "boundingRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  540,
+                  636,
+                  635,
+                  635,
+                  635,
+                  665,
+                  540,
+                  668
+                ]
+              }
+            ],
+            "confidence": 0.995,
+            "spans": [
+              {
+                "offset": 150,
+                "length": 5
+              }
+            ]
+          }
+        },
+        "confidence": 0.956,
+        "spans": [
+          {
+            "offset": 0,
+            "length": 189
+          }
+        ]
+      }
+    ],
+    "contentFormat": "text"
+  }
+}

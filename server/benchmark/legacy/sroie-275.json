@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "labelKind": "diagnostic-partial",
+  "id": "sroie-275",
+  "currency": "MYR",
+  "currencyExponent": 2,
+  "country": "MY",
+  "region": null,
+  "merchant": "99 Speed Mart",
+  "items": [
+    {
+      "id": "item-001",
+      "description": null,
+      "productCode": null,
+      "quantity": null,
+      "quantityBasis": null,
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 685,
+      "ownDiscount": null,
+      "discountLabels": null,
+      "notes": [
+        "Description unscored: prior benchmark description 'CRISPI ROLL 12 GRAIN SE' is not verbatim printed text. Original source annotation excerpt(s): '355 CRISPI ROLL 12 GRAIN SE'. Annotation wording is preserved for diagnostic traceability, not scored as an everyday product name."
+      ]
+    },
+    {
+      "id": "item-002",
+      "description": null,
+      "productCode": null,
+      "quantity": null,
+      "quantityBasis": null,
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 465,
+      "ownDiscount": null,
+      "discountLabels": null,
+      "notes": [
+        "Description unscored: prior benchmark description 'CS 1002 A5 H/COVER NOT' is not verbatim printed text. Original source annotation excerpt(s): '9413 CS 1002 A5 H/COVER NOT'. Annotation wording is preserved for diagnostic traceability, not scored as an everyday product name."
+      ]
+    }
+  ],
+  "receiptDiscounts": null,
+  "subtotal": null,
+  "subtotalBasis": null,
+  "subtotalStage": null,
+  "taxLines": [
+    {
+      "label": "GST",
+      "rate": null,
+      "rateBasis": "unprinted",
+      "amount": 65
+    }
+  ],
+  "taxTotal": 65,
+  "taxMode": "inclusive",
+  "charges": null,
+  "rounding": null,
+  "total": 1150,
+  "taxability": null,
+  "notes": [
+    "Faded first price is 6.85, not 4.85: 6.85 + 4.65 = printed 11.50, inclusive of GST 0.65.",
+    "Unverified fields are null and unscored; this diagnostic label is not a strict public-corpus truth label."
+  ],
+  "review": {
+    "method": "Prior benchmark source annotation transcription visually checked against original scan; selected ambiguities rechecked against original image/CSV, 2026-09-24",
+    "date": "2026-09-24"
+  }
+}

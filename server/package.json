@@ -5,8 +5,10 @@
   "main": "index.js",
   "scripts": {
     "test": "node --import=tsx --test --test-timeout=120000 test/*.test.ts",
+    "benchmark": "node --import=tsx benchmark/cli.ts",
+    "benchmark:record": "node --import=tsx benchmark/record.ts",
     "dev": "node --env-file=.env --watch --import=tsx src/index.ts",
-    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json && tsc -p benchmark/tsconfig.json",
     "build": "tsc",
     "start": "node --env-file=.env dist/index.js",
     "db:generate": "drizzle-kit generate --config=drizzle.config.ts",

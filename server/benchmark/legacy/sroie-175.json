@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "labelKind": "diagnostic-partial",
+  "id": "sroie-175",
+  "currency": "MYR",
+  "currencyExponent": 2,
+  "country": "MY",
+  "region": null,
+  "merchant": "Popular Book",
+  "items": [
+    {
+      "id": "item-001",
+      "description": "PB D/S TAPE 12MM",
+      "productCode": null,
+      "quantity": null,
+      "quantityBasis": null,
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 190,
+      "ownDiscount": null,
+      "discountLabels": null,
+      "notes": []
+    },
+    {
+      "id": "item-002",
+      "description": "H/C A4 400'S",
+      "productCode": null,
+      "quantity": null,
+      "quantityBasis": null,
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 990,
+      "ownDiscount": null,
+      "discountLabels": null,
+      "notes": []
+    }
+  ],
+  "receiptDiscounts": null,
+  "subtotal": null,
+  "subtotalBasis": null,
+  "subtotalStage": null,
+  "taxLines": [
+    {
+      "label": "GST",
+      "rate": null,
+      "rateBasis": "unprinted",
+      "amount": 67
+    }
+  ],
+  "taxTotal": 67,
+  "taxMode": "inclusive",
+  "charges": null,
+  "rounding": null,
+  "total": 1180,
+  "taxability": null,
+  "notes": [
+    "Negative cash/payment line is not a negative item price; total is 11.80 inclusive of GST 0.67.",
+    "Unverified fields are null and unscored; this diagnostic label is not a strict public-corpus truth label."
+  ],
+  "review": {
+    "method": "Prior benchmark source annotation transcription visually checked against original scan; selected ambiguities rechecked against original image/CSV, 2026-09-24",
+    "date": "2026-09-24"
+  }
+}

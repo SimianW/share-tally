@@ -307,3 +307,26 @@ test("making an originally non-taxable item taxable uses the available frozen ra
     assert.deepEqual(bill.items[0], sibling);
   }
 });
+
+
+for (const scenario of [
+  { rate: 0.13, ratio: { taxCents: 13, taxableBaseCents: 100 }, doubledTax: 26 },
+  { rate: 0.06, ratio: { taxCents: 3, taxableBaseCents: 50 }, doubledTax: 12 },
+  { rate: 0, ratio: { taxCents: 0, taxableBaseCents: 1 }, doubledTax: 0 },
+]) {
+  test(`Azure printed rate ${scenario.rate} preserves original cents but drops residuals at changed weights with preview parity`, async () => {
+    let bill = await summarizedBill({ taxCents: 5, evidence: { taxDetails: [{ rate: scenario.rate, description: "Printed tax" }] } }, [100, 200]);
+    assert.deepEqual(bill.frozenTaxRate, scenario.ratio);
+    assert.deepEqual(bill.items.map((item: { allocatedTaxCents: number }) => item.allocatedTaxCents), [2, 3]);
+    const sibling = structuredClone(bill.items[1]);
+    for (const [amountCents, taxCents] of [[100, 2], [1, 0], [200, scenario.doubledTax], [100, 2]]) {
+      const item = bill.items[0];
+      const input = { name: item.name, quantity: "1", amountCents, discountCents: 0, taxable: true, manualFinal: false };
+      const preview = previewCorrection(bill, item, { ...item, ...input });
+      bill = (await json(await api(`/bills/${bill.id}/items/${item.id}`, "alice-token", "PATCH", { revision: bill.revision, ...input }))).bill;
+      assert.deepEqual([bill.items[0].allocatedTaxCents, bill.items[0].finalCents], [taxCents, amountCents! + taxCents!]);
+      assert.deepEqual([preview.allocatedTaxCents, preview.finalCents], [taxCents, amountCents! + taxCents!]);
+      assert.deepEqual(bill.items[1], sibling);
+    }
+  });
+}

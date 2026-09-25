@@ -112,7 +112,7 @@ export const bills = pgTable('bills', {
   purchaseDate: date('purchase_date').notNull(),
   notes: text('notes').notNull().default(''),
   totalCents: integer('total_cents').notNull(),
-  receipt: jsonb('receipt').$type<{ subtotalCents: number | null; discountCents: number; taxCents: number; extraCents: number; totalCents: number; pricesIncludeTax: boolean }>(),
+  receipt: jsonb('receipt').$type<{ subtotalCents: number | null; discountCents: number; taxCents: number; extraCents: number; totalCents: number; pricesIncludeTax: boolean; taxLabel?: string; printedTaxRate?: { taxCents: number; taxableBaseCents: number } }>(),
   frozenTaxBaseCents: integer('frozen_tax_base_cents'),
   frozenDiscountBaseCents: integer('frozen_discount_base_cents'),
   frozenExtraBaseCents: integer('frozen_extra_base_cents'),

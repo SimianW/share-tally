@@ -29,6 +29,7 @@ export type ItemEvidence = {
   content?: string;
 };
 export type ReceiptEvidenceFields = {
+  pages?: { pageNumber: number; width: number; height: number; unit: string }[];
   countryRegion?: string;
   taxDetails?: { amount?: number; rate?: number; netAmount?: number; description?: string }[];
 };
@@ -80,6 +81,7 @@ export type BillItem = Omit<ReceiptItem, "taxCents" | "extraCents"> & {
 export type ReceiptPricing = {
   subtotalCents: number | null;
   taxCents: number;
+  taxLabel?: string | null;
   discountCents: number;
   extraCents: number;
   pricesIncludeTax: boolean;

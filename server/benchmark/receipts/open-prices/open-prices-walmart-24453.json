@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 1,
+  "id": "open-prices-walmart-24453",
+  "currency": "CAD",
+  "currencyExponent": 2,
+  "country": "CA",
+  "region": "BC",
+  "merchant": "Walmart",
+  "items": [
+    {
+      "id": "item-001",
+      "description": "CHICKSPINDUM",
+      "productCode": "628568300050",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 447,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-002",
+      "description": "ORG BANANA",
+      "productCode": "000000940110",
+      "quantity": "0.315",
+      "quantityBasis": "printed",
+      "unit": "kg",
+      "unitPrice": 192,
+      "linePrice": 60,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": [
+        "Printed 0.315 kg @ $1.92 /kg; printed line total $0.60."
+      ]
+    },
+    {
+      "id": "item-003",
+      "description": "DEMP BAGEL",
+      "productCode": "068721704460",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 427,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-004",
+      "description": "GR OPP TEE",
+      "productCode": "663480887120",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 700,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-005",
+      "description": "GR OPP TEE",
+      "productCode": "663480887120",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 700,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    }
+  ],
+  "receiptDiscounts": [],
+  "subtotal": 2334,
+  "subtotalBasis": "printed",
+  "taxLines": [
+    {
+      "label": "GST",
+      "rate": "0.05",
+      "rateBasis": "printed",
+      "amount": 70
+    },
+    {
+      "label": "PST",
+      "rate": "0.07",
+      "rateBasis": "printed",
+      "amount": 98
+    }
+  ],
+  "taxTotal": 168,
+  "taxMode": "exclusive",
+  "charges": [],
+  "rounding": 0,
+  "total": 2502,
+  "taxability": [
+    {
+      "itemId": "item-001",
+      "taxable": false,
+      "basis": "printed-code",
+      "evidence": "Printed D code; 5% GST $0.70 and 7% PST $0.98 reconcile exclusively to the two GR OPP TEE lines ($14.00).",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-002",
+      "taxable": false,
+      "basis": "printed-code",
+      "evidence": "Printed D code; 5% GST $0.70 and 7% PST $0.98 reconcile exclusively to the two GR OPP TEE lines ($14.00).",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-003",
+      "taxable": false,
+      "basis": "printed-code",
+      "evidence": "Printed D code; 5% GST $0.70 and 7% PST $0.98 reconcile exclusively to the two GR OPP TEE lines ($14.00).",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-004",
+      "taxable": true,
+      "basis": "printed-code",
+      "evidence": "Printed E code; two $7.00 GR OPP TEE lines generate the printed 5% GST $0.70 and 7% PST $0.98.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-005",
+      "taxable": true,
+      "basis": "printed-code",
+      "evidence": "Printed E code; two $7.00 GR OPP TEE lines generate the printed 5% GST $0.70 and 7% PST $0.98.",
+      "sourceUrls": []
+    }
+  ],
+  "notes": [
+    "Arithmetic: $4.47 + $0.60 + $4.27 + 2 × $7.00 = $23.34; $23.34 + $0.70 + $0.98 = $25.02.",
+    "Weighted banana line: 0.315 kg × $1.92/kg = $0.6048, printed rounded line total $0.60."
+  ],
+  "review": {
+    "method": "manual visual transcription with arithmetic reconciliation",
+    "date": "2026-09-24"
+  }
+}

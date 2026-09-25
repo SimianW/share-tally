@@ -34,6 +34,12 @@ export const itemEvidence = z.object({
   content: z.string().optional(),
 });
 export const receiptEvidenceFields = z.object({
+  pages: z.array(z.object({
+    pageNumber: z.number().int().positive(),
+    width: z.number().positive(),
+    height: z.number().positive(),
+    unit: z.string(),
+  })).optional(),
   countryRegion: z.string().optional(),
   taxDetails: z.array(z.object({
     amount: z.number().optional(),
@@ -68,6 +74,7 @@ export const draftInput = z
         extraCents: z.number().int().min(-1_000_000).max(1_000_000),
         pricesIncludeTax: z.boolean(),
         discountFallback: z.boolean().optional(),
+        taxLabel: z.string().optional(),
         evidence: receiptEvidenceFields.optional(),
       })
       .strict()

@@ -7,6 +7,7 @@ import Dialog from "./Dialog";
 import { ReceiptAmount } from "./ReceiptAmount";
 import { ReceiptItemRow } from "./ReceiptItemRow";
 import { ReceiptFilterChips } from "./ReceiptFilterChips";
+import { ReceiptLinePhoto } from "./ReceiptLinePhoto";
 import { Button } from "./ui";
 
 function fieldsValid(container: HTMLElement | null) {
@@ -21,13 +22,15 @@ function itemNeedsCheck(item: ReceiptDraftItem) {
   return item.needsCheck ?? (item.amountCents === null);
 }
 
-export function ReceiptReviewItems({ items, change, mode = "review", hasFrozenRate = true, processing = false, onConfirm }: { items: ReceiptDraftItem[]; change: (items: ReceiptDraftItem[]) => void; mode?: "review" | "correction"; hasFrozenRate?: boolean; processing?: boolean; onConfirm?: (itemId: string) => Promise<boolean> }) {
+export function ReceiptReviewItems({ items, change, mode = "review", hasFrozenRate = true, processing = false, onConfirm, photo }: { items: ReceiptDraftItem[]; change: (items: ReceiptDraftItem[]) => void; mode?: "review" | "correction"; hasFrozenRate?: boolean; processing?: boolean; onConfirm?: (itemId: string) => Promise<boolean>; photo?: { id: string; version: number; pages?: { pageNumber: number; width: number; height: number; unit: string }[] } }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "needs-check">("all");
   const [confirming, setConfirming] = useState(false);
   const originallyFlagged = useRef(false);
   const index = items.findIndex((item) => item.id === selected);
   const active = items[index];
+  const region = active?.evidence?.regions?.[0] ?? active?.evidence?.descriptionRegions?.[0];
+  const page = photo?.pages?.find((entry) => entry.pageNumber === region?.pageNumber);
   const fields = useRef<HTMLDivElement>(null);
   const needsCheckCount = items.filter(itemNeedsCheck).length;
   const visible = mode === "review" && filter === "needs-check" ? items.filter(itemNeedsCheck) : items;
@@ -63,6 +66,7 @@ export function ReceiptReviewItems({ items, change, mode = "review", hasFrozenRa
     }}><Plus size={16} aria-hidden="true" /> Add an item</Button>}
     {active && !processing && <Dialog title={mode === "correction" ? "Correct item price" : "Edit receipt item"} kicker={`ITEM ${index + 1} OF ${items.length}`} className="receipt-sheet" closeLabel="Close editor" close={close}>
       <div ref={fields} key={active.id} className="receipt-sheet-content">
+        {photo && page && region && region.pageNumber === 1 && <ReceiptLinePhoto id={photo.id} version={photo.version} page={page} polygon={region.polygon} />}
         <div className="receipt-original-text"><span className="eyebrow">ON THE RECEIPT</span><p>{active.originalText || "Manually added item"}</p></div>
         <div className="receipt-editor-fields">
           <label className="receipt-field-wide">Item name<input data-autofocus required={mode === "correction"} maxLength={160} value={active.name} onChange={(event) => update({ name: event.target.value })} /></label>
@@ -110,6 +114,7 @@ export function ReceiptSummary({ data, change, close, disabled = false }: { data
           <ReceiptAmount label="Receipt subtotal" required={false} value={receipt.subtotalCents} change={(subtotalCents) => change({ receipt: { ...receipt, subtotalCents } })} />
           <ReceiptAmount label="Receipt discount" emptyAsZero value={receipt.discountCents} change={(discountCents) => change({ receipt: { ...receipt, discountCents: discountCents ?? 0 } })} />
           <ReceiptAmount label="Receipt tax" emptyAsZero value={receipt.taxCents} change={(taxCents) => change({ receipt: { ...receipt, taxCents: taxCents ?? 0 } })} />
+          {receipt.taxLabel && <small className="receipt-tax-label">{receipt.taxLabel}</small>}
           <ReceiptAmount label="Other adjustments" emptyAsZero signed value={receipt.extraCents} change={(extraCents) => change({ receipt: { ...receipt, extraCents: extraCents ?? 0 } })} />
           <ReceiptAmount label="Receipt total" required={false} value={data.totalCents} change={(totalCents) => change({ totalCents })} />
         </div>

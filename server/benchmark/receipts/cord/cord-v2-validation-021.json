@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "currency": "IDR",
+  "currencyExponent": 2,
+  "country": "ID",
+  "region": null,
+  "rounding": 0,
+  "taxMode": "exclusive",
+  "review": {
+    "method": "manual visual transcription with arithmetic reconciliation",
+    "date": "2026-09-24"
+  },
+  "id": "cord-v2-validation-021",
+  "merchant": null,
+  "items": [
+    {
+      "id": "item-001",
+      "description": "Mango Lemon Tea",
+      "productCode": null,
+      "quantity": "1",
+      "quantityBasis": "printed",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 2909000,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-002",
+      "description": "Sliders Set",
+      "productCode": null,
+      "quantity": "1",
+      "quantityBasis": "printed",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 11363600,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-003",
+      "description": "Chicken Vege Rice Bowl",
+      "productCode": null,
+      "quantity": "1",
+      "quantityBasis": "printed",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 8636300,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    }
+  ],
+  "receiptDiscounts": [
+    {
+      "label": "Discount BCA 15%",
+      "amount": 3436300
+    }
+  ],
+  "subtotal": 19472600,
+  "subtotalBasis": "printed",
+  "subtotalStage": "after-discounts",
+  "taxLines": [
+    {
+      "label": "TAX",
+      "rate": null,
+      "rateBasis": "unprinted",
+      "amount": 2044600
+    }
+  ],
+  "taxTotal": 2044600,
+  "charges": [
+    {
+      "label": "Srv Ch",
+      "amount": 973600,
+      "stage": "after-subtotal"
+    }
+  ],
+  "total": 22490800,
+  "notes": [
+    "The printed negative line Discount BCA 15% is a receipt-wide discount, not a purchased menu item; 29,090 + 113,636 + 86,363 - 34,363 = 194,726 (printed Net Total). TAX 20,446 is added after service 9,736; 10% of their combined 204,462 base rounds to 20,446, but rate is not printed. Original image already obscures the merchant/header; do not infer a merchant."
+  ],
+  "taxability": [
+    {
+      "itemId": "item-001",
+      "taxable": true,
+      "basis": "printed-tax",
+      "evidence": "Printed TAX Rp20,446 is 10% (rounded) of the printed Net Total Rp194,726 plus Srv Ch Rp9,736; all three printed menu items contribute to this aggregate food-and-drink tax base. This is arithmetic evidence from the receipt, not an individually printed item tax code.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-002",
+      "taxable": true,
+      "basis": "printed-tax",
+      "evidence": "Printed TAX Rp20,446 is 10% (rounded) of the printed Net Total Rp194,726 plus Srv Ch Rp9,736; all three printed menu items contribute to this aggregate food-and-drink tax base. This is arithmetic evidence from the receipt, not an individually printed item tax code.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-003",
+      "taxable": true,
+      "basis": "printed-tax",
+      "evidence": "Printed TAX Rp20,446 is 10% (rounded) of the printed Net Total Rp194,726 plus Srv Ch Rp9,736; all three printed menu items contribute to this aggregate food-and-drink tax base. This is arithmetic evidence from the receipt, not an individually printed item tax code.",
+      "sourceUrls": []
+    }
+  ]
+}

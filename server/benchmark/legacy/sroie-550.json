@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "labelKind": "diagnostic-partial",
+  "id": "sroie-550",
+  "currency": "MYR",
+  "currencyExponent": 2,
+  "country": "MY",
+  "region": null,
+  "merchant": "McDonald's",
+  "items": [
+    {
+      "id": "item-001",
+      "description": null,
+      "productCode": null,
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 1110,
+      "ownDiscount": null,
+      "discountLabels": null,
+      "notes": [
+        "Description unscored: prior benchmark description 'L MCCHICKEN' is not verbatim printed text. Original source annotation excerpt(s): '1 L MCCHICKEN'. Annotation wording is preserved for diagnostic traceability, not scored as an everyday product name."
+      ]
+    },
+    {
+      "id": "item-002",
+      "description": null,
+      "productCode": null,
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 780,
+      "ownDiscount": null,
+      "discountLabels": null,
+      "notes": [
+        "Description unscored: prior benchmark description '6NUGGETS' is not verbatim printed text. Original source annotation excerpt(s): '1 6NUGGETS'. Annotation wording is preserved for diagnostic traceability, not scored as an everyday product name."
+      ]
+    }
+  ],
+  "receiptDiscounts": null,
+  "subtotal": null,
+  "subtotalBasis": null,
+  "subtotalStage": null,
+  "taxLines": [
+    {
+      "label": "GST",
+      "rate": "0.06",
+      "rateBasis": "printed",
+      "amount": 107
+    }
+  ],
+  "taxTotal": 107,
+  "taxMode": "inclusive",
+  "charges": null,
+  "rounding": 0,
+  "total": 1890,
+  "taxability": null,
+  "notes": [
+    "Only the two priced meals are items; unpriced drink, fries, and sauce are components. Printed 18.90 includes GST 1.07.",
+    "Unverified fields are null and unscored; this diagnostic label is not a strict public-corpus truth label."
+  ],
+  "review": {
+    "method": "Prior benchmark source annotation transcription visually checked against original scan; selected ambiguities rechecked against original image/CSV, 2026-09-24",
+    "date": "2026-09-24"
+  }
+}
