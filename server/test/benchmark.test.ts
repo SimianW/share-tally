@@ -233,9 +233,12 @@ test("default one-command diagnostic reports useful legacy11 and the committed24
   assert.equal(report.coverage.legacyReceipts, 11);
   assert.ok(report.legacy.baseline.scored > 0);
   assert.equal(report.legacy.receipts.filter((r) => r.errors.length).length, 0);
+  // Committed recordings must be well-formed (never exit 2). Whether they pass or regress is the
+  // release gate's verdict for #47, not a unit-test failure, so the CLI must report it faithfully.
+  assert.equal(report.public.receipts.filter((r) => r.errors.length).length, 0);
   const process = cli(["--allow-incomplete"]);
-  assert.equal(process.status, 0, process.stderr);
-  if (missingAzure.length) assert.match(process.stdout, /Gate: INCOMPLETE/);
+  assert.equal(process.status, report.gate.status === "regression" ? 1 : 0, process.stderr);
+  assert.match(process.stdout, new RegExp(`Gate: ${report.gate.status.toUpperCase()}`));
   assert.match(process.stdout, new RegExp(`Missing public Azure recordings \\(${missingAzure.length}\\)`));
   assert.match(process.stdout, /sroie-001/);
 });
