@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { createAzureExtractor } from "../src/azure-receipt.js";
+import { createAzureExtractor, normalizeAzure } from "../src/azure-receipt.js";
+import { RECEIPT_ITEM_CONFIDENCE_THRESHOLD } from "../src/receipt-needs-check.js";
 import {
   extractionDefaults,
   type ExtractedReceipt,
@@ -155,7 +156,36 @@ test("Azure adapter retains recorded evidence without changing prices", async ()
   assert.equal(noObservations.items[0]?.evidence?.descriptionRegions, undefined);
   assert.equal(noObservations.items[0]?.evidence?.priceConfidence, undefined);
   assert.equal(noObservations.items[0]?.evidence?.priceRegions, undefined);
+  assert.equal(extractionDefaults(noObservations).items[0]?.needsCheck, false);
 });
+test("recorded Azure shapes mark low description or total-price confidence, not absent observations", () => {
+  const recordedResult = structuredClone(recorded("azure-225"));
+  const rows = recordedResult.documents[0].fields.Items.valueArray;
+  rows[0].valueObject.Description.confidence = RECEIPT_ITEM_CONFIDENCE_THRESHOLD - 0.01;
+  rows[1].valueObject.TotalPrice.confidence = RECEIPT_ITEM_CONFIDENCE_THRESHOLD - 0.01;
+  rows[2].valueObject.Description.confidence = RECEIPT_ITEM_CONFIDENCE_THRESHOLD;
+  delete rows[2].valueObject.TotalPrice.confidence;
+  const normalized = normalizeAzure(recordedResult);
+  const scanned = extractedFromNormalized(normalized);
+  assert.deepEqual(extractionDefaults(scanned).items.map((item) => item.needsCheck), [true, true, false]);
+  assert.equal(normalized.items[2].evidence.priceConfidence, undefined);
+
+  delete rows[2].valueObject.TotalPrice.valueCurrency;
+  const missingPrice = normalizeAzure(recordedResult);
+  assert.equal(extractionDefaults(extractedFromNormalized(missingPrice)).items[2]?.needsCheck, true);
+});
+
+function extractedFromNormalized(normalized: ReturnType<typeof normalizeAzure>): ExtractedReceipt {
+  return {
+    merchant: normalized.merchant, currency: normalized.currency, total: normalized.total,
+    pricesIncludeTax: false, discountTotal: null, taxTotal: null, otherCharges: null, warnings: [],
+    items: normalized.items.map((item) => ({
+      description: item.description, plainEnglish: null, quantity: "1", amount: item.totalPrice,
+      discount: null, tax: null, taxable: null, evidence: item.evidence,
+    })),
+  };
+}
+
 test("Azure discount total preserves both own and receipt-wide discounts through draft pricing", async () => {
   const raw = structuredClone(recorded("costco-coupon.synthetic"));
   raw.documents[0].fields.Items.valueArray.push({

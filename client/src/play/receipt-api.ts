@@ -40,6 +40,7 @@ export type ReceiptDraftItem = Omit<
   amountCents: number | null;
   finalCents: number | null;
   taxNotChecked?: boolean;
+  needsCheck?: boolean;
   discountSource?: "receipt";
   allocatedTaxCents?: number | null;
   allocatedDiscountCents?: number | null;
@@ -184,6 +185,8 @@ export function useReceiptApi() {
             photoBase64: draft.pendingPhoto,
           },
         ),
+      confirmItem: (id: string, itemId: string, revision: number) =>
+        request<{ draft: ReceiptDraft }>(`/receipt-drafts/${id}/items/${itemId}/confirm`, "POST", { revision, flag: "needsCheck" }),
       remove: (id: string, revision: number) =>
         request<{ deleted: boolean }>(`/receipt-drafts/${id}`, "DELETE", {
           revision,

@@ -14,6 +14,7 @@ import {
   deleteDraft,
   requireMember,
   readDraft,
+  confirmDraftItem,
   listDrafts,
   uploadPhoto,
   photoBytes,
@@ -128,6 +129,10 @@ export function createReceiptRouter(
   router.get("/receipt-drafts/:draftId", async (req, res) => {
     const u = await user(res.locals.clerkUserId);
     res.json({ draft: await readDraft(req.params.draftId, u.id) });
+  });
+  router.post("/receipt-drafts/:draftId/items/:itemId/confirm", async (req, res) => {
+    const u = await user(res.locals.clerkUserId);
+    res.json({ draft: await confirmDraftItem(req.params.draftId, req.params.itemId, u.id, req.body) });
   });
   router.put("/receipt-drafts/:draftId/photo", async (req, res) => {
     const u = await user(res.locals.clerkUserId);

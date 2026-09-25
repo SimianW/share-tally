@@ -22,6 +22,7 @@ let useRecorded = false;
 let emptyReceipt = false;
 let numericLegend = false;
 let allocationReceipt = false;
+let lowConfidenceReceipt = false;
 const fixtures = ['azure-225', 'azure-525'];
 const recordedExtract = createAzureExtractor(
   { AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT: 'https://azure.example.test', AZURE_DOCUMENT_INTELLIGENCE_KEY: 'test-only' },
@@ -40,6 +41,8 @@ process.on('message', message => {
   if (message === 'normal-receipt') { emptyReceipt = false; process.send?.('normal-receipt-ready'); }
   if (message === 'allocation-receipt') { allocationReceipt = true; process.send?.('allocation-receipt-ready'); }
   if (message === 'normal-allocation') { allocationReceipt = false; process.send?.('normal-allocation-ready'); }
+  if (message === 'low-confidence-receipt') { lowConfidenceReceipt = true; process.send?.('low-confidence-receipt-ready'); }
+  if (message === 'normal-confidence-receipt') { lowConfidenceReceipt = false; process.send?.('normal-confidence-receipt-ready'); }
   if (message === 'numeric-legend') { numericLegend = true; process.send?.('numeric-legend-ready'); }
   if (message === 'normal-legend') { numericLegend = false; process.send?.('normal-legend-ready'); }
   if (message === 'hold-model') { holdModel = true; process.send?.('holding-model'); }
@@ -58,9 +61,9 @@ const app = createApp({
   receiptExtractor: async (image) => {
     if (useRecorded) return recordedExtract(image);
     if (holdExtraction) await new Promise<void>(resolve => { releaseExtraction = resolve; process.send?.('extraction-held'); });
-    if (++scans === 1 && !emptyReceipt && !numericLegend && !allocationReceipt) throw new BillError(502, 'Test extraction unavailable. Your draft is safe.');
+    if (++scans === 1 && !emptyReceipt && !numericLegend && !allocationReceipt && !lowConfidenceReceipt) throw new BillError(502, 'Test extraction unavailable. Your draft is safe.');
     if (allocationReceipt) return { merchant: 'Test shop', currency: 'CAD', total: 3.15, pricesIncludeTax: false, items: ['APPLE', 'SOAP', 'CANDLE'].map(description => ({ description, plainEnglish: null, quantity: '1', amount: 1, discount: null, tax: null, taxable: null })), discountTotal: null, taxTotal: 0.15, otherCharges: null, warnings: [] };
-    return { merchant: 'Test shop', currency: 'CAD', total: emptyReceipt ? 0 : 3, pricesIncludeTax: false, items: emptyReceipt ? [] : [{ description: 'APPLE', plainEnglish: null, quantity: '1', amount: 3, discount: null, tax: null, taxable: null }], discountTotal: null, taxTotal: null, otherCharges: null, warnings: [], ...(numericLegend ? { text: 'A = 0%\nB: 13' } : {}) };
+    return { merchant: 'Test shop', currency: 'CAD', total: emptyReceipt ? 0 : 3, pricesIncludeTax: false, items: emptyReceipt ? [] : [{ description: 'APPLE', plainEnglish: null, quantity: '1', amount: 3, discount: null, tax: null, taxable: null, ...(lowConfidenceReceipt ? { evidence: { descriptionConfidence: 0.7 } } : {}) }], discountTotal: null, taxTotal: null, otherCharges: null, warnings: [], ...(numericLegend ? { text: 'A = 0%\nB: 13' } : {}) };
   },
   receiptNames: async (evidence) => {
     if (numericLegend && (!evidence.taxCodeLines.includes('A = 0%') || !evidence.taxCodeLines.includes('B: 13')))

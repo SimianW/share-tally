@@ -28,6 +28,7 @@ import type { Tx } from "./item-accounting.js";
 import { notifyGroupChanged } from "./group-events.js";
 import { priceDraft } from "./receipt-pricing.js";
 import { frozenBases, roundingOffset, printedTax, selectFrozenTaxRate } from "./frozen-receipt-pricing.js";
+import { itemWasEdited } from "./receipt-needs-check.js";
 export async function requireMember(tx: Tx, groupId: string, userId: string) {
   const [m] = await tx
     .select()
@@ -65,6 +66,27 @@ export function editable(row: typeof receiptDrafts.$inferSelect, revision: numbe
       "This draft changed in another window. Reopen it to review the saved version.",
     );
 }
+// A client cannot clear (or invent) a review marker by merely echoing a flag.
+// New manual rows without scan evidence only need review for a missing price.
+function preserveReviewFlags(items: ReceiptDraftData["items"], previous: ReceiptDraftData["items"] = []) {
+  const byId = new Map(previous.map((item) => [item.id, item]));
+  return items.map((item) => {
+    const old = byId.get(item.id);
+    const { needsCheck: _clientFlag, taxNotChecked: _clientTaxFlag, ...fields } = item;
+    const needsCheck = !old
+      ? item.amountCents === null
+      : itemWasEdited(old, item) ? false
+      : old.needsCheck ?? (old.amountCents === null ? true : undefined);
+    const taxNotChecked = !old ? item.taxNotChecked
+      : old.taxable !== item.taxable ? false : old.taxNotChecked;
+    return {
+      ...fields,
+      ...(taxNotChecked === undefined ? {} : { taxNotChecked }),
+      ...(needsCheck === undefined ? {} : { needsCheck }),
+    };
+  });
+}
+
 export async function saveDraft(
   groupId: string,
   userId: string,
@@ -110,6 +132,7 @@ export async function saveDraft(
       if (old.initiatorId !== userId || old.groupId !== groupId)
         throw new BillError(404, "Draft not found.");
       if (old.processingStatus === "processing") editable(old, input.revision);
+      input.data.items = preserveReviewFlags(input.data.items, old.data.items);
       const [oldPhoto] = await tx
         .select({
           expiresAt: receiptPhotos.expiresAt,
@@ -161,6 +184,7 @@ export async function saveDraft(
     }
     if (input.revision !== 0)
       throw new BillError(409, "Draft not found. Start a new draft.");
+    input.data.items = preserveReviewFlags(input.data.items);
     const [row] = await tx
       .insert(receiptDrafts)
       .values({ id, groupId, initiatorId: userId, data: input.data })
@@ -179,6 +203,30 @@ export async function saveDraft(
     };
   });
 }
+export async function confirmDraftItem(id: string, itemId: string, userId: string, body: unknown) {
+  const { revision, flag } = checked(z.object({
+    revision: revisionInput,
+    flag: z.enum(["needsCheck", "taxNotChecked"]),
+  }).strict(), body);
+  const result = await db.transaction(async (tx) => {
+    const draft = await ownDraft(tx, id, userId, true);
+    editable(draft, revision);
+    const item = draft.data.items.find((entry) => entry.id === itemId);
+    if (!item) throw new BillError(404, "Item not found.");
+    if (item[flag] === false)
+      return { groupId: draft.groupId, changed: false };
+    const data: ReceiptDraftData = { ...draft.data, items: draft.data.items.map((entry) =>
+      entry.id === itemId ? { ...entry, [flag]: false } : entry,
+    ) };
+    await tx.update(receiptDrafts).set({
+      data, revision: draft.revision + 1, updatedAt: new Date(),
+    }).where(eq(receiptDrafts.id, id));
+    return { groupId: draft.groupId, changed: true };
+  });
+  if (result.changed) notifyGroupChanged(result.groupId);
+  return readDraft(id, userId);
+}
+
 export async function deleteDraft(id: string, userId: string, body: unknown) {
   const { revision } = checked(
     z.object({ revision: revisionInput }).strict(),

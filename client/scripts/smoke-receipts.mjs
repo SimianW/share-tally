@@ -1217,6 +1217,60 @@ try {
   await alice.getByRole("button", { name: `Delete ${fallbackDraft.data.title || "untitled bill"}`, exact: true }).click();
   await alice.getByRole("button", { name: "Delete draft", exact: true }).click();
   await waitForServer("model-mode-ok-ready", "model-mode-ok");
+  // Low-confidence OCR hints are independent of tax hints and never gate progression.
+  for (const viewport of [{ width: 1280, height: 1000 }, { width: 390, height: 844 }]) {
+    await alice.setViewportSize(viewport);
+    await alice.goto(groupRoute);
+    await alice.getByRole("button", { name: "New bill", exact: true }).click();
+    await waitForServer("low-confidence-receipt-ready", "low-confidence-receipt");
+    await alice.getByLabel("Choose a receipt image").setInputFiles({ name: "uncertain.png", mimeType: "image/png", buffer: image });
+    await alice.getByRole("button", { name: "Use this photo", exact: true }).click();
+    await expect(alice.getByRole("heading", { name: "Check your items" })).toBeVisible();
+    await expect(alice.getByRole("button", { name: "Needs check (1)" })).toBeVisible();
+    await expect(alice.getByText("⚠ Needs check", { exact: true })).toBeVisible();
+    await expect(alice.getByRole("button", { name: "Confirm item", exact: true })).toHaveCount(0);
+    await expect(alice.getByRole("button", { name: "Continue to sharing" })).toBeEnabled();
+    await alice.getByRole("button", { name: "Continue to sharing" }).click();
+    await expect(alice.getByRole("button", { name: "Initiate bill", exact: true })).toBeEnabled();
+    await stepButton("Items").click();
+    await expect(alice.locator(".receipt-row-open").first()).toBeEnabled();
+    const lowConfidenceId = (await api(`/groups/${group.id}/receipt-drafts`)).drafts.find(d => d.data.items.some(i => i.evidence?.descriptionConfidence === 0.7))?.id;
+    assert.ok(lowConfidenceId, "Low-confidence Azure draft was saved");
+    await expect.poll(async () => (await api(`/receipt-drafts/${lowConfidenceId}`)).draft.processingStatus).toBe("ready");
+    await alice.getByRole("button", { name: "Needs check (1)" }).click();
+    await expect(alice.locator(".receipt-row-open")).toHaveCount(1);
+    await alice.locator(".receipt-row-open").first().click();
+    await alice.getByRole("button", { name: "Confirm item", exact: true }).click();
+    await expect(alice.getByRole("button", { name: "Needs check (0)" })).toBeVisible();
+    await expect(alice.getByText("All checked — no items need checking.", { exact: true })).toBeVisible();
+    assert.equal((await api(`/receipt-drafts/${lowConfidenceId}`)).draft.data.items[0].needsCheck, false);
+    await alice.reload();
+    await expect(alice.getByRole("button", { name: "Needs check (0)" })).toBeVisible();
+    await alice.getByRole("button", { name: "Needs check (0)" }).click();
+    await expect(alice.getByText("All checked — no items need checking.", { exact: true })).toBeVisible();
+    await alice.getByRole("button", { name: "All", exact: true }).click();
+    await alice.getByRole("button", { name: "Add an item", exact: true }).click();
+    await expect(alice.getByText("Missing price", { exact: true })).toBeVisible();
+    await expect(alice.getByRole("button", { name: "Needs check (1)" })).toBeVisible();
+    await alice.getByLabel("Item name", { exact: true }).fill("Manual orange");
+    await alice.getByLabel("Printed price", { exact: true }).fill("1.00");
+    await alice.getByRole("button", { name: "Done", exact: true }).click();
+    await expect(alice.getByRole("button", { name: "Needs check (0)" })).toBeVisible();
+    await alice.getByRole("button", { name: "Save draft & close" }).click();
+    await expect(alice).toHaveURL(groupRoute);
+    const saved = (await api(`/receipt-drafts/${lowConfidenceId}`)).draft;
+    assert.equal(saved.data.items[0].needsCheck, false);
+    assert.equal(saved.data.items[1].needsCheck, false, "Manual item edits clear their missing-price hint");
+    await alice.goto(`${newBillRoute}/${lowConfidenceId}`);
+    await stepButton("Items").click();
+    await expect(alice.getByRole("button", { name: "Needs check (0)" })).toBeVisible();
+    await alice.reload();
+    await expect(alice.getByRole("button", { name: "Needs check (0)" })).toBeVisible();
+    await alice.getByRole("button", { name: "Back to group" }).click();
+    await waitForServer("normal-confidence-receipt-ready", "normal-confidence-receipt");
+    await alice.getByRole("button", { name: `Delete ${saved.data.title || "untitled bill"}`, exact: true }).click();
+    await alice.getByRole("button", { name: "Delete draft", exact: true }).click();
+  }
   // The guided entry still supports switching an unfinished receipt to manual shares.
   await alice.goto(`${base}#/group-bills/${group.id}`);
   await alice.getByRole("button", { name: "New bill", exact: true }).click();
@@ -1259,7 +1313,7 @@ try {
   );
   assert.deepEqual(errors, []);
   console.log(
-    "Receipt browser smoke passed: private draft recovery, saved automatic scans, processing locks, second-tab completion and tax fallback, compact rows, editor navigation, live reconciliation and summary edits, signed-cent allocation, photo zoom on desktop/mobile, exact thirds, claim-all/preset/custom buttons, item filters, disabled overclaims, concurrent availability conflicts, legacy price/tax/adjustment edits and add/delete controls, historical and manual provenance, frozen-rate corrections and manual overrides, taxability and tax-inclusive previews, reservations, completion and adjustment."
+    "Receipt browser smoke passed: private draft recovery, saved automatic scans, processing locks, second-tab completion and tax fallback, confidence badges, filter counts, confirmation and reload on desktop/mobile, compact rows, editor navigation, live reconciliation and summary edits, signed-cent allocation, photo zoom on desktop/mobile, exact thirds, claim-all/preset/custom buttons, item filters, disabled overclaims, concurrent availability conflicts, legacy price/tax/adjustment edits and add/delete controls, historical and manual provenance, frozen-rate corrections and manual overrides, taxability and tax-inclusive previews, reservations, completion and adjustment.",
   );
 } catch (error) {
   if (networkChangeFailures.size) {

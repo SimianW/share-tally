@@ -55,6 +55,8 @@ export const draftItemInput = itemInput.omit({ taxCents: true, extraCents: true 
   allocatedExtraCents: z.number().int().min(-1_000_000).max(1_000_000).nullable().optional(),
   discountSource: z.literal("receipt").optional(),
   taxNotChecked: z.boolean().optional(),
+  // Review state is assigned by scanning and cleared only by a real edit or confirmation.
+  needsCheck: z.boolean().optional(),
   evidence: itemEvidence.optional(),
   manualFinal: z.boolean().default(false),
   name: z.string().max(160),
