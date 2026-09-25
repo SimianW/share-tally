@@ -38,7 +38,7 @@ try {
   const port = await new Promise((resolve, reject) => {
     const timer = setTimeout(
       () => reject(new Error("API startup timed out")),
-      10_000,
+      30_000,
     );
     child.once("message", (value) => {
       clearTimeout(timer);
@@ -130,6 +130,22 @@ try {
     });
     return page;
   }
+  function waitForServer(expected, command) {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        child.off("message", received);
+        reject(new Error(`Timed out waiting for server message ${expected}`));
+      }, 15_000);
+      const received = (message) => {
+        if (message !== expected) return;
+        clearTimeout(timer);
+        child.off("message", received);
+        resolve();
+      };
+      child.on("message", received);
+      if (command) child.send(command);
+    });
+  }
   async function api(path, token = "alice-token", method = "GET", body) {
     const response = await fetch(`http://127.0.0.1:${port}/api${path}`, {
       method,
@@ -189,13 +205,17 @@ try {
   await expect(alice.getByText("Test extraction unavailable. Your draft is safe.", { exact: true })).toBeVisible();
   await expect(alice.getByRole("button", { name: "Read receipt", exact: true })).toBeVisible();
   await alice.getByRole("button", { name: "Read receipt", exact: true }).click();
-  await expect(alice.getByRole("button", { name: "Edit Apples", exact: true })).toBeVisible();
-  assert.equal((await api(`/groups/${group.id}/receipt-drafts`)).drafts.length, 0);
+  await expect(alice.getByRole("heading", { name: "Check your items" })).toBeVisible();
+  await expect(alice.getByRole("button", { name: "Edit Friendly item 1", exact: true })).toBeVisible();
+  // The retry is a saved scan, even though the new-bill page began locally.
+  const retryDrafts = (await api(`/groups/${group.id}/receipt-drafts`)).drafts;
+  assert.equal(retryDrafts.length, 1);
+  await expect.poll(async () => (await api(`/receipt-drafts/${retryDrafts[0].id}`)).draft.processingStatus).toBe("ready");
   await alice.getByRole("button", { name: "Back to group" }).click();
-  await expect(alice.getByRole("heading", { name: "Discard unsaved changes?" })).toBeVisible();
-  await alice.getByRole("button", { name: "Discard changes", exact: true }).click();
   await expect(alice).toHaveURL(groupRoute);
-  assert.equal((await api(`/groups/${group.id}/receipt-drafts`)).drafts.length, 0);
+  await alice.getByRole("button", { name: `Delete ${retryDrafts[0].data.title || "untitled bill"}`, exact: true }).click();
+  await alice.getByRole("button", { name: "Delete draft", exact: true }).click();
+  await expect.poll(async () => (await api(`/groups/${group.id}/receipt-drafts`)).drafts.length).toBe(0);
   // Pre-migration browser recovery must preserve an explicitly reduced item tax.
   const reducedTaxId = randomUUID();
   const reducedTaxDraft = (await api(`/groups/${group.id}/receipt-drafts/${reducedTaxId}`, "alice-token", "PUT", {
@@ -440,6 +460,13 @@ try {
     claims: [{ itemId: apples.id, numerator: 2, denominator: 3 }],
   });
   await alice.goto(`${base}#/bills/${controlBill.id}`);
+  const filters = alice.locator(".claim-filters");
+  await filters.getByRole("button", { name: "Unclaimed (2)" }).click();
+  await expect(alice.locator(".claim-list .receipt-row-open")).toHaveCount(2);
+  await filters.getByRole("button", { name: "Mine (0)" }).click();
+  await expect(alice.getByText("No items in this filter.")).toBeVisible();
+  await filters.getByRole("button", { name: "All (2)" }).click();
+  await expect(alice.locator(".claim-list .receipt-row-open")).toHaveCount(2);
   await alice.getByRole("button", { name: "View Apples · $3.00", exact: true }).click();
   const controlSheet = claimSheet(alice);
   await expect(controlSheet).toContainText("1/3 available to you");
@@ -550,6 +577,8 @@ try {
   await alice.getByRole("button", { name: "Choose file", exact: true }).click();
   const chooser = await fileChooser;
   assert.equal(await chooser.element().getAttribute("capture"), null);
+  await waitForServer("holding-model", "hold-model");
+  const firstModelHeld = waitForServer("model-held");
   await chooser.setFiles({
     name: "receipt.png",
     mimeType: "image/png",
@@ -558,14 +587,64 @@ try {
   await alice
     .getByRole("button", { name: "Use this photo", exact: true })
     .click();
-  // Extraction succeeds automatically after the crop; the failed-scan retry was covered above.
+  // Cropping starts a saved scan; hold only the background name/tax check.
+  await firstModelHeld;
   await expect(alice.getByRole("heading", { name: "Check your items" })).toBeVisible();
+  const scannedDraft = (await api(`/groups/${group.id}/receipt-drafts`)).drafts.find(d => d.data.title === "Scanned receipt");
+  assert.ok(scannedDraft, "The scan must be saved before the background model finishes");
+  assert.equal(scannedDraft.processingStatus, "processing");
+  assert.equal(scannedDraft.data.items.length, 1);
+  const observer = await pageFor("alice-token", { width: 1280, height: 1000 });
+  await observer.goto(`${base}#/group-bills/${group.id}`);
+  await observer.locator(".draft-list-row").filter({ hasText: "Scanned receipt" })
+    .getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(observer.getByRole("heading", { name: "Check your items" })).toBeVisible();
+  await expect(alice.getByText("Checking names and tax", { exact: true }).first()).toBeVisible();
+  await expect(observer.getByText("Checking names and tax", { exact: true }).first()).toBeVisible();
+  const lockedRow = alice.locator(".receipt-row-open").first();
+  await expect(lockedRow).toBeDisabled();
+  await expect(observer.locator(".receipt-row-open").first()).toBeDisabled();
+  await expect(alice.getByRole("button", { name: "Add an item", exact: true })).toBeDisabled();
+  await expect(alice.getByRole("button", { name: "Continue to sharing" })).toBeDisabled();
+  await expect(observer.getByRole("button", { name: "Continue to sharing" })).toBeDisabled();
+  await expect(alice.getByRole("button", { name: "Save draft & close" })).toBeDisabled();
+  await alice.getByRole("button", { name: /Receipt summary|Off by|Matches receipt/ }).filter({ hasText: /Items/ }).click();
+  await expect(alice.getByLabel("Receipt tax", { exact: true })).toBeDisabled();
+  await alice.getByRole("button", { name: "Close summary", exact: true }).click();
+  await expect(alice.getByRole("button", { name: "Replace receipt photo" })).toBeDisabled();
+  await expect(stepButton("People")).toBeDisabled();
+  const lockedInitiation = await fetch(`http://127.0.0.1:${port}/api/receipt-drafts/${scannedDraft.id}/initialize`, {
+    method: "POST", headers: { Authorization: "Bearer alice-token", "Content-Type": "application/json" },
+    body: JSON.stringify({ revision: scannedDraft.revision }),
+  });
+  assert.equal(lockedInitiation.status, 409, "A processing draft cannot be initiated");
+  await alice.setViewportSize({ width: 390, height: 844 });
+  await expect(alice.locator(".receipt-row-open").first()).toBeDisabled();
+  assert.equal(await alice.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await alice.setViewportSize({ width: 1280, height: 1000 });
+  child.send("release-model");
+  await expect(alice.getByRole("button", { name: "Edit Friendly item 1", exact: true })).toBeEnabled();
+  await expect(observer.getByRole("button", { name: "Edit Friendly item 1", exact: true })).toBeEnabled();
+  await expect.poll(async () => (await api(`/receipt-drafts/${scannedDraft.id}`)).draft.processingStatus).toBe("ready");
+  await observer.close();
   const applesRow = () => alice.getByRole("button", { name: "Edit Apples", exact: true });
   const reconciliation = () => alice.getByRole("button", { name: /Matches receipt|Off by|Receipt summary/ }).filter({ hasText: /Items/ });
+  await alice.getByRole("button", { name: "Edit Friendly item 1", exact: true }).click();
+  await alice.getByLabel("Item name", { exact: true }).fill("Apples");
+  await alice.getByRole("button", { name: "Close editor", exact: true }).click();
   await expect(applesRow()).toContainText("3.00");
   await reconciliation().click();
   await alice.getByLabel("Receipt tax", { exact: true }).fill("0.30");
   await alice.getByRole("button", { name: "Close summary", exact: true }).click();
+  await expect(alice.getByText(/Receipt tax \$0\.30 isn't assigned to any item/)).toBeVisible();
+  await expect(alice.getByRole("button", { name: "Continue to sharing" })).toBeEnabled();
+  await alice.getByRole("button", { name: "Continue to sharing" }).click();
+  await expect(alice.getByRole("button", { name: "Initiate bill", exact: true })).toBeEnabled();
+  await stepButton("Items").click();
+  await applesRow().click();
+  await alice.getByRole("checkbox", { name: "Taxable", exact: true }).check();
+  await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+  await expect(alice.getByText(/Receipt tax \$0\.30 isn't assigned to any item/)).toHaveCount(0);
   await expect(applesRow()).toContainText("3.30");
   await expect(reconciliation()).toContainText("Off by $0.30");
   await reconciliation().click();
@@ -588,18 +667,46 @@ try {
   await alice.getByLabel("Final cost · CAD", { exact: true }).fill("2.80");
   await alice.getByRole("button", { name: "Close editor", exact: true }).click();
   await alice.getByRole("button", { name: "Save draft & close" }).click();
+  await expect(alice.locator("dialog[open]")).toHaveCount(0);
   await expect(alice.locator(".draft-list-row").filter({ hasText: "Scanned receipt" })).toBeVisible();
   const savedScan = (await api(`/groups/${group.id}/receipt-drafts`)).drafts.find(d => d.data.title === "Scanned receipt");
   const savedPhoto = (await pool.query('SELECT base64 FROM receipt_photos WHERE draft_id = $1', [savedScan.id])).rows[0].base64;
   await alice.locator(".draft-list-row").filter({ hasText: "Scanned receipt" }).getByRole("button", { name: "Continue", exact: true }).click();
+  // The already-open tab must receive both processing and completion events.
+  const replacementObserver = await pageFor("alice-token", { width: 1280, height: 1000 });
+  await replacementObserver.goto(`${newBillRoute}/${savedScan.id}`);
+  await expect(replacementObserver.getByRole("button", { name: "Edit Apples", exact: true })).toBeEnabled();
+  await waitForServer("holding-model", "hold-model");
+  const replacementHeld = waitForServer("model-held");
   await alice.getByRole("button", { name: "Replace receipt photo", exact: true }).click();
   await alice.getByLabel("Choose a receipt image").setInputFiles({ name: "replacement.png", mimeType: "image/png", buffer: temporaryPhoto });
   await alice.getByRole("button", { name: "Use this photo", exact: true }).click();
+  await replacementHeld;
+  await expect(replacementObserver.locator(".receipt-row-open").first()).toBeDisabled();
+  await expect(replacementObserver.getByRole("button", { name: "Continue to sharing" })).toBeDisabled();
+  await expect(alice.locator(".receipt-row-open").first()).toBeDisabled();
+  child.send("release-model");
   await expect(alice.getByRole("heading", { name: "Check your items" })).toBeVisible();
+  await expect(alice.getByRole("button", { name: "Edit Friendly item 1", exact: true })).toBeEnabled();
+  await expect(replacementObserver.getByRole("button", { name: "Edit Friendly item 1", exact: true })).toBeEnabled();
+  await replacementObserver.close();
+  // A replacement scan is saved immediately; leaving cannot roll its photo back.
   await alice.getByRole("button", { name: "Back to group" }).click();
-  await alice.getByRole("button", { name: "Discard changes", exact: true }).click();
-  assert.equal((await pool.query('SELECT base64 FROM receipt_photos WHERE draft_id = $1', [savedScan.id])).rows[0].base64, savedPhoto);
-  assert.deepEqual((await api(`/receipt-drafts/${savedScan.id}`)).draft.data, savedScan.data);
+  await expect(alice).toHaveURL(groupRoute);
+  const replacementPhoto = (await pool.query('SELECT base64 FROM receipt_photos WHERE draft_id = $1', [savedScan.id])).rows[0].base64;
+  assert.notEqual(replacementPhoto, savedPhoto);
+  const replacementDraft = (await api(`/receipt-drafts/${savedScan.id}`)).draft;
+  assert.equal(replacementDraft.processingStatus, "ready");
+  assert.equal(replacementDraft.data.items[0].name, "Friendly item 1");
+  await alice.locator(".draft-list-row").filter({ hasText: "Scanned receipt" }).getByRole("button", { name: "Continue", exact: true }).click();
+  await stepButton("Items").click();
+  await alice.getByRole("button", { name: "Edit Friendly item 1", exact: true }).click();
+  await alice.getByLabel("Item name", { exact: true }).fill("Apples");
+  await alice.getByRole("checkbox", { name: "Taxable", exact: true }).uncheck();
+  await alice.getByRole("button", { name: "Set final manually", exact: true }).click();
+  await alice.getByLabel("Final cost · CAD", { exact: true }).fill("2.80");
+  await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+  await alice.getByRole("button", { name: "Save draft & close" }).click();
   await alice.locator(".draft-list-row").filter({ hasText: "Scanned receipt" }).getByRole("button", { name: "Continue", exact: true }).click();
   await stepButton("Items").click();
   await alice.reload();
@@ -992,6 +1099,43 @@ try {
   await alice.getByRole("button", { name: "Save item changes" }).click();
   await expect.poll(async () => (await api(`/bills/${inclusiveBill.id}`)).bill.items[0].finalCents).toBe(1001);
   assert.equal((await api(`/bills/${inclusiveBill.id}`)).bill.items[0].taxCents, 0);
+  // A failed background check retains the Azure item and marks tax unchecked.
+  await alice.goto(`${base}#/group-bills/${group.id}`);
+  await alice.getByRole("button", { name: "New bill", exact: true }).click();
+  await waitForServer("holding-model", "hold-model");
+  await waitForServer("model-mode-error-ready", "model-mode-error");
+  const fallbackModelHeld = waitForServer("model-held");
+  await alice.getByLabel("Choose a receipt image").setInputFiles({ name: "fallback.png", mimeType: "image/png", buffer: image });
+  await alice.getByRole("button", { name: "Use this photo", exact: true }).click();
+  await fallbackModelHeld;
+  await expect(alice.getByText("Checking names and tax", { exact: true }).first()).toBeVisible();
+  await expect(alice.locator(".receipt-row-open").first()).toBeDisabled();
+  child.send("release-model");
+  await expect(alice.getByText("Tax not checked", { exact: true }).first()).toBeVisible();
+  await expect(alice.getByText("Taxable · not checked", { exact: true })).toBeVisible();
+  await expect(alice.locator(".receipt-row-open").first()).toBeEnabled();
+  const fallbackId = (await api(`/groups/${group.id}/receipt-drafts`)).drafts.find(d => d.processingStatus === "fallback")?.id;
+  assert.ok(fallbackId, "The saved draft should record model fallback");
+  const fallbackAzure = (await api(`/receipt-drafts/${fallbackId}`)).draft;
+  assert.equal(fallbackAzure.data.items[0].name, "APPLE", "Fallback preserves the Azure description");
+  await alice.locator(".receipt-row-open").first().click();
+  await expect(alice.getByRole("checkbox", { name: "Taxable", exact: true })).toBeChecked();
+  await alice.getByLabel("Item name", { exact: true }).fill("Renamed fallback item");
+  await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+  await expect(alice.getByText("Taxable · not checked", { exact: true })).toBeVisible();
+  await alice.getByRole("button", { name: "Edit Renamed fallback item", exact: true }).click();
+  await alice.getByRole("checkbox", { name: "Taxable", exact: true }).uncheck();
+  await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+  await expect(alice.getByText("Taxable · not checked", { exact: true })).toHaveCount(0);
+  await alice.getByRole("button", { name: "Save draft & close" }).click();
+  await expect(alice).toHaveURL(groupRoute);
+  const fallbackDraft = (await api(`/receipt-drafts/${fallbackId}`)).draft;
+  assert.equal(fallbackDraft.data.items[0].name, "Renamed fallback item");
+  assert.equal(fallbackDraft.data.items[0].taxable, false);
+  assert.equal(fallbackDraft.data.items[0].taxNotChecked, false);
+  await alice.getByRole("button", { name: `Delete ${fallbackDraft.data.title || "untitled bill"}`, exact: true }).click();
+  await alice.getByRole("button", { name: "Delete draft", exact: true }).click();
+  await waitForServer("model-mode-ok-ready", "model-mode-ok");
   // The guided entry still supports switching an unfinished receipt to manual shares.
   await alice.goto(`${base}#/group-bills/${group.id}`);
   await alice.getByRole("button", { name: "New bill", exact: true }).click();
@@ -1034,7 +1178,7 @@ try {
   );
   assert.deepEqual(errors, []);
   console.log(
-    "Receipt browser smoke passed: private draft recovery, compact rows, editor navigation, live reconciliation and summary edits, signed-cent allocation, photo zoom on desktop/mobile, exact thirds, claim-all/preset/custom buttons, disabled overclaims, concurrent availability conflicts, legacy price/tax/adjustment edits and add/delete controls, historical and manual provenance, frozen-rate corrections and manual overrides, taxability and tax-inclusive previews, reservations, completion and adjustment.",
+    "Receipt browser smoke passed: private draft recovery, saved automatic scans, processing locks, second-tab completion and tax fallback, compact rows, editor navigation, live reconciliation and summary edits, signed-cent allocation, photo zoom on desktop/mobile, exact thirds, claim-all/preset/custom buttons, item filters, disabled overclaims, concurrent availability conflicts, legacy price/tax/adjustment edits and add/delete controls, historical and manual provenance, frozen-rate corrections and manual overrides, taxability and tax-inclusive previews, reservations, completion and adjustment."
   );
 } catch (error) {
   if (networkChangeFailures.size) {

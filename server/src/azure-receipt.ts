@@ -7,6 +7,7 @@ import {
   type ReceiptExtractor,
 } from "./receipt-extraction.js";
 import { setTimeout as delay } from "node:timers/promises";
+import { performance } from "node:perf_hooks";
 type Field = {
   type?: string;
   content?: string;
@@ -163,6 +164,7 @@ async function azureReceipt(
     throw new Error("Azure endpoint must use HTTPS.");
   const headers = { "Ocp-Apim-Subscription-Key": key };
   const signal = AbortSignal.timeout(120000);
+  const submitStart = performance.now();
   const response = await request(
     new URL(
       "/documentintelligence/documentModels/prebuilt-receipt:analyze?api-version=2024-11-30",
@@ -176,6 +178,7 @@ async function azureReceipt(
       redirect: "error",
     },
   );
+  const submitEnd = performance.now();
   if (!response.ok)
     throw new Error(
       `Azure analyze HTTP ${response.status}: ${(await response.text()).slice(0, 400)}`,
@@ -209,14 +212,9 @@ async function azureReceipt(
     };
     if (body.status === "succeeded" && body.analyzeResult)
       return {
-        data: normalizeAzure(body.analyzeResult),
-        content: body.analyzeResult.content,
-        raw: JSON.stringify(body.analyzeResult, null, 2),
-        usage: {
-          pages: body.analyzeResult.pages?.length ?? null,
-          apiVersion: "2024-11-30",
-          model: "prebuilt-receipt",
-        },
+        analyzeResult: body.analyzeResult,
+        azureSubmitMs: submitEnd - submitStart,
+        azurePollMs: performance.now() - submitEnd,
       };
     if (body.status === "failed" || body.status === "canceled")
       throw new Error(
@@ -242,11 +240,14 @@ export function createAzureExtractor(
         "Receipt scanning is not configured. You can enter items manually.",
       );
     try {
-      const { data, content, raw } = await azureReceipt(image, request, wait, env);
-      return extractedReceipt.parse({
+      const { analyzeResult, azureSubmitMs, azurePollMs } = await azureReceipt(image, request, wait, env);
+      const mappingStart = performance.now();
+      const data = normalizeAzure(analyzeResult);
+      const content = analyzeResult.content;
+      const mapped = extractedReceipt.parse({
         merchant: data.merchant,
         evidence: data.evidence,
-        rawAnalysis: JSON.parse(raw) as Record<string, unknown>,
+        rawAnalysis: analyzeResult as Record<string, unknown>,
         text: content?.slice(0, 100000),
         currency: data.currency,
         total: data.total,
@@ -275,6 +276,14 @@ export function createAzureExtractor(
         otherCharges: null,
         warnings: data.warnings,
       });
+      return {
+        ...mapped,
+        scanTimings: {
+          azureSubmitMs,
+          azurePollMs,
+          mappingMs: performance.now() - mappingStart,
+        },
+      };
     } catch {
       throw new BillError(
         502,

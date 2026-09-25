@@ -49,4 +49,3 @@ export function claimAvailabilityMessage(bill: Bill, selection: Record<string, s
   }
   return null;
 }
-
