@@ -814,6 +814,9 @@ export function ReceiptDraftForm({
                           setBusy("");
                         }
                       }}
+                      photo={draft.photo && !draft.photo.expired && !draft.pendingPhoto
+                        ? { id: draft.id, version: draft.revision, pages: data.receipt?.evidence?.pages }
+                        : undefined}
                     />
                   </div>
                 </div>

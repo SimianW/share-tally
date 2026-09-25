@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "labelKind": "diagnostic-partial",
+  "id": "sroie-225",
+  "currency": "MAD",
+  "currencyExponent": 2,
+  "country": "MA",
+  "region": null,
+  "merchant": "Relais Total Oulmes",
+  "items": [
+    {
+      "id": "item-001",
+      "description": "CAFE CREME",
+      "productCode": null,
+      "quantity": "2",
+      "quantityBasis": "printed",
+      "unit": null,
+      "unitPrice": 1200,
+      "linePrice": 2400,
+      "ownDiscount": null,
+      "discountLabels": null,
+      "notes": []
+    },
+    {
+      "id": "item-002",
+      "description": "CAFE EXPRESSO",
+      "productCode": null,
+      "quantity": "2",
+      "quantityBasis": "printed",
+      "unit": null,
+      "unitPrice": 1000,
+      "linePrice": 2000,
+      "ownDiscount": null,
+      "discountLabels": null,
+      "notes": []
+    },
+    {
+      "id": "item-003",
+      "description": "CHOCOLAT CHAUD",
+      "productCode": null,
+      "quantity": "1",
+      "quantityBasis": "printed",
+      "unit": null,
+      "unitPrice": 1200,
+      "linePrice": 1200,
+      "ownDiscount": null,
+      "discountLabels": null,
+      "notes": []
+    }
+  ],
+  "receiptDiscounts": null,
+  "subtotal": null,
+  "subtotalBasis": null,
+  "subtotalStage": null,
+  "taxLines": null,
+  "taxTotal": null,
+  "taxMode": null,
+  "charges": null,
+  "rounding": null,
+  "total": 5600,
+  "taxability": null,
+  "notes": [
+    "Printed DH is normalized to MAD; no tax amount or rate is scored.",
+    "Unverified fields are null and unscored; this diagnostic label is not a strict public-corpus truth label."
+  ],
+  "review": {
+    "method": "Prior benchmark source annotation transcription visually checked against original scan; selected ambiguities rechecked against original image/CSV, 2026-09-24",
+    "date": "2026-09-24"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "version": "receipt-evidence-names-taxability-v1",
+  "config": {
+    "baseURL": "http://dev-2a1m:8317/v1",
+    "model": "gpt-5.6-luna"
+  },
+  "input": {
+    "kind": "no-model-call",
+    "reason": "scan-failed",
+    "evidence": {
+      "config": {
+        "baseURL": "http://dev-2a1m:8317/v1",
+        "model": "gpt-5.6-luna"
+      }
+    }
+  },
+  "inputSha256": "f6f31de6ad12d381bc170c033f9a8a3e6150fac66e8abe9f0fe2dd80a197efe6",
+  "itemIds": [],
+  "outcome": {
+    "kind": "skipped",
+    "reason": "scan-failed"
+  }
+}

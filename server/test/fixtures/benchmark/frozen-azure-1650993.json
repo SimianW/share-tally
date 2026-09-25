@@ -1,0 +1,2666 @@
+{
+  "commit": "16509935cb34d505ee8d48c5616c2a22ff908e2f",
+  "note": "Captured from pinned production extractor and verified against frozen mapper. rawAnalysis is asserted separately against each original fixture.",
+  "outputs": {
+    "175": {
+      "merchant": "POPULAR BOOK\nCO. (M) SDN BHD",
+      "text": "POPULAR BOOK\nCO. (M) SDN BHD\n(Co. No. 113825-W)\n(GST Reg No. [REDACTED])\nNo 8, Jalan 7/118B, Desa Tun Razak\n56000 Kuala Lumpur, Malaysia\nAMPANG POINT CENTRE\nTel : [REDACTED]/66\n11/02/18 19:21\nSlip No. : [REDACTED]\nMohd Nor Azmi\nTrans: 79369\nDescription\nAmount\nPB D/S Tape 12mm\n1.90 T\nH/C A4 400'S\n9.90 T\nTotal RM Incl. of GST\n11.80\nCash\n-11.80\nItem Count\n2\nGST Summary\nAmount (RM)\nTax (RM)\nT @ 6%\n11.13\n0.67\nTotal Savings\n0. 00\n[REDACTED]\nAND ENJOY SPECIAL DISCOUNTS\nTHANK YOU. PLEASE COME AGAIN.\nwww.popular.com.my\nBuy Chinese books online\nwww.popularonline.com. my",
+      "currency": "MYR",
+      "total": 11.8,
+      "items": [
+        {
+          "description": "PB D/S Tape 12mm\n1.90 T",
+          "evidence": {
+            "descriptionConfidence": 0.98,
+            "priceConfidence": 0.988,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  36,
+                  1000,
+                  394,
+                  1004,
+                  394,
+                  1048,
+                  36,
+                  1044
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  725,
+                  1007,
+                  811,
+                  1007,
+                  811,
+                  1048,
+                  725,
+                  1048
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  36,
+                  1001,
+                  858,
+                  1006,
+                  858,
+                  1050,
+                  36,
+                  1045
+                ]
+              }
+            ],
+            "content": "PB D/S Tape 12mm\n1.90 T"
+          },
+          "plainEnglish": null,
+          "quantity": null,
+          "amount": 1.9,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        },
+        {
+          "description": "H/C A4 400'S\n9.90 T",
+          "evidence": {
+            "descriptionConfidence": 0.981,
+            "priceConfidence": 0.988,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  35,
+                  1050,
+                  305,
+                  1051,
+                  305,
+                  1097,
+                  35,
+                  1096
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  721,
+                  1056,
+                  810,
+                  1057,
+                  810,
+                  1100,
+                  721,
+                  1100
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  35,
+                  1050,
+                  858,
+                  1055,
+                  858,
+                  1101,
+                  35,
+                  1096
+                ]
+              }
+            ],
+            "content": "H/C A4 400'S\n9.90 T"
+          },
+          "plainEnglish": null,
+          "quantity": null,
+          "amount": 9.9,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        }
+      ],
+      "subtotal": null,
+      "evidence": {
+        "countryRegion": "MYS",
+        "taxDetails": [
+          {
+            "amount": 0.67,
+            "rate": 0.06,
+            "netAmount": 11.13,
+            "description": "T"
+          }
+        ]
+      },
+      "pricesIncludeTax": false,
+      "discountTotal": null,
+      "taxTotal": 0.67,
+      "otherCharges": null,
+      "warnings": [
+        "Review discounts and other adjustments. Azure does not provide standard receipt fields for them."
+      ]
+    },
+    "225": {
+      "merchant": "RELAIS TOTAL OULMES",
+      "text": "RELAIS TOTAL OULMES\nAUTOROUTE RABAT MEKNES\n15000 KHEMISSET\nTel. : 05.22.95.66.66\nLe 30/03/2018 a 12:36 V201855892CAISSIER 1, C\nDESIGNATION\nP.U.\nQTE\nTOTAL\nCAFE CREME\n12.00\n2\n24.00\nCAFE EXPRESSO\n10.00\n2\n20.00\nCHOCOLAT CHAUD\n12.00\n1\n12.00\nTotal Facture : 56.00 DH\nREGLE PAR ESPECE\n56.00 DH\n**** Merci de votre visite ****\nPAT:37993027/RC:209031/IF:40132774\nICE: [REDACTED]",
+      "currency": "EUR",
+      "total": 56,
+      "items": [
+        {
+          "description": "CAFE CREME\n12.00\n2\n24.00",
+          "evidence": {
+            "descriptionConfidence": 0.982,
+            "priceConfidence": 0.988,
+            "unitPriceConfidence": 0.989,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  38,
+                  370,
+                  182,
+                  370,
+                  182,
+                  399,
+                  38,
+                  399
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  617,
+                  373,
+                  690,
+                  373,
+                  690,
+                  401,
+                  617,
+                  400
+                ]
+              }
+            ],
+            "unitPriceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  395,
+                  371,
+                  464,
+                  372,
+                  464,
+                  399,
+                  395,
+                  399
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  38,
+                  370,
+                  690,
+                  370,
+                  690,
+                  401,
+                  38,
+                  401
+                ]
+              }
+            ],
+            "unitPrice": 12,
+            "content": "CAFE CREME\n12.00\n2\n24.00"
+          },
+          "plainEnglish": null,
+          "quantity": "2",
+          "amount": 24,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        },
+        {
+          "description": "CAFE EXPRESSO\n10.00\n2\n20.00",
+          "evidence": {
+            "descriptionConfidence": 0.982,
+            "priceConfidence": 0.988,
+            "unitPriceConfidence": 0.989,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  38,
+                  403,
+                  224,
+                  403,
+                  224,
+                  433,
+                  38,
+                  433
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  617,
+                  406,
+                  690,
+                  406,
+                  690,
+                  435,
+                  617,
+                  435
+                ]
+              }
+            ],
+            "unitPriceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  394,
+                  405,
+                  464,
+                  405,
+                  464,
+                  433,
+                  394,
+                  433
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  38,
+                  403,
+                  690,
+                  403,
+                  690,
+                  435,
+                  38,
+                  435
+                ]
+              }
+            ],
+            "unitPrice": 10,
+            "content": "CAFE EXPRESSO\n10.00\n2\n20.00"
+          },
+          "plainEnglish": null,
+          "quantity": "2",
+          "amount": 20,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        },
+        {
+          "description": "CHOCOLAT CHAUD\n12.00\n1\n12.00",
+          "evidence": {
+            "descriptionConfidence": 0.982,
+            "priceConfidence": 0.988,
+            "unitPriceConfidence": 0.989,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  38,
+                  437,
+                  238,
+                  437,
+                  238,
+                  467,
+                  38,
+                  467
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  620,
+                  440,
+                  691,
+                  440,
+                  691,
+                  468,
+                  620,
+                  468
+                ]
+              }
+            ],
+            "unitPriceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  394,
+                  438,
+                  464,
+                  439,
+                  464,
+                  467,
+                  394,
+                  467
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  38,
+                  437,
+                  691,
+                  437,
+                  691,
+                  468,
+                  38,
+                  468
+                ]
+              }
+            ],
+            "unitPrice": 12,
+            "content": "CHOCOLAT CHAUD\n12.00\n1\n12.00"
+          },
+          "plainEnglish": null,
+          "quantity": "1",
+          "amount": 12,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        }
+      ],
+      "subtotal": null,
+      "evidence": {
+        "countryRegion": "FRA"
+      },
+      "pricesIncludeTax": false,
+      "discountTotal": null,
+      "taxTotal": null,
+      "otherCharges": null,
+      "warnings": [
+        "Review discounts and other adjustments. Azure does not provide standard receipt fields for them."
+      ]
+    },
+    "275": {
+      "merchant": "99 SPEED WART S/B",
+      "text": "31705509\n99 SPEED WART S/B (519537-X)\nLOT P.T. 2811, JALAN ANGSA,\nTAMAN BERKELEY\n41150 KLANG, SELANGOR\n1214-JINJANG UTARA\nGST ID. NO : [REDACTED]\nINVOICE NO : 18028/103/10269\n02:31PM\n565497\n10-05-17\n355 CRISPI ROLL 12 GRAIN SE\nRM6.85 s\n9413 CS 1002 A5 H/COVER NOT\nRM4.65 s\nTotal Sales (Inclusive GST) RM\n11.50\nCASH RM\n52.00\nCHANGE RM\n40.50\nGST Summary\nAmount(RM)\nTax(RM)\n5 = 67\n10.85\n.65\nThank You, Please come again\nKeep the invoice for applicable returns",
+      "currency": "MYR",
+      "total": 11.5,
+      "items": [
+        {
+          "description": "355 CRISPI ROLL 12 GRAIN SE\nRM6.85 s",
+          "evidence": {
+            "descriptionConfidence": 0.979,
+            "priceConfidence": 0.987,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  94,
+                  587,
+                  364,
+                  587,
+                  364,
+                  615,
+                  94,
+                  615
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  421,
+                  589,
+                  493,
+                  590,
+                  493,
+                  616,
+                  421,
+                  615
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  45,
+                  587,
+                  518,
+                  587,
+                  518,
+                  616,
+                  45,
+                  616
+                ]
+              }
+            ],
+            "productCode": "355",
+            "content": "355 CRISPI ROLL 12 GRAIN SE\nRM6.85 s"
+          },
+          "plainEnglish": null,
+          "quantity": null,
+          "amount": 6.85,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        },
+        {
+          "description": "9413 CS 1002 A5 H/COVER NOT\nRM4.65 s",
+          "evidence": {
+            "descriptionConfidence": 0.978,
+            "priceConfidence": 0.987,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  103,
+                  620,
+                  362,
+                  620,
+                  362,
+                  649,
+                  103,
+                  649
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  418,
+                  622,
+                  491,
+                  623,
+                  491,
+                  649,
+                  418,
+                  648
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  43,
+                  620,
+                  515,
+                  620,
+                  515,
+                  649,
+                  43,
+                  649
+                ]
+              }
+            ],
+            "productCode": "9413",
+            "content": "9413 CS 1002 A5 H/COVER NOT\nRM4.65 s"
+          },
+          "plainEnglish": null,
+          "quantity": null,
+          "amount": 4.65,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        }
+      ],
+      "subtotal": null,
+      "evidence": {
+        "countryRegion": "MYS",
+        "taxDetails": [
+          {
+            "amount": 0.65,
+            "netAmount": 10.85,
+            "description": "5"
+          }
+        ]
+      },
+      "pricesIncludeTax": false,
+      "discountTotal": null,
+      "taxTotal": 0.65,
+      "otherCharges": null,
+      "warnings": [
+        "Review discounts and other adjustments. Azure does not provide standard receipt fields for them."
+      ]
+    },
+    "450": {
+      "merchant": "MR. D.I.Y. (M) SDN BHD",
+      "text": "31804058\nMR. D.I.Y. (M) SDN BHD\n(CO.REG : 860671-D)\nLOT 1851-A & 1851-B, JALAN KPB 6,\nKAWASAN PERINDUSTRIAN BALAKONG,\n43300 SERI KEMBANGAN, SELANGOR\n(GST ID No : [REDACTED])\n( IOI PUCHONG)\n-TAX INVOICE-\nALUMINIUM FOIL 25SQ# 30CM*7.62M\n*S\nBJ41/2-52 - 24\n9069295\n1 × 5.50\n5.50\nSEKOPLAS H/D GARBAGE 89cm*117cm 10s\n*S\nWA58 - 16\n[REDACTED]\n5 × 9.50 47.50\nPLASTIC BAGS\n*S\n99999\n1 × 0.20\n0.20\nItem(s) : 3\nQty(s) : 7\nTotal Incl. GST@6%\nRM 53.20\nCASH\nRM 100.20\nCHANGE\nRM 47.00\nGST @6% included in total\nRM 3.01\n*\n*\n28-04-18 15:40 SH01 ZJ86\nT3 R000064333\n[REDACTED]\nEXCHANGE ARE ALLOWED WITHIN\n7 DAY WITH RECEIPT.\nSTRICTLY NO CASH REFUND.\nn",
+      "currency": "MYR",
+      "total": 53.2,
+      "items": [
+        {
+          "description": "ALUMINIUM FOIL 25SQ# 30CM*7.62M\n*S\nBJ41/2-52 - 24\n9069295\n1 × 5.50\n5.50",
+          "evidence": {
+            "descriptionConfidence": 0.98,
+            "priceConfidence": 0.984,
+            "unitPriceConfidence": 0.981,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  32,
+                  597,
+                  547,
+                  600,
+                  547,
+                  631,
+                  32,
+                  628
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  597,
+                  667,
+                  662,
+                  667,
+                  662,
+                  696,
+                  597,
+                  695
+                ]
+              }
+            ],
+            "unitPriceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  483,
+                  666,
+                  547,
+                  666,
+                  547,
+                  696,
+                  483,
+                  696
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  32,
+                  598,
+                  696,
+                  598,
+                  696,
+                  696,
+                  32,
+                  696
+                ]
+              }
+            ],
+            "productCode": "9069295",
+            "unitPrice": 5.5,
+            "content": "ALUMINIUM FOIL 25SQ# 30CM*7.62M\n*S\nBJ41/2-52 - 24\n9069295\n1 × 5.50\n5.50"
+          },
+          "plainEnglish": null,
+          "quantity": "1",
+          "amount": 5.5,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        },
+        {
+          "description": "SEKOPLAS H/D GARBAGE 89cm*117cm 10s\n*S\nWA58 - 16\n[REDACTED]\n5 × 9.50 47.50",
+          "evidence": {
+            "descriptionConfidence": 0.978,
+            "priceConfidence": 0.984,
+            "unitPriceConfidence": 0.981,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  32,
+                  699,
+                  613,
+                  699,
+                  613,
+                  730,
+                  32,
+                  730
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  582,
+                  766,
+                  663,
+                  766,
+                  663,
+                  797,
+                  582,
+                  797
+                ]
+              }
+            ],
+            "unitPriceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  482,
+                  766,
+                  545,
+                  766,
+                  545,
+                  797,
+                  482,
+                  797
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  32,
+                  699,
+                  696,
+                  699,
+                  696,
+                  797,
+                  32,
+                  797
+                ]
+              }
+            ],
+            "productCode": "9557002081113",
+            "unitPrice": 9.5,
+            "content": "SEKOPLAS H/D GARBAGE 89cm*117cm 10s\n*S\nWA58 - 16\n[REDACTED]\n5 × 9.50 47.50"
+          },
+          "plainEnglish": null,
+          "quantity": "5",
+          "amount": 47.5,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        },
+        {
+          "description": "PLASTIC BAGS\n*S\n99999\n1 × 0.20\n0.20",
+          "evidence": {
+            "descriptionConfidence": 0.983,
+            "priceConfidence": 0.985,
+            "unitPriceConfidence": 0.981,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  32,
+                  798,
+                  232,
+                  800,
+                  232,
+                  831,
+                  32,
+                  829
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  596,
+                  834,
+                  662,
+                  834,
+                  662,
+                  863,
+                  596,
+                  863
+                ]
+              }
+            ],
+            "unitPriceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  483,
+                  833,
+                  548,
+                  833,
+                  548,
+                  863,
+                  483,
+                  863
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  32,
+                  798,
+                  697,
+                  801,
+                  697,
+                  866,
+                  32,
+                  863
+                ]
+              }
+            ],
+            "productCode": "99999",
+            "unitPrice": 0.2,
+            "content": "PLASTIC BAGS\n*S\n99999\n1 × 0.20\n0.20"
+          },
+          "plainEnglish": null,
+          "quantity": "1",
+          "amount": 0.2,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        }
+      ],
+      "subtotal": null,
+      "evidence": {
+        "countryRegion": "MYS",
+        "taxDetails": [
+          {
+            "amount": 3.01,
+            "rate": 0.06,
+            "description": "GST"
+          }
+        ]
+      },
+      "pricesIncludeTax": false,
+      "discountTotal": null,
+      "taxTotal": 3.01,
+      "otherCharges": null,
+      "warnings": [
+        "Review discounts and other adjustments. Azure does not provide standard receipt fields for them."
+      ]
+    },
+    "525": {
+      "merchant": "AEON CO. (M) BHD",
+      "text": "106024\nAEON CO. (M) BHD (126926-H)\n3RD FLR, AEON TAMAN MALURI SC\nJLN JEJAKA, TAMAN MALURI\nCHERAS, 55100 KUALA LUMPUR\nGST ID : [REDACTED]\nSHOPPING HOURS\nSUN-THU: 1000 HRS - 2230 HRS\nFRI-SAT:1000 HRS - 2300 HRS\n1x [REDACTED]\n15,56SR\nCHEK HUP 2IN1\nItem promo @12.99\n-2.57\n1x [REDACTED]\n10.28SR\nMS SWM ENZO RT\n1x [REDACTED]\n18.50SR\nVALENCIA ORANGE\n1x [REDACTED]\n10.00SR\nUS RED GLOBE\n1x [REDACTED]\n10.50SR\nCN PEAR\n1x [REDACTED]\n14.00SR\nCHN FUJI AP 4S\n1x [REDACTED]\n10.90SR\nAUS SEEKA KIWI\nItem promo @9.00\n-1.90\n1x [REDACTED]\n7.90SR\nCHILE ANGELENO\n1x [REDACTED]\n2.50SR\nCUT FRUITS 1.99\n1x [REDACTED]\n4.80SR\nCHERRY SUNGOLD\n1x [REDACTED]\n18.90SR\nTURKEY CHERRY 2\nItem promo @11,90\n-7.00\n1x [REDACTED]\n15.00SR\nSUSHI SET-PTC\nSub-total\n127.37\nTotal Sales Incl GST\n127.37\nRounding Adj\n-0.02\nTotal After Adj Incl GST\n127.35\nCASH\n150.00\nItem Count 12\nChange Amt\n22.65\nInvoice No: [REDACTED]\nGST Summary\nAmount\nTax\nSR @ 0%\n127.37\n0.00\nTotal\n127.37\n0.00\n10/06/2018 13:04\n[REDACTED]\n0252828 PJ CST ZAHIR\nREGULAR STAMP(S) :\n4\nBONUS STAMP(S)\n:\n0\nTOTAL STAMP(S)\n:\n4\n[REDACTED]\nsold are neither exchangeable nor\nrefundable\nAEON PERMAS JAYA\nTEL 1-300-80-AEON (2366)\nTHANK YOU FOR YOUR PATRONAGE\nPLEASE COME AGAIN",
+      "currency": "MYR",
+      "total": 127.35,
+      "items": [
+        {
+          "description": "1x [REDACTED]\n15,56SR\nCHEK HUP 2IN1\nItem promo @12.99\n-2.57",
+          "evidence": {
+            "descriptionConfidence": 0.982,
+            "priceConfidence": 0.989,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1861,
+                  1371,
+                  2320,
+                  1357,
+                  2322,
+                  1437,
+                  1863,
+                  1451
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  2814,
+                  1239,
+                  3061,
+                  1234,
+                  3061,
+                  1315,
+                  2815,
+                  1320
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1759,
+                  1266,
+                  3061,
+                  1233,
+                  3068,
+                  1519,
+                  1766,
+                  1552
+                ]
+              }
+            ],
+            "productCode": "000001038556",
+            "content": "1x [REDACTED]\n15,56SR\nCHEK HUP 2IN1\nItem promo @12.99\n-2.57"
+          },
+          "plainEnglish": null,
+          "quantity": "1",
+          "amount": 15.56,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        },
+        {
+          "description": "1x [REDACTED]\n10.28SR\nMS SWM ENZO RT",
+          "evidence": {
+            "descriptionConfidence": 0.98,
+            "priceConfidence": 0.989,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1861,
+                  1661,
+                  2368,
+                  1648,
+                  2370,
+                  1732,
+                  1863,
+                  1744
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  2822,
+                  1533,
+                  3068,
+                  1525,
+                  3068,
+                  1608,
+                  2823,
+                  1614
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1767,
+                  1562,
+                  3068,
+                  1525,
+                  3073,
+                  1710,
+                  1772,
+                  1747
+                ]
+              }
+            ],
+            "productCode": "000006429720",
+            "content": "1x [REDACTED]\n10.28SR\nMS SWM ENZO RT"
+          },
+          "plainEnglish": null,
+          "quantity": "1",
+          "amount": 10.28,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        },
+        {
+          "description": "1x [REDACTED]\n18.50SR\nVALENCIA ORANGE",
+          "evidence": {
+            "descriptionConfidence": 0.983,
+            "priceConfidence": 0.989,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1873,
+                  1855,
+                  2407,
+                  1841,
+                  2409,
+                  1927,
+                  1875,
+                  1941
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  2826,
+                  1728,
+                  3071,
+                  1722,
+                  3071,
+                  1804,
+                  2828,
+                  1810
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1772,
+                  1755,
+                  3071,
+                  1722,
+                  3076,
+                  1910,
+                  1777,
+                  1943
+                ]
+              }
+            ],
+            "productCode": "000005457342",
+            "content": "1x [REDACTED]\n18.50SR\nVALENCIA ORANGE"
+          },
+          "plainEnglish": null,
+          "quantity": "1",
+          "amount": 18.5,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        },
+        {
+          "description": "1x [REDACTED]\n10.00SR\nUS RED GLOBE",
+          "evidence": {
+            "descriptionConfidence": 0.982,
+            "priceConfidence": 0.989,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1876,
+                  2058,
+                  2303,
+                  2049,
+                  2305,
+                  2130,
+                  1878,
+                  2138
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  2831,
+                  1927,
+                  3076,
+                  1921,
+                  3076,
+                  2007,
+                  2833,
+                  2013
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1775,
+                  1947,
+                  3076,
+                  1921,
+                  3080,
+                  2114,
+                  1779,
+                  2140
+                ]
+              }
+            ],
+            "productCode": "000000812627",
+            "content": "1x [REDACTED]\n10.00SR\nUS RED GLOBE"
+          },
+          "plainEnglish": null,
+          "quantity": "1",
+          "amount": 10,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        },
+        {
+          "description": "1x [REDACTED]\n10.50SR\nCN PEAR",
+          "evidence": {
+            "descriptionConfidence": 0.983,
+            "priceConfidence": 0.989,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1881,
+                  2255,
+                  2132,
+                  2250,
+                  2134,
+                  2329,
+                  1883,
+                  2334
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  2834,
+                  2129,
+                  3079,
+                  2123,
+                  3079,
+                  2204,
+                  2836,
+                  2209
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1781,
+                  2152,
+                  3079,
+                  2123,
+                  3083,
+                  2307,
+                  1785,
+                  2336
+                ]
+              }
+            ],
+            "productCode": "000006454333",
+            "content": "1x [REDACTED]\n10.50SR\nCN PEAR"
+          },
+          "plainEnglish": null,
+          "quantity": "1",
+          "amount": 10.5,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        },
+        {
+          "description": "1x [REDACTED]\n14.00SR\nCHN FUJI AP 4S",
+          "evidence": {
+            "descriptionConfidence": 0.98,
+            "priceConfidence": 0.989,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1885,
+                  2446,
+                  2384,
+                  2436,
+                  2386,
+                  2521,
+                  1887,
+                  2531
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  2837,
+                  2323,
+                  3084,
+                  2317,
+                  3084,
+                  2397,
+                  2840,
+                  2403
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1781,
+                  2349,
+                  3084,
+                  2317,
+                  3089,
+                  2502,
+                  1785,
+                  2534
+                ]
+              }
+            ],
+            "productCode": "000004023432",
+            "content": "1x [REDACTED]\n14.00SR\nCHN FUJI AP 4S"
+          },
+          "plainEnglish": null,
+          "quantity": "1",
+          "amount": 14,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        },
+        {
+          "description": "1x [REDACTED]\n10.90SR\nAUS SEEKA KIWI\nItem promo @9.00\n-1.90",
+          "evidence": {
+            "descriptionConfidence": 0.982,
+            "priceConfidence": 0.989,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1893,
+                  2647,
+                  2386,
+                  2633,
+                  2388,
+                  2715,
+                  1895,
+                  2729
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  2842,
+                  2518,
+                  3087,
+                  2511,
+                  3087,
+                  2594,
+                  2844,
+                  2601
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1787,
+                  2548,
+                  3087,
+                  2511,
+                  3095,
+                  2797,
+                  1795,
+                  2834
+                ]
+              }
+            ],
+            "productCode": "000008626349",
+            "content": "1x [REDACTED]\n10.90SR\nAUS SEEKA KIWI\nItem promo @9.00\n-1.90"
+          },
+          "plainEnglish": null,
+          "quantity": "1",
+          "amount": 10.9,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        },
+        {
+          "description": "1x [REDACTED]\n7.90SR\nCHILE ANGELENO",
+          "evidence": {
+            "descriptionConfidence": 0.983,
+            "priceConfidence": 0.989,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1895,
+                  2943,
+                  2394,
+                  2933,
+                  2396,
+                  3017,
+                  1897,
+                  3027
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  2879,
+                  2815,
+                  3095,
+                  2810,
+                  3095,
+                  2891,
+                  2881,
+                  2896
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1794,
+                  2840,
+                  3095,
+                  2810,
+                  3099,
+                  3000,
+                  1798,
+                  3030
+                ]
+              }
+            ],
+            "productCode": "000007773877",
+            "content": "1x [REDACTED]\n7.90SR\nCHILE ANGELENO"
+          },
+          "plainEnglish": null,
+          "quantity": "1",
+          "amount": 7.9,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        },
+        {
+          "description": "1x [REDACTED]\n2.50SR\nCUT FRUITS 1.99",
+          "evidence": {
+            "descriptionConfidence": 0.983,
+            "priceConfidence": 0.989,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1900,
+                  3140,
+                  2441,
+                  3127,
+                  2443,
+                  3214,
+                  1902,
+                  3227
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  2881,
+                  3014,
+                  3099,
+                  3008,
+                  3099,
+                  3090,
+                  2883,
+                  3097
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1798,
+                  3040,
+                  3099,
+                  3008,
+                  3104,
+                  3198,
+                  1802,
+                  3230
+                ]
+              }
+            ],
+            "productCode": "000000388658",
+            "content": "1x [REDACTED]\n2.50SR\nCUT FRUITS 1.99"
+          },
+          "plainEnglish": null,
+          "quantity": "1",
+          "amount": 2.5,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        },
+        {
+          "description": "1x [REDACTED]\n4.80SR\nCHERRY SUNGOLD",
+          "evidence": {
+            "descriptionConfidence": 0.983,
+            "priceConfidence": 0.989,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1901,
+                  3338,
+                  2401,
+                  3326,
+                  2403,
+                  3408,
+                  1903,
+                  3420
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  2887,
+                  3212,
+                  3102,
+                  3207,
+                  3102,
+                  3289,
+                  2888,
+                  3294
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1802,
+                  3238,
+                  3102,
+                  3207,
+                  3106,
+                  3392,
+                  1806,
+                  3422
+                ]
+              }
+            ],
+            "productCode": "000004291022",
+            "content": "1x [REDACTED]\n4.80SR\nCHERRY SUNGOLD"
+          },
+          "plainEnglish": null,
+          "quantity": "1",
+          "amount": 4.8,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        },
+        {
+          "description": "1x [REDACTED]\n18.90SR\nTURKEY CHERRY 2\nItem promo @11,90\n-7.00",
+          "evidence": {
+            "descriptionConfidence": 0.982,
+            "priceConfidence": 0.989,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1910,
+                  3532,
+                  2443,
+                  3519,
+                  2445,
+                  3604,
+                  1912,
+                  3617
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  2862,
+                  3406,
+                  3105,
+                  3401,
+                  3105,
+                  3486,
+                  2863,
+                  3491
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1806,
+                  3430,
+                  3105,
+                  3401,
+                  3112,
+                  3691,
+                  1812,
+                  3720
+                ]
+              }
+            ],
+            "productCode": "000007802317",
+            "content": "1x [REDACTED]\n18.90SR\nTURKEY CHERRY 2\nItem promo @11,90\n-7.00"
+          },
+          "plainEnglish": null,
+          "quantity": "1",
+          "amount": 18.9,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        },
+        {
+          "description": "1x [REDACTED]\n15.00SR\nSUSHI SET-PTC",
+          "evidence": {
+            "descriptionConfidence": 0.983,
+            "priceConfidence": 0.989,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1913,
+                  3827,
+                  2376,
+                  3816,
+                  2378,
+                  3902,
+                  1915,
+                  3913
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  2866,
+                  3705,
+                  3112,
+                  3698,
+                  3112,
+                  3780,
+                  2868,
+                  3787
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1813,
+                  3732,
+                  3112,
+                  3698,
+                  3117,
+                  3883,
+                  1818,
+                  3917
+                ]
+              }
+            ],
+            "productCode": "000000135412",
+            "content": "1x [REDACTED]\n15.00SR\nSUSHI SET-PTC"
+          },
+          "plainEnglish": null,
+          "quantity": "1",
+          "amount": 15,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        }
+      ],
+      "subtotal": 127.37,
+      "evidence": {
+        "countryRegion": "MYS",
+        "taxDetails": [
+          {
+            "amount": 0,
+            "rate": 0,
+            "netAmount": 127.37,
+            "description": "SR"
+          }
+        ]
+      },
+      "pricesIncludeTax": false,
+      "discountTotal": null,
+      "taxTotal": 0,
+      "otherCharges": null,
+      "warnings": [
+        "Review discounts and other adjustments. Azure does not provide standard receipt fields for them."
+      ]
+    },
+    "550": {
+      "merchant": "McDonald's Shell Mahkota Cheras DT",
+      "text": "158\nGerbang Alaf Restaurants Sdn Bhd\n(65351-M)\nLicensee of McDonald's\nLevel 6, Bangunan TH, Damansara Uptown3\nNo.3, Jalan SS21/39,47400 Petaling Jaya\nSelangor\n(GST ID No: [REDACTED])\nMcDonald's Shell Mahkota Cheras DT (#36\nTel No. [REDACTED]\nTAX INVOICE\nMFY Side 1\nINV# [REDACTED]\nORD #58 -REG #19- 11/05/2018 20:22:56\nQTY ITEM\nTOTAL\n1 L McChicken\n11.10\n1 L Coke\n1 L Fries\n1 6Nuggets\n7.80\n1 French Cheese Sauce\nTakeOut Total (incl GST)\n18.90\nTotal Rounded\n18.90\nCash Tendered\n50.00\nChange\n31.10\nTOTAL INCLUDES 6% GST\n1,07\nThank You and Please Come Again.\nGuest Relations Center : [REDACTED]",
+      "currency": "MYR",
+      "total": 18.9,
+      "items": [
+        {
+          "description": "1 L McChicken\n11.10\n1 L Coke\n1 L Fries",
+          "evidence": {
+            "descriptionConfidence": 0.981,
+            "priceConfidence": 0.987,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  92,
+                  900,
+                  257,
+                  901,
+                  257,
+                  934,
+                  92,
+                  933
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  544,
+                  902,
+                  618,
+                  902,
+                  618,
+                  934,
+                  544,
+                  934
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  62,
+                  901,
+                  618,
+                  901,
+                  618,
+                  1007,
+                  62,
+                  1007
+                ]
+              }
+            ],
+            "content": "1 L McChicken\n11.10\n1 L Coke\n1 L Fries"
+          },
+          "plainEnglish": null,
+          "quantity": "1",
+          "amount": 11.1,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        },
+        {
+          "description": "1 6Nuggets\n7.80\n1 French Cheese Sauce",
+          "evidence": {
+            "descriptionConfidence": 0.982,
+            "priceConfidence": 0.987,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  92,
+                  1013,
+                  213,
+                  1014,
+                  213,
+                  1047,
+                  92,
+                  1046
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  554,
+                  1013,
+                  619,
+                  1013,
+                  619,
+                  1046,
+                  554,
+                  1046
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  62,
+                  1012,
+                  619,
+                  1012,
+                  619,
+                  1085,
+                  62,
+                  1085
+                ]
+              }
+            ],
+            "content": "1 6Nuggets\n7.80\n1 French Cheese Sauce"
+          },
+          "plainEnglish": null,
+          "quantity": "1",
+          "amount": 7.8,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        }
+      ],
+      "subtotal": null,
+      "evidence": {
+        "countryRegion": "MYS",
+        "taxDetails": [
+          {
+            "amount": 1.07,
+            "rate": 0.06,
+            "description": "GST"
+          }
+        ]
+      },
+      "pricesIncludeTax": false,
+      "discountTotal": null,
+      "taxTotal": 1.07,
+      "otherCharges": null,
+      "warnings": [
+        "Review discounts and other adjustments. Azure does not provide standard receipt fields for them."
+      ]
+    },
+    "000": {
+      "merchant": "[REDACTED]",
+      "text": "[REDACTED]\nBOOK TA _K (TAMAN DAYA) SDN BHD\n789417-W\nNO.55 55,57 & 59, JALAN SAGU 18,\nTAMAN DAYA,\n81100 JOHOR BAHRU,\nJOHOR.\nDocument No : TD01167104\nDate :\n25/12/2018 8:13:39 PM\n[REDACTED]\nMANIS\n[REDACTED]\nCASH BILL\nCODE/DESC\nPRICE\nDisc\nAMOUNT\nQTY\nRM\nRM\n[REDACTED]\nKF MODELLING CLAY KIDDY FISH\n1 PC\n*\n9.000\n0,00\n9.00\nTotal :\n9.00\nRour ding Adjustment :\n0.00\nRound d Total (RM):\n9.00\nCash\n10.00\nCHANGE\n9.00\n1.00\nGOODS SOLD ARE NOT RETURNABLE OR\nEXCHANGEABLE\n3 物出门,想不退还或更换\n如有下便,敬请原谅,谢谢!\nTHANK YOU\nPLEASE COME AGAIN !",
+      "currency": "MYR",
+      "total": 9,
+      "items": [
+        {
+          "description": "[REDACTED]\nKF MODELLING CLAY KIDDY FISH\n1 PC\n*\n9.000\n0,00\n9.00",
+          "evidence": {
+            "descriptionConfidence": 0.977,
+            "priceConfidence": 0.988,
+            "unitPriceConfidence": 0.986,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  159,
+                  566,
+                  398,
+                  566,
+                  398,
+                  586,
+                  159,
+                  586
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  409,
+                  595,
+                  445,
+                  595,
+                  445,
+                  613,
+                  409,
+                  613
+                ]
+              }
+            ],
+            "unitPriceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  202,
+                  594,
+                  248,
+                  594,
+                  248,
+                  613,
+                  202,
+                  614
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  27,
+                  566,
+                  445,
+                  566,
+                  445,
+                  615,
+                  27,
+                  615
+                ]
+              }
+            ],
+            "productCode": "9556939040118",
+            "quantityUnit": "PC",
+            "unitPrice": 9,
+            "content": "[REDACTED]\nKF MODELLING CLAY KIDDY FISH\n1 PC\n*\n9.000\n0,00\n9.00"
+          },
+          "plainEnglish": null,
+          "quantity": "1",
+          "amount": 9,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        }
+      ],
+      "subtotal": 9,
+      "evidence": {
+        "countryRegion": "MYS"
+      },
+      "pricesIncludeTax": false,
+      "discountTotal": null,
+      "taxTotal": null,
+      "otherCharges": null,
+      "warnings": [
+        "Review discounts and other adjustments. Azure does not provide standard receipt fields for them."
+      ]
+    },
+    "001": {
+      "merchant": "[REDACTED]",
+      "text": "[REDACTED]\nINDAH GIFT & HOME DECO\n27, JALAN DEDAP 13,\nTAMAN JOHOR JAYA,\n81100 JOHOR BAHRU, JOHOR.\nTel:07-3507405 Fax:07-3558160\nRECEIPT\n19/10/2018 20:49:59 #01\n[REDACTED]\nLocation/SP: 05 /0531\nMB: MO26588\nRoom No: 01\n[REDACTED]\nDesc/Item\nQty Price Amt(RM)\n[REDACTED]\n88888\n1\n10.00\n10.00\nGF-TABLE LAMP/STITCH <i>\n62483\n1\n55.90\n55.90\n@DISC\n10.00%\n-5.59\n#Total Qty\n2\nTOTAL AMT\nRM\n60.31\nROUNDING ADJ\n-0.01\nRM\n60.30\nCASH.\nRM\n70.30\nCHANGE\nRM\n10.00\nThank You ! Please Come Again !\nGoods Sold Are Not Returnable\nDealing In Wholesale And Retail.",
+      "currency": "MYR",
+      "total": 60.3,
+      "items": [
+        {
+          "description": "[REDACTED]\n88888\n1\n10.00\n10.00",
+          "evidence": {
+            "descriptionConfidence": 0.98,
+            "priceConfidence": 0.988,
+            "unitPriceConfidence": 0.988,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  26,
+                  542,
+                  273,
+                  540,
+                  273,
+                  563,
+                  26,
+                  564
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  326,
+                  566,
+                  376,
+                  566,
+                  376,
+                  586,
+                  326,
+                  586
+                ]
+              }
+            ],
+            "unitPriceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  243,
+                  566,
+                  291,
+                  566,
+                  291,
+                  586,
+                  243,
+                  587
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  26,
+                  542,
+                  376,
+                  540,
+                  376,
+                  586,
+                  26,
+                  588
+                ]
+              }
+            ],
+            "productCode": "88888",
+            "unitPrice": 10,
+            "content": "[REDACTED]\n88888\n1\n10.00\n10.00"
+          },
+          "plainEnglish": null,
+          "quantity": "1",
+          "amount": 10,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        },
+        {
+          "description": "GF-TABLE LAMP/STITCH <i>\n62483\n1\n55.90\n55.90\n@DISC\n10.00%\n-5.59",
+          "evidence": {
+            "descriptionConfidence": 0.979,
+            "priceConfidence": 0.988,
+            "unitPriceConfidence": 0.988,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  26,
+                  591,
+                  253,
+                  590,
+                  253,
+                  612,
+                  26,
+                  613
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  326,
+                  616,
+                  375,
+                  616,
+                  375,
+                  636,
+                  326,
+                  636
+                ]
+              }
+            ],
+            "unitPriceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  242,
+                  615,
+                  291,
+                  615,
+                  291,
+                  636,
+                  242,
+                  636
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  26,
+                  590,
+                  375,
+                  590,
+                  375,
+                  662,
+                  26,
+                  662
+                ]
+              }
+            ],
+            "productCode": "62483",
+            "unitPrice": 55.9,
+            "content": "GF-TABLE LAMP/STITCH <i>\n62483\n1\n55.90\n55.90\n@DISC\n10.00%\n-5.59"
+          },
+          "plainEnglish": null,
+          "quantity": "1",
+          "amount": 55.9,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        }
+      ],
+      "subtotal": 60.31,
+      "evidence": {
+        "countryRegion": "MYS"
+      },
+      "pricesIncludeTax": false,
+      "discountTotal": null,
+      "taxTotal": null,
+      "otherCharges": null,
+      "warnings": [
+        "Review discounts and other adjustments. Azure does not provide standard receipt fields for them."
+      ]
+    },
+    "002": {
+      "merchant": "MR D.I.Y. (JOHOR) SDN BHD",
+      "text": "xxx xxxx xxxx\nMR D.I.Y. (JOHOR) SDN BHD\n(CO.REG : 933109-X)\nLOT 1851-A & 1851-B, JALAN KPB 6,\nKAWASAN PERINDUSTRIAN BALAKONG,\n43300 SERI KEMBANGAN, SELANGOR\n(MR DIY TESCO TERBAU)\n- INVOICE-\nCHOPPING BOARD 35.5x25.5CM 803M#\nEZ10HD05 - 24\n8970669\n1 × 19.00 19.00\nAIR PRESSURE SPRAYER SX-575-1 1.5L\nHC03-7 - 15\n9066468\n1 X 8.02\n8.02\nWAXCO WINDSHILED CLEANER 120ML\nWA14-3A - 48\n[REDACTED]\n1 × 3.02\n3.02\nBOPP TAPE 48MM*100M CLEAR\nFZ-04 - 36\n[REDACTED]\n1 × 3.88\n3.88\nItem(s) : 4\nQty(s) : 4\nTOTAL\nRM 33.92\nROUNDING ADJUSTMENT\n-RM 0.02\nTOTAL ROUNDED\n33.90\nRM 33.90\nCASH\nRM 50.00\nCHANGE\nRM 16.10\n*\n*\n12-01-19 21:13 SH01 ZK09\nT4 R000027830\n[REDACTED]\nEXCHANGE ARE ALLOWED WITHIN\n7 DAYS WITH RECEIPT.\nSTRICTLY NO CASH REFUND.",
+      "currency": "MYR",
+      "total": 33.9,
+      "items": [
+        {
+          "description": "CHOPPING BOARD 35.5x25.5CM 803M#\nEZ10HD05 - 24\n8970669\n1 × 19.00 19.00",
+          "evidence": {
+            "descriptionConfidence": 0.978,
+            "priceConfidence": 0.984,
+            "unitPriceConfidence": 0.981,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  21,
+                  329,
+                  352,
+                  332,
+                  352,
+                  353,
+                  21,
+                  350
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  364,
+                  375,
+                  414,
+                  375,
+                  414,
+                  396,
+                  364,
+                  395
+                ]
+              }
+            ],
+            "unitPriceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  291,
+                  375,
+                  340,
+                  375,
+                  340,
+                  395,
+                  291,
+                  394
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  21,
+                  330,
+                  414,
+                  332,
+                  414,
+                  396,
+                  21,
+                  393
+                ]
+              }
+            ],
+            "productCode": "8970669",
+            "unitPrice": 19,
+            "content": "CHOPPING BOARD 35.5x25.5CM 803M#\nEZ10HD05 - 24\n8970669\n1 × 19.00 19.00"
+          },
+          "plainEnglish": null,
+          "quantity": "1",
+          "amount": 19,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        },
+        {
+          "description": "AIR PRESSURE SPRAYER SX-575-1 1.5L\nHC03-7 - 15\n9066468\n1 X 8.02\n8.02",
+          "evidence": {
+            "descriptionConfidence": 0.977,
+            "priceConfidence": 0.985,
+            "unitPriceConfidence": 0.982,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  20,
+                  393,
+                  372,
+                  396,
+                  372,
+                  438,
+                  20,
+                  436
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  371,
+                  439,
+                  414,
+                  439,
+                  414,
+                  459,
+                  371,
+                  458
+                ]
+              }
+            ],
+            "unitPriceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  300,
+                  438,
+                  343,
+                  439,
+                  343,
+                  458,
+                  300,
+                  458
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  20,
+                  393,
+                  414,
+                  396,
+                  414,
+                  459,
+                  20,
+                  456
+                ]
+              }
+            ],
+            "productCode": "9066468",
+            "unitPrice": 8.02,
+            "content": "AIR PRESSURE SPRAYER SX-575-1 1.5L\nHC03-7 - 15\n9066468\n1 X 8.02\n8.02"
+          },
+          "plainEnglish": null,
+          "quantity": "1",
+          "amount": 8.02,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        },
+        {
+          "description": "WAXCO WINDSHILED CLEANER 120ML\nWA14-3A - 48\n[REDACTED]\n1 × 3.02\n3.02",
+          "evidence": {
+            "descriptionConfidence": 0.519,
+            "priceConfidence": 0.984,
+            "unitPriceConfidence": 0.981,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  20,
+                  458,
+                  330,
+                  458,
+                  330,
+                  499,
+                  20,
+                  499
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  370,
+                  503,
+                  414,
+                  502,
+                  414,
+                  522,
+                  370,
+                  522
+                ]
+              }
+            ],
+            "unitPriceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  300,
+                  502,
+                  342,
+                  502,
+                  342,
+                  521,
+                  300,
+                  521
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  20,
+                  458,
+                  414,
+                  458,
+                  414,
+                  522,
+                  20,
+                  522
+                ]
+              }
+            ],
+            "productCode": "9557031100236",
+            "unitPrice": 3.02,
+            "content": "WAXCO WINDSHILED CLEANER 120ML\nWA14-3A - 48\n[REDACTED]\n1 × 3.02\n3.02"
+          },
+          "plainEnglish": null,
+          "quantity": "1",
+          "amount": 3.02,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        },
+        {
+          "description": "BOPP TAPE 48MM*100M CLEAR\nFZ-04 - 36\n[REDACTED]\n1 × 3.88\n3.88",
+          "evidence": {
+            "descriptionConfidence": 0.496,
+            "priceConfidence": 0.984,
+            "unitPriceConfidence": 0.981,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  20,
+                  519,
+                  279,
+                  522,
+                  279,
+                  564,
+                  20,
+                  561
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  370,
+                  565,
+                  413,
+                  565,
+                  413,
+                  584,
+                  370,
+                  584
+                ]
+              }
+            ],
+            "unitPriceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  300,
+                  563,
+                  342,
+                  564,
+                  342,
+                  585,
+                  300,
+                  584
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  20,
+                  520,
+                  413,
+                  522,
+                  413,
+                  585,
+                  20,
+                  584
+                ]
+              }
+            ],
+            "productCode": "6935818350846",
+            "unitPrice": 3.88,
+            "content": "BOPP TAPE 48MM*100M CLEAR\nFZ-04 - 36\n[REDACTED]\n1 × 3.88\n3.88"
+          },
+          "plainEnglish": null,
+          "quantity": "1",
+          "amount": 3.88,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        }
+      ],
+      "subtotal": 33.92,
+      "evidence": {
+        "countryRegion": "MYS"
+      },
+      "pricesIncludeTax": false,
+      "discountTotal": null,
+      "taxTotal": null,
+      "otherCharges": null,
+      "warnings": [
+        "Review discounts and other adjustments. Azure does not provide standard receipt fields for them."
+      ]
+    },
+    "010": {
+      "merchant": "SAM SAM TRADING CO",
+      "text": "SAM SAM TRADING CO\n(742016-W)\n67,JLN MEWAH 25/63 TMN SRI MUDA,\n40400 SHAH ALAM.\nTEL/FAX : [REDACTED]\nGST NO: [REDACTED]\nTAX INVOICE\nHE EOG UNICORN TWIN SUPER GLUE USG-99-\n[REDACTED]\n1 X\n5.20\n5.20 S\nSS EZL A4 CYBER MIX COLOR PAPER 100'S8\n22^^008\n1 × 8.90\n8.90 S\nNo. Qtys:\n2 No. Items:\n2\nTAX AMT (S) 6%\nRM 13.30\nGST 6%\nRM 0.80\nTAX AMT (Z) 0%\nRM 0.00\nGST 0%\nRM 0.00\nTAX AMT (E) 6%\nRM 0.00\nEXC GST 6%\nRM 0.00\nTOTAL\nRM 14.10\nCASH\nRM 20.00\nCHANGE\nRM 5.90\nTHANK YOU FOR SHOPPING\nGOODS SOLD ARE NOT RETURNABLE.\nFriday, 29-12-2017 Time : 20:17\nCas. r : SAM SAM\nWc5 SWH 01 Inv:R000721136",
+      "currency": "MYR",
+      "total": 14.1,
+      "items": [
+        {
+          "description": "HE EOG UNICORN TWIN SUPER GLUE USG-99-\n[REDACTED]\n1 X\n5.20\n5.20 S",
+          "evidence": {
+            "descriptionConfidence": 0.977,
+            "priceConfidence": 0.985,
+            "unitPriceConfidence": 0.981,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  96,
+                  422,
+                  672,
+                  430,
+                  672,
+                  463,
+                  96,
+                  455
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  605,
+                  471,
+                  668,
+                  472,
+                  667,
+                  503,
+                  605,
+                  502
+                ]
+              }
+            ],
+            "unitPriceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  469,
+                  468,
+                  534,
+                  470,
+                  534,
+                  499,
+                  469,
+                  498
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  96,
+                  422,
+                  702,
+                  430,
+                  701,
+                  504,
+                  95,
+                  496
+                ]
+              }
+            ],
+            "productCode": "9557368063013",
+            "unitPrice": 5.2,
+            "content": "HE EOG UNICORN TWIN SUPER GLUE USG-99-\n[REDACTED]\n1 X\n5.20\n5.20 S"
+          },
+          "plainEnglish": null,
+          "quantity": "1",
+          "amount": 5.2,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        },
+        {
+          "description": "SS EZL A4 CYBER MIX COLOR PAPER 100'S8\n22^^008\n1 × 8.90\n8.90 S",
+          "evidence": {
+            "descriptionConfidence": 0.966,
+            "priceConfidence": 0.984,
+            "unitPriceConfidence": 0.981,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  95,
+                  501,
+                  671,
+                  508,
+                  671,
+                  544,
+                  95,
+                  536
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  604,
+                  551,
+                  667,
+                  553,
+                  666,
+                  585,
+                  604,
+                  583
+                ]
+              }
+            ],
+            "unitPriceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  470,
+                  547,
+                  534,
+                  548,
+                  534,
+                  581,
+                  470,
+                  579
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  95,
+                  498,
+                  701,
+                  510,
+                  700,
+                  586,
+                  93,
+                  574
+                ]
+              }
+            ],
+            "productCode": "22^^008",
+            "unitPrice": 8.9,
+            "content": "SS EZL A4 CYBER MIX COLOR PAPER 100'S8\n22^^008\n1 × 8.90\n8.90 S"
+          },
+          "plainEnglish": null,
+          "quantity": "1",
+          "amount": 8.9,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        }
+      ],
+      "subtotal": null,
+      "evidence": {
+        "countryRegion": "MYS",
+        "taxDetails": [
+          {
+            "netAmount": 13.3
+          },
+          {
+            "amount": 0.8,
+            "rate": 0.06,
+            "description": "GST"
+          },
+          {
+            "amount": 0,
+            "rate": 0,
+            "netAmount": 0,
+            "description": "GST"
+          },
+          {
+            "rate": 0.06,
+            "netAmount": 0,
+            "description": "TAX"
+          },
+          {
+            "rate": 0.06,
+            "description": "EXC GST"
+          }
+        ]
+      },
+      "pricesIncludeTax": false,
+      "discountTotal": null,
+      "taxTotal": 0.8,
+      "otherCharges": null,
+      "warnings": [
+        "Review discounts and other adjustments. Azure does not provide standard receipt fields for them."
+      ]
+    },
+    "075": {
+      "merchant": "LIAN HING STATIONERY SDN BHD",
+      "text": "3180303\n2\nCHECKED\nLIAN HING STATIONERY SDN BHD\n(162761-M)\nNO.32 & 33. JALAN SR 1/9. SEKSYEN 9,\nTAMAN SERDANG RAYA.\n43300 SERI KEMBANGAN, SELANGOR\nDARUL EHSAN\nGST ID : [REDACTED]\nTax Invoice\n30/03/2018\nNo. : CS-20322\nQty Tax RM\nDurafile H399 (110 x 95mm)\n200 SR 116.60\n[REDACTED]\n[REDACTED]\n2 SR 42.40\n100's (@ 20 0000\nTotal Amt Incl. GST (@) 6% :\n159.00\nRounding Adjustment\nTotal Amt Payable :\n159.00\nPaid Amount :\n200.00\nChange :\n41.00\nTotal Qty Tender :\n202\nGST Summary\nAmount\nTax\n(RM)\n(RM)\nSR (@ A\n150.00\n9.00\nTotal\n150.00\n9.00\nTHANK YOU\nFor anv enquirv. please contact us:",
+      "currency": "MYR",
+      "total": 159,
+      "items": [
+        {
+          "description": "Durafile H399 (110 x 95mm)\n200 SR 116.60\n[REDACTED]",
+          "evidence": {
+            "descriptionConfidence": 0,
+            "priceConfidence": 0.794,
+            "unitPriceConfidence": 0.984,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  109,
+                  403,
+                  352,
+                  403,
+                  352,
+                  447,
+                  109,
+                  447
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  427,
+                  402,
+                  526,
+                  403,
+                  526,
+                  424,
+                  427,
+                  423
+                ]
+              }
+            ],
+            "unitPriceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  284,
+                  425,
+                  344,
+                  425,
+                  344,
+                  446,
+                  284,
+                  447
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  109,
+                  403,
+                  526,
+                  403,
+                  526,
+                  447,
+                  109,
+                  447
+                ]
+              }
+            ],
+            "unitPrice": 0.55,
+            "content": "Durafile H399 (110 x 95mm)\n200 SR 116.60\n[REDACTED]"
+          },
+          "plainEnglish": null,
+          "quantity": "200",
+          "amount": 116.6,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        },
+        {
+          "description": "[REDACTED]\n2 SR 42.40\n100's (@ 20 0000",
+          "evidence": {
+            "descriptionConfidence": 0.979,
+            "priceConfidence": 0.987,
+            "unitPriceConfidence": 0.981,
+            "descriptionRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  110,
+                  457,
+                  350,
+                  457,
+                  350,
+                  481,
+                  110,
+                  481
+                ]
+              }
+            ],
+            "priceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  477,
+                  458,
+                  526,
+                  458,
+                  526,
+                  480,
+                  477,
+                  479
+                ]
+              }
+            ],
+            "unitPriceRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  198,
+                  480,
+                  267,
+                  480,
+                  267,
+                  502,
+                  198,
+                  502
+                ]
+              }
+            ],
+            "regions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  110,
+                  457,
+                  526,
+                  457,
+                  526,
+                  502,
+                  110,
+                  502
+                ]
+              }
+            ],
+            "quantityUnit": "SR",
+            "unitPrice": 20,
+            "content": "[REDACTED]\n2 SR 42.40\n100's (@ 20 0000"
+          },
+          "plainEnglish": null,
+          "quantity": "2",
+          "amount": 42.4,
+          "discount": null,
+          "tax": null,
+          "taxable": null
+        }
+      ],
+      "subtotal": 150,
+      "evidence": {
+        "countryRegion": "MYS",
+        "taxDetails": [
+          {
+            "amount": 9,
+            "netAmount": 150,
+            "description": "SR (@ A"
+          }
+        ]
+      },
+      "pricesIncludeTax": false,
+      "discountTotal": null,
+      "taxTotal": 9,
+      "otherCharges": null,
+      "warnings": [
+        "Review discounts and other adjustments. Azure does not provide standard receipt fields for them."
+      ]
+    }
+  }
+}

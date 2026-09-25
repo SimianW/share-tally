@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 1,
+  "id": "open-prices-walmart-18189",
+  "currency": "CAD",
+  "currencyExponent": 2,
+  "country": "CA",
+  "region": "BC",
+  "merchant": "Walmart",
+  "items": [
+    {
+      "id": "item-001",
+      "description": "ONE BUN MG",
+      "productCode": "664164100410",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 487,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-002",
+      "description": "DEMP BAGEL",
+      "productCode": "068721704470",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": 427,
+      "linePrice": 427,
+      "ownDiscount": 53,
+      "discountLabels": [
+        "WAS $4.27 ea YOU SAVED $0.53"
+      ],
+      "notes": [
+        "The printed item amount is $3.74 after a $0.53 own-item price reduction; printed WAS $4.27 ea supplies the undiscounted linePrice and unitPrice."
+      ]
+    },
+    {
+      "id": "item-003",
+      "description": "ONIONS",
+      "productCode": "628915409250",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 397,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-004",
+      "description": "SOYGANIC",
+      "productCode": "057864001400",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 397,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-005",
+      "description": "BULK MACINTO",
+      "productCode": "000000041540K",
+      "quantity": "0.380",
+      "quantityBasis": "printed",
+      "unit": "kg",
+      "unitPrice": 545,
+      "linePrice": 207,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": [
+        "Printed 0.380 kg @ $5.45 /kg; printed line total $2.07."
+      ]
+    },
+    {
+      "id": "item-006",
+      "description": "YFM CKN HERB",
+      "productCode": "211028000000",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 1047,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    }
+  ],
+  "receiptDiscounts": [],
+  "subtotal": 2909,
+  "subtotalBasis": "printed",
+  "taxLines": [],
+  "taxTotal": 0,
+  "taxMode": "exclusive",
+  "charges": [],
+  "rounding": 0,
+  "total": 2909,
+  "taxability": [
+    {
+      "itemId": "item-001",
+      "taxable": false,
+      "basis": "printed-code",
+      "evidence": "Printed D code; no tax lines printed, and printed subtotal and total are both $29.09, so this item bears no receipt tax.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-002",
+      "taxable": false,
+      "basis": "printed-code",
+      "evidence": "Printed D code; no tax lines printed, and printed subtotal and total are both $29.09, so this item bears no receipt tax.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-003",
+      "taxable": false,
+      "basis": "printed-code",
+      "evidence": "Printed D code; no tax lines printed, and printed subtotal and total are both $29.09, so this item bears no receipt tax.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-004",
+      "taxable": false,
+      "basis": "printed-code",
+      "evidence": "Printed D code; no tax lines printed, and printed subtotal and total are both $29.09, so this item bears no receipt tax.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-005",
+      "taxable": false,
+      "basis": "printed-code",
+      "evidence": "Printed D code; no tax lines printed, and printed subtotal and total are both $29.09, so this item bears no receipt tax.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-006",
+      "taxable": false,
+      "basis": "printed-code",
+      "evidence": "Printed D code; no tax lines printed, and printed subtotal and total are both $29.09, so this item bears no receipt tax.",
+      "sourceUrls": []
+    }
+  ],
+  "notes": [
+    "Arithmetic: $4.87 + ($4.27 − $0.53) + $3.97 + $3.97 + $2.07 + $10.47 = $29.09; printed TOTAL $29.09.",
+    "Weighted apple line: 0.380 kg × $5.45/kg = $2.071, printed rounded line total $2.07."
+  ],
+  "review": {
+    "method": "manual visual transcription with arithmetic reconciliation",
+    "date": "2026-09-24"
+  }
+}

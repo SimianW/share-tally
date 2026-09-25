@@ -1,0 +1,1528 @@
+{
+  "schemaVersion": 1,
+  "imageSha256": "7af00a29d9022751341321c2fa30b725f18c9e280b48081674858135017051f8",
+  "request": {
+    "apiVersion": "2024-11-30",
+    "modelId": "prebuilt-receipt",
+    "options": {
+      "features": [
+        "ocrHighResolution"
+      ]
+    }
+  },
+  "analyzeResult": {
+    "apiVersion": "2024-11-30",
+    "modelId": "prebuilt-receipt",
+    "stringIndexType": "textElements",
+    "content": "1 Mango Lemon Tea\nRp29,090\n1 Sliders Set\nRp113,636\n1 Chicken Vege Rice Bowl\nRp86,363\n1 Discount BCA 15%\n-Rp34,363\nNet Total:\nRp194,726\nSrv Ch\nRp9,736\nTAX\nRp20,446\nTOTAL: Rp224,908\nVisa\nRp224,908",
+    "pages": [
+      {
+        "pageNumber": 1,
+        "angle": 0.09243226051330566,
+        "width": 864,
+        "height": 1296,
+        "unit": "pixel",
+        "words": [
+          {
+            "content": "1",
+            "polygon": [
+              154,
+              688,
+              164,
+              688,
+              164,
+              722,
+              154,
+              722
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 0,
+              "length": 1
+            }
+          },
+          {
+            "content": "Mango",
+            "polygon": [
+              185,
+              688,
+              266,
+              688,
+              266,
+              723,
+              185,
+              722
+            ],
+            "confidence": 0.998,
+            "span": {
+              "offset": 2,
+              "length": 5
+            }
+          },
+          {
+            "content": "Lemon",
+            "polygon": [
+              284,
+              689,
+              361,
+              690,
+              361,
+              724,
+              284,
+              723
+            ],
+            "confidence": 0.996,
+            "span": {
+              "offset": 8,
+              "length": 5
+            }
+          },
+          {
+            "content": "Tea",
+            "polygon": [
+              378,
+              690,
+              425,
+              690,
+              425,
+              724,
+              378,
+              724
+            ],
+            "confidence": 0.997,
+            "span": {
+              "offset": 14,
+              "length": 3
+            }
+          },
+          {
+            "content": "Rp29,090",
+            "polygon": [
+              609,
+              693,
+              740,
+              693,
+              740,
+              728,
+              609,
+              729
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 18,
+              "length": 8
+            }
+          },
+          {
+            "content": "1",
+            "polygon": [
+              152,
+              728,
+              162,
+              727,
+              162,
+              761,
+              152,
+              760
+            ],
+            "confidence": 0.994,
+            "span": {
+              "offset": 27,
+              "length": 1
+            }
+          },
+          {
+            "content": "Sliders",
+            "polygon": [
+              183,
+              727,
+              296,
+              728,
+              296,
+              762,
+              183,
+              761
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 29,
+              "length": 7
+            }
+          },
+          {
+            "content": "Set",
+            "polygon": [
+              314,
+              729,
+              361,
+              729,
+              361,
+              762,
+              314,
+              762
+            ],
+            "confidence": 0.993,
+            "span": {
+              "offset": 37,
+              "length": 3
+            }
+          },
+          {
+            "content": "Rp113,636",
+            "polygon": [
+              594,
+              732,
+              742,
+              732,
+              742,
+              767,
+              594,
+              767
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 41,
+              "length": 9
+            }
+          },
+          {
+            "content": "1",
+            "polygon": [
+              149,
+              767,
+              159,
+              767,
+              159,
+              803,
+              149,
+              803
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 51,
+              "length": 1
+            }
+          },
+          {
+            "content": "Chicken",
+            "polygon": [
+              180,
+              767,
+              295,
+              768,
+              295,
+              804,
+              180,
+              803
+            ],
+            "confidence": 0.996,
+            "span": {
+              "offset": 53,
+              "length": 7
+            }
+          },
+          {
+            "content": "Vege",
+            "polygon": [
+              313,
+              768,
+              375,
+              769,
+              375,
+              804,
+              313,
+              804
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 61,
+              "length": 4
+            }
+          },
+          {
+            "content": "Rice",
+            "polygon": [
+              392,
+              768,
+              454,
+              769,
+              454,
+              804,
+              392,
+              804
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 66,
+              "length": 4
+            }
+          },
+          {
+            "content": "Bowl",
+            "polygon": [
+              472,
+              769,
+              531,
+              769,
+              531,
+              804,
+              472,
+              804
+            ],
+            "confidence": 0.989,
+            "span": {
+              "offset": 71,
+              "length": 4
+            }
+          },
+          {
+            "content": "Rp86,363",
+            "polygon": [
+              611,
+              772,
+              744,
+              772,
+              744,
+              807,
+              611,
+              807
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 76,
+              "length": 8
+            }
+          },
+          {
+            "content": "1",
+            "polygon": [
+              146,
+              809,
+              156,
+              809,
+              156,
+              844,
+              146,
+              844
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 85,
+              "length": 1
+            }
+          },
+          {
+            "content": "Discount",
+            "polygon": [
+              177,
+              808,
+              308,
+              809,
+              308,
+              844,
+              177,
+              844
+            ],
+            "confidence": 0.994,
+            "span": {
+              "offset": 87,
+              "length": 8
+            }
+          },
+          {
+            "content": "BCA",
+            "polygon": [
+              327,
+              809,
+              374,
+              809,
+              374,
+              844,
+              327,
+              844
+            ],
+            "confidence": 0.993,
+            "span": {
+              "offset": 96,
+              "length": 3
+            }
+          },
+          {
+            "content": "15%",
+            "polygon": [
+              395,
+              809,
+              441,
+              809,
+              441,
+              843,
+              395,
+              844
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 100,
+              "length": 3
+            }
+          },
+          {
+            "content": "-Rp34,363",
+            "polygon": [
+              600,
+              812,
+              747,
+              813,
+              747,
+              848,
+              600,
+              849
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 104,
+              "length": 9
+            }
+          },
+          {
+            "content": "Net",
+            "polygon": [
+              390,
+              892,
+              437,
+              892,
+              437,
+              927,
+              390,
+              927
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 114,
+              "length": 3
+            }
+          },
+          {
+            "content": "Total:",
+            "polygon": [
+              455,
+              892,
+              550,
+              892,
+              550,
+              927,
+              455,
+              927
+            ],
+            "confidence": 0.976,
+            "span": {
+              "offset": 118,
+              "length": 6
+            }
+          },
+          {
+            "content": "Rp194,726",
+            "polygon": [
+              599,
+              893,
+              753,
+              895,
+              753,
+              932,
+              599,
+              931
+            ],
+            "confidence": 0.982,
+            "span": {
+              "offset": 125,
+              "length": 9
+            }
+          },
+          {
+            "content": "Srv",
+            "polygon": [
+              437,
+              934,
+              487,
+              935,
+              487,
+              969,
+              437,
+              969
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 135,
+              "length": 3
+            }
+          },
+          {
+            "content": "Ch",
+            "polygon": [
+              504,
+              935,
+              538,
+              934,
+              538,
+              969,
+              504,
+              969
+            ],
+            "confidence": 0.997,
+            "span": {
+              "offset": 139,
+              "length": 2
+            }
+          },
+          {
+            "content": "Rp9,736",
+            "polygon": [
+              633,
+              936,
+              755,
+              938,
+              755,
+              975,
+              633,
+              974
+            ],
+            "confidence": 0.99,
+            "span": {
+              "offset": 142,
+              "length": 7
+            }
+          },
+          {
+            "content": "TAX",
+            "polygon": [
+              471,
+              977,
+              522,
+              977,
+              522,
+              1012,
+              471,
+              1012
+            ],
+            "confidence": 0.997,
+            "span": {
+              "offset": 150,
+              "length": 3
+            }
+          },
+          {
+            "content": "Rp20,446",
+            "polygon": [
+              618,
+              979,
+              758,
+              981,
+              758,
+              1019,
+              618,
+              1018
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 154,
+              "length": 8
+            }
+          },
+          {
+            "content": "TOTAL:",
+            "polygon": [
+              215,
+              1068,
+              410,
+              1066,
+              410,
+              1108,
+              215,
+              1110
+            ],
+            "confidence": 0.99,
+            "span": {
+              "offset": 163,
+              "length": 6
+            }
+          },
+          {
+            "content": "Rp224,908",
+            "polygon": [
+              455,
+              1066,
+              760,
+              1067,
+              760,
+              1108,
+              455,
+              1108
+            ],
+            "confidence": 0.977,
+            "span": {
+              "offset": 170,
+              "length": 9
+            }
+          },
+          {
+            "content": "Visa",
+            "polygon": [
+              436,
+              1157,
+              506,
+              1157,
+              506,
+              1194,
+              436,
+              1193
+            ],
+            "confidence": 0.984,
+            "span": {
+              "offset": 180,
+              "length": 4
+            }
+          },
+          {
+            "content": "Rp224,908",
+            "polygon": [
+              606,
+              1157,
+              768,
+              1159,
+              768,
+              1200,
+              606,
+              1198
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 185,
+              "length": 9
+            }
+          }
+        ],
+        "lines": [
+          {
+            "content": "1 Mango Lemon Tea",
+            "polygon": [
+              154,
+              687,
+              424,
+              690,
+              424,
+              724,
+              154,
+              722
+            ],
+            "spans": [
+              {
+                "offset": 0,
+                "length": 17
+              }
+            ]
+          },
+          {
+            "content": "Rp29,090",
+            "polygon": [
+              609,
+              693,
+              739,
+              693,
+              739,
+              728,
+              609,
+              728
+            ],
+            "spans": [
+              {
+                "offset": 18,
+                "length": 8
+              }
+            ]
+          },
+          {
+            "content": "1 Sliders Set",
+            "polygon": [
+              152,
+              727,
+              361,
+              729,
+              360,
+              762,
+              151,
+              760
+            ],
+            "spans": [
+              {
+                "offset": 27,
+                "length": 13
+              }
+            ]
+          },
+          {
+            "content": "Rp113,636",
+            "polygon": [
+              594,
+              732,
+              742,
+              732,
+              742,
+              767,
+              594,
+              767
+            ],
+            "spans": [
+              {
+                "offset": 41,
+                "length": 9
+              }
+            ]
+          },
+          {
+            "content": "1 Chicken Vege Rice Bowl",
+            "polygon": [
+              149,
+              767,
+              531,
+              769,
+              531,
+              804,
+              149,
+              803
+            ],
+            "spans": [
+              {
+                "offset": 51,
+                "length": 24
+              }
+            ]
+          },
+          {
+            "content": "Rp86,363",
+            "polygon": [
+              611,
+              772,
+              744,
+              772,
+              744,
+              807,
+              611,
+              807
+            ],
+            "spans": [
+              {
+                "offset": 76,
+                "length": 8
+              }
+            ]
+          },
+          {
+            "content": "1 Discount BCA 15%",
+            "polygon": [
+              146,
+              808,
+              441,
+              808,
+              441,
+              843,
+              146,
+              844
+            ],
+            "spans": [
+              {
+                "offset": 85,
+                "length": 18
+              }
+            ]
+          },
+          {
+            "content": "-Rp34,363",
+            "polygon": [
+              600,
+              812,
+              747,
+              812,
+              747,
+              848,
+              600,
+              848
+            ],
+            "spans": [
+              {
+                "offset": 104,
+                "length": 9
+              }
+            ]
+          },
+          {
+            "content": "Net Total:",
+            "polygon": [
+              390,
+              892,
+              549,
+              892,
+              549,
+              927,
+              390,
+              927
+            ],
+            "spans": [
+              {
+                "offset": 114,
+                "length": 10
+              }
+            ]
+          },
+          {
+            "content": "Rp194,726",
+            "polygon": [
+              599,
+              893,
+              753,
+              894,
+              752,
+              932,
+              599,
+              931
+            ],
+            "spans": [
+              {
+                "offset": 125,
+                "length": 9
+              }
+            ]
+          },
+          {
+            "content": "Srv Ch",
+            "polygon": [
+              437,
+              934,
+              538,
+              934,
+              538,
+              969,
+              437,
+              969
+            ],
+            "spans": [
+              {
+                "offset": 135,
+                "length": 6
+              }
+            ]
+          },
+          {
+            "content": "Rp9,736",
+            "polygon": [
+              633,
+              936,
+              755,
+              937,
+              755,
+              975,
+              632,
+              974
+            ],
+            "spans": [
+              {
+                "offset": 142,
+                "length": 7
+              }
+            ]
+          },
+          {
+            "content": "TAX",
+            "polygon": [
+              471,
+              977,
+              521,
+              976,
+              521,
+              1012,
+              471,
+              1012
+            ],
+            "spans": [
+              {
+                "offset": 150,
+                "length": 3
+              }
+            ]
+          },
+          {
+            "content": "Rp20,446",
+            "polygon": [
+              618,
+              979,
+              758,
+              981,
+              758,
+              1019,
+              618,
+              1018
+            ],
+            "spans": [
+              {
+                "offset": 154,
+                "length": 8
+              }
+            ]
+          },
+          {
+            "content": "TOTAL: Rp224,908",
+            "polygon": [
+              215,
+              1066,
+              760,
+              1065,
+              760,
+              1108,
+              215,
+              1109
+            ],
+            "spans": [
+              {
+                "offset": 163,
+                "length": 16
+              }
+            ]
+          },
+          {
+            "content": "Visa",
+            "polygon": [
+              436,
+              1157,
+              506,
+              1157,
+              506,
+              1193,
+              436,
+              1193
+            ],
+            "spans": [
+              {
+                "offset": 180,
+                "length": 4
+              }
+            ]
+          },
+          {
+            "content": "Rp224,908",
+            "polygon": [
+              606,
+              1157,
+              768,
+              1159,
+              767,
+              1200,
+              606,
+              1198
+            ],
+            "spans": [
+              {
+                "offset": 185,
+                "length": 9
+              }
+            ]
+          }
+        ],
+        "spans": [
+          {
+            "offset": 0,
+            "length": 194
+          }
+        ]
+      }
+    ],
+    "styles": [],
+    "documents": [
+      {
+        "docType": "receipt.retailMeal",
+        "boundingRegions": [
+          {
+            "pageNumber": 1,
+            "polygon": [
+              0,
+              0,
+              864,
+              0,
+              864,
+              1296,
+              0,
+              1296
+            ]
+          }
+        ],
+        "fields": {
+          "CountryRegion": {
+            "type": "countryRegion",
+            "valueCountryRegion": "USA",
+            "confidence": 0.92
+          },
+          "Items": {
+            "type": "array",
+            "valueArray": [
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "Mango Lemon Tea",
+                    "content": "Mango Lemon Tea",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          185,
+                          688,
+                          425,
+                          689,
+                          425,
+                          724,
+                          185,
+                          723
+                        ]
+                      }
+                    ],
+                    "confidence": 0.989,
+                    "spans": [
+                      {
+                        "offset": 2,
+                        "length": 15
+                      }
+                    ]
+                  },
+                  "Quantity": {
+                    "type": "number",
+                    "valueNumber": 1,
+                    "content": "1",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          154,
+                          688,
+                          164,
+                          688,
+                          164,
+                          722,
+                          154,
+                          722
+                        ]
+                      }
+                    ],
+                    "confidence": 0.994,
+                    "spans": [
+                      {
+                        "offset": 0,
+                        "length": 1
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "currencySymbol": "Rp",
+                      "amount": 29090,
+                      "currencyCode": "IDR"
+                    },
+                    "content": "Rp29,090",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          609,
+                          693,
+                          740,
+                          693,
+                          740,
+                          728,
+                          609,
+                          729
+                        ]
+                      }
+                    ],
+                    "confidence": 0.995,
+                    "spans": [
+                      {
+                        "offset": 18,
+                        "length": 8
+                      }
+                    ]
+                  }
+                },
+                "content": "1 Mango Lemon Tea\nRp29,090",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      154,
+                      688,
+                      740,
+                      688,
+                      740,
+                      729,
+                      154,
+                      729
+                    ]
+                  }
+                ],
+                "confidence": 0.985,
+                "spans": [
+                  {
+                    "offset": 0,
+                    "length": 26
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "Sliders Set",
+                    "content": "Sliders Set",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          183,
+                          727,
+                          361,
+                          729,
+                          361,
+                          763,
+                          183,
+                          761
+                        ]
+                      }
+                    ],
+                    "confidence": 0.988,
+                    "spans": [
+                      {
+                        "offset": 29,
+                        "length": 11
+                      }
+                    ]
+                  },
+                  "Quantity": {
+                    "type": "number",
+                    "valueNumber": 1,
+                    "content": "1",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          152,
+                          728,
+                          162,
+                          727,
+                          162,
+                          761,
+                          152,
+                          760
+                        ]
+                      }
+                    ],
+                    "confidence": 0.994,
+                    "spans": [
+                      {
+                        "offset": 27,
+                        "length": 1
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "currencySymbol": "Rp",
+                      "amount": 113636,
+                      "currencyCode": "IDR"
+                    },
+                    "content": "Rp113,636",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          594,
+                          732,
+                          742,
+                          732,
+                          742,
+                          767,
+                          594,
+                          767
+                        ]
+                      }
+                    ],
+                    "confidence": 0.995,
+                    "spans": [
+                      {
+                        "offset": 41,
+                        "length": 9
+                      }
+                    ]
+                  }
+                },
+                "content": "1 Sliders Set\nRp113,636",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      152,
+                      727,
+                      742,
+                      727,
+                      742,
+                      767,
+                      152,
+                      767
+                    ]
+                  }
+                ],
+                "confidence": 0.986,
+                "spans": [
+                  {
+                    "offset": 27,
+                    "length": 23
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "Chicken Vege Rice Bowl",
+                    "content": "Chicken Vege Rice Bowl",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          180,
+                          766,
+                          531,
+                          769,
+                          531,
+                          806,
+                          180,
+                          803
+                        ]
+                      }
+                    ],
+                    "confidence": 0.99,
+                    "spans": [
+                      {
+                        "offset": 53,
+                        "length": 22
+                      }
+                    ]
+                  },
+                  "Quantity": {
+                    "type": "number",
+                    "valueNumber": 1,
+                    "content": "1",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          149,
+                          767,
+                          159,
+                          767,
+                          159,
+                          803,
+                          149,
+                          803
+                        ]
+                      }
+                    ],
+                    "confidence": 0.994,
+                    "spans": [
+                      {
+                        "offset": 51,
+                        "length": 1
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "currencySymbol": "Rp",
+                      "amount": 86363,
+                      "currencyCode": "IDR"
+                    },
+                    "content": "Rp86,363",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          611,
+                          772,
+                          744,
+                          772,
+                          744,
+                          807,
+                          611,
+                          807
+                        ]
+                      }
+                    ],
+                    "confidence": 0.995,
+                    "spans": [
+                      {
+                        "offset": 76,
+                        "length": 8
+                      }
+                    ]
+                  }
+                },
+                "content": "1 Chicken Vege Rice Bowl\nRp86,363",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      149,
+                      766,
+                      744,
+                      771,
+                      744,
+                      808,
+                      149,
+                      803
+                    ]
+                  }
+                ],
+                "confidence": 0.985,
+                "spans": [
+                  {
+                    "offset": 51,
+                    "length": 33
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "Discount BCA 15%",
+                    "content": "Discount BCA 15%",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          177,
+                          808,
+                          441,
+                          808,
+                          441,
+                          844,
+                          177,
+                          844
+                        ]
+                      }
+                    ],
+                    "confidence": 0.989,
+                    "spans": [
+                      {
+                        "offset": 87,
+                        "length": 16
+                      }
+                    ]
+                  },
+                  "Quantity": {
+                    "type": "number",
+                    "valueNumber": 1,
+                    "content": "1",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          146,
+                          809,
+                          156,
+                          809,
+                          156,
+                          844,
+                          146,
+                          844
+                        ]
+                      }
+                    ],
+                    "confidence": 0.994,
+                    "spans": [
+                      {
+                        "offset": 85,
+                        "length": 1
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "currencySymbol": "Rp",
+                      "amount": 34363,
+                      "currencyCode": "IDR"
+                    },
+                    "content": "-Rp34,363",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          600,
+                          812,
+                          747,
+                          813,
+                          747,
+                          848,
+                          600,
+                          849
+                        ]
+                      }
+                    ],
+                    "confidence": 0.995,
+                    "spans": [
+                      {
+                        "offset": 104,
+                        "length": 9
+                      }
+                    ]
+                  }
+                },
+                "content": "1 Discount BCA 15%\n-Rp34,363",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      146,
+                      808,
+                      747,
+                      808,
+                      747,
+                      849,
+                      146,
+                      849
+                    ]
+                  }
+                ],
+                "confidence": 0.985,
+                "spans": [
+                  {
+                    "offset": 85,
+                    "length": 28
+                  }
+                ]
+              }
+            ]
+          },
+          "ReceiptType": {
+            "type": "string",
+            "valueString": "Meal",
+            "confidence": 0.98
+          },
+          "Subtotal": {
+            "type": "currency",
+            "valueCurrency": {
+              "currencySymbol": "Rp",
+              "amount": 194726,
+              "currencyCode": "IDR"
+            },
+            "content": "Rp194,726",
+            "boundingRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  599,
+                  893,
+                  753,
+                  895,
+                  753,
+                  932,
+                  599,
+                  931
+                ]
+              }
+            ],
+            "confidence": 0.995,
+            "spans": [
+              {
+                "offset": 125,
+                "length": 9
+              }
+            ]
+          },
+          "Total": {
+            "type": "currency",
+            "valueCurrency": {
+              "currencySymbol": "Rp",
+              "amount": 224908,
+              "currencyCode": "IDR"
+            },
+            "content": "Rp224,908",
+            "boundingRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  455,
+                  1066,
+                  760,
+                  1067,
+                  760,
+                  1108,
+                  455,
+                  1108
+                ]
+              }
+            ],
+            "confidence": 0.994,
+            "spans": [
+              {
+                "offset": 170,
+                "length": 9
+              }
+            ]
+          },
+          "TotalTax": {
+            "type": "currency",
+            "valueCurrency": {
+              "currencySymbol": "Rp",
+              "amount": 20446,
+              "currencyCode": "IDR"
+            },
+            "content": "Rp20,446",
+            "boundingRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  618,
+                  979,
+                  758,
+                  981,
+                  758,
+                  1019,
+                  618,
+                  1018
+                ]
+              }
+            ],
+            "confidence": 0.995,
+            "spans": [
+              {
+                "offset": 154,
+                "length": 8
+              }
+            ]
+          }
+        },
+        "confidence": 0.98,
+        "spans": [
+          {
+            "offset": 0,
+            "length": 194
+          }
+        ]
+      }
+    ],
+    "contentFormat": "text"
+  }
+}
