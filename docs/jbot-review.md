@@ -1,6 +1,6 @@
 # J-Bot Code Review
 
-This workflow is based on the DevRecall review configuration: GLM-5.3 through the mainland BigModel Coding Plan endpoint, one review pass, one main-review shard and up to three concurrent model sessions, finding verification and guideline review enabled, P0-P3 findings capped at ten, documentation reviews enabled, and no automatic approval.
+This workflow is based on the DevRecall review configuration: GLM-5.3-Flash through the mainland BigModel Coding Plan endpoint, one review pass, one main-review shard and up to three concurrent model sessions, finding verification and guideline review enabled, P0-P3 findings capped at ten, documentation reviews enabled, and no automatic approval.
 
 ## Credentials and variables
 
@@ -8,7 +8,7 @@ Add repository Actions secret `ZAI_API_KEY`. Never put its value in files, PRs, 
 
 Optional Actions variables:
 
-- `JBOT_GLM_MODEL`: bare model ID; default `glm-5.3`.
+- `JBOT_GLM_MODEL`: bare model ID; default `glm-5.3-flash`.
 - `JBOT_GLM_BASE_URL`: default `https://open.bigmodel.cn/api/coding/paas/v4`. International Z.AI accounts must use `https://api.z.ai/api/coding/paas/v4` instead.
 
 ## Triggers
