@@ -9,6 +9,10 @@
 .receipt-list-heading > span,
 .receipt-row-quantity,
 .receipt-row-secondary { color: var(--muted); }
+.receipt-filter-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
+.receipt-filter-chip { min-height: 36px; padding: var(--space-2) var(--space-4); border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); font-size: var(--text-sm); font-weight: 600; }
+.receipt-filter-chip[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: var(--surface); }
+.receipt-filter-chip:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .receipt-item-list {
   border: 1px solid var(--line);
   border-radius: var(--radius-md);

@@ -1985,6 +1985,95 @@ test('scan saves Azure data before the model finishes, locks draft writes, then 
   }
 });
 
+test('OCR review markers persist, reject spoofed clear, and clear on confirmation or a real item edit', async () => {
+  const { group, id, saved } = await scannedDraft();
+  await modelControl('recorded-evidence', 'recorded-evidence-ready');
+  await modelControl('hold-model', 'holding-model');
+  try {
+    const held = once(child!, 'message');
+    const scanned = await json(await api(`/receipt-drafts/${id}/extract`, 'alice-token', 'POST', { revision: saved.revision }));
+    assert.equal((await held)[0], 'model-held');
+    for (const flag of ['needsCheck', 'taxNotChecked'])
+      await json(await api(`/receipt-drafts/${id}/items/${scanned.draft.data.items[0].id}/confirm`, 'alice-token', 'POST', { revision: scanned.draft.revision, flag }), 409);
+    await releaseHeldModel();
+    let draft = await awaitModelDraft(id);
+    // Recorded observations are all above the threshold. Re-scan from a real
+    // extractor with one low-confidence field in the next isolated scenario.
+    assert.ok(draft.data.items.every((item: { needsCheck: boolean }) => !item.needsCheck));
+    await modelControl('recorded-evidence-off', 'recorded-evidence-stopped');
+    await modelControl('low-confidence-receipt', 'low-confidence-receipt-ready');
+    const photo = (await json(await api(`/receipt-drafts/${id}`))).draft;
+    const scan = await json(await api(`/receipt-drafts/${id}/extract`, 'alice-token', 'POST', { revision: photo.revision }));
+    draft = await awaitModelDraft(id);
+    assert.equal(scan.draft.data.items[0].needsCheck, true);
+    assert.equal(draft.data.items[0].needsCheck, true);
+    const row = await pool.query("SELECT data->'items'->0->>'needsCheck' AS flag FROM receipt_drafts WHERE id = $1", [id]);
+    assert.equal(row.rows[0].flag, 'true');
+    const itemId = draft.data.items[0].id;
+    await json(await api(`/receipt-drafts/${id}/items/${itemId}/confirm`, 'bob-token', 'POST', { revision: draft.revision, flag: 'needsCheck' }), 404);
+    await json(await api(`/receipt-drafts/${id}/items/${crypto.randomUUID()}/confirm`, 'alice-token', 'POST', { revision: draft.revision, flag: 'needsCheck' }), 404);
+    await json(await api(`/receipt-drafts/${id}/items/${itemId}/confirm`, 'alice-token', 'POST', { revision: draft.revision - 1, flag: 'needsCheck' }), 409);
+    const forged = await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', {
+      revision: draft.revision, data: { ...draft.data, items: [{ ...draft.data.items[0], needsCheck: false }] },
+    }));
+    assert.equal(forged.draft.data.items[0].needsCheck, true);
+    assert.equal(forged.draft.revision, draft.revision);
+    const edited = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', {
+      revision: draft.revision, data: { ...draft.data, items: [{ ...draft.data.items[0], name: 'Reviewed apple', needsCheck: true }] },
+    }))).draft;
+    assert.equal(edited.data.items[0].needsCheck, false);
+    assert.equal(edited.data.items[0].name, 'Reviewed apple');
+    await json(await api(`/receipt-drafts/${id}/extract`, 'alice-token', 'POST', { revision: edited.revision }));
+    draft = await awaitModelDraft(id);
+    assert.equal(draft.data.items[0].needsCheck, true);
+    const secondItemId = draft.data.items[0].id;
+    const confirmed = (await json(await api(`/receipt-drafts/${id}/items/${secondItemId}/confirm`, 'alice-token', 'POST', { revision: draft.revision, flag: 'needsCheck' }))).draft;
+    assert.equal(confirmed.data.items[0].needsCheck, false);
+    assert.equal(confirmed.revision, draft.revision + 1);
+    assert.equal((await json(await api(`/receipt-drafts/${id}`))).draft.data.items[0].needsCheck, false);
+    assert.equal((await pool.query("SELECT data->'items'->0->>'needsCheck' AS flag FROM receipt_drafts WHERE id = $1", [id])).rows[0].flag, 'false');
+    await json(await api(`/receipt-drafts/${id}/items/${secondItemId}/confirm`, 'alice-token', 'POST', { revision: draft.revision, flag: 'needsCheck' }), 409);
+    const unchanged = (await json(await api(`/receipt-drafts/${id}/items/${secondItemId}/confirm`, 'alice-token', 'POST', { revision: confirmed.revision, flag: 'needsCheck' }))).draft;
+    assert.equal(unchanged.revision, confirmed.revision);
+  } finally {
+    child!.send('release-model');
+    await modelControl('recorded-evidence-off', 'recorded-evidence-stopped');
+    await modelControl('normal-confidence-receipt', 'normal-confidence-receipt-ready');
+  }
+});
+
+test('manual items only need review when price is missing, and confirmation clears it', async () => {
+  const { group, draft } = await setup(false);
+  const { requestId: _requestId, ...fields } = draft;
+  const id = crypto.randomUUID();
+  const path = `/groups/${group.id}/receipt-drafts/${id}`;
+  const items = [
+    { id: crypto.randomUUID(), name: 'Manual', originalText: '', quantity: '1', amountCents: 100, discountCents: 0, finalCents: 100, evidence: { descriptionConfidence: 0.1 }, needsCheck: true },
+    { id: crypto.randomUUID(), name: 'Unpriced', originalText: '', quantity: '1', amountCents: null, discountCents: 0, finalCents: null, needsCheck: false, taxNotChecked: true },
+    { id: crypto.randomUUID(), name: 'Also unpriced', originalText: '', quantity: '1', amountCents: null, discountCents: 0, finalCents: null, taxNotChecked: true },
+  ];
+  let saved = (await json(await api(path, 'alice-token', 'PUT', { revision: 0, data: { ...fields, mode: 'items', items } }))).draft;
+  assert.deepEqual(saved.data.items.map((item: { needsCheck: boolean }) => item.needsCheck), [false, true, true]);
+  const forgedTax = (await json(await api(path, 'alice-token', 'PUT', {
+    revision: saved.revision, data: { ...saved.data, items: saved.data.items.map((item: object) => ({ ...item, taxNotChecked: false })) },
+  }))).draft;
+  assert.equal(forgedTax.data.items[1].taxNotChecked, true);
+  assert.equal(forgedTax.revision, saved.revision);
+  await json(await api(`/receipt-drafts/${id}/items/${items[2]!.id}/confirm`, 'alice-token', 'POST', { revision: saved.revision, flag: 'other' }), 400);
+  saved = (await json(await api(`/receipt-drafts/${id}/items/${items[2]!.id}/confirm`, 'alice-token', 'POST', { revision: saved.revision, flag: 'taxNotChecked' }))).draft;
+  assert.equal(saved.data.items[2].taxNotChecked, false);
+  assert.equal(saved.data.items[2].needsCheck, true, 'tax review never clears the independent price warning');
+  saved = (await json(await api(`/receipt-drafts/${id}/items/${items[1]!.id}/confirm`, 'alice-token', 'POST', { revision: saved.revision, flag: 'needsCheck' }))).draft;
+  assert.equal(saved.data.items[1].amountCents, null);
+  assert.equal(saved.data.items[1].needsCheck, false);
+  assert.equal(saved.data.items[1].taxNotChecked, true, 'price review never clears the independent tax warning');
+  saved = (await json(await api(`/receipt-drafts/${id}/items/${items[1]!.id}/confirm`, 'alice-token', 'POST', { revision: saved.revision, flag: 'taxNotChecked' }))).draft;
+  assert.equal(saved.data.items[1].taxNotChecked, false);
+  assert.equal(saved.data.items[1].needsCheck, false);
+  saved = (await json(await api(path, 'alice-token', 'PUT', { revision: saved.revision, data: { ...saved.data, title: 'Updated summary' } }))).draft;
+  assert.equal(saved.data.items[1].needsCheck, false);
+});
+
 test('model errors, invalid results, and partial answers fall back only for affected items', async () => {
   for (const mode of ['error', 'invalid', 'partial'] as const) {
     const { id, saved } = await scannedDraft();
@@ -2252,7 +2341,7 @@ test('draft overrides survive summary edits and clearing an override restores de
   assert.equal(bill.totalCents, 1);
 });
 
-test('fallback tax warning survives a rename and clears only when explicitly submitted', async () => {
+test('a rename preserves the independent tax warning until taxability is edited', async () => {
   const { group, draft } = await setup();
   const { requestId: _requestId, ...fields } = draft;
   const id = crypto.randomUUID();
@@ -2272,7 +2361,7 @@ test('fallback tax warning survives a rename and clears only when explicitly sub
   assert.equal(saved.data.items[0].taxNotChecked, true);
   saved = (await json(await api(path, 'alice-token', 'PUT', {
     revision: saved.revision,
-    data: { ...saved.data, items: [{ ...saved.data.items[0], taxNotChecked: false }] },
+    data: { ...saved.data, items: [{ ...saved.data.items[0], taxable: false }] },
   }))).draft;
   assert.equal(saved.data.items[0].taxNotChecked, false);
   assert.equal(saved.data.items[0].finalCents, 100);

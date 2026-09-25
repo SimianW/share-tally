@@ -798,6 +798,28 @@ export function ReceiptDraftForm({
                       items={data.items}
                       change={(items) => update({ items })}
                       processing={processing}
+                      onConfirm={async (itemId) => {
+                        if (pending.current || draft.processingStatus === "processing") return false;
+                        pending.current = true;
+                        setBusy("Confirming item…");
+                        setError("");
+                        try {
+                          const latest = hasUnsavedChanges(draft, baseline.current, file, loading)
+                            ? (await api.save(group.id, draft)).draft : draft;
+                          const confirmed = latest.data.items.find((item) => item.id === itemId)?.needsCheck === false
+                            ? latest : (await api.confirmItem(latest.id, itemId, latest.revision)).draft;
+                          baseline.current = confirmed;
+                          setDraft(confirmed);
+                          setNotice("");
+                          return true;
+                        } catch (error) {
+                          setError(errorMessage(error));
+                          return false;
+                        } finally {
+                          pending.current = false;
+                          setBusy("");
+                        }
+                      }}
                     />
                   </div>
                 </div>

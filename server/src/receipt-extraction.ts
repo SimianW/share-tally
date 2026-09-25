@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { priceDraft } from "./receipt-pricing.js";
 import { itemEvidence, receiptEvidenceFields, type DraftItemInput } from "./receipt-input.js";
+import { needsCheckForScan } from "./receipt-needs-check.js";
 const money = z.number().min(0).max(10000);
 export const extractedReceipt = z.object({
   merchant: z.string().nullable(),
@@ -51,6 +52,7 @@ export function extractionDefaults(data: ExtractedReceipt) {
     );
   const items: DraftItemInput[] = data.items.map((i) => ({
     id: randomUUID(),
+    needsCheck: needsCheckForScan({ amountCents: i.amount === null ? null : cents(i.amount), evidence: i.evidence }),
     manualFinal: false,
     taxable: i.taxable,
     originalText: i.description.slice(0, 1000),

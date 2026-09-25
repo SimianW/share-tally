@@ -6,6 +6,7 @@ import { requestId } from "./request-id";
 import Dialog from "./Dialog";
 import { ReceiptAmount } from "./ReceiptAmount";
 import { ReceiptItemRow } from "./ReceiptItemRow";
+import { ReceiptFilterChips } from "./ReceiptFilterChips";
 import { Button } from "./ui";
 
 function fieldsValid(container: HTMLElement | null) {
@@ -16,26 +17,48 @@ function fieldsValid(container: HTMLElement | null) {
   return false;
 }
 
-export function ReceiptReviewItems({ items, change, mode = "review", hasFrozenRate = true, processing = false }: { items: ReceiptDraftItem[]; change: (items: ReceiptDraftItem[]) => void; mode?: "review" | "correction"; hasFrozenRate?: boolean; processing?: boolean }) {
+function itemNeedsCheck(item: ReceiptDraftItem) {
+  return item.needsCheck ?? (item.amountCents === null);
+}
+
+export function ReceiptReviewItems({ items, change, mode = "review", hasFrozenRate = true, processing = false, onConfirm }: { items: ReceiptDraftItem[]; change: (items: ReceiptDraftItem[]) => void; mode?: "review" | "correction"; hasFrozenRate?: boolean; processing?: boolean; onConfirm?: (itemId: string) => Promise<boolean> }) {
   const [selected, setSelected] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"all" | "needs-check">("all");
+  const [confirming, setConfirming] = useState(false);
+  const originallyFlagged = useRef(false);
   const index = items.findIndex((item) => item.id === selected);
   const active = items[index];
   const fields = useRef<HTMLDivElement>(null);
+  const needsCheckCount = items.filter(itemNeedsCheck).length;
+  const visible = mode === "review" && filter === "needs-check" ? items.filter(itemNeedsCheck) : items;
   useEffect(() => {
     fields.current?.querySelector<HTMLInputElement>("[data-autofocus]")?.focus({ preventScroll: true });
   }, [selected]);
-  const close = () => { if (fieldsValid(fields.current)) setSelected(null); };
-  const update = (patch: Partial<ReceiptDraftItem>) => change(items.map((item) => item.id === selected ? { ...item, ...patch, ...("discountCents" in patch ? { discountSource: undefined } : {}) } : item));
-  const move = (offset: number) => { if (fieldsValid(fields.current)) setSelected(items[index + offset].id); };
+  const open = (item: ReceiptDraftItem) => { originallyFlagged.current = itemNeedsCheck(item); setSelected(item.id); };
+  const close = () => { if (fieldsValid(fields.current) && !confirming) setSelected(null); };
+  const finish = async () => {
+    if (!active || !fieldsValid(fields.current) || confirming || processing) return;
+    if (originallyFlagged.current && onConfirm) {
+      setConfirming(true);
+      try { if (!await onConfirm(active.id)) return; }
+      finally { setConfirming(false); }
+    }
+    setSelected(null);
+  };
+  const update = (patch: Partial<ReceiptDraftItem>) => change(items.map((item) => item.id === selected ? { ...item, ...patch, needsCheck: false, ...("taxable" in patch ? { taxNotChecked: false } : {}), ...("discountCents" in patch ? { discountSource: undefined } : {}) } : item));
+  const move = (offset: number) => { if (fieldsValid(fields.current)) open(items[index + offset]); };
   return <section className="receipt-review-items" aria-label="Receipt items">
     <div className="receipt-list-heading"><strong>{items.length} {items.length === 1 ? "item" : "items"}</strong><span>{processing ? "Editing paused" : "Tap an item to edit"}</span></div>
+    {mode === "review" && <ReceiptFilterChips options={[{ id: "all", label: "All" }, { id: "needs-check", label: "Needs check", count: needsCheckCount }]} value={filter} onChange={setFilter} />}
     <div className="receipt-item-list">
-      {items.map((item) => <ReceiptItemRow key={item.id} item={item} mode={mode} selected={item.id === selected} disabled={processing} badges={processing || item.taxNotChecked ? <span className="receipt-badge receipt-badge-warning">{processing ? "Checking tax" : "Taxable · not checked"}</span> : undefined} onOpen={() => setSelected(item.id)} />)}
+      {visible.map((item) => <ReceiptItemRow key={item.id} item={item} mode={mode} selected={item.id === selected} disabled={processing} badges={<>{mode === "review" && itemNeedsCheck(item) && <span className="receipt-badge receipt-badge-warning">{item.amountCents === null ? "Missing price" : "⚠ Needs check"}</span>}{(processing || item.taxNotChecked) && <span className="receipt-badge receipt-badge-warning">{processing ? "Checking tax" : "Taxable · not checked"}</span>}</>} onOpen={() => open(item)} />)}
       {!items.length && <p className="receipt-list-empty">Add your first item, then enter its printed price.</p>}
+      {!!items.length && !visible.length && <p className="receipt-list-empty" role="status">All checked — no items need checking.</p>}
     </div>
     {mode === "review" && <Button variant="secondary" disabled={processing || items.length >= 200} onClick={() => {
       const id = requestId();
       change([...items, { id, name: "", originalText: "", quantity: "1", taxable: true, amountCents: null, discountCents: 0, finalCents: null, manualFinal: false }]);
+      originallyFlagged.current = true;
       setSelected(id);
     }}><Plus size={16} aria-hidden="true" /> Add an item</Button>}
     {active && !processing && <Dialog title={mode === "correction" ? "Correct item price" : "Edit receipt item"} kicker={`ITEM ${index + 1} OF ${items.length}`} className="receipt-sheet" closeLabel="Close editor" close={close}>
@@ -46,7 +69,7 @@ export function ReceiptReviewItems({ items, change, mode = "review", hasFrozenRa
           <label>Quantity<input maxLength={40} value={active.quantity} onChange={(event) => update({ quantity: event.target.value })} /></label>
           <ReceiptAmount label="Printed price" required={mode === "correction"} value={active.amountCents} change={(amountCents) => update({ amountCents })} />
           <ReceiptAmount label={active.discountSource === "receipt" ? "Item discount (from receipt)" : "Item discount"} emptyAsZero value={active.discountCents} change={(discountCents) => update({ discountCents: discountCents ?? 0 })} />
-          <label className="receipt-tax-toggle"><input type="checkbox" checked={active.taxable !== false} onChange={(event) => update({ taxable: event.target.checked, taxNotChecked: false })} />Taxable</label>
+          <label className="receipt-tax-toggle"><input type="checkbox" checked={active.taxable !== false} onChange={(event) => update({ taxable: event.target.checked })} />Taxable</label>
         </div>
         <p className="receipt-field-help">Printed price is the whole line amount, including its quantity.{mode === "correction" && hasFrozenRate && " Corrections use the tax rate frozen when this bill was initiated; only this item's claims need reconfirmation."}</p>
         {mode === "correction" && active.allocatedDiscountCents == null && <p className="receipt-field-help">Some receipt allocations are unavailable for this older bill. Its cost remains unchanged unless you set it manually.</p>}
@@ -68,7 +91,7 @@ export function ReceiptReviewItems({ items, change, mode = "review", hasFrozenRa
         <div className="receipt-editor-bottom">{mode === "review" && <Button variant="text" className="draft-delete-text" onClick={() => {
           change(items.filter((item) => item.id !== selected));
           setSelected(null);
-        }}>Remove item</Button>}<Button onClick={close}>Done</Button></div>
+        }}>Remove item</Button>}<Button disabled={confirming || processing} onClick={() => void finish()}>{mode === "review" && itemNeedsCheck(active) ? "Confirm item" : "Done"}</Button></div>
       </div>
     </Dialog>}
   </section>;
