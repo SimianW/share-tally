@@ -183,7 +183,9 @@ export async function editItems(id: string, userId: string, body: unknown) {
     z
       .object({
         revision: revisionInput,
-        items: z.array(itemInput).min(1).max(200),
+        // No default: omitted historical provenance stays unknown, while a
+        // newly chosen override (or return to calculation) records its intent.
+        items: z.array(itemInput.extend({ manualFinal: z.boolean().nullable().optional() })).min(1).max(200),
       })
       .strict(),
     body,
