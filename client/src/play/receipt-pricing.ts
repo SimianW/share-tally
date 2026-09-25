@@ -49,10 +49,12 @@ export function deriveReceiptItems(data: ReceiptData): ReceiptDraftItem[] {
 }
 
 // Unsaved session recovery can predate the server migration. Match its rule:
-// any legacy explicit per-item amount makes the whole draft manual, preserving costs.
+// An entered tax differing from its allocation in either direction, or a nonzero
+// item adjustment, makes the whole draft manual. Missing tax is not an edit;
+// a missing allocation means zero. Preserve every reviewed final, including siblings.
 export function recoverReceiptData(data: ReceiptData): ReceiptData {
   const legacy = data.items as (ReceiptDraftItem & { taxCents?: number; extraCents?: number })[];
-  const preserve = legacy.some((item) => Math.max(0, (item.taxCents ?? 0) - (item.allocatedTaxCents ?? 0)) > 0 || !!item.extraCents);
+  const preserve = legacy.some((item) => (item.taxCents != null && item.taxCents !== (item.allocatedTaxCents ?? 0)) || !!item.extraCents);
   return {
     ...data,
     items: legacy.map((item) => {

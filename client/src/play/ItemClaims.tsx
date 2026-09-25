@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { BillApiError, money, type Bill } from "./bill-api";
-import { correctionInput, useReceiptApi, type ReceiptCorrectionItem } from "./receipt-api";
+import { correctionInput, useReceiptApi, type LegacyCorrectionItem, type ReceiptCorrectionItem } from "./receipt-api";
 import { previewCorrection } from "./receipt-correction";
 import { ReceiptPhoto } from "./ReceiptPhoto";
 import { ReceiptReviewItems } from "./ReceiptReview";
+import { LegacyItemEditor } from "./LegacyItemEditor";
 import { Button } from "./ui";
 import { errorMessage } from "./group-api";
 
@@ -44,6 +45,7 @@ export function ItemClaims({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [edit, setEdit] = useState<ReceiptCorrectionItem[] | null>(null);
+  const [legacyEdit, setLegacyEdit] = useState<LegacyCorrectionItem[] | null>(null);
   const terminal = !!(bill.completedAt || bill.canceledAt);
   const stale = reviewed !== bill.revision;
   async function perform(action: () => Promise<{ bill: Bill }>) {
@@ -54,12 +56,25 @@ export function ItemClaims({
       setReviewed(result.bill.revision);
       saved(result.bill);
       setEdit(null);
+      setLegacyEdit(null);
+      setSelection(current => Object.fromEntries(Object.entries(current)
+        .filter(([id]) => result.bill.items?.some(item => item.id === id))));
     } catch (e) {
       setError(errorMessage(e));
       if (e instanceof BillApiError && e.status === 409) refresh();
     } finally {
       setBusy(false);
     }
+  }
+  function saveLegacyCorrection() {
+    if (!legacyEdit || busy || stale) return;
+    if (!legacyEdit.length || legacyEdit.some(item => !item.name.trim() || item.amountCents === null ||
+      item.finalCents === null || item.finalCents < 0 || item.finalCents > 1_000_000)) {
+      setError("Keep at least one item and check each name, printed price and final cost (CAD 0–10,000).");
+      return;
+    }
+    const items = legacyEdit.map(item => ({ ...item, amountCents: item.amountCents!, finalCents: item.finalCents! }));
+    void perform(() => api.legacyItems(bill.id, reviewed, items));
   }
   async function saveCorrection() {
     if (!edit || busy || stale) return;
@@ -73,25 +88,6 @@ export function ItemClaims({
     let revision = reviewed;
     let changed = false;
     try {
-      if (!bill.receipt) {
-        // Existing bills have no frozen rate. Preserve their stored tax and other
-        // adjustments, changing a final cost only when explicitly set manually.
-        const items = edit.map((item) => {
-          const original = bill.items!.find((candidate) => candidate.id === item.id)!;
-          return {
-            id: item.id, name: item.name, originalText: original.originalText,
-            quantity: item.quantity, amountCents: item.amountCents!,
-            discountCents: item.discountCents, taxCents: original.taxCents,
-            extraCents: original.extraCents,
-            finalCents: item.manualFinal ? item.finalCents! : original.finalCents,
-          };
-        });
-        const result = await api.legacyItems(bill.id, revision, items);
-        setReviewed(result.bill.revision);
-        saved(result.bill);
-        setEdit(null);
-        return;
-      }
       for (const item of edit) {
         const original = bill.items?.find((candidate) => candidate.id === item.id);
         if (!original) throw new Error("An item changed. Reload the bill before correcting it.");
@@ -281,25 +277,43 @@ export function ItemClaims({
             variant="secondary"
             disabled={busy}
             onClick={() => {
-              setEdit((bill.items ?? []).map((item) => ({ ...item })));
+              setError("");
+              if (bill.receipt) {
+                setLegacyEdit(null);
+                setEdit((bill.items ?? []).map(item => ({ ...item, manualFinal: !!item.manualFinal })));
+              } else {
+                const items: LegacyCorrectionItem[] = [];
+                for (const item of bill.items ?? []) {
+                  if (item.taxCents === null || item.extraCents === null) {
+                    setError("This older bill is missing item tax or adjustment amounts. Reload before editing.");
+                    return;
+                  }
+                  items.push({ id: item.id, name: item.name, originalText: item.originalText,
+                    quantity: item.quantity, amountCents: item.amountCents, discountCents: item.discountCents,
+                    taxCents: item.taxCents, extraCents: item.extraCents, finalCents: item.finalCents,
+                    manualFinal: item.manualFinal });
+                }
+                setEdit(null);
+                setLegacyEdit(items);
+              }
               setReviewed(bill.revision);
             }}
           >
             Edit items & prices
           </Button>
-          {edit && (
+          {(edit || legacyEdit) && (
             <div className="receipt-correction">
-              {!bill.receipt && <p>This older bill has no stored receipt summary, so tax and adjustment derivations are unavailable. Its existing costs will stay unchanged unless you set a final cost manually.</p>}
-              <ReceiptReviewItems mode="correction" hasFrozenRate={!!bill.frozenTaxRate} items={edit} change={(items) => setEdit(items.map((item) => {
+              {legacyEdit && <LegacyItemEditor items={legacyEdit} change={setLegacyEdit} />}
+              {edit && <ReceiptReviewItems mode="correction" hasFrozenRate={!!bill.frozenTaxRate} items={edit} change={(items) => setEdit(items.map((item) => {
                 const original = bill.items?.find((candidate) => candidate.id === item.id);
                 return original ? previewCorrection(bill, original, item) : item;
-              }))} />
+              }))} />}
               <p>Price changes reserve only the corrected item's claims until their owners reconfirm. Other items stay confirmed.</p>
               <div className="receipt-correction-actions">
-                <Button disabled={busy || stale} onClick={() => void saveCorrection()}>
+                <Button disabled={busy || stale} onClick={() => legacyEdit ? saveLegacyCorrection() : void saveCorrection()}>
                   {busy ? "Saving…" : "Save item changes"}
                 </Button>
-                <Button variant="text" disabled={busy} onClick={() => setEdit(null)}>
+                <Button variant="text" disabled={busy} onClick={() => { setEdit(null); setLegacyEdit(null); }}>
                   Keep current items
                 </Button>
               </div>

@@ -85,30 +85,26 @@ export function correctedPrice(bill: Bill, old: Item, input: {
   const receipt = bill.receipt!;
   const base = input.amountCents - input.discountCents;
   if (base < 0) throw new BillError(400, "Discount cannot exceed the printed price.");
-  function part(numerator: number, weight: number, denominator: number | null, offset: number | null) {
-    if (!weight) return 0;
-    if (denominator === null || offset === null)
-      throw new BillError(400, "Receipt allocation is unavailable. Set the final cost manually.");
-    return roundedRatio(numerator, weight, denominator) + offset;
+  function part(numerator: number, weight: number | null, denominator: number | null, offset: number | null, frozenWeight: number | null) {
+    // Zero components are independently known. A printed Azure rate of zero
+    // can still have a nonzero original receipt allocation: preserve that
+    // residual only at its original weight, never on a changed weight.
+    if (weight === 0) return 0;
+    if (!numerator) return weight !== null && weight === frozenWeight ? offset ?? 0 : 0;
+    if (weight === null || denominator === null || denominator <= 0 || (weight === frozenWeight && offset === null))
+      return null;
+    return roundedRatio(numerator, weight, denominator) + (weight === frozenWeight ? offset! : 0);
   }
-  let discount: number | null = null;
-  let tax: number | null = null;
-  let extra: number | null = null;
-  try {
-    discount = part(receipt.discountCents, base, bill.frozenDiscountBaseCents, old.frozenDiscountRoundingCents);
-    const net = base - discount;
-    if (net < 0) throw new BillError(400, "Discount exceeds the corrected item price.");
-    const rate = selectFrozenTaxRate(receipt, bill.frozenTaxBaseCents ?? 0);
-    tax = input.taxable && !receipt.pricesIncludeTax
-      ? part(rate?.taxCents ?? receipt.taxCents, net, rate?.taxableBaseCents ?? null, old.frozenTaxRoundingCents) : 0;
-    extra = part(receipt.extraCents, net, bill.frozenExtraBaseCents, old.frozenExtraRoundingCents);
-  } catch (error) {
-    if (!input.manualFinal) throw error;
-  }
-  const derived = discount === null || tax === null || extra === null ? null : base - discount + tax + extra;
+  const discount = part(receipt.discountCents, base, bill.frozenDiscountBaseCents, old.frozenDiscountRoundingCents, old.frozenDiscountWeightCents);
+  const net = discount === null || discount > base ? null : base - discount;
+  const rate = selectFrozenTaxRate(receipt, bill.frozenTaxBaseCents ?? 0);
+  const tax = input.taxable && !receipt.pricesIncludeTax
+    ? part(rate?.taxCents ?? receipt.taxCents, net, rate?.taxableBaseCents ?? null, old.frozenTaxRoundingCents, old.frozenNetWeightCents) : 0;
+  const extra = part(receipt.extraCents, net, bill.frozenExtraBaseCents, old.frozenExtraRoundingCents, old.frozenNetWeightCents);
+  const derived = net === null || tax === null || extra === null ? null : net + tax + extra;
   const finalCents = input.manualFinal ? input.finalCents : derived;
   if (finalCents == null || finalCents < 0 || finalCents > 1_000_000)
     throw new BillError(400, "Enter a usable final item cost or set it manually.");
-  return { finalCents, taxCents: tax ?? old.taxCents, extraCents: extra ?? old.extraCents,
+  return { finalCents, taxCents: tax, extraCents: extra,
     allocatedDiscountCents: discount, taxable: input.taxable, manualFinal: input.manualFinal };
 }
