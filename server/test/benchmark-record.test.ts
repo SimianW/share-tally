@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
@@ -12,6 +11,7 @@ import { loadDataset } from "../benchmark/dataset.js";
 import { candidateAdapter, CANDIDATE_MODEL_VERSION } from "../benchmark/candidate.js";
 import { invokeAdapter } from "../benchmark/adapter.js";
 import { baselineAdapter, BASELINE_MODEL_VERSION } from "../benchmark/baseline.js";
+import { normalizeReceiptPhoto } from "../src/receipt-photo.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../benchmark");
 const env = {
@@ -88,8 +88,9 @@ test("records all three real Azure request configurations, SHA and exact frozen 
       const azureRequest = azureRequests.find(({ url }) => url.includes(`api-version=${options.apiVersion}`) &&
         (config === "locale-en" ? url.includes("locale=en") : config === "ocr-high-resolution" ? url.includes("features=ocrHighResolution") : !url.includes("locale=") && !url.includes("features=")));
       assert.ok(azureRequest, `missing ${config}`);
-      assert.equal((azureRequest.init?.headers as Record<string, string>)["Content-Type"], "image/png");
-      assert.equal(createHash("sha256").update(azureRequest.init?.body as Uint8Array).digest("hex"), entry.imageSha256);
+      // Azure receives production's normalized upload of the committed PNG, not the PNG bytes themselves.
+      assert.equal((azureRequest.init?.headers as Record<string, string>)["Content-Type"], "image/jpeg");
+      assert.deepEqual(Buffer.from(azureRequest.init?.body as Uint8Array), await normalizeReceiptPhoto((await readFile(entry.imagePath!)).toString("base64")));
       const azure = JSON.parse(await readFile(resolve(recordings, entry.id, `${config}.json`), "utf8"));
       assert.deepEqual(azure.analyzeResult, analysis);
       assert.deepEqual(azure.request, options);
@@ -250,5 +251,36 @@ test("empty Azure recordings save explicit no-call markers for both pipelines an
     }
     assert.deepEqual(await recordBenchmark({ root, recordings, receipt: entry.id, config: "default", confirmPaidRequests: true, env, request, wait }), []);
     assert.equal(calls, 2);
+  } finally { await cleanup(); }
+});
+
+test("a frozen #48 scan failure is recorded as a no-call baseline outcome and replays as a complete, empty extraction", async () => {
+  const { entry, recordings, cleanup } = await fixture();
+  // #48 rejected negative Azure item rows (Costco coupon lines) and returned no extraction.
+  const coupon = structuredClone(analysis);
+  coupon.documents[0]!.fields.Items.valueArray.push({ content: "TPD/1 -0.50", valueObject: {
+    Description: { valueString: "TPD/1" }, TotalPrice: { valueCurrency: { amount: -0.5 } },
+  } });
+  const calls: string[] = [];
+  const request: typeof fetch = async (url) => {
+    calls.push(String(url));
+    if (String(url).includes(":analyze")) return new Response(null, { status: 202, headers: { "operation-location": "https://azure.example.test/documentintelligence/documentModels/prebuilt-receipt/analyzeResults/coupon" } });
+    if (String(url).includes("analyzeResults")) return Response.json({ status: "succeeded", analyzeResult: coupon });
+    return Response.json(modelResponse);
+  };
+  try {
+    assert.equal((await recordBenchmark({ root, recordings, receipt: entry.id, config: "default", confirmPaidRequests: true, env, request, wait })).length, 3);
+    assert.equal(calls.filter((url) => url.endsWith("/responses")).length, 1, "only the candidate calls the model");
+    const saved = validateModelRecording(JSON.parse(await readFile(resolve(recordings, entry.id, "default.model.baseline.json"), "utf8")));
+    assert.deepEqual(saved.outcome, { kind: "skipped", reason: "scan-failed" });
+    const replay = await invokeAdapter(baselineAdapter, coupon, saved);
+    assert.equal(replay.complete, true);
+    assert.deepEqual(replay.prediction.items, []);
+    assert.equal(replay.prediction.total, null);
+    // A scan-failure marker cannot stand in for a receipt the frozen mapper accepts.
+    await assert.rejects(invokeAdapter(baselineAdapter, analysis, saved), /drift/);
+    const before = calls.length;
+    assert.deepEqual(await recordBenchmark({ root, recordings, receipt: entry.id, config: "default", confirmPaidRequests: true, env, request, wait }), []);
+    assert.equal(calls.length, before, "resume revalidates the marker without traffic");
   } finally { await cleanup(); }
 });

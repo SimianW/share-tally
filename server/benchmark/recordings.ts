@@ -35,7 +35,7 @@ const modelSchema = z.object({
   outcome: z.discriminatedUnion("kind", [
     z.object({ kind: z.literal("result"), value: z.unknown().refine((v) => v !== undefined, "value is required") }).strict(),
     z.object({ kind: z.literal("timeout") }).strict(),
-    z.object({ kind: z.literal("skipped"), reason: z.literal("no-items") }).strict(),
+    z.object({ kind: z.literal("skipped"), reason: z.enum(["no-items", "scan-failed"]) }).strict(),
     z.object({ kind: z.literal("error"), message: z.string().optional() }).strict(),
   ]),
 }).strict();
@@ -94,6 +94,6 @@ export function replayModel(recording: ModelRecording | null, input: unknown, ex
 }
 
 /** Explicit evidence of a production no-call path, not a fabricated provider request/response. */
-export function noModelInput(evidence: unknown) {
-  return JSON.parse(JSON.stringify({ kind: "no-model-call", reason: "no-items", evidence })) as Record<string, unknown>;
+export function noModelInput(evidence: unknown, reason: "no-items" | "scan-failed" = "no-items") {
+  return JSON.parse(JSON.stringify({ kind: "no-model-call", reason, evidence })) as Record<string, unknown>;
 }

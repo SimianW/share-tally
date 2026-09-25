@@ -7,11 +7,10 @@ import type { AnalyzeResult } from "../src/azure-receipt.js";
 import { candidateRecorder as builtInCandidateRecorder } from "./candidate-recorder.js";
 import { candidateAdapter, candidateConfig } from "./candidate.js";
 import { invokeAdapter } from "./adapter.js";
-import { baselineAdapter, BASELINE_MODEL_VERSION } from "./baseline.js";
+import { baselineAdapter, BASELINE_MODEL_VERSION, frozenScan, scanFailedInput } from "./baseline.js";
 import { loadDataset } from "./dataset.js";
 import { analyzeAzureImage, type Wait } from "./recording-provider.js";
 import { AZURE_CONFIGS, inputHash, noModelInput, readJson, validateAzureRecording, validateModelRecording, type AzureConfig, type ModelRecording, type ModelOutcome } from "./recordings.js";
-import { mapAzureAnalysis } from "./frozen-baseline/azure-receipt.js";
 import { processReceipt } from "./frozen-baseline/receipt-processing.js";
 import { buildReceiptNameRequest, parseReceiptNameResponse, receiptNameConfig } from "./frozen-baseline/receipt-names.js";
 
@@ -90,7 +89,12 @@ function timeout(error: unknown): boolean {
 async function recordBaseline(analysis: AnalyzeResult, env: NodeJS.ProcessEnv, request: typeof fetch): Promise<ModelRecording | null> {
   const { baseURL, model, apiKey } = receiptNameConfig(env);
   const config = { baseURL, model };
-  const scanned = mapAzureAnalysis(analysis);
+  const scanned = frozenScan(analysis);
+  if (!scanned) {
+    const input = scanFailedInput(config);
+    return { schemaVersion: 1, version: BASELINE_MODEL_VERSION, config, input,
+      inputSha256: inputHash(input), itemIds: [], outcome: { kind: "skipped", reason: "scan-failed" } };
+  }
   let recording: ModelRecording | null = null;
   await processReceipt(scanned, async (items, _unusedConfig, _unusedRequest, context) => {
     if (!items.length) {
@@ -172,7 +176,9 @@ export async function recordBenchmark(options: RecordOptions): Promise<string[]>
       if (!isDeepStrictEqual(parsed.config, { baseURL, model })) throw new Error("Existing baseline model configuration differs; use --overwrite to replace.");
       let expectedInput: unknown;
       let expectedItemIds: string[] = [];
-      await processReceipt(mapAzureAnalysis(analysis), async (items, _config, _request, context) => {
+      const scanned = frozenScan(analysis);
+      if (!scanned) expectedInput = scanFailedInput({ baseURL, model });
+      else await processReceipt(scanned, async (items, _config, _request, context) => {
         expectedInput = items.length ? buildReceiptNameRequest(items, { baseURL, model, apiKey }, context) : noModelInput({ config: { baseURL, model }, items, context });
         expectedItemIds = items.map((item) => item.id);
         return [];

@@ -1,11 +1,13 @@
 import { setTimeout as delay } from "node:timers/promises";
 import type { AnalyzeResult } from "../src/azure-receipt.js";
+import { normalizeReceiptPhoto } from "../src/receipt-photo.js";
 import { AZURE_CONFIGS, type AzureConfig } from "./recordings.js";
 
 export type Wait = (ms: number, signal: AbortSignal) => Promise<unknown>;
 const defaultWait: Wait = (ms, signal) => delay(ms, undefined, { signal });
 
-/** The recording endpoint accepts only the committed redacted PNG bytes, never source URLs. */
+/** The recording endpoint accepts only the committed redacted PNG, never source URLs. Like production uploads, it is
+ * normalized to a bounded JPEG first, so Azure analyses the same bytes a user upload would produce. */
 export async function analyzeAzureImage(
   image: Buffer, config: AzureConfig, env: NodeJS.ProcessEnv,
   request: typeof fetch = fetch, wait: Wait = defaultWait,
@@ -23,8 +25,9 @@ export async function analyzeAzureImage(
     url.searchParams.set(name, Array.isArray(value) ? value.join(",") : String(value));
   const signal = AbortSignal.timeout(120_000);
   const headers = { "Ocp-Apim-Subscription-Key": key };
-  const response = await request(url, { method: "POST", headers: { ...headers, "Content-Type": "image/png" }, body: new Uint8Array(image), signal, redirect: "error" });
-  if (!response.ok) throw new Error(`Azure analyze HTTP ${response.status}.`);
+  const photo = await normalizeReceiptPhoto(image.toString("base64"));
+  const response = await request(url, { method: "POST", headers: { ...headers, "Content-Type": "image/jpeg" }, body: new Uint8Array(photo), signal, redirect: "error" });
+  if (!response.ok) throw new Error(`Azure analyze HTTP ${response.status}: ${(await response.text()).slice(0, 400)}`);
   const location = response.headers.get("operation-location");
   if (!location) throw new Error("Azure did not return an operation URL.");
   const operation = new URL(location);
