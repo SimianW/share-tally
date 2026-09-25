@@ -174,8 +174,8 @@ export function useReceiptApi() {
             photoBase64: draft.pendingPhoto,
           },
         ),
-      confirmItem: (id: string, itemId: string, revision: number) =>
-        request<{ draft: ReceiptDraft }>(`/receipt-drafts/${id}/items/${itemId}/confirm`, "POST", { revision, flag: "needsCheck" }),
+      confirmItem: (id: string, itemId: string, revision: number, flag: "needsCheck" | "taxNotChecked" = "needsCheck") =>
+        request<{ draft: ReceiptDraft }>(`/receipt-drafts/${id}/items/${itemId}/confirm`, "POST", { revision, flag }),
       remove: (id: string, revision: number) =>
         request<{ deleted: boolean }>(`/receipt-drafts/${id}`, "DELETE", {
           revision,
