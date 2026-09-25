@@ -31,6 +31,10 @@ export type GroupLedger = {
 export type Bill = {
   mode: 'manual' | 'items';
   items?: import('./receipt-api').BillItem[];
+  receipt?: import('./receipt-api').ReceiptPricing & { totalCents: number } | null;
+  frozenTaxRate?: { taxCents: number; taxableBaseCents: number } | null;
+  frozenDiscountBaseCents?: number | null;
+  frozenExtraBaseCents?: number | null;
   photo?: { draftId: string; expiresAt: string; expired?: boolean } | null;
   id: string;
   groupId: string;

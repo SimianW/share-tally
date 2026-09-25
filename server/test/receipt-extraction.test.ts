@@ -34,7 +34,7 @@ function receipt(patch: Partial<ExtractedReceipt> = {}): ExtractedReceipt {
 test("tax allocation preserves cents and included tax is not charged twice", () => {
   const exclusive = extractionDefaults(receipt());
   assert.deepEqual(
-    exclusive.items.map((i) => i.taxCents),
+    exclusive.items.map((i) => i.allocatedTaxCents),
     [2, 2, 1],
   );
   assert.deepEqual(
@@ -54,7 +54,7 @@ test("tax allocation preserves cents and included tax is not charged twice", () 
     items: exclusive.items,
   });
   assert.deepEqual(
-    repriced.items.map((i) => [i.taxCents, i.finalCents]),
+    repriced.items.map((i) => [i.allocatedTaxCents, i.finalCents]),
     [
       [2, 102],
       [2, 102],
@@ -83,13 +83,8 @@ test("missing money stays empty, explicit zero is valid, undefined allocation re
     i.amount = 0;
   });
   const explicitZero = extractionDefaults(zero);
-  const {
-    taxable: _taxable,
-    manualFinal: _manualFinal,
-    allocatedTaxCents: _allocatedTaxCents,
-    ...zeroItem
-  } = explicitZero.items[0]!;
-  assert.equal(itemInput.safeParse(zeroItem).success, true);
+  assert.equal(draftItemInput.safeParse(explicitZero.items[0]).success, true);
+  assert.equal(explicitZero.items[0]!.finalCents, 0);
   zero.taxTotal = 0.01;
   assert.ok(extractionDefaults(zero).items.every((i) => i.finalCents === null));
 });
@@ -158,6 +153,20 @@ test("Azure adapter retains recorded evidence without changing prices", async ()
   assert.equal(noObservations.items[0]?.evidence?.descriptionRegions, undefined);
   assert.equal(noObservations.items[0]?.evidence?.priceConfidence, undefined);
   assert.equal(noObservations.items[0]?.evidence?.priceRegions, undefined);
+});
+test("Azure discount total preserves both own and receipt-wide discounts through draft pricing", async () => {
+  const raw = structuredClone(recorded("costco-coupon.synthetic"));
+  raw.documents[0].fields.Items.valueArray.push({
+    content: "general coupon -1.00",
+    valueObject: { TotalPrice: { valueCurrency: { amount: -1, currencyCode: "CAD" } } },
+  });
+  raw.documents[0].fields.Subtotal.valueCurrency.amount = 24;
+  const extraction = await extractorFor(raw).extract(Buffer.from("image"));
+  const draft = extractionDefaults(extraction);
+  assert.deepEqual(draft.items.map((item) => item.discountCents), [300, 200]);
+  assert.equal(draft.receipt.discountCents, 100);
+  assert.equal(draft.receipt.discountFallback, false);
+  assert.equal(draft.items.length, 2);
 });
 test("Azure rejects foreign polling URLs without forwarding credentials and returns recoverable errors", async () => {
   let calls = 0;

@@ -1,0 +1,65 @@
+import type { ReceiptData, ReceiptDraftItem } from "./receipt-api";
+
+// Live preview only. The server re-derives every amount when saving. Keep these
+// largest-remainder rules aligned with server/src/receipt-pricing.ts.
+function spread(amount: number, weights: (number | null)[]): (number | null)[] {
+  if (!amount) return weights.map(() => 0);
+  if (weights.some((weight) => weight === null))
+    return weights.map((weight) => (weight === 0 ? 0 : null));
+  const total = weights.reduce<bigint>((sum, weight) => sum + BigInt(weight!), 0n);
+  if (!total) return weights.map(() => null);
+  const magnitude = BigInt(Math.abs(amount));
+  const rows = weights.map((weight, index) => ({
+    index,
+    cents: Number((magnitude * BigInt(weight!)) / total),
+    remainder: (magnitude * BigInt(weight!)) % total,
+  }));
+  let remaining = Math.abs(amount) - rows.reduce((sum, row) => sum + row.cents, 0);
+  for (const row of [...rows].sort((a, b) =>
+    a.remainder === b.remainder ? a.index - b.index : a.remainder > b.remainder ? -1 : 1,
+  )) {
+    if (remaining-- > 0) row.cents++;
+  }
+  return rows.map((row) => (amount < 0 ? -row.cents : row.cents));
+}
+
+export function deriveReceiptItems(data: ReceiptData): ReceiptDraftItem[] {
+  const { items, receipt } = data;
+  const base = items.map((item) => item.amountCents === null || item.discountCents > item.amountCents
+    ? null : item.amountCents - item.discountCents);
+  const discounts = spread(receipt?.discountCents ?? 0, base);
+  const net = base.map((amount, index) => amount === null || discounts[index] === null || discounts[index]! > amount
+    ? null : amount - discounts[index]!);
+  const taxes = spread(receipt?.pricesIncludeTax ? 0 : receipt?.taxCents ?? 0,
+    net.map((amount, index) => items[index].taxable === false ? 0 : amount));
+  const extras = spread(receipt?.extraCents ?? 0, net);
+  return items.map((item, index) => {
+    const tax = item.taxable === false ? 0 : taxes[index];
+    const amount = net[index];
+    const extra = extras[index];
+    const final = amount === null || tax === null || extra === null ? null : amount + tax + extra;
+    return {
+      ...item,
+      allocatedDiscountCents: discounts[index],
+      allocatedTaxCents: tax,
+      allocatedExtraCents: extra,
+      finalCents: item.manualFinal ? item.finalCents : final === null || final < 0 || final > 1_000_000 ? null : final,
+    };
+  });
+}
+
+// Unsaved session recovery can predate the server migration. Match its rule:
+// any legacy explicit per-item amount makes the whole draft manual, preserving costs.
+export function recoverReceiptData(data: ReceiptData): ReceiptData {
+  const legacy = data.items as (ReceiptDraftItem & { taxCents?: number; extraCents?: number })[];
+  const preserve = legacy.some((item) => Math.max(0, (item.taxCents ?? 0) - (item.allocatedTaxCents ?? 0)) > 0 || !!item.extraCents);
+  return {
+    ...data,
+    items: legacy.map((item) => {
+      const clean = { ...item };
+      delete clean.taxCents;
+      delete clean.extraCents;
+      return preserve ? { ...clean, manualFinal: true } : clean;
+    }),
+  };
+}

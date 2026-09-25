@@ -1,20 +1,26 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "./ui";
 import { useReceiptApi } from "./receipt-api";
+import Dialog from "./Dialog";
+import { ZoomIn, ZoomOut, Scan } from "lucide-react";
 export function ReceiptPhoto({
   id,
   version = 0,
   expired = false,
   localPhoto,
+  review = false,
 }: {
   id: string;
   version?: number;
   expired?: boolean;
   localPhoto?: string;
+  review?: boolean;
 }) {
   const api = useReceiptApi();
   const [image, setImage] = useState("");
   const [error, setError] = useState("");
+  const [open, setOpen] = useState(false);
+  const [zoom, setZoom] = useState(1);
   useEffect(() => {
     if (expired && !localPhoto) return;
     const controller = new AbortController();
@@ -56,24 +62,29 @@ export function ReceiptPhoto({
       </p>
     );
   return (
-    <details className="receipt-photo" open>
-      <summary>Receipt photo</summary>
-      {error && !localPhoto ? (
-        <p>{error}</p>
-      ) : source ? (
-        <a
-          href={source}
-          target="_blank"
-          rel="noreferrer"
-          aria-label="Enlarge receipt photo"
-        >
-          <img src={source} alt="Original cropped receipt" />
-        </a>
-      ) : (
-        <p>Loading photo…</p>
-      )}
-      <small>Photos are kept for six months.</small>
-    </details>
+    <>
+      <div className={`receipt-photo${review ? " receipt-photo-review" : ""}`}>
+        <div className="receipt-photo-label eyebrow">SOURCE RECEIPT</div>
+        {error && !localPhoto ? <p>{error}</p> : source ? (
+          <button type="button" className="receipt-photo-open" aria-label="View receipt photo" onClick={() => { setZoom(1); setOpen(true); }}>
+            <img src={source} alt="Original cropped receipt" />
+            <span><Scan size={16} aria-hidden="true" /> Tap to zoom</span>
+          </button>
+        ) : <p>Loading photo…</p>}
+        <small>Photos are kept for six months.</small>
+      </div>
+      {open && <Dialog title="Receipt photo" kicker="SOURCE RECEIPT" className="receipt-photo-viewer" closeLabel="Close photo" close={() => setOpen(false)}>
+        <div className="receipt-photo-tools">
+          <button type="button" className="button secondary" aria-label="Zoom out" disabled={zoom <= 1} onClick={() => setZoom((value) => Math.max(1, value - 0.5))}><ZoomOut size={18} /></button>
+          <output aria-label="Photo zoom">{Math.round(zoom * 100)}%</output>
+          <button type="button" className="button secondary" aria-label="Zoom in" disabled={zoom >= 4} onClick={() => setZoom((value) => Math.min(4, value + 0.5))}><ZoomIn size={18} /></button>
+          <Button variant="text" onClick={() => setZoom(1)}>Fit photo</Button>
+        </div>
+        <div className="receipt-photo-viewport" tabIndex={0} aria-label="Zoomed receipt photo; scroll to pan">
+          <img src={source} alt="Full-size original receipt" style={{ width: `${zoom * 100}%` }} />
+        </div>
+      </Dialog>}
+    </>
   );
 }
 export function ReceiptCrop({

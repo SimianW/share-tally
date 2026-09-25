@@ -1,6 +1,6 @@
 {
-  "id": "980e1ed9-d768-4499-a9ac-575e44384977",
-  "prevId": "4f41439b-8df6-48d5-8bee-487ad9544107",
+  "id": "07805282-a1ee-4788-9c0f-a2101c450639",
+  "prevId": "10de402e-2821-4201-aa6f-921780b487dc",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -738,6 +738,19 @@
           "primaryKey": false,
           "notNull": false
         },
+        "processing_status": {
+          "name": "processing_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ready'"
+        },
+        "processing_started_at": {
+          "name": "processing_started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp with time zone",
@@ -807,6 +820,57 @@
             "id"
           ],
           "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "receipt_drafts_processing_state": {
+          "name": "receipt_drafts_processing_state",
+          "value": "(\"receipt_drafts\".\"processing_status\" = 'processing' and \"receipt_drafts\".\"processing_started_at\" is not null and \"receipt_drafts\".\"bill_id\" is null) or (\"receipt_drafts\".\"processing_status\" in ('ready', 'fallback') and \"receipt_drafts\".\"processing_started_at\" is null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.receipt_evidence": {
+      "name": "receipt_evidence",
+      "schema": "",
+      "columns": {
+        "draft_id": {
+          "name": "draft_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "analysis": {
+          "name": "analysis",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scanned_at": {
+          "name": "scanned_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "receipt_evidence_draft_id_receipt_drafts_id_fk": {
+          "name": "receipt_evidence_draft_id_receipt_drafts_id_fk",
+          "tableFrom": "receipt_evidence",
+          "tableTo": "receipt_drafts",
+          "columnsFrom": [
+            "draft_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },

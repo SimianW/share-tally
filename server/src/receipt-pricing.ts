@@ -1,8 +1,9 @@
 import { allocate } from "./fractions.js";
 import { draftInput, checked, type ReceiptDraftData } from "./receipt-input.js";
 
-// Track the receipt-wide part of each displayed item tax separately. This lets
-// recalculation replace the old allocation instead of compounding it.
+// Printed price less its own discount is the allocation basis. Receipt discounts
+// reduce that basis before tax (taxable items only) and adjustments (all items).
+// Allocations are response-only metadata: always replace client-supplied values.
 export function priceDraft(input: ReceiptDraftData) {
   const data = checked(draftInput, input);
   const receipt = data.receipt;
@@ -49,24 +50,18 @@ export function priceDraft(input: ReceiptDraftData) {
   );
   const extra = spread(receipt?.extraCents ?? 0, net);
   const items = data.items.map((item, index) => {
-    const allocatedTax = item.taxable === false ? 0 : tax[index];
-    const allocatedTaxCents = allocatedTax ?? 0;
-    const itemTaxCents =
-      Math.max(0, item.taxCents - (item.allocatedTaxCents ?? 0)) +
-      allocatedTaxCents;
+    const allocatedTaxCents = item.taxable === false ? 0 : (tax[index] ?? null);
     const amount = net[index];
-    const adjustment = extra[index];
+    const allocatedExtraCents = extra[index] ?? null;
     const final =
-      amount == null || allocatedTax == null || adjustment == null
+      amount == null || allocatedTaxCents === null || allocatedExtraCents === null
         ? null
-        : amount +
-          adjustment +
-          item.extraCents +
-          (receipt?.pricesIncludeTax ? 0 : itemTaxCents);
+        : amount + allocatedExtraCents + allocatedTaxCents;
     return {
       ...item,
       allocatedTaxCents,
-      taxCents: itemTaxCents,
+      allocatedDiscountCents: discounts[index] ?? null,
+      allocatedExtraCents,
       finalCents: item.manualFinal
         ? item.finalCents
         : final === null || final < 0 || final > 1_000_000
