@@ -3,7 +3,7 @@ import { ChevronRight } from "lucide-react";
 import { money } from "./bill-api";
 
 export type ReceiptItemRowProps = {
-  item: { id: string; name: string; quantity: string; finalCents: number | null; taxable?: boolean | null; manualFinal?: boolean };
+  item: { id: string; name: string; quantity: string; finalCents: number | null; taxable?: boolean | null; manualFinal?: boolean | null };
   mode: "review" | "claim" | "correction";
   onOpen: () => void;
   selected?: boolean;
