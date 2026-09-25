@@ -31,7 +31,7 @@ The committed-data run is expected to report **INCOMPLETE**: all 72 Azure analys
 
 ## Recording layout for the owner (#50)
 
-Record against the **committed, redacted PNG**, never the original source photo. Confirm the PNG's SHA-256 matches its source manifest before submitting it. The recorder then applies production's upload normalization (`normalizeReceiptPhoto` in `src/receipt-photo.ts`: EXIF rotation, fit inside 2400 × 6000, JPEG quality 90) and submits that JPEG, so Azure analyses the same bytes a user upload of this image would produce. This also keeps every request under Azure's free-tier 4 MB limit; several committed PNGs exceed it. One analysis per image/configuration:
+Record against the **committed, redacted PNG**, never the original source photo. Confirm the PNG's SHA-256 matches its source manifest before submitting it. The recorder then applies both production upload steps and submits the result: the browser's compression in `client/src/play/ReceiptPhoto.tsx` (scale to fit 2400 × 6000, JPEG quality 0.9), then the server's `normalizeReceiptPhoto` in `src/receipt-photo.ts` (8 MB input cap, EXIF rotation, fit inside 2400 × 6000, JPEG quality 90). Azure therefore analyses the same bytes a user upload of this image would produce, and every request stays under Azure's free-tier 4 MB limit; several committed PNGs exceed it, and one exceeds the 8 MB server cap on its own. One analysis per image/configuration:
 
 ```text
 server/benchmark/recordings/

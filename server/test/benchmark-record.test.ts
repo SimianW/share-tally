@@ -12,6 +12,7 @@ import { candidateAdapter, CANDIDATE_MODEL_VERSION } from "../benchmark/candidat
 import { invokeAdapter } from "../benchmark/adapter.js";
 import { baselineAdapter, BASELINE_MODEL_VERSION } from "../benchmark/baseline.js";
 import { normalizeReceiptPhoto } from "../src/receipt-photo.js";
+import { clientUpload } from "../benchmark/recording-provider.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../benchmark");
 const env = {
@@ -88,9 +89,9 @@ test("records all three real Azure request configurations, SHA and exact frozen 
       const azureRequest = azureRequests.find(({ url }) => url.includes(`api-version=${options.apiVersion}`) &&
         (config === "locale-en" ? url.includes("locale=en") : config === "ocr-high-resolution" ? url.includes("features=ocrHighResolution") : !url.includes("locale=") && !url.includes("features=")));
       assert.ok(azureRequest, `missing ${config}`);
-      // Azure receives production's normalized upload of the committed PNG, not the PNG bytes themselves.
+      // Azure receives production's browser-compressed, server-normalized upload of the committed PNG.
       assert.equal((azureRequest.init?.headers as Record<string, string>)["Content-Type"], "image/jpeg");
-      assert.deepEqual(Buffer.from(azureRequest.init?.body as Uint8Array), await normalizeReceiptPhoto((await readFile(entry.imagePath!)).toString("base64")));
+      assert.deepEqual(Buffer.from(azureRequest.init?.body as Uint8Array), await normalizeReceiptPhoto((await clientUpload(await readFile(entry.imagePath!))).toString("base64")));
       const azure = JSON.parse(await readFile(resolve(recordings, entry.id, `${config}.json`), "utf8"));
       assert.deepEqual(azure.analyzeResult, analysis);
       assert.deepEqual(azure.request, options);
