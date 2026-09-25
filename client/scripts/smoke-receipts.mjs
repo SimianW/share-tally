@@ -328,6 +328,7 @@ try {
   await alice
     .getByRole("button", { name: "Add an item", exact: true })
     .click();
+  await expect(alice.getByRole("dialog", { name: "Edit receipt item" }).getByRole("img", { name: "Receipt line" })).toHaveCount(0);
   const taxBox = await alice.getByRole("checkbox", { name: "Taxable", exact: true }).boundingBox();
   assert.ok(taxBox.width <= 24, "Tax checkbox must not inherit full-width input styling");
   await alice.getByLabel("Item name", { exact: true }).fill("Apples");
@@ -805,16 +806,23 @@ try {
       quantity: "1", amountCents, discountCents: 0, taxable,
       finalCents: amountCents, manualFinal: false,
     });
+    const data = {
+      mode: "items", title: `Compact review ${viewport.width}`, purchaseDate: "2026-09-24",
+      timeZone: "America/Toronto", notes: "", totalCents: 3000, ownShareCents: 0,
+      participantIds: [],
+      receipt: { subtotalCents: 3000, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
+      items: [item("Apples", 1000, true), item("Milk", 2000, false)],
+    };
+    const { draft: photoDraft } = await api(`/groups/${group.id}/receipt-drafts/${draftId}`, "alice-token", "PUT", {
+      revision: 0, data, photoBase64: image.toString("base64"),
+    });
+    // Simulate scan evidence from the stored photo; an unscanned upload has no regions.
     await api(`/groups/${group.id}/receipt-drafts/${draftId}`, "alice-token", "PUT", {
-      revision: 0,
-      data: {
-        mode: "items", title: `Compact review ${viewport.width}`, purchaseDate: "2026-09-24",
-        timeZone: "America/Toronto", notes: "", totalCents: 3000, ownShareCents: 0,
-        participantIds: [],
-        receipt: { subtotalCents: 3000, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
-        items: [item("Apples", 1000, true), item("Milk", 2000, false)],
+      revision: photoDraft.revision,
+      data: { ...data,
+        receipt: { ...data.receipt, evidence: { pages: [{ pageNumber: 1, width: 300, height: 500, unit: "pixel" }] } },
+        items: [{ ...data.items[0], evidence: { regions: [{ pageNumber: 1, polygon: [30, 100, 180, 100, 180, 140, 30, 140] }] } }, data.items[1]],
       },
-      photoBase64: image.toString("base64"),
     });
     await alice.setViewportSize(viewport);
     await alice.goto(`${newBillRoute}/${draftId}`);
@@ -841,6 +849,13 @@ try {
     const editor = alice.getByRole("dialog", { name: "Edit receipt item", exact: true });
     await expect(editor).toBeVisible();
     await expect(editor).toContainText("APPLES RECEIPT LINE");
+    await expect(editor.getByRole("img", { name: "Receipt line", exact: true })).toBeVisible();
+    await expect(editor.getByRole("img", { name: "Highlighted receipt line", exact: true })).toBeVisible();
+    const crop = editor.getByRole("img", { name: "Receipt line", exact: true });
+    const [x, y, width, height] = (await crop.getAttribute("viewBox")).split(" ").map(Number);
+    assert.equal(x, 0);
+    assert.ok(y > 0 && width === 300 && height < 500, "Editor shows a line crop, not the entire photo");
+    assert.equal(await editor.getByRole("img", { name: "Highlighted receipt line", exact: true }).getAttribute("points"), "30,100 180,100 180,140 30,140");
     const editorBox = await editor.boundingBox();
     if (viewport.width < 700) {
       assert.ok(Math.abs(editorBox.x) < 2, "Mobile editor spans the viewport");
@@ -858,6 +873,12 @@ try {
     await expect(alice.getByLabel("Item name", { exact: true })).toHaveValue("Milk");
     await alice.getByRole("button", { name: "Previous item", exact: true }).click();
     await expect(alice.getByLabel("Item name", { exact: true })).toHaveValue("Reviewed apples");
+    await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+    await row("Milk").click();
+    const unregionedEditor = alice.getByRole("dialog", { name: "Edit receipt item", exact: true });
+    await expect(unregionedEditor).toBeVisible();
+    await expect(unregionedEditor.getByRole("img", { name: "Receipt line", exact: true })).toHaveCount(0);
+    await expect(unregionedEditor.getByRole("img", { name: "Highlighted receipt line", exact: true })).toHaveCount(0);
     await alice.getByRole("button", { name: "Close editor", exact: true }).click();
     await reconciliation().click();
     await alice.getByLabel("Receipt subtotal", { exact: true }).fill("30.00");

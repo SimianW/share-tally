@@ -29,6 +29,7 @@ export type ItemEvidence = {
   content?: string;
 };
 export type ReceiptEvidenceFields = {
+  pages?: { pageNumber: number; width: number; height: number; unit: string }[];
   countryRegion?: string;
   taxDetails?: { amount?: number; rate?: number; netAmount?: number; description?: string }[];
 };

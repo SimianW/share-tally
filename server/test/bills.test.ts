@@ -1491,13 +1491,20 @@ test('receipt drafts preserve missing money and reject initialization until requ
   const { group, draft } = await setup();
   const id = crypto.randomUUID();
   const { requestId: _requestId, ...fields } = draft;
-  const data: import('../src/receipt-input.js').ReceiptDraftData = { ...fields, mode: 'items', totalCents: null, items: [{
-    id: crypto.randomUUID(), name: 'Apples', originalText: 'APPLE', quantity: '1', taxable: null, manualFinal: false,
-    amountCents: null, finalCents: null, discountCents: 0,
-  }] };
+  const data: import('../src/receipt-input.js').ReceiptDraftData = { ...fields, mode: 'items', totalCents: null,
+    receipt: { subtotalCents: null, taxCents: 0, discountCents: 0, extraCents: 0, pricesIncludeTax: false,
+      evidence: { pages: [{ pageNumber: 1, width: 300, height: 500, unit: 'pixel' }] } },
+    items: [{
+      id: crypto.randomUUID(), name: 'Apples', originalText: 'APPLE', quantity: '1', taxable: null, manualFinal: false,
+      amountCents: null, finalCents: null, discountCents: 0,
+      evidence: { regions: [{ pageNumber: 1, polygon: [30, 100, 180, 100, 180, 140, 30, 140] }] },
+    }] };
   const saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data }))).draft;
   assert.equal(saved.data.totalCents, null);
   assert.equal(saved.data.items[0].amountCents, null);
+  const reopened = (await json(await api(`/receipt-drafts/${id}`))).draft;
+  assert.deepEqual(reopened.data.receipt.evidence.pages, data.receipt!.evidence!.pages);
+  assert.deepEqual(reopened.data.items[0].evidence.regions, data.items[0]!.evidence!.regions);
   await json(await api(`/receipt-drafts/${id}`, 'bob-token'), 404);
   await json(await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST', { revision: saved.revision }), 400);
   data.totalCents = 100;
@@ -1826,6 +1833,8 @@ test('recorded Azure evidence follows the scanned draft and expires with its pho
     const first = firstResult.extraction;
     assert.equal(firstResult.draft.processingStatus, 'processing');
     assert.equal(first.receipt.evidence.countryRegion, 'FRA');
+    assert.deepEqual(first.receipt.evidence.pages, [{ pageNumber: 1, width: 746, height: 768, unit: 'pixel' }]);
+    assert.deepEqual((await json(await api(`/receipt-drafts/${id}`))).draft.data.receipt.evidence.pages, first.receipt.evidence.pages);
     assert.equal(first.items[0].evidence.unitPrice, 12);
     assert.equal(first.items[0].amountCents, 2400);
     let row = await pool.query('SELECT analysis FROM receipt_evidence WHERE draft_id = $1', [id]);
