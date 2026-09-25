@@ -209,6 +209,36 @@ try {
   await lifecycleRow().getByRole("button", { name: "Continue", exact: true }).click();
   const lifecycleId = (await api(`/groups/${group.id}/receipt-drafts`)).drafts[0].id;
   await expectNewBillRoute(lifecycleId);
+  // A navigation while the server draft is loading must preserve local recovery.
+  for (const exit of ["browser", "page"]) {
+    await alice.getByLabel("Bill title", { exact: true }).fill(`Recover after ${exit} back`);
+    const key = await alice.evaluate((draftId) => Object.keys(sessionStorage)
+      .find(entry => entry.startsWith("receipt-draft:") && entry.endsWith(`:${draftId}`)), lifecycleId);
+    assert.ok(key, "Draft recovery entry should exist");
+    await expect.poll(() => alice.evaluate((storedKey) =>
+      JSON.parse(sessionStorage.getItem(storedKey) ?? "null")?.data.title, key))
+      .toBe(`Recover after ${exit} back`);
+    let release;
+    const held = new Promise(resolve => { release = resolve; });
+    const draftRequest = `**/api/receipt-drafts/${lifecycleId}`;
+    await alice.route(draftRequest, async route => {
+      await held;
+      await route.continue().catch(() => {}); // Leaving can cancel the in-flight read.
+    });
+    await alice.reload();
+    await expect(alice.getByText("Opening draft…", { exact: true })).toBeVisible();
+    if (exit === "browser") await alice.goBack();
+    else await alice.getByRole("button", { name: "Back to group" }).click();
+    await expect(alice).toHaveURL(groupRoute);
+    assert.equal(await alice.evaluate((storedKey) =>
+      JSON.parse(sessionStorage.getItem(storedKey) ?? "null")?.data.title, key),
+    `Recover after ${exit} back`);
+    release();
+    await alice.unroute(draftRequest);
+    await lifecycleRow().getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(alice.getByText("Recovered your unsaved changes.", { exact: true })).toBeVisible();
+    await expect(alice.getByLabel("Bill title", { exact: true })).toHaveValue(`Recover after ${exit} back`);
+  }
   await alice.getByLabel("Bill title", { exact: true }).fill("Discard me");
   await alice.goBack();
   await expect(alice.getByRole("heading", { name: "Discard unsaved changes?" })).toBeVisible();

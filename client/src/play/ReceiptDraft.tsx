@@ -430,6 +430,8 @@ export function ReceiptDraftForm({
   }
   function closeEditor(destination: string | null = null) {
     if (pending.current) return;
+    // The server read has not yet established whether local recovery differs.
+    if (loading) { close(); return; }
     if (hasUnsavedChanges(draft, baseline.current, file, loading)) {
       setLeaveTo(destination);
       setDiscard(true);
@@ -443,6 +445,7 @@ export function ReceiptDraftForm({
     const unblock = blockRouteNavigation((destination) => {
       if (ended.current) return false;
       if (pending.current) return true;
+      if (loading) return false; // Preserve recovery until the server read completes.
       if (!isDirty()) {
         ended.current = true;
         sessionStorage.removeItem(key);
