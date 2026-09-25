@@ -26,6 +26,11 @@ export type ReceiptDraftItem = Omit<
   taxable?: boolean | null;
   manualFinal?: boolean;
 };
+export type LegacyReceiptItem = ReceiptItem & { manualFinal?: boolean | null };
+export type LegacyCorrectionItem = Omit<LegacyReceiptItem, "amountCents" | "finalCents"> & {
+  amountCents: number | null;
+  finalCents: number | null;
+};
 export type ReceiptCorrectionItem = ReceiptDraftItem;
 export type ReceiptCorrection = Pick<ReceiptCorrectionItem, "name" | "quantity" | "discountCents" | "manualFinal"> & { amountCents: number; taxable: boolean; finalCents?: number };
 export type ItemClaim = {
@@ -35,10 +40,14 @@ export type ItemClaim = {
   denominator: number;
   confirmedAt: string | null;
 };
-export type BillItem = ReceiptItem & {
+export type BillItem = Omit<ReceiptItem, "taxCents" | "extraCents"> & {
+  taxCents: number | null;
+  extraCents: number | null;
   claims: ItemClaim[];
   taxable?: boolean | null;
-  manualFinal?: boolean;
+  manualFinal?: boolean | null;
+  frozenDiscountWeightCents?: number | null;
+  frozenNetWeightCents?: number | null;
   allocatedDiscountCents?: number | null;
   allocatedTaxCents?: number | null;
   allocatedExtraCents?: number | null;
@@ -206,7 +215,7 @@ export function useReceiptApi() {
           revision,
           claims,
         }),
-      legacyItems: (id: string, revision: number, items: ReceiptItem[]) =>
+      legacyItems: (id: string, revision: number, items: LegacyReceiptItem[]) =>
         request<{ bill: Bill }>(`/bills/${id}/items`, "PUT", { revision, items }),
       correctItem: (id: string, itemId: string, revision: number, item: ReceiptCorrection) =>
         request<{ bill: Bill }>(`/bills/${id}/items/${itemId}`, "PATCH", {
@@ -226,7 +235,7 @@ export function useReceiptApi() {
   }, [getToken, cache]);
 }
 export type ReceiptApi = ReturnType<typeof useReceiptApi>;
-export function correctionInput(item: ReceiptCorrectionItem): ReceiptCorrection {
+export function correctionInput(item: ReceiptCorrectionItem | BillItem): ReceiptCorrection {
   return {
     name: item.name,
     quantity: item.quantity,
