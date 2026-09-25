@@ -37,6 +37,10 @@ export async function itemDetails(tx: Tx, billId: string) {
   return {
     items: items.map((item) => ({
       ...item,
+      allocatedTaxCents: item.taxCents,
+      allocatedExtraCents: item.extraCents,
+      // Legacy items predate receipt summaries: their stored tax and extra
+      // are known, but the receipt discount share and manual provenance are not.
       claims: claims.filter((c) => c.itemId === item.id),
     })),
     photo: photo ? { ...photo, expired: photo.expiresAt <= new Date() } : null,

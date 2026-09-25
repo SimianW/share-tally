@@ -54,17 +54,12 @@ export function extractionDefaults(data: ExtractedReceipt) {
     quantity: (i.quantity || "1").slice(0, 40),
     amountCents: i.amount === null ? null : cents(i.amount),
     discountCents: cents(i.discount),
-    taxCents: cents(i.tax),
-    allocatedTaxCents: 0,
-    extraCents: 0,
     finalCents: 0,
   }));
   const receipt = {
     subtotalCents: data.subtotal == null ? null : cents(data.subtotal),
-    taxCents: Math.max(
-      0,
-      cents(data.taxTotal) - items.reduce((sum, i) => sum + i.taxCents, 0),
-    ),
+    // Tax is allocated only from the receipt summary, never added per item.
+    taxCents: cents(data.taxTotal),
     discountCents: Math.max(
       0,
       cents(data.discountTotal) -

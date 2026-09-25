@@ -45,12 +45,14 @@ export default function Dialog({
   close,
   kicker = "A LITTLE LESS MATH",
   className = "",
+  closeLabel = "Close dialog",
 }: {
   title: string;
   children: ReactNode;
   close: () => void;
   kicker?: string;
   className?: string;
+  closeLabel?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const id = useId();
@@ -95,8 +97,9 @@ export default function Dialog({
           <h2 id={id}>{title}</h2>
         </div>
         <button
+          type="button"
           className="icon-button"
-          aria-label="Close dialog"
+          aria-label={closeLabel}
           onClick={close}
         >
           <Icon name="close" />
