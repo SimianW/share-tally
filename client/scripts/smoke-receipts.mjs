@@ -355,20 +355,41 @@ try {
     alice.getByRole("heading", { name: "Items & claims" }),
   ).toBeVisible();
   const billId = alice.url().split("/").at(-1);
-  await alice
-    .getByLabel("Your fraction of Apples", { exact: true })
-    .fill("1/3");
+  const claimSheet = (page, name = "Apples") => page.getByRole("dialog", { name, exact: true });
+  const itemOption = (page, label, name = "Apples") => claimSheet(page, name).getByRole("button", { name: label, exact: true });
+  await alice.getByRole("button", { name: "View Apples · $3.00", exact: true }).click();
+  await expect(claimSheet(alice)).toBeVisible();
+  await expect(claimSheet(alice)).toContainText("Printed price");
+  await expect(claimSheet(alice)).toContainText("Receipt discount share");
+  await expect(claimSheet(alice)).toContainText("Tax share");
+  await expect(claimSheet(alice)).toContainText("Other adjustments share");
+  await itemOption(alice, "All of it · $3.00").click();
+  await expect(itemOption(alice, "All of it · $3.00")).toHaveAttribute("aria-pressed", "true");
+  await expect(alice.locator(".claim-sticky-footer")).toContainText("Your share $3.00");
+  await itemOption(alice, "1/2 · $1.50").click();
+  await itemOption(alice, "Custom").click();
+  await alice.getByLabel("Custom fraction", { exact: true }).fill("4/5");
+  await itemOption(alice, "Use custom fraction").click();
+  await expect(itemOption(alice, "Custom · 4/5 · $2.40")).toHaveAttribute("aria-pressed", "true");
+  await expect(alice.locator(".claim-sticky-footer")).toContainText("Your share $2.40");
+  await itemOption(alice, "1/3 · $1.00").click();
+  await expect(itemOption(alice, "1/3 · $1.00")).toHaveAttribute("aria-pressed", "true");
+  await expect(itemOption(alice, "Custom · 4/5 · $2.40")).toHaveAttribute("aria-pressed", "false");
+  await expect(alice.locator(".claim-sticky-footer")).toContainText("Your share $1.00");
+  await expect.poll(async () => (await api(`/bills/${billId}`)).bill.items[0].claims.length).toBe(0);
+  await claimSheet(alice).getByRole("button", { name: "Close claim", exact: true }).click();
+  await alice.getByRole("button", { name: "Receipt summary", exact: true }).click();
+  await expect(alice.getByRole("dialog", { name: "Receipt summary", exact: true })).toBeVisible();
+  await alice.getByRole("button", { name: "Done", exact: true }).click();
   await alice.getByRole("button", { name: "Confirm my item claims" }).click();
-  await expect(
-    alice.getByText("Alice: 1/3 · Confirmed", { exact: true }),
-  ).toBeVisible();
+  await expect(alice.locator(".claim-list .receipt-row-badges").first()).toContainText("Your claim");
   const bob = await pageFor("bob-token", { width: 390, height: 844 });
   await bob.goto(`${base}#/bills/${billId}`);
-  await bob.getByLabel("Your fraction of Apples", { exact: true }).fill("1/3");
+  await bob.getByRole("button", { name: "View Apples · $3.00", exact: true }).click();
+  await itemOption(bob, "1/3 · $1.00").click();
+  await claimSheet(bob).getByRole("button", { name: "Close claim", exact: true }).click();
   await bob.getByRole("button", { name: "Confirm my item claims" }).click();
-  await expect(
-    bob.getByText("Bob: 1/3 · Confirmed", { exact: true }),
-  ).toBeVisible();
+  await expect(bob.locator(".claim-list .receipt-row-badges").first()).toContainText("Your claim");
   await alice.getByRole("button", { name: "Edit items & prices" }).click();
   const correctionRow = alice.getByRole("button", { name: "Edit Apples", exact: true });
   await expect(correctionRow).toContainText("3.00");
@@ -386,28 +407,23 @@ try {
   assert.equal(corrected.amountCents, 270);
   assert.equal(corrected.finalCents, 270);
   assert.equal(corrected.manualFinal, false);
-  await expect(
-    bob.getByText("Bob: 1/3 · Reserved, needs reconfirmation", { exact: true }),
-  ).toBeVisible();
+  await expect(bob.locator(".claim-list .receipt-row-badges").first()).toContainText("Your reservation · reconfirm");
+  await expect(alice.locator(".claim-list .receipt-row-badges").first()).toContainText("Your reservation · reconfirm");
   await bob
     .getByRole("button", { name: "I have reviewed the latest bill" })
     .click();
   await bob.getByRole("button", { name: "Confirm my item claims" }).click();
-  await expect(
-    bob.getByText("Bob: 1/3 · Confirmed", { exact: true }),
-  ).toBeVisible();
+  await expect(bob.locator(".claim-list .receipt-row-badges").first()).toContainText("Your claim");
   await alice
     .getByRole("button", { name: "I have reviewed the latest bill" })
     .click();
   await alice.getByRole("button", { name: "Confirm my item claims" }).click();
-  await expect(
-    alice.getByText("Alice: 1/3 · Confirmed", { exact: true }),
-  ).toBeVisible();
+  await expect(alice.locator(".claim-list .receipt-row-badges").first()).toContainText("Your claim");
   const carol = await pageFor("carol-token", { width: 390, height: 844 });
   await carol.goto(`${base}#/bills/${billId}`);
-  await carol
-    .getByLabel("Your fraction of Apples", { exact: true })
-    .fill("1/3");
+  await carol.getByRole("button", { name: "View Apples · $2.70", exact: true }).click();
+  await itemOption(carol, "1/3 · $0.90").click();
+  await claimSheet(carol).getByRole("button", { name: "Close claim", exact: true }).click();
   await carol.getByRole("button", { name: "Confirm my item claims" }).click();
   await expect(
     carol.getByText("Completed bills are final.", { exact: false }),
@@ -419,6 +435,99 @@ try {
     ),
     false,
   );
+  // Exercise portion controls, disabled overclaims, and a concurrent last-fraction conflict.
+  const members = (await api(`/groups/${group.id}`)).group.members;
+  const memberIds = Object.fromEntries(members.map((member) => [member.displayName, member.id]));
+  const controlDraftId = randomUUID();
+  const controlItems = [
+    { id: randomUUID(), name: "Apples", originalText: "APPLES RECEIPT LINE", quantity: "1", amountCents: 300, discountCents: 0, taxable: false, finalCents: 300, manualFinal: false },
+    { id: randomUUID(), name: "Milk", originalText: "MILK RECEIPT LINE", quantity: "1", amountCents: 200, discountCents: 0, taxable: false, finalCents: 200, manualFinal: false },
+  ];
+  const controlDraft = (await api(`/groups/${group.id}/receipt-drafts/${controlDraftId}`, "alice-token", "PUT", {
+    revision: 0,
+    data: {
+      mode: "items", title: "Claim controls", purchaseDate: "2026-09-24", timeZone: "America/Toronto",
+      notes: "", totalCents: 500, ownShareCents: 0,
+      participantIds: [memberIds.Alice, memberIds.Bob, memberIds.Carol],
+      receipt: { subtotalCents: 500, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
+      items: controlItems,
+    },
+  })).draft;
+  const controlBill = (await api(`/receipt-drafts/${controlDraftId}/initialize`, "alice-token", "POST", { revision: controlDraft.revision })).bill;
+  const apples = controlItems[0];
+  await api(`/bills/${controlBill.id}/claims`, "bob-token", "POST", {
+    revision: controlBill.revision,
+    claims: [{ itemId: apples.id, numerator: 2, denominator: 3 }],
+  });
+  await alice.goto(`${base}#/bills/${controlBill.id}`);
+  const filters = alice.locator(".claim-filters");
+  await filters.getByRole("button", { name: "Unclaimed (2)" }).click();
+  await expect(alice.locator(".claim-list .receipt-row-open")).toHaveCount(2);
+  await filters.getByRole("button", { name: "Mine (0)" }).click();
+  await expect(alice.getByText("No items in this filter.")).toBeVisible();
+  await filters.getByRole("button", { name: "All (2)" }).click();
+  await expect(alice.locator(".claim-list .receipt-row-open")).toHaveCount(2);
+  await alice.getByRole("button", { name: "View Apples · $3.00", exact: true }).click();
+  const controlSheet = claimSheet(alice);
+  await expect(controlSheet).toContainText("1/3 available to you");
+  await expect(itemOption(alice, "All of it · $3.00")).toBeDisabled();
+  await expect(itemOption(alice, "1/2 · $1.50")).toBeDisabled();
+  for (const option of ["1/3 · $1.00", "1/4 · $0.75", "1/5 · $0.60", "1/6 · $0.50"])
+    await expect(itemOption(alice, option)).toBeEnabled();
+  await itemOption(alice, "Custom").click();
+  await alice.getByLabel("Custom fraction", { exact: true }).fill("1/4");
+  await itemOption(alice, "Use custom fraction").click();
+  const customChoice = () => itemOption(alice, "Custom · 1/4 · $0.75");
+  await expect(customChoice()).toHaveAttribute("aria-pressed", "true");
+  await expect(alice.locator(".claim-sticky-footer")).toContainText("Your share $0.75");
+  await itemOption(alice, "1/3 · $1.00").click();
+  await expect(itemOption(alice, "1/3 · $1.00")).toHaveAttribute("aria-pressed", "true");
+  await expect(customChoice()).toHaveAttribute("aria-pressed", "false");
+  await expect(alice.locator(".claim-sticky-footer")).toContainText("Your share $1.00");
+  await claimSheet(alice).getByRole("button", { name: "Close claim", exact: true }).click();
+  await alice.getByRole("button", { name: "View Milk · $2.00", exact: true }).click();
+  await itemOption(alice, "All of it · $2.00", "Milk").click();
+  await expect(alice.locator(".claim-sticky-footer")).toContainText("Your share $3.00");
+  await claimSheet(alice, "Milk").getByRole("button", { name: "Close claim", exact: true }).click();
+  await alice.getByRole("button", { name: "Confirm my item claims" }).click();
+  await expect.poll(async () => (await api(`/bills/${controlBill.id}`)).bill.items[1].claims.length).toBe(1);
+  const confirmedControls = (await api(`/bills/${controlBill.id}`)).bill;
+  assert.deepEqual(confirmedControls.items.map((item) => item.claims
+    .map((claim) => [claim.userId, claim.numerator, claim.denominator])
+    .sort(([left], [right]) => left.localeCompare(right))), [
+    [[memberIds.Alice, 1, 3], [memberIds.Bob, 2, 3]].sort(([left], [right]) => left.localeCompare(right)),
+    [[memberIds.Alice, 1, 1]],
+  ]);
+
+  const conflictDraftId = randomUUID();
+  const conflictItem = { id: randomUUID(), name: "Conflict item", originalText: "CONFLICT ITEM", quantity: "1", amountCents: 100, discountCents: 0, taxable: false, finalCents: 100, manualFinal: false };
+  const conflictDraft = (await api(`/groups/${group.id}/receipt-drafts/${conflictDraftId}`, "alice-token", "PUT", {
+    revision: 0,
+    data: {
+      mode: "items", title: "Concurrent claims", purchaseDate: "2026-09-24", timeZone: "America/Toronto",
+      notes: "", totalCents: 100, ownShareCents: 0, participantIds: [memberIds.Alice, memberIds.Bob],
+      receipt: { subtotalCents: 100, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
+      items: [conflictItem],
+    },
+  })).draft;
+  const conflictBill = (await api(`/receipt-drafts/${conflictDraftId}/initialize`, "alice-token", "POST", { revision: conflictDraft.revision })).bill;
+  await alice.goto(`${base}#/bills/${conflictBill.id}`);
+  await bob.goto(`${base}#/bills/${conflictBill.id}`);
+  for (const page of [alice, bob]) {
+    await page.getByRole("button", { name: "View Conflict item · $1.00", exact: true }).click();
+    await itemOption(page, "All of it · $1.00", "Conflict item").click();
+    await claimSheet(page, "Conflict item").getByRole("button", { name: "Close claim", exact: true }).click();
+  }
+  await Promise.all([
+    alice.getByRole("button", { name: "Confirm my item claims" }).click(),
+    bob.getByRole("button", { name: "Confirm my item claims" }).click(),
+  ]);
+  await expect.poll(async () => (await api(`/bills/${conflictBill.id}`)).bill.items[0].claims.length).toBe(1);
+  const conflictResult = (await api(`/bills/${conflictBill.id}`)).bill;
+  assert.equal(conflictResult.items[0].claims.length, 1);
+  const conflictLoser = conflictResult.items[0].claims[0].userId === memberIds.Alice ? bob : alice;
+  const conflictAlert = conflictLoser.getByRole("alert").filter({ hasText: "Not enough of Conflict item is available" });
+  await expect(conflictAlert).toContainText("Only 0/1 is currently available to you");
   await mkdir("/tmp/share-tally-receipt-smoke", { recursive: true });
   await carol.screenshot({
     path: "/tmp/share-tally-receipt-smoke/mobile.png",
@@ -902,6 +1011,13 @@ try {
   await alice.goto(`${base}#/bills/${correctionBill.id}`);
   for (const viewport of [{ width: 1280, height: 1000 }, { width: 390, height: 844 }]) {
     await alice.setViewportSize(viewport);
+    await alice.getByRole("button", { name: /View Taxable pears · \$/ }).click();
+    const derivation = alice.getByRole("dialog", { name: "Taxable pears", exact: true });
+    await expect(derivation).toContainText("PEARS RECEIPT LINE");
+    await expect(derivation).toContainText("Receipt discount share");
+    await expect(derivation).toContainText("Tax share");
+    await expect(derivation).toContainText("Other adjustments share");
+    await alice.getByRole("button", { name: "Close claim", exact: true }).click();
     await alice.getByRole("button", { name: "Edit items & prices" }).click();
     const pears = alice.getByRole("button", { name: "Edit Taxable pears", exact: true });
     await expect(pears).toContainText("10.90");
@@ -944,6 +1060,9 @@ try {
   await alice.getByRole("button", { name: "Close editor", exact: true }).click();
   await alice.getByRole("button", { name: "Save item changes" }).click();
   await expect.poll(async () => (await api(`/bills/${correctionBill.id}`)).bill.items[0].manualFinal).toBe(true);
+  await alice.getByRole("button", { name: /View Taxable pears · \$/ }).click();
+  await expect(alice.getByRole("dialog", { name: "Taxable pears", exact: true })).toContainText("Set manually by Alice");
+  await alice.getByRole("button", { name: "Close claim", exact: true }).click();
   await alice.getByRole("button", { name: "Edit items & prices" }).click();
   await alice.getByRole("button", { name: "Edit Taxable pears", exact: true }).click();
   await alice.getByRole("button", { name: "Use receipt calculation", exact: true }).click();
@@ -1059,7 +1178,7 @@ try {
   );
   assert.deepEqual(errors, []);
   console.log(
-    "Receipt browser smoke passed: private draft recovery, saved automatic scans, processing locks, second-tab completion and tax fallback, compact rows, editor navigation, live reconciliation and summary edits, signed-cent allocation, photo zoom on desktop/mobile, exact thirds, claims, legacy price/tax/adjustment edits and add/delete controls, historical and manual provenance, frozen-rate corrections and manual overrides, taxability and tax-inclusive previews, reservations, completion and adjustment.",
+    "Receipt browser smoke passed: private draft recovery, saved automatic scans, processing locks, second-tab completion and tax fallback, compact rows, editor navigation, live reconciliation and summary edits, signed-cent allocation, photo zoom on desktop/mobile, exact thirds, claim-all/preset/custom buttons, item filters, disabled overclaims, concurrent availability conflicts, legacy price/tax/adjustment edits and add/delete controls, historical and manual provenance, frozen-rate corrections and manual overrides, taxability and tax-inclusive previews, reservations, completion and adjustment."
   );
 } catch (error) {
   if (networkChangeFailures.size) {
