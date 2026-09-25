@@ -120,3 +120,16 @@ test("failed discount attachment remains receipt-wide through model defaults and
   // The incorrect printed subtotal is not rewritten to conceal the discrepancy.
   assert.equal(data.receipt.subtotalCents, 2900);
 });
+
+test("an undecided (null) taxability answer keeps the model name but stays taxable and unchecked", () => {
+  const { defaults } = scannedFixture("costco-coupon.synthetic", 24, true);
+  const [first, second] = defaults.items;
+  const applied = applyReceiptModelResult(defaults.items, { kind: "result", value: { items: [
+    { id: first!.id, name: "Unclear Item", taxable: null },
+    { id: second!.id, name: "Paper towels", taxable: false },
+  ] } });
+  assert.equal(applied.outcome, "ok");
+  assert.deepEqual(applied.items.map((item) => [item.name, item.taxable, item.taxNotChecked]), [
+    ["Unclear Item", true, true], ["Paper towels", false, false],
+  ]);
+});
