@@ -26,16 +26,19 @@ export type ReceiptModelEvidence = {
   }[];
 };
 
-const modelJsonSchema = {
+// Strict structured output limited to this request's IDs and count, so the model cannot return a
+// miscopied or invented ID (the #50 benchmark saw UUIDs altered by a few characters at low effort).
+const modelJsonSchema = (ids: string[]) => ({
   type: "object",
   properties: {
     items: {
       type: "array",
-      maxItems: 200,
+      minItems: ids.length,
+      maxItems: ids.length,
       items: {
         type: "object",
         properties: {
-          id: { type: "string" },
+          id: { type: "string", enum: ids },
           name: { type: "string", minLength: 1, maxLength: 160 },
           taxable: { type: "boolean" },
         },
@@ -46,7 +49,7 @@ const modelJsonSchema = {
   },
   required: ["items"],
   additionalProperties: false,
-} as const;
+});
 
 export type NameProviderConfig = {
   baseURL: string;
@@ -123,7 +126,7 @@ export async function interpretReceiptNames(
           type: "json_schema",
           name: "receipt_item_names",
           strict: true,
-          schema: modelJsonSchema,
+          schema: modelJsonSchema(evidence.items.map((item) => item.id)),
         },
       },
       max_output_tokens: 8192,
