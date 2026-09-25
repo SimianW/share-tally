@@ -141,6 +141,16 @@ export function ItemClaims({
   return (
     <section className="item-claims">
       <h2>Items & claims</h2>
+      {bill.receipt && <section className="receipt-bill-summary" aria-label="Receipt summary">
+        <h3>Receipt summary</h3>
+        <dl className="receipt-cost-breakdown">
+          {bill.receipt.subtotalCents !== null && <div><dt>Subtotal</dt><dd>{money(bill.receipt.subtotalCents)}</dd></div>}
+          <div><dt>Receipt discount</dt><dd>{money(bill.receipt.discountCents)}</dd></div>
+          <div><dt>Receipt tax{bill.receipt.taxLabel ? ` · ${bill.receipt.taxLabel}` : ""}</dt><dd>{money(bill.receipt.taxCents)}</dd></div>
+          <div><dt>Other adjustments</dt><dd>{money(bill.receipt.extraCents)}</dd></div>
+          <div className="receipt-final-cost"><dt>Receipt total</dt><dd>{money(bill.receipt.totalCents)}</dd></div>
+        </dl>
+      </section>}
       <div className="receipt-review-layout">
         <div>
           {bill.photo ? (

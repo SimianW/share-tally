@@ -477,10 +477,12 @@ async function readBillsInSnapshot(tx: Tx, userId: string, groupId?: string, id?
       requestPayload: _payload,
       ...fields
     } = bill;
+    const { printedTaxRate: _printedRate, ...publicReceipt } = bill.receipt ?? {};
     return {
       ...fields,
-      frozenTaxRate: bill.receipt && bill.frozenTaxBaseCents !== null
-        ? selectFrozenTaxRate(bill.receipt, bill.frozenTaxBaseCents) : null,
+      receipt: bill.receipt ? publicReceipt : null,
+      frozenTaxRate: bill.receipt
+        ? selectFrozenTaxRate(bill.receipt, bill.frozenTaxBaseCents ?? 0) : null,
       ...(details ? { ...details, items: details.items.map(item => ({
         ...item,
         allocatedTaxCents: bill.receipt && bill.receipt.taxCents !== 0 && item.manualFinal && item.frozenTaxRoundingCents === null

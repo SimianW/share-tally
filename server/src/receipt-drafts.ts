@@ -26,7 +26,7 @@ import { BillError, parseBill } from "./bills.js";
 import type { Tx } from "./item-accounting.js";
 import { notifyGroupChanged } from "./group-events.js";
 import { priceDraft } from "./receipt-pricing.js";
-import { frozenBases, roundingOffset } from "./frozen-receipt-pricing.js";
+import { frozenBases, roundingOffset, printedTax, selectFrozenTaxRate } from "./frozen-receipt-pricing.js";
 export async function requireMember(tx: Tx, groupId: string, userId: string) {
   const [m] = await tx
     .select()
@@ -87,6 +87,11 @@ export async function saveDraft(
   // Canonicalize before the idempotency comparison as well as persistence.
   // A supplied final cost matters only when its manual override is enabled.
   input.data.items = priceDraft(input.data).items;
+  if (input.data.receipt) {
+    const { taxLabel: _submitted, ...receipt } = input.data.receipt;
+    const label = printedTax(receipt.evidence)?.label;
+    input.data.receipt = { ...receipt, ...(label ? { taxLabel: label } : {}) };
+  }
   await db.transaction((tx) => requireMember(tx, groupId, userId));
   const photo =
     input.photoBase64 === undefined
@@ -301,6 +306,7 @@ export async function initializeDraft(
     const { mode, items: _draftItems, receipt: _receipt, ...data } = reviewed;
     const priced = mode === "items" ? priceDraft(reviewed).items : [];
     const bases = frozenBases({ ...reviewed, items: priced });
+    const printed = printedTax(reviewed.receipt?.evidence);
     const receipt = mode === "items" ? {
       subtotalCents: reviewed.receipt?.subtotalCents ?? null,
       discountCents: reviewed.receipt?.discountCents ?? 0,
@@ -308,7 +314,9 @@ export async function initializeDraft(
       extraCents: reviewed.receipt?.extraCents ?? 0,
       pricesIncludeTax: reviewed.receipt?.pricesIncludeTax ?? false,
       totalCents: reviewed.totalCents!,
+      ...(printed ? { taxLabel: printed.label, printedTaxRate: printed.rate } : {}),
     } : null;
+    const rate = receipt && selectFrozenTaxRate(receipt, bases.taxableBase ?? 0);
     const items =
       mode === "items"
         ? checked(
@@ -382,7 +390,7 @@ export async function initializeDraft(
             manualFinal: source.manualFinal,
             allocatedDiscountCents: source.allocatedDiscountCents,
             frozenDiscountRoundingCents: roundingOffset(source.allocatedDiscountCents ?? null, receipt!.discountCents, base, bases.discountBase),
-            frozenTaxRoundingCents: roundingOffset(source.allocatedTaxCents ?? null, receipt!.pricesIncludeTax ? 0 : receipt!.taxCents, source.taxable === false ? 0 : net, bases.taxableBase),
+            frozenTaxRoundingCents: roundingOffset(source.allocatedTaxCents ?? null, receipt!.pricesIncludeTax ? 0 : (rate?.taxCents ?? receipt!.taxCents), source.taxable === false ? 0 : net, rate?.taxableBaseCents ?? null),
             frozenExtraRoundingCents: roundingOffset(source.allocatedExtraCents ?? null, receipt!.extraCents, net, bases.extraBase),
           };
         }),
@@ -409,7 +417,7 @@ export async function initializeDraft(
   return result.id;
 }
 function withoutEvidence(data: typeof receiptDrafts.$inferSelect.data) {
-  const { evidence: _receiptEvidence, ...receipt } = data.receipt ?? {};
+  const { evidence: _receiptEvidence, taxLabel: _taxLabel, ...receipt } = data.receipt ?? {};
   return {
     ...data,
     ...(data.receipt ? { receipt: receipt as NonNullable<typeof data.receipt> } : {}),
@@ -525,13 +533,14 @@ export async function saveProcessingDraft(
     await tx.delete(receiptEvidence).where(eq(receiptEvidence.draftId, id));
     if (analysis) await tx.insert(receiptEvidence).values({ draftId: id, analysis });
     const now = new Date();
+    const label = printedTax(extraction.receipt.evidence)?.label;
     const [draft] = await tx.update(receiptDrafts).set({
       data: checked(draftInput, {
         ...old.data,
         mode: "items",
         title: old.data.title || extraction.title,
         items: extraction.items,
-        receipt: extraction.receipt,
+        receipt: { ...extraction.receipt, ...(label ? { taxLabel: label } : {}) },
         totalCents: extraction.totalCents,
       }),
       processingStatus: "processing",

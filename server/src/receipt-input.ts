@@ -66,6 +66,7 @@ export const draftInput = z
         extraCents: z.number().int().min(-1_000_000).max(1_000_000),
         pricesIncludeTax: z.boolean(),
         discountFallback: z.boolean().optional(),
+        taxLabel: z.string().optional(),
         evidence: receiptEvidenceFields.optional(),
       })
       .strict()

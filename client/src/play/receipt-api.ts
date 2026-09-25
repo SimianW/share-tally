@@ -70,6 +70,7 @@ export type BillItem = ReceiptItem & {
 export type ReceiptPricing = {
   subtotalCents: number | null;
   taxCents: number;
+  taxLabel?: string | null;
   discountCents: number;
   extraCents: number;
   pricesIncludeTax: boolean;
