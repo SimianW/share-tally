@@ -350,10 +350,22 @@ try {
     bob.getByText("Bob: 1/3 · Confirmed", { exact: true }),
   ).toBeVisible();
   await alice.getByRole("button", { name: "Edit items & prices" }).click();
-  await alice.getByLabel("Final cost · CAD", { exact: true }).fill("2.70");
-  await alice
-    .getByRole("button", { name: "Save item changes", exact: true })
-    .click();
+  const correctionRow = alice.getByRole("button", { name: "Edit Apples", exact: true });
+  await expect(correctionRow).toContainText("3.00");
+  await correctionRow.click();
+  const correctionSheet = alice.getByRole("dialog", { name: "Correct item price" });
+  await expect(correctionSheet).toBeVisible();
+  await expect(correctionSheet).toContainText("Manually added item");
+  await alice.getByLabel("Printed price", { exact: true }).fill("2.70");
+  await expect(correctionRow).toContainText("2.70");
+  await expect(correctionSheet.getByLabel("Final cost", { exact: true })).toHaveText("$2.70");
+  await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+  await alice.getByRole("button", { name: "Save item changes", exact: true }).click();
+  await expect.poll(async () => (await api(`/bills/${billId}`)).bill.items[0].amountCents).toBe(270);
+  const corrected = (await api(`/bills/${billId}`)).bill.items[0];
+  assert.equal(corrected.amountCents, 270);
+  assert.equal(corrected.finalCents, 270);
+  assert.equal(corrected.manualFinal, false);
   await expect(
     bob.getByText("Bob: 1/3 · Reserved, needs reconfirmation", { exact: true }),
   ).toBeVisible();
@@ -689,6 +701,185 @@ try {
     assert.equal(persisted.receipt.taxCents, 600);
     assert.equal(persisted.totalCents, 3150);
   }
+  // Legacy initiated bills keep editable per-item components and add/delete controls.
+  // Only fixture setup uses SQL: these bills predate stored receipt summaries.
+  for (const viewport of [{ width: 1280, height: 1000 }, { width: 390, height: 844 }]) {
+    const draftId = randomUUID();
+    const ownerId = (await api(`/bills/${billId}`)).bill.initiatorId;
+    const items = [
+      { name: "Legacy apples", amountCents: 1000 },
+      { name: "Historical cost", amountCents: 200 },
+      { name: "Legacy override", amountCents: 100 },
+    ].map(item => ({ ...item, id: randomUUID(), originalText: item.name.toUpperCase(), quantity: "1", discountCents: 0, finalCents: item.amountCents, manualFinal: false }));
+    const draft = (await api(`/groups/${group.id}/receipt-drafts/${draftId}`, "alice-token", "PUT", {
+      revision: 0, data: { mode: "items", title: `Legacy corrections ${viewport.width}`, purchaseDate: "2026-09-24", timeZone: "America/Toronto",
+        notes: "", totalCents: 1300, ownShareCents: 0, participantIds: [ownerId], items },
+    })).draft;
+    const legacy = (await api(`/receipt-drafts/${draftId}/initialize`, "alice-token", "POST", { revision: draft.revision })).bill;
+    await pool.query("UPDATE bills SET receipt = NULL, frozen_tax_base_cents = NULL, frozen_discount_base_cents = NULL, frozen_extra_base_cents = NULL WHERE id = $1", [legacy.id]);
+    await pool.query("UPDATE bill_items SET taxable = NULL, manual_final = NULL, allocated_discount_cents = NULL, frozen_tax_rounding_cents = NULL, frozen_discount_rounding_cents = NULL, frozen_extra_rounding_cents = NULL WHERE bill_id = $1", [legacy.id]);
+    await pool.query("UPDATE bill_items SET final_cents = 275 WHERE id = $1", [items[1].id]);
+    await alice.setViewportSize(viewport);
+    await alice.goto(`${base}#/bills/${legacy.id}`);
+    const row = name => alice.getByRole("button", { name: `Edit ${name}`, exact: true });
+    const open = () => alice.getByRole("button", { name: "Edit items & prices", exact: true }).click();
+    const save = async () => {
+      const response = alice.waitForResponse(response => response.request().method() === "PUT" && new URL(response.url()).pathname === `/api/bills/${legacy.id}/items`);
+      await alice.getByRole("button", { name: "Save item changes", exact: true }).click();
+      assert.equal((await response).status(), 200);
+      await expect(alice.getByRole("button", { name: "Save item changes", exact: true })).toHaveCount(0);
+    };
+    await open();
+    await expect(row("Historical cost")).toContainText("2.75");
+    await row("Historical cost").click();
+    const sheet = alice.getByRole("dialog", { name: /^Correct (legacy item|item price)$/ });
+    await expect(sheet.getByRole("checkbox", { name: "Taxable", exact: true })).toHaveCount(0);
+    await expect(sheet).toContainText("Taxability is unavailable");
+    await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+    await save();
+    let current = (await api(`/bills/${legacy.id}`)).bill;
+    assert.deepEqual(current.items.map(item => [item.finalCents, item.manualFinal]), [[1000, null], [275, null], [100, null]], "Opening and saving must not recalculate historical costs");
+    await open();
+    await row("Legacy apples").click();
+    await sheet.getByLabel("Printed price", { exact: true }).fill("20.00");
+    await expect(sheet.getByLabel("Final cost", { exact: true })).toHaveText("$20.00");
+    await expect(sheet.getByRole("checkbox", { name: "Taxable", exact: true })).toHaveCount(0);
+    await expect(sheet).toContainText("Taxability is unavailable");
+    await sheet.getByLabel("Tax", { exact: true }).fill("1.00");
+    await sheet.getByLabel("Item discount", { exact: true }).fill("0.25");
+    await sheet.getByLabel("Other adjustment", { exact: true }).fill("-0.50");
+    await expect(sheet.getByLabel("Final cost", { exact: true })).toHaveText("$20.25");
+    await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+    await row("Legacy override").click();
+    await sheet.getByRole("button", { name: "Set final manually", exact: true }).click();
+    await sheet.getByLabel("Final cost · CAD", { exact: true }).fill("0.90");
+    await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+    await alice.getByRole("button", { name: "Add an item", exact: true }).click();
+    await sheet.getByLabel("Item name", { exact: true }).fill("Added legacy item");
+    await sheet.getByLabel("Printed price", { exact: true }).fill("4.00");
+    await expect(sheet.getByLabel("Final cost", { exact: true })).toHaveText("$4.00");
+    await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+    await save();
+    current = (await api(`/bills/${legacy.id}`)).bill;
+    assert.deepEqual(current.items.map(item => [item.finalCents, item.manualFinal]), [[2025, false], [275, null], [90, true], [400, false]]);
+    assert.deepEqual([current.items[0].amountCents, current.items[0].taxCents, current.items[0].extraCents, current.items[0].discountCents], [2000, 100, -50, 25]);
+    assert.equal(current.totalCents, 1300);
+    await alice.reload();
+    await open();
+    await expect(row("Legacy override")).toContainText("Manual override");
+    await row("Legacy override").click();
+    await expect(sheet.getByLabel("Final cost · CAD", { exact: true })).toHaveValue("0.90");
+    await sheet.getByRole("button", { name: "Use item calculation", exact: true }).click();
+    await expect(sheet.getByLabel("Final cost", { exact: true })).toHaveText("$1.00");
+    await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+    await row("Added legacy item").click();
+    await sheet.getByRole("button", { name: "Remove item", exact: true }).click();
+    await save();
+    current = (await api(`/bills/${legacy.id}`)).bill;
+    assert.deepEqual(current.items.map(item => [item.name, item.finalCents, item.manualFinal]), [["Legacy apples", 2025, false], ["Historical cost", 275, null], ["Legacy override", 100, false]]);
+    assert.equal(await alice.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+  }
+  // Post-initiation correction uses the same row and editor sheet on both widths.
+  // A stored receipt freezes the tax base: only the edited item is repriced.
+  const correctionDraftId = randomUUID();
+  const initiatorId = (await api(`/bills/${billId}`)).bill.initiatorId;
+  const correctionItems = [
+    { id: randomUUID(), name: "Taxable pears", originalText: "PEARS RECEIPT LINE", quantity: "1", amountCents: 1000, discountCents: 0, taxable: true, finalCents: 1000, manualFinal: false },
+    { id: randomUUID(), name: "Bread", originalText: "BREAD RECEIPT LINE", quantity: "1", amountCents: 2000, discountCents: 0, taxable: false, finalCents: 2000, manualFinal: false },
+  ];
+  const correctionDraft = (await api(`/groups/${group.id}/receipt-drafts/${correctionDraftId}`, "alice-token", "PUT", {
+    revision: 0,
+    data: {
+      mode: "items", title: "Frozen rate correction", purchaseDate: "2026-09-24", timeZone: "America/Toronto",
+      notes: "", totalCents: 2910, ownShareCents: 0, participantIds: [initiatorId],
+      receipt: { subtotalCents: 3000, discountCents: 300, taxCents: 180, extraCents: 30, pricesIncludeTax: false },
+      items: correctionItems,
+    },
+  })).draft;
+  const correctionBill = (await api(`/receipt-drafts/${correctionDraftId}/initialize`, "alice-token", "POST", { revision: correctionDraft.revision })).bill;
+  assert.deepEqual(correctionBill.items.map(item => item.finalCents), [1090, 1820]);
+  assert.deepEqual(correctionBill.frozenTaxRate, { taxCents: 180, taxableBaseCents: 900 });
+  await alice.goto(`${base}#/bills/${correctionBill.id}`);
+  for (const viewport of [{ width: 1280, height: 1000 }, { width: 390, height: 844 }]) {
+    await alice.setViewportSize(viewport);
+    await alice.getByRole("button", { name: "Edit items & prices" }).click();
+    const pears = alice.getByRole("button", { name: "Edit Taxable pears", exact: true });
+    await expect(pears).toContainText("10.90");
+    await pears.click();
+    const sheet = alice.getByRole("dialog", { name: "Correct item price" });
+    await expect(sheet).toContainText("PEARS RECEIPT LINE");
+    const box = await sheet.boundingBox();
+    if (viewport.width < 700) {
+      assert.ok(Math.abs(box.y + box.height - viewport.height) < 3, "Mobile correction editor is a bottom sheet");
+    } else {
+      assert.ok(box.x > viewport.width / 2, "Desktop correction editor is a side panel");
+    }
+    await alice.getByLabel("Printed price", { exact: true }).fill("12.00");
+    await alice.getByLabel("Item discount", { exact: true }).fill("1.00");
+    await expect(pears).toContainText("11.99");
+    await expect(sheet.getByText("$1.98", { exact: true })).toBeVisible();
+    await alice.getByRole("button", { name: "Next item", exact: true }).click();
+    await expect(alice.getByLabel("Item name", { exact: true })).toHaveValue("Bread");
+    await alice.getByRole("button", { name: "Previous item", exact: true }).click();
+    await expect(alice.getByLabel("Item name", { exact: true })).toHaveValue("Taxable pears");
+    await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+    await expect(alice.getByRole("button", { name: "Edit Bread", exact: true })).toContainText("18.20");
+    if (viewport.width === 1280) {
+      await alice.getByRole("button", { name: "Keep current items" }).click();
+    } else {
+      await alice.getByRole("button", { name: "Save item changes" }).click();
+      await expect.poll(async () => (await api(`/bills/${correctionBill.id}`)).bill.items[0].finalCents).toBe(1199);
+    }
+  }
+  const frozenCorrection = (await api(`/bills/${correctionBill.id}`)).bill;
+  assert.deepEqual(frozenCorrection.items.map(item => item.finalCents), [1199, 1820]);
+  assert.equal(frozenCorrection.items[0].allocatedTaxCents, 198);
+  assert.equal(frozenCorrection.items[0].manualFinal, false);
+  assert.equal(frozenCorrection.items[1].amountCents, 2000);
+  // Explicit manual final still works, and returning to the frozen calculation restores the derived cost.
+  await alice.getByRole("button", { name: "Edit items & prices" }).click();
+  await alice.getByRole("button", { name: "Edit Taxable pears", exact: true }).click();
+  await alice.getByRole("button", { name: "Set final manually", exact: true }).click();
+  await alice.getByLabel("Final cost · CAD", { exact: true }).fill("12.20");
+  await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+  await alice.getByRole("button", { name: "Save item changes" }).click();
+  await expect.poll(async () => (await api(`/bills/${correctionBill.id}`)).bill.items[0].manualFinal).toBe(true);
+  await alice.getByRole("button", { name: "Edit items & prices" }).click();
+  await alice.getByRole("button", { name: "Edit Taxable pears", exact: true }).click();
+  await alice.getByRole("button", { name: "Use receipt calculation", exact: true }).click();
+  await alice.getByRole("checkbox", { name: "Taxable", exact: true }).uncheck();
+  await expect(alice.getByRole("button", { name: "Edit Taxable pears", exact: true })).toContainText("10.01");
+  await expect(alice.getByRole("dialog", { name: "Correct item price" }).getByText("$0.00", { exact: true })).toBeVisible();
+  await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+  await alice.getByRole("button", { name: "Save item changes" }).click();
+  await expect.poll(async () => (await api(`/bills/${correctionBill.id}`)).bill.items[0].finalCents).toBe(1001);
+  const untaxedCorrection = (await api(`/bills/${correctionBill.id}`)).bill.items[0];
+  assert.equal(untaxedCorrection.taxCents, 0);
+  assert.equal(untaxedCorrection.manualFinal, false);
+
+  // Included-tax receipts retain zero additional tax even when corrected prices change.
+  const inclusiveDraftId = randomUUID();
+  const inclusiveDraft = (await api(`/groups/${group.id}/receipt-drafts/${inclusiveDraftId}`, "alice-token", "PUT", {
+    revision: 0,
+    data: {
+      mode: "items", title: "Tax-inclusive correction", purchaseDate: "2026-09-24", timeZone: "America/Toronto",
+      notes: "", totalCents: 2730, ownShareCents: 0, participantIds: [initiatorId],
+      receipt: { subtotalCents: 3000, discountCents: 300, taxCents: 180, extraCents: 30, pricesIncludeTax: true },
+      items: correctionItems.map(item => ({ ...item, id: randomUUID() })),
+    },
+  })).draft;
+  const inclusiveBill = (await api(`/receipt-drafts/${inclusiveDraftId}/initialize`, "alice-token", "POST", { revision: inclusiveDraft.revision })).bill;
+  assert.deepEqual(inclusiveBill.items.map(item => item.finalCents), [910, 1820]);
+  await alice.goto(`${base}#/bills/${inclusiveBill.id}`);
+  await alice.getByRole("button", { name: "Edit items & prices" }).click();
+  await alice.getByRole("button", { name: "Edit Taxable pears", exact: true }).click();
+  await alice.getByLabel("Printed price", { exact: true }).fill("12.00");
+  await alice.getByLabel("Item discount", { exact: true }).fill("1.00");
+  await expect(alice.getByRole("button", { name: "Edit Taxable pears", exact: true })).toContainText("10.01");
+  await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+  await alice.getByRole("button", { name: "Save item changes" }).click();
+  await expect.poll(async () => (await api(`/bills/${inclusiveBill.id}`)).bill.items[0].finalCents).toBe(1001);
+  assert.equal((await api(`/bills/${inclusiveBill.id}`)).bill.items[0].taxCents, 0);
   // The guided entry still supports switching an unfinished receipt to manual shares.
   await alice.goto(`${base}#/group-bills/${group.id}`);
   await alice.getByRole("button", { name: "New bill", exact: true }).click();
@@ -731,7 +922,7 @@ try {
   );
   assert.deepEqual(errors, []);
   console.log(
-    "Receipt browser smoke passed: private draft recovery, compact rows, editor navigation, live reconciliation and summary edits, signed-cent allocation, photo zoom on desktop/mobile, exact thirds, claims, corrections, reservations, completion and adjustment.",
+    "Receipt browser smoke passed: private draft recovery, compact rows, editor navigation, live reconciliation and summary edits, signed-cent allocation, photo zoom on desktop/mobile, exact thirds, claims, legacy price/tax/adjustment edits and add/delete controls, historical and manual provenance, frozen-rate corrections and manual overrides, taxability and tax-inclusive previews, reservations, completion and adjustment.",
   );
 } catch (error) {
   if (networkChangeFailures.size) {

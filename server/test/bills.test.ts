@@ -1499,6 +1499,13 @@ test('receipt drafts preserve missing money and reject initialization until requ
   assert.equal(retry.id, initialized.id);
 });
 
+async function markLegacyItemBill(billId: string) {
+  // Fixture only: models a bill published before receipt summaries and item
+  // derivation provenance existed. Assertions still use authenticated HTTP.
+  await pool.query('UPDATE bills SET receipt = NULL, frozen_tax_base_cents = NULL, frozen_discount_base_cents = NULL, frozen_extra_base_cents = NULL WHERE id = $1', [billId]);
+  await pool.query('UPDATE bill_items SET taxable = NULL, manual_final = NULL, allocated_discount_cents = NULL, frozen_tax_rounding_cents = NULL, frozen_discount_rounding_cents = NULL, frozen_extra_rounding_cents = NULL WHERE bill_id = $1', [billId]);
+}
+
 test('item details preserve confirmation until the final claimable price changes', async () => {
   const { group, draft, ids } = await setup();
   const id = crypto.randomUUID();
@@ -1508,6 +1515,7 @@ test('item details preserve confirmation until the final claimable price changes
   const data = { ...fields, mode: 'items', items: [draftItem] };
   const saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data }))).draft;
   let bill = (await json(await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST', { revision: saved.revision }))).bill;
+  await markLegacyItemBill(bill.id);
   bill = (await json(await api(`/bills/${bill.id}/claims`, 'bob-token', 'POST', { revision: bill.revision, claims: [{ itemId: item.id, numerator: 1, denominator: 2 }] }))).bill;
   const changed = { ...item, quantity: '2', amountCents: 90, taxCents: 10 };
   bill = (await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', { revision: bill.revision, items: [changed] }))).bill;
@@ -1527,6 +1535,7 @@ async function itemBill(costs = [100], totalCents = 100) {
   const draftData = { ...data, items: data.items.map(({ taxCents: _tax, extraCents: _extra, ...item }) => item) };
   const saved = (await json(await api(`/groups/${context.group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data: draftData }))).draft;
   const bill = (await json(await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST', { revision: saved.revision }))).bill;
+  await markLegacyItemBill(bill.id);
   return { ...context, bill, data, draftId: id };
 }
 async function claimBill(id: string, token: string, claims: { itemId: string; numerator: number; denominator: number }[], status = 200) {
@@ -1834,14 +1843,11 @@ test('legacy draft migration preserves every final and receipt summary, and only
     const before = (await json(await api(`/receipt-drafts/${id}`))).draft;
     drafts.push({ id, before, affected: example.affected });
   }
-  // This data-only migration leaves the schema unchanged. Restore its pre-migration
-  // journal state, then apply the committed history using the production migrator.
+  // Replay the committed data-only migration against legacy fixture rows.
+  // Replaying the entire migrator would re-add columns from later migrations.
   const { readFile } = await import('node:fs/promises');
-  const journal = JSON.parse(await readFile(new URL('../drizzle/meta/_journal.json', import.meta.url), 'utf8'));
-  const migration = journal.entries.find((entry: { tag: string }) => entry.tag === '0009_preserve_draft_item_costs');
-  assert.ok(migration);
-  await pool.query('DELETE FROM drizzle.__drizzle_migrations WHERE created_at >= $1', [migration.when]);
-  await migrate(drizzle(pool), { migrationsFolder: './drizzle' });
+  const migration = await readFile(new URL('../drizzle/0009_preserve_draft_item_costs.sql', import.meta.url), 'utf8');
+  await pool.query(migration);
   for (const { id, before, affected } of drafts) {
     const after = (await json(await api(`/receipt-drafts/${id}`))).draft;
     assert.equal(after.data.totalCents, before.data.totalCents);
@@ -1920,4 +1926,213 @@ test('missing prices only block dependent receipt allocations and zero weights n
   const zero = await price({ ...data, items: data.items.map(item => ({ ...item, amountCents: 0, taxable: true })) });
   assert.deepEqual(zero.items.map((item: { finalCents: number | null }) => item.finalCents), [null, null, null]);
   assert.ok(zero.warnings.length);
+});
+
+async function summarizedItemBill() {
+  const { group, draft, ids } = await setup();
+  const { requestId: _requestId, ...fields } = draft;
+  const draftId = crypto.randomUUID();
+  const receipt = { subtotalCents: 4200, discountCents: 400, taxCents: 270, extraCents: 80, pricesIncludeTax: false };
+  const items = [
+    { name: 'Apples', amountCents: 1200, discountCents: 200, taxable: true },
+    { name: 'Bread', amountCents: 2000, discountCents: 0, taxable: true },
+    { name: 'Milk', amountCents: 1000, discountCents: 0, taxable: false },
+  ].map(item => ({ ...item, id: crypto.randomUUID(), originalText: item.name.toUpperCase(), quantity: '1', finalCents: 0, manualFinal: false }));
+  const data = { ...fields, mode: 'items', totalCents: 3950, receipt, items };
+  const saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${draftId}`, 'alice-token', 'PUT', { revision: 0, data }))).draft;
+  const bill = (await json(await api(`/receipt-drafts/${draftId}/initialize`, 'alice-token', 'POST', { revision: saved.revision }))).bill;
+  return { bill, ids, items, receipt };
+}
+
+test('initiating an item bill stores its receipt summary, frozen rate and derivations', async () => {
+  const { bill: initiated, receipt } = await summarizedItemBill();
+  const bill = (await json(await api(`/bills/${initiated.id}`, 'bob-token'))).bill;
+  assert.deepEqual(bill.receipt, { ...receipt, totalCents: 3950 });
+  assert.deepEqual(bill.frozenTaxRate, { taxCents: 270, taxableBaseCents: 2700 });
+  assert.deepEqual(bill.items.map((item: Record<string, unknown>) => [
+    item.amountCents, item.discountCents, item.taxable, item.manualFinal,
+    item.allocatedDiscountCents, item.allocatedTaxCents, item.allocatedExtraCents, item.finalCents,
+  ]), [
+    [1200, 200, true, false, 100, 90, 20, 1010],
+    [2000, 0, true, false, 200, 180, 40, 2020],
+    [1000, 0, false, false, 100, 0, 20, 920],
+  ]);
+  assert.equal(bill.totalCents, 3950);
+});
+
+test('re-entering unchanged prices reproduces the stored largest-remainder allocations', async () => {
+  const { group, draft } = await setup();
+  const { requestId: _requestId, ...fields } = draft;
+  const draftId = crypto.randomUUID();
+  const data = { ...fields, mode: 'items', totalCents: 202,
+    receipt: { subtotalCents: 200, discountCents: 0, taxCents: 1, extraCents: 1, pricesIncludeTax: false },
+    items: [0, 1].map(index => ({ id: crypto.randomUUID(), name: `Item ${index}`, originalText: '', quantity: '1', amountCents: 100, discountCents: 0, taxable: true, manualFinal: false, finalCents: 0 })),
+  };
+  const saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${draftId}`, 'alice-token', 'PUT', { revision: 0, data }))).draft;
+  let bill = (await json(await api(`/receipt-drafts/${draftId}/initialize`, 'alice-token', 'POST', { revision: saved.revision }))).bill;
+  const initial = structuredClone(bill.items);
+  assert.deepEqual(initial.map((item: Record<string, number>) => [item.allocatedTaxCents, item.allocatedExtraCents, item.finalCents]), [[1, 1, 102], [0, 0, 100]]);
+  for (const item of [...initial].reverse()) {
+    bill = (await json(await api(`/bills/${bill.id}/items/${item.id}`, 'alice-token', 'PATCH', {
+      revision: bill.revision, name: item.name, quantity: item.quantity,
+      amountCents: item.amountCents, discountCents: item.discountCents,
+      taxable: item.taxable, manualFinal: false,
+    }))).bill;
+    assert.deepEqual(bill.items, initial, 'unchanged correction must preserve both tie-broken cents and every sibling');
+  }
+});
+
+test('frozen-rate correction changes only the edited item and reserves its invalidated claims', async () => {
+  const { bill: initiated, ids, items } = await summarizedItemBill();
+  const [apples, bread] = items;
+  let bill = await claimBill(initiated.id, 'bob-token', [
+    { itemId: apples!.id, numerator: 1, denominator: 2 },
+    { itemId: bread!.id, numerator: 1, denominator: 2 },
+  ]);
+  bill = await claimBill(bill.id, 'carol-token', [{ itemId: bread!.id, numerator: 1, denominator: 2 }]);
+  const before = structuredClone(bill);
+  // An unedited taxable item's frozen-rate recomputation must reproduce its
+  // stored allocation: (2000 - 200) × (270 / 2700) = 180.
+  assert.equal(before.items[1].allocatedTaxCents, 180);
+  assert.equal(before.items[1].allocatedDiscountCents, 200);
+  assert.equal(before.items[1].allocatedExtraCents, 40);
+  bill = (await json(await api(`/bills/${bill.id}/items/${apples!.id}`, 'alice-token', 'PATCH', {
+    revision: bill.revision, name: apples!.name, quantity: '1',
+    amountCents: 1400, discountCents: 200, taxable: true, manualFinal: false,
+  }))).bill;
+  assert.deepEqual(bill.receipt, before.receipt);
+  assert.deepEqual(bill.frozenTaxRate, before.frozenTaxRate);
+  assert.deepEqual(bill.items.slice(1), before.items.slice(1), 'unrelated items, allocations and confirmations remain byte-identical');
+  assert.deepEqual([
+    bill.items[0].amountCents, bill.items[0].discountCents,
+    bill.items[0].allocatedDiscountCents, bill.items[0].allocatedTaxCents,
+    bill.items[0].allocatedExtraCents, bill.items[0].finalCents,
+  ], [1400, 200, 120, 108, 24, 1212]);
+  const reserved = bill.items[0].claims.find((claim: { userId: string }) => claim.userId === ids.Bob);
+  assert.deepEqual([reserved.numerator, reserved.denominator, reserved.confirmedAt], [1, 2, null]);
+  assert.ok(bill.items[1].claims.find((claim: { userId: string }) => claim.userId === ids.Bob).confirmedAt);
+  assert.ok(bill.items[1].claims.find((claim: { userId: string }) => claim.userId === ids.Carol).confirmedAt);
+  const carol = bill.participants.find((person: { userId: string }) => person.userId === ids.Carol);
+  assert.ok(carol.confirmedAt, 'an unaffected claimant remains confirmed');
+  assert.equal(carol.amountCents, 1010);
+  const afterPriceChange = structuredClone(bill);
+  bill = (await json(await api(`/bills/${bill.id}/items/${apples!.id}`, 'alice-token', 'PATCH', {
+    revision: bill.revision, name: apples!.name, quantity: '1',
+    amountCents: 1400, discountCents: 100, taxable: false, manualFinal: false,
+  }))).bill;
+  assert.deepEqual(bill.items.slice(1), afterPriceChange.items.slice(1));
+  assert.deepEqual(bill.receipt, before.receipt);
+  assert.deepEqual(bill.frozenTaxRate, before.frozenTaxRate);
+  assert.deepEqual([
+    bill.items[0].discountCents, bill.items[0].taxable,
+    bill.items[0].allocatedDiscountCents, bill.items[0].allocatedTaxCents,
+    bill.items[0].allocatedExtraCents, bill.items[0].finalCents,
+  ], [100, false, 130, 0, 26, 1196]);
+  await claimBill(bill.id, 'carol-token', [
+    { itemId: apples!.id, numerator: 2, denominator: 3 },
+    { itemId: bread!.id, numerator: 1, denominator: 2 },
+  ], 409);
+  bill = await claimBill(bill.id, 'bob-token', [{ itemId: bread!.id, numerator: 1, denominator: 2 }]);
+  assert.equal(bill.items[0].claims.length, 0, 'releasing a reservation frees that fraction');
+  bill = await claimBill(bill.id, 'carol-token', [
+    { itemId: apples!.id, numerator: 2, denominator: 3 },
+    { itemId: bread!.id, numerator: 1, denominator: 2 },
+  ]);
+  assert.ok(bill.items[0].claims.find((claim: { userId: string }) => claim.userId === ids.Carol).confirmedAt);
+});
+
+test('manual final-cost correction is marked manual until its override is cleared', async () => {
+  const { bill: initiated, items } = await summarizedItemBill();
+  const item = items[0]!;
+  const correction = { name: item.name, quantity: '1', amountCents: 1400, discountCents: 200, taxable: true };
+  let bill = (await json(await api(`/bills/${initiated.id}/items/${item.id}`, 'alice-token', 'PATCH', {
+    revision: initiated.revision, ...correction, manualFinal: true, finalCents: 777,
+  }))).bill;
+  assert.deepEqual([
+    bill.items[0].manualFinal, bill.items[0].finalCents,
+    bill.items[0].allocatedDiscountCents, bill.items[0].allocatedTaxCents,
+    bill.items[0].allocatedExtraCents,
+  ], [true, 777, 120, 108, 24]);
+  const siblings = structuredClone(bill.items.slice(1));
+  bill = (await json(await api(`/bills/${bill.id}/items/${item.id}`, 'alice-token', 'PATCH', {
+    revision: bill.revision, ...correction, manualFinal: false,
+  }))).bill;
+  assert.deepEqual([bill.items[0].manualFinal, bill.items[0].finalCents, bill.items[0].allocatedTaxCents], [false, 1212, 108]);
+  assert.deepEqual(bill.items.slice(1), siblings);
+});
+
+test('legacy PUT persists new manual overrides without inventing historical provenance', async () => {
+  const { bill, data } = await itemBill([100, 200], 300);
+  const saved = (await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', {
+    revision: bill.revision,
+    items: [{ ...data.items[0], finalCents: 90, manualFinal: true }, data.items[1]],
+  }))).bill;
+  const reopened = (await json(await api(`/bills/${bill.id}`, 'bob-token'))).bill;
+  assert.deepEqual(reopened.items.map((item: Record<string, unknown>) => [item.finalCents, item.manualFinal, item.taxable]),
+    [[90, true, null], [200, null, null]]);
+  assert.deepEqual(reopened.items, saved.items);
+});
+
+test('legacy PUT round-trips printed price, discount, tax, signed adjustment and add/delete edits', async () => {
+  const { bill, data } = await itemBill([1000, 200, 300], 1500);
+  const corrected = { ...data.items[0], amountCents: 2000, discountCents: 100, taxCents: 75, extraCents: -25, finalCents: 1950, manualFinal: false };
+  const added = { id: crypto.randomUUID(), name: 'Added item', originalText: '', quantity: '2', amountCents: 500, discountCents: 0, taxCents: 25, extraCents: 10, finalCents: 535, manualFinal: false };
+  await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', {
+    revision: bill.revision,
+    items: [corrected, { ...data.items[1], manualFinal: null }, added],
+  }));
+  const reopened = (await json(await api(`/bills/${bill.id}`))).bill;
+  assert.equal(reopened.receipt, null);
+  assert.equal(reopened.frozenTaxRate, null);
+  assert.equal(reopened.totalCents, 1500, 'editing items does not alter the amount paid');
+  assert.deepEqual(reopened.items.map((item: Record<string, unknown>) => ({
+    id: item.id, name: item.name, originalText: item.originalText, quantity: item.quantity,
+    amountCents: item.amountCents, discountCents: item.discountCents,
+    taxCents: item.taxCents, extraCents: item.extraCents, finalCents: item.finalCents,
+    manualFinal: item.manualFinal,
+  })), [corrected, { ...data.items[1], manualFinal: null }, added]);
+  assert.deepEqual(reopened.items.map((item: Record<string, unknown>) => [item.allocatedTaxCents, item.allocatedExtraCents, item.taxable]),
+    [[75, -25, null], [0, 0, null], [25, 10, null]]);
+});
+
+test('legacy PUT preserves known override provenance when omitted and records return to calculation', async () => {
+  const { bill, data } = await itemBill([100, 200], 300);
+  let saved = (await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', {
+    revision: bill.revision, items: [{ ...data.items[0], finalCents: 90, manualFinal: true }, data.items[1]],
+  }))).bill;
+  saved = (await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', {
+    revision: saved.revision, items: [{ ...data.items[0], finalCents: 90, name: 'Renamed' }, data.items[1]],
+  }))).bill;
+  assert.equal(saved.items[0].manualFinal, true, 'older clients omitting provenance cannot erase a known override');
+  await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', {
+    revision: saved.revision, items: [{ ...data.items[0], manualFinal: false }, data.items[1]],
+  }));
+  const reopened = (await json(await api(`/bills/${bill.id}`))).bill;
+  assert.deepEqual(reopened.items.map((item: Record<string, unknown>) => [item.finalCents, item.manualFinal]), [[100, false], [200, null]]);
+});
+
+test('legacy item bills retain their amounts and PUT corrections; summarized bills reject PUT', async () => {
+  const { bill: legacy, data } = await itemBill([100, 200], 300);
+  const before = (await json(await api(`/bills/${legacy.id}`, 'bob-token'))).bill;
+  assert.equal(before.receipt, null);
+  assert.equal(before.frozenTaxRate, null);
+  assert.deepEqual(before.items.map((item: { finalCents: number }) => item.finalCents), [100, 200]);
+  assert.deepEqual(before.items.map((item: Record<string, unknown>) => [
+    item.allocatedDiscountCents, item.allocatedTaxCents, item.allocatedExtraCents,
+    item.taxable, item.manualFinal,
+  ]), [[null, 0, 0, null, null], [null, 0, 0, null, null]], 'legacy reads expose known tax and extra but not invented derivations');
+  const corrected = (await json(await api(`/bills/${legacy.id}/items`, 'alice-token', 'PUT', {
+    revision: before.revision,
+    items: data.items.map((item, index) => ({ ...item, finalCents: index === 0 ? 90 : item.finalCents })),
+  }))).bill;
+  assert.deepEqual(corrected.items.map((item: { finalCents: number }) => item.finalCents), [90, 200]);
+  assert.equal(corrected.receipt, null);
+  const { bill: summarized, items } = await summarizedItemBill();
+  await json(await api(`/bills/${summarized.id}/items`, 'alice-token', 'PUT', {
+    revision: summarized.revision,
+    items: data.items.map((item, index) => ({ ...item, id: items[index]!.id })),
+  }), 409);
+  const unchanged = (await json(await api(`/bills/${summarized.id}`))).bill;
+  assert.deepEqual(unchanged.items.map((item: { finalCents: number }) => item.finalCents), [1010, 2020, 920]);
+  assert.ok(unchanged.receipt);
 });

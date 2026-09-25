@@ -15,6 +15,7 @@ import {
   itemInput,
   revisionInput,
 } from "./receipt-input.js";
+import { correctedPrice } from "./frozen-receipt-pricing.js";
 import {
   itemDetails,
   recalculateItemBill,
@@ -135,12 +136,56 @@ export async function confirmClaims(id: string, userId: string, body: unknown) {
   });
   notifyGroupChanged(groupId);
 }
+export async function correctItem(id: string, itemId: string, userId: string, body: unknown) {
+  const input = checked(z.object({
+    revision: revisionInput,
+    name: z.string().trim().min(1).max(160),
+    quantity: z.string().max(40),
+    amountCents: z.number().int().min(0).max(1_000_000),
+    discountCents: z.number().int().min(0).max(1_000_000),
+    taxable: z.boolean(),
+    manualFinal: z.boolean(),
+    finalCents: z.number().int().min(0).max(1_000_000).optional(),
+  }).strict(), body);
+  const groupId = await db.transaction(async (tx) => {
+    const bill = await locked(tx, id, userId);
+    if (bill.initiatorId !== userId)
+      throw new BillError(403, "Only the initiator can correct items.");
+    mutable(bill, input.revision);
+    if (!bill.receipt) throw new BillError(400, "This bill has no stored receipt summary. Use the legacy item editor.");
+    const { items } = await itemDetails(tx, id);
+    const old = items.find(item => item.id === itemId);
+    if (!old) throw new BillError(404, "Item not found.");
+    if (input.manualFinal && input.finalCents === undefined)
+      throw new BillError(400, "Enter a manual final cost.");
+    const next = correctedPrice(bill, old, input);
+    if (items.reduce((sum, item) => sum + (item.id === itemId ? next.finalCents : item.finalCents), 0) > 1_000_000)
+      throw new BillError(400, "The item total cannot exceed CAD 10,000.");
+    if (old.finalCents !== next.finalCents) {
+      await tx.update(itemClaims).set({ confirmedAt: null }).where(eq(itemClaims.itemId, itemId));
+      const claimants = old.claims.map(claim => claim.userId);
+      if (claimants.length)
+        await tx.update(billShares).set({ confirmedAt: null })
+          .where(and(eq(billShares.billId, id), inArray(billShares.userId, claimants)));
+    }
+    await tx.update(billItems).set({ ...next, name: input.name, quantity: input.quantity,
+      amountCents: input.amountCents, discountCents: input.discountCents })
+      .where(eq(billItems.id, itemId));
+    await tx.update(bills).set({ revision: bill.revision + 1 }).where(eq(bills.id, id));
+    await recalculateItemBill(tx, bill);
+    return bill.groupId;
+  });
+  notifyGroupChanged(groupId);
+}
+
 export async function editItems(id: string, userId: string, body: unknown) {
   const input = checked(
     z
       .object({
         revision: revisionInput,
-        items: z.array(itemInput).min(1).max(200),
+        // No default: omitted historical provenance stays unknown, while a
+        // newly chosen override (or return to calculation) records its intent.
+        items: z.array(itemInput.extend({ manualFinal: z.boolean().nullable().optional() })).min(1).max(200),
       })
       .strict(),
     body,
@@ -154,6 +199,7 @@ export async function editItems(id: string, userId: string, body: unknown) {
     if (bill.initiatorId !== userId)
       throw new BillError(403, "Only the initiator can edit items.");
     mutable(bill, input.revision);
+    if (bill.receipt) throw new BillError(409, "Correct one item at a time with the receipt correction endpoint.");
     const { items: previous } = await itemDetails(tx, id);
     const invalidate = new Set<string>();
     for (const old of previous) {

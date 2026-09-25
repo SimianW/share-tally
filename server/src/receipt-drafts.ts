@@ -22,6 +22,7 @@ import { BillError, parseBill } from "./bills.js";
 import type { Tx } from "./item-accounting.js";
 import { notifyGroupChanged } from "./group-events.js";
 import { priceDraft } from "./receipt-pricing.js";
+import { frozenBases, roundingOffset } from "./frozen-receipt-pricing.js";
 export async function requireMember(tx: Tx, groupId: string, userId: string) {
   const [m] = await tx
     .select()
@@ -282,26 +283,27 @@ export async function initializeDraft(
     editable(draft, revision);
     const reviewed = checked(draftInput, draft.data);
     const { mode, items: _draftItems, receipt: _receipt, ...data } = reviewed;
+    const priced = mode === "items" ? priceDraft(reviewed).items : [];
+    const bases = frozenBases({ ...reviewed, items: priced });
+    const receipt = mode === "items" ? {
+      subtotalCents: reviewed.receipt?.subtotalCents ?? null,
+      discountCents: reviewed.receipt?.discountCents ?? 0,
+      taxCents: reviewed.receipt?.taxCents ?? 0,
+      extraCents: reviewed.receipt?.extraCents ?? 0,
+      pricesIncludeTax: reviewed.receipt?.pricesIncludeTax ?? false,
+      totalCents: reviewed.totalCents!,
+    } : null;
     const items =
       mode === "items"
         ? checked(
-            z.array(itemInput).min(1).max(200),
-            priceDraft(reviewed).items.map(
-              ({
-                taxable: _taxable,
-                manualFinal: _manualFinal,
-                allocatedTaxCents,
-                allocatedDiscountCents: _allocatedDiscountCents,
-                allocatedExtraCents,
-                ...item
-              }) => ({
-                ...item,
-                // Keep the legacy published-item representation until #40.
-                // A manual final can be usable when its derivation is unknown.
-                taxCents: allocatedTaxCents ?? 0,
-                extraCents: allocatedExtraCents ?? 0,
-              }),
-            ),
+            z.array(itemInput.extend({ taxCents: itemInput.shape.taxCents.nullable(), extraCents: itemInput.shape.extraCents.nullable() })).min(1).max(200),
+            priced.map((item) => ({
+              id: item.id, name: item.name, originalText: item.originalText,
+              quantity: item.quantity, amountCents: item.amountCents,
+              discountCents: item.discountCents, finalCents: item.finalCents,
+              taxCents: item.allocatedTaxCents,
+              extraCents: item.allocatedExtraCents,
+            })),
           )
         : [];
     const input = parseBill({
@@ -334,6 +336,10 @@ export async function initializeDraft(
         groupId: draft.groupId,
         initiatorId: userId,
         mode,
+        receipt,
+        frozenTaxBaseCents: bases.taxableBase,
+        frozenDiscountBaseCents: bases.discountBase,
+        frozenExtraBaseCents: bases.extraBase,
         requestPayload: JSON.stringify(draft.data),
       })
       .returning();
@@ -348,11 +354,22 @@ export async function initializeDraft(
     );
     if (mode === "items")
       await tx.insert(billItems).values(
-        items.map((item, position) => ({
-          ...item,
-          billId: bill!.id,
-          position,
-        })),
+        items.map((item, position) => {
+          const source = priced[position]!;
+          const base = item.amountCents - item.discountCents;
+          const net = source.allocatedDiscountCents === null ? null : base - source.allocatedDiscountCents!;
+          return {
+            ...item, billId: bill!.id, position,
+            taxable: source.taxable !== false,
+            manualFinal: source.manualFinal,
+            allocatedDiscountCents: source.allocatedDiscountCents,
+            frozenDiscountWeightCents: base,
+            frozenNetWeightCents: net,
+            frozenDiscountRoundingCents: roundingOffset(source.allocatedDiscountCents ?? null, receipt!.discountCents, base, bases.discountBase),
+            frozenTaxRoundingCents: roundingOffset(source.allocatedTaxCents ?? null, receipt!.pricesIncludeTax ? 0 : receipt!.taxCents, source.taxable === false ? 0 : net, bases.taxableBase),
+            frozenExtraRoundingCents: roundingOffset(source.allocatedExtraCents ?? null, receipt!.extraCents, net, bases.extraBase),
+          };
+        }),
       );
     if (
       mode === "manual" &&

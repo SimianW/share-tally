@@ -1,5 +1,6 @@
 import {
   check,
+  boolean,
   jsonb,
   date,
   integer,
@@ -111,6 +112,10 @@ export const bills = pgTable('bills', {
   purchaseDate: date('purchase_date').notNull(),
   notes: text('notes').notNull().default(''),
   totalCents: integer('total_cents').notNull(),
+  receipt: jsonb('receipt').$type<{ subtotalCents: number | null; discountCents: number; taxCents: number; extraCents: number; totalCents: number; pricesIncludeTax: boolean }>(),
+  frozenTaxBaseCents: integer('frozen_tax_base_cents'),
+  frozenDiscountBaseCents: integer('frozen_discount_base_cents'),
+  frozenExtraBaseCents: integer('frozen_extra_base_cents'),
   adjustmentCents: integer('adjustment_cents'),
   completedAt: timestamp('completed_at', { withTimezone: true }),
   canceledAt: timestamp('canceled_at', { withTimezone: true }),
@@ -181,9 +186,17 @@ export const billItems = pgTable('bill_items', {
   position: integer('position').notNull(),
   name: text('name').notNull(), originalText: text('original_text').notNull(),
   quantity: text('quantity').notNull(),
-  amountCents: integer('amount_cents').notNull(), taxCents: integer('tax_cents').notNull(),
-  discountCents: integer('discount_cents').notNull(), extraCents: integer('extra_cents').notNull(),
+  amountCents: integer('amount_cents').notNull(), taxCents: integer('tax_cents'),
+  discountCents: integer('discount_cents').notNull(), extraCents: integer('extra_cents'),
   finalCents: integer('final_cents').notNull(),
+  taxable: boolean('taxable'),
+  manualFinal: boolean('manual_final'),
+  allocatedDiscountCents: integer('allocated_discount_cents'),
+  frozenDiscountWeightCents: integer('frozen_discount_weight_cents'),
+  frozenNetWeightCents: integer('frozen_net_weight_cents'),
+  frozenTaxRoundingCents: integer('frozen_tax_rounding_cents'),
+  frozenDiscountRoundingCents: integer('frozen_discount_rounding_cents'),
+  frozenExtraRoundingCents: integer('frozen_extra_rounding_cents'),
 }, table => [index('bill_items_bill_idx').on(table.billId), check('bill_items_cost', sql`${table.finalCents} between 0 and 1000000`)]);
 
 export const itemClaims = pgTable('item_claims', {
