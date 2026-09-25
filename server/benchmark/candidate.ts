@@ -76,7 +76,9 @@ export const candidateAdapter: BenchmarkAdapter = {
         throw new RecordingError("Candidate no-items/model-call drift.");
       attempt = modelAttempt(outcome);
     }
-    const applied = applyReceiptModelResult(items, attempt);
+    // Same printed totals production passes, so the zero-tax rule is measured too.
+    const applied = applyReceiptModelResult(items, attempt, { taxCents: processed.receipt.taxCents,
+      subtotalCents: processed.receipt.subtotalCents, totalCents: processed.totalCents });
     const sourceIndices = azureItemRowIndices(input.analysis);
     // No repricing is needed: final allocations are not benchmark fields. In particular,
     // never validate saved benchmark IDs as draft UUIDs or let the model replace money.
