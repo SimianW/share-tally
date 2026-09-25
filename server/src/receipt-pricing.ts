@@ -75,3 +75,20 @@ export function priceDraft(input: ReceiptDraftData) {
     );
   return { items, warnings };
 }
+
+// A manual final cost does not need a derived tax allocation. For derived
+// costs, only a taxable item with a positive net allocation basis can receive
+// receipt tax; zero-price and fully discounted items cannot carry it.
+export function unassignedReceiptTaxMessage(data: ReceiptDraftData): string | null {
+  const receipt = data.receipt;
+  if (data.mode !== "items" || !receipt || receipt.taxCents <= 0 || receipt.pricesIncludeTax)
+    return null;
+  const items = priceDraft(data).items;
+  if (!items.some((item) => !item.manualFinal)) return null;
+  if (items.some((item) => !item.manualFinal && item.taxable !== false &&
+    item.amountCents !== null && item.allocatedDiscountCents !== null &&
+    item.amountCents - item.discountCents - item.allocatedDiscountCents > 0))
+    return null;
+  const tax = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(receipt.taxCents / 100);
+  return `Receipt tax ${tax} isn't assigned to any item. Mark the taxable items or set final costs manually.`;
+}

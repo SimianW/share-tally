@@ -125,7 +125,7 @@ async function summarizedBill(receiptParts = {}, amounts = [100, 100], taxable: 
     title: "Frozen receipt", purchaseDate: "2026-01-01", timeZone: "America/Toronto", notes: "",
     totalCents: 10000, participantIds: members.map((m: { id: string }) => m.id), mode: "items",
     receipt: { subtotalCents: amounts.reduce((a, b) => a + b, 0), discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false, ...receiptParts },
-    items: amounts.map((amountCents, i) => ({ id: crypto.randomUUID(), name: `Item ${i}`, originalText: "", quantity: "1", amountCents, discountCents: 0, taxable: Array.isArray(taxable) ? taxable[i] : taxable, manualFinal, finalCents: 0 })),
+    items: amounts.map((amountCents, i) => ({ id: crypto.randomUUID(), name: `Item ${i}`, originalText: "", quantity: "1", amountCents, discountCents: 0, taxable: Array.isArray(taxable) ? taxable[i] : taxable, manualFinal, finalCents: manualFinal ? amountCents : 0 })),
   };
   const draft = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, "alice-token", "PUT", { revision: 0, data }))).draft;
   return (await json(await api(`/receipt-drafts/${id}/initialize`, "alice-token", "POST", { revision: draft.revision }))).bill;
@@ -149,7 +149,9 @@ test("changed weights drop tie-breaking offsets and restoring frozen weights res
 
 
 test("manual final preserves an independently available adjustment when newly taxable cost has no frozen tax base", async () => {
-  const bill = await summarizedBill({ taxCents: 100, extraCents: 100 }, [1000], false);
+  // A manual final permits initiation with zero taxable frozen base; the
+  // correction still exercises an unavailable tax share and available extra.
+  const bill = await summarizedBill({ taxCents: 100, extraCents: 100 }, [1000], false, true);
   const item = bill.items[0];
   assert.deepEqual([item.allocatedTaxCents, item.allocatedExtraCents], [0, 100]);
   const input = { name: item.name, quantity: "1", amountCents: 2000, discountCents: 0, taxable: true, manualFinal: true, finalCents: 2300 };

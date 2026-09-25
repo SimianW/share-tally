@@ -559,7 +559,7 @@ try {
   await expect(alice.getByText(/Receipt tax \$0\.30 isn't assigned to any item/)).toBeVisible();
   await expect(alice.getByRole("button", { name: "Continue to sharing" })).toBeEnabled();
   await alice.getByRole("button", { name: "Continue to sharing" }).click();
-  await expect(alice.getByRole("button", { name: "Initiate bill", exact: true })).toBeEnabled();
+  await expect(alice.getByRole("button", { name: "Initiate bill", exact: true })).toBeDisabled();
   await stepButton("Items").click();
   await applesRow().click();
   await alice.getByRole("checkbox", { name: "Taxable", exact: true }).check();
@@ -830,6 +830,41 @@ try {
     assert.equal(persisted.items[0].name, "Reviewed apples");
     assert.equal(persisted.receipt.taxCents, 600);
     assert.equal(persisted.totalCents, 3150);
+  }
+  // Unassigned receipt tax blocks initiation at desktop and mobile widths.
+  for (const viewport of [{ width: 1280, height: 1000 }, { width: 390, height: 844 }]) {
+    const draftId = randomUUID();
+    const item = (name, amountCents) => ({
+      id: randomUUID(), name, originalText: `${name.toUpperCase()} RECEIPT LINE`,
+      quantity: "1", amountCents, discountCents: 0, taxable: false,
+      finalCents: amountCents, manualFinal: false,
+    });
+    await api(`/groups/${group.id}/receipt-drafts/${draftId}`, "alice-token", "PUT", {
+      revision: 0,
+      data: {
+        mode: "items", title: `Unassigned tax ${viewport.width}`, purchaseDate: "2026-09-24",
+        timeZone: "America/Toronto", notes: "", totalCents: 3300, ownShareCents: 0,
+        participantIds: [],
+        receipt: { subtotalCents: 3000, discountCents: 0, taxCents: 300, extraCents: 0, pricesIncludeTax: false },
+        items: [item("Apples", 1000), item("Milk", 2000)],
+      },
+    });
+    await alice.setViewportSize(viewport);
+    await alice.goto(`${newBillRoute}/${draftId}`);
+    const row = name => alice.getByRole("button", { name: `Edit ${name}`, exact: true, includeHidden: true });
+    await stepButton("People").click();
+    await alice.getByRole("button", { name: "Select everyone", exact: true }).click();
+    await expect(alice.getByText(/Receipt tax \$3\.00 isn't assigned to any item/)).toBeVisible();
+    await expect(alice.getByRole("button", { name: "Initiate bill", exact: true })).toBeDisabled();
+    await stepButton("Items").click();
+    await row("Apples").click();
+    await alice.getByRole("checkbox", { name: "Taxable", exact: true }).check();
+    await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+    await stepButton("People").click();
+    await expect(alice.getByText(/Receipt tax \$3\.00 isn't assigned to any item/)).toHaveCount(0);
+    await expect(alice.getByRole("button", { name: "Initiate bill", exact: true })).toBeEnabled();
+    await alice.getByRole("button", { name: "Initiate bill", exact: true }).click();
+    await expect(alice.getByRole("heading", { name: "Items & claims" })).toBeVisible();
   }
   // Legacy initiated bills keep editable per-item components and add/delete controls.
   // Only fixture setup uses SQL: these bills predate stored receipt summaries.
