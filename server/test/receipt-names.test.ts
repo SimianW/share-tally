@@ -32,7 +32,7 @@ test("model request sends structured receipt evidence without images and only as
     assert.ok(init?.signal);
     const body = JSON.parse(String(init?.body));
     assert.equal(body.model, "model-from-env");
-    assert.deepEqual(body.reasoning, { effort: "medium" });
+    assert.deepEqual(body.reasoning, { effort: "low" });
     assert.equal(body.store, false);
     assert.equal(body.text.format.type, "json_schema");
     assert.deepEqual(body.text.format.schema.properties.items.items.required, ["id", "name", "taxable"]);

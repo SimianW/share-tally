@@ -87,13 +87,17 @@ export function receiptNameConfig(
   return { baseURL, apiKey, model };
 }
 
+// One deadline for the model request and the processing lock. The #50 benchmark measured
+// 20+ item receipts taking 15-24 s at medium reasoning, so 20 s timed out most large receipts.
+export const RECEIPT_MODEL_TIMEOUT_MS = 40_000;
+
 // The caller supplies saved draft IDs so an answer can be correlated with one
 // persisted row without relying on the position of the returned item.
 export async function interpretReceiptNames(
   evidence: ReceiptModelEvidence,
   config = receiptNameConfig(),
   request: typeof fetch = fetch,
-  signal: AbortSignal = AbortSignal.timeout(20000),
+  signal: AbortSignal = AbortSignal.timeout(RECEIPT_MODEL_TIMEOUT_MS),
 ): Promise<unknown> {
   if (
     evidence.items.length > 200 ||
@@ -123,7 +127,7 @@ export async function interpretReceiptNames(
         },
       },
       max_output_tokens: 8192,
-      reasoning: { effort: "medium" },
+      reasoning: { effort: "low" },
       store: false,
     }),
   });
