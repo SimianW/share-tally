@@ -1,0 +1,89 @@
+import { z } from "zod";
+import type { AnalyzeResult } from "../src/azure-receipt.js";
+import { mapAzureAnalysis } from "./frozen-baseline/azure-receipt.js";
+import { processReceipt } from "./frozen-baseline/receipt-processing.js";
+import { interpretReceiptNames } from "./frozen-baseline/receipt-names.js";
+import { PIPELINE_FIELDS, scanFailedPrediction, type BenchmarkAdapter } from "./adapter.js";
+import type { BenchmarkPrediction } from "./scorer.js";
+import { noModelInput, RecordingError } from "./recordings.js";
+
+export const BASELINE_COMMIT = "16509935cb34d505ee8d48c5616c2a22ff908e2f";
+export const BASELINE_MODEL_VERSION = "receipt-names-responses-v1";
+const configSchema = z.object({ baseURL: z.string().url(), model: z.string().min(1) }).strict();
+const cents = (amount: number | undefined) => amount === undefined ? null : Math.round(amount * 100);
+/** Frozen #48 mapping, or null where #48 answered with a 502 (see scanFailedPrediction). */
+export function frozenScan(analysis: AnalyzeResult): ReturnType<typeof mapAzureAnalysis> | null {
+  try { return mapAzureAnalysis(analysis); } catch { return null; }
+}
+export const scanFailedInput = (config: Record<string, unknown>) => noModelInput({ config }, "scan-failed");
+/** Runs frozen #48 production mapping, interpretation parser, defaults and pricing; never calls a provider. */
+export const baselineAdapter: BenchmarkAdapter = {
+  id: "baseline", requiresModel: true,
+  async run(input): Promise<BenchmarkPrediction> {
+    const scanned = frozenScan(input.analysis);
+    const modelConfig = input.recording ? configSchema.parse(input.recording.config) : null;
+    if (input.recording && input.recording.version !== BASELINE_MODEL_VERSION) throw new RecordingError("Baseline model version drift.");
+    if (!scanned) {
+      // Without a recording this is an Azure-only diagnostic, like the fallback below: scored, but incomplete.
+      if (input.recording) {
+        const outcome = input.replay(scanFailedInput(modelConfig!), { version: BASELINE_MODEL_VERSION, config: modelConfig! });
+        if (outcome.kind !== "skipped" || outcome.reason !== "scan-failed") throw new RecordingError("Baseline scan-failure drift.");
+      }
+      return scanFailedPrediction(!!input.recording);
+    }
+    if (input.recording?.outcome.kind === "skipped" && scanned.items.length)
+      throw new RecordingError("Baseline no-items/model-call drift.");
+    let replayFailure: unknown;
+    const processed = await processReceipt(scanned, async (items, _config, _request, context) => {
+      if (!input.recording) throw new Error("Model response not recorded; Azure-only diagnostic fallback.");
+      const config = modelConfig!;
+      if (!items.length) {
+        try {
+          const outcome = input.replay(noModelInput({ config, items, context }), { version: BASELINE_MODEL_VERSION, config });
+          if (outcome.kind !== "skipped") throw new RecordingError("Baseline no-items/model-call drift.");
+          return [];
+        } catch (error) { replayFailure = error; throw error; }
+      }
+      return interpretReceiptNames(items, { ...config, apiKey: "offline-not-a-secret" }, async (_url, init) => {
+        let outcome;
+        try {
+          outcome = input.replay(JSON.parse(String(init?.body)), { version: BASELINE_MODEL_VERSION, config });
+        } catch (error) { replayFailure = error; throw error; }
+        if (outcome.kind === "skipped") throw new RecordingError("Unexpected skipped baseline model call.");
+        if (outcome.kind === "timeout") throw new Error("Recorded model timeout.");
+        if (outcome.kind === "error") throw new Error(outcome.message ?? "Recorded model error.");
+        return new Response(JSON.stringify(outcome.value), { status: 200, headers: { "content-type": "application/json" } });
+      }, context);
+    });
+    // Production deliberately falls back on interpretation failures. Input drift is instead
+    // an invalid benchmark recording and must not disappear inside that fallback catch.
+    if (replayFailure) throw replayFailure;
+    if (input.recording && input.recording.version !== BASELINE_MODEL_VERSION) throw new RecordingError("Baseline model version drift.");
+    return {
+      supportedFields: [...PIPELINE_FIELDS, ...(input.recording ? ["taxability" as const] : [])],
+      merchant: scanned.merchant, currency: scanned.currency,
+      items: processed.items.map((item, index) => ({
+        sourceIndex: index, // Frozen #48 never filters or reorders Azure item rows.
+        description: item.originalText,
+        productCode: item.evidence?.productCode ?? null,
+        quantity: item.quantity,
+        unit: item.evidence?.quantityUnit ?? null,
+        unitPrice: cents(item.evidence?.unitPrice),
+        linePrice: item.amountCents, // Printed amount, NOT allocated finalCents.
+        ownDiscount: item.discountCents,
+        taxable: item.taxable,
+      })),
+      receiptDiscounts: processed.receipt.discountCents === 0 ? [] : [{ label: null, amount: processed.receipt.discountCents }],
+      charges: processed.receipt.extraCents === 0 ? [] : [{ label: null, amount: processed.receipt.extraCents }],
+      subtotal: processed.summary.subtotalCents,
+      taxLines: scanned.evidence?.taxDetails?.map((detail) => ({
+        label: detail.description ?? null, amount: cents(detail.amount),
+        rate: detail.rate === undefined ? null : String(detail.rate),
+      })) ?? null,
+      taxTotal: processed.summary.taxCents,
+      taxMode: processed.summary.pricesIncludeTax ? "inclusive" : "exclusive",
+      total: processed.totalCents,
+    };
+  },
+};
+export default baselineAdapter;

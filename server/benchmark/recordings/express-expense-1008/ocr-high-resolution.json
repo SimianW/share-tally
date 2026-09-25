@@ -1,0 +1,2103 @@
+{
+  "schemaVersion": 1,
+  "imageSha256": "44bd75fd1760a54aab9f7ec9475d6c6f129f627b5a04747dc550683851ce2733",
+  "request": {
+    "apiVersion": "2024-11-30",
+    "modelId": "prebuilt-receipt",
+    "options": {
+      "features": [
+        "ocrHighResolution"
+      ]
+    }
+  },
+  "analyzeResult": {
+    "apiVersion": "2024-11-30",
+    "modelId": "prebuilt-receipt",
+    "stringIndexType": "textElements",
+    "content": "Dona Mercedes Restaurant\n1030 1/2 San Fernando Rd\nSan Fernando CA 91341\nCENTER L\n1 CHicharon\n$2.25\n3 Pupusa Queso\n$6.75\n1 Platanos Orden\n$7.75\n1 Diet coke\n$1.50\n2 Quesadilla salvadorena\n$4.00\nSUBTOTAL: $22.25\nTAX: $2.22\nTOTAL: $24.47\nTIP SUGGESTIONS\n18%: $4.40\n20%: $4.89\n25%: $6.12\nThank You!",
+    "pages": [
+      {
+        "pageNumber": 1,
+        "angle": 0.8487920165061951,
+        "width": 750,
+        "height": 1000,
+        "unit": "pixel",
+        "words": [
+          {
+            "content": "Dona",
+            "polygon": [
+              190,
+              71,
+              251,
+              71,
+              251,
+              87,
+              190,
+              86
+            ],
+            "confidence": 0.989,
+            "span": {
+              "offset": 0,
+              "length": 4
+            }
+          },
+          {
+            "content": "Mercedes",
+            "polygon": [
+              259,
+              71,
+              375,
+              72,
+              375,
+              88,
+              259,
+              87
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 5,
+              "length": 8
+            }
+          },
+          {
+            "content": "Restaurant",
+            "polygon": [
+              382,
+              72,
+              511,
+              73,
+              511,
+              89,
+              382,
+              88
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 14,
+              "length": 10
+            }
+          },
+          {
+            "content": "1030",
+            "polygon": [
+              199,
+              89,
+              258,
+              90,
+              258,
+              108,
+              199,
+              107
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 25,
+              "length": 4
+            }
+          },
+          {
+            "content": "1/2",
+            "polygon": [
+              267,
+              90,
+              300,
+              90,
+              300,
+              108,
+              266,
+              108
+            ],
+            "confidence": 0.993,
+            "span": {
+              "offset": 30,
+              "length": 3
+            }
+          },
+          {
+            "content": "San",
+            "polygon": [
+              308,
+              90,
+              350,
+              91,
+              350,
+              109,
+              308,
+              108
+            ],
+            "confidence": 0.998,
+            "span": {
+              "offset": 34,
+              "length": 3
+            }
+          },
+          {
+            "content": "Fernando",
+            "polygon": [
+              357,
+              91,
+              463,
+              92,
+              463,
+              110,
+              357,
+              109
+            ],
+            "confidence": 0.994,
+            "span": {
+              "offset": 38,
+              "length": 8
+            }
+          },
+          {
+            "content": "Rd",
+            "polygon": [
+              471,
+              92,
+              502,
+              92,
+              502,
+              110,
+              471,
+              110
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 47,
+              "length": 2
+            }
+          },
+          {
+            "content": "San",
+            "polygon": [
+              208,
+              110,
+              252,
+              111,
+              252,
+              130,
+              208,
+              129
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 50,
+              "length": 3
+            }
+          },
+          {
+            "content": "Fernando",
+            "polygon": [
+              260,
+              111,
+              368,
+              112,
+              368,
+              131,
+              260,
+              130
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 54,
+              "length": 8
+            }
+          },
+          {
+            "content": "CA",
+            "polygon": [
+              375,
+              112,
+              410,
+              113,
+              410,
+              132,
+              375,
+              132
+            ],
+            "confidence": 0.997,
+            "span": {
+              "offset": 63,
+              "length": 2
+            }
+          },
+          {
+            "content": "91341",
+            "polygon": [
+              417,
+              113,
+              490,
+              114,
+              490,
+              133,
+              416,
+              132
+            ],
+            "confidence": 0.997,
+            "span": {
+              "offset": 66,
+              "length": 5
+            }
+          },
+          {
+            "content": "CENTER",
+            "polygon": [
+              285,
+              190,
+              388,
+              191,
+              388,
+              213,
+              285,
+              212
+            ],
+            "confidence": 0.997,
+            "span": {
+              "offset": 72,
+              "length": 6
+            }
+          },
+          {
+            "content": "L",
+            "polygon": [
+              397,
+              191,
+              411,
+              192,
+              411,
+              213,
+              396,
+              213
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 79,
+              "length": 1
+            }
+          },
+          {
+            "content": "1",
+            "polygon": [
+              120,
+              275,
+              129,
+              276,
+              129,
+              301,
+              120,
+              300
+            ],
+            "confidence": 0.977,
+            "span": {
+              "offset": 81,
+              "length": 1
+            }
+          },
+          {
+            "content": "CHicharon",
+            "polygon": [
+              140,
+              276,
+              270,
+              279,
+              270,
+              303,
+              139,
+              301
+            ],
+            "confidence": 0.994,
+            "span": {
+              "offset": 83,
+              "length": 9
+            }
+          },
+          {
+            "content": "$2.25",
+            "polygon": [
+              499,
+              283,
+              572,
+              284,
+              572,
+              308,
+              499,
+              307
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 93,
+              "length": 5
+            }
+          },
+          {
+            "content": "3",
+            "polygon": [
+              119,
+              309,
+              135,
+              310,
+              135,
+              338,
+              119,
+              337
+            ],
+            "confidence": 0.996,
+            "span": {
+              "offset": 99,
+              "length": 1
+            }
+          },
+          {
+            "content": "Pupusa",
+            "polygon": [
+              144,
+              310,
+              232,
+              312,
+              232,
+              339,
+              144,
+              338
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 101,
+              "length": 6
+            }
+          },
+          {
+            "content": "Queso",
+            "polygon": [
+              247,
+              312,
+              327,
+              313,
+              327,
+              340,
+              247,
+              339
+            ],
+            "confidence": 0.998,
+            "span": {
+              "offset": 108,
+              "length": 5
+            }
+          },
+          {
+            "content": "$6.75",
+            "polygon": [
+              499,
+              316,
+              572,
+              317,
+              572,
+              342,
+              499,
+              342
+            ],
+            "confidence": 0.996,
+            "span": {
+              "offset": 114,
+              "length": 5
+            }
+          },
+          {
+            "content": "1",
+            "polygon": [
+              120,
+              344,
+              130,
+              345,
+              130,
+              370,
+              120,
+              369
+            ],
+            "confidence": 0.977,
+            "span": {
+              "offset": 120,
+              "length": 1
+            }
+          },
+          {
+            "content": "Platanos",
+            "polygon": [
+              139,
+              345,
+              242,
+              346,
+              242,
+              371,
+              139,
+              370
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 122,
+              "length": 8
+            }
+          },
+          {
+            "content": "Orden",
+            "polygon": [
+              250,
+              347,
+              325,
+              348,
+              325,
+              373,
+              250,
+              372
+            ],
+            "confidence": 0.997,
+            "span": {
+              "offset": 131,
+              "length": 5
+            }
+          },
+          {
+            "content": "$7.75",
+            "polygon": [
+              503,
+              350,
+              571,
+              351,
+              571,
+              375,
+              503,
+              375
+            ],
+            "confidence": 0.996,
+            "span": {
+              "offset": 137,
+              "length": 5
+            }
+          },
+          {
+            "content": "1",
+            "polygon": [
+              121,
+              378,
+              131,
+              379,
+              131,
+              402,
+              121,
+              402
+            ],
+            "confidence": 0.989,
+            "span": {
+              "offset": 143,
+              "length": 1
+            }
+          },
+          {
+            "content": "Diet",
+            "polygon": [
+              140,
+              379,
+              188,
+              379,
+              188,
+              403,
+              140,
+              402
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 145,
+              "length": 4
+            }
+          },
+          {
+            "content": "coke",
+            "polygon": [
+              195,
+              379,
+              253,
+              380,
+              253,
+              404,
+              195,
+              403
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 150,
+              "length": 4
+            }
+          },
+          {
+            "content": "$1.50",
+            "polygon": [
+              499,
+              383,
+              569,
+              384,
+              569,
+              408,
+              499,
+              408
+            ],
+            "confidence": 0.994,
+            "span": {
+              "offset": 155,
+              "length": 5
+            }
+          },
+          {
+            "content": "2",
+            "polygon": [
+              122,
+              410,
+              137,
+              411,
+              137,
+              436,
+              121,
+              436
+            ],
+            "confidence": 0.996,
+            "span": {
+              "offset": 161,
+              "length": 1
+            }
+          },
+          {
+            "content": "Quesadilla",
+            "polygon": [
+              145,
+              411,
+              269,
+              413,
+              269,
+              438,
+              145,
+              436
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 163,
+              "length": 10
+            }
+          },
+          {
+            "content": "salvadorena",
+            "polygon": [
+              277,
+              413,
+              421,
+              416,
+              421,
+              440,
+              277,
+              439
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 174,
+              "length": 11
+            }
+          },
+          {
+            "content": "$4.00",
+            "polygon": [
+              492,
+              415,
+              568,
+              416,
+              568,
+              441,
+              492,
+              441
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 186,
+              "length": 5
+            }
+          },
+          {
+            "content": "SUBTOTAL:",
+            "polygon": [
+              329,
+              510,
+              467,
+              512,
+              467,
+              537,
+              329,
+              535
+            ],
+            "confidence": 0.993,
+            "span": {
+              "offset": 192,
+              "length": 9
+            }
+          },
+          {
+            "content": "$22.25",
+            "polygon": [
+              477,
+              512,
+              563,
+              514,
+              563,
+              538,
+              476,
+              537
+            ],
+            "confidence": 0.998,
+            "span": {
+              "offset": 202,
+              "length": 6
+            }
+          },
+          {
+            "content": "TAX:",
+            "polygon": [
+              429,
+              544,
+              483,
+              545,
+              483,
+              568,
+              429,
+              567
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 209,
+              "length": 4
+            }
+          },
+          {
+            "content": "$2.22",
+            "polygon": [
+              492,
+              545,
+              562,
+              546,
+              562,
+              569,
+              492,
+              568
+            ],
+            "confidence": 0.994,
+            "span": {
+              "offset": 214,
+              "length": 5
+            }
+          },
+          {
+            "content": "TOTAL:",
+            "polygon": [
+              373,
+              600,
+              461,
+              601,
+              461,
+              626,
+              372,
+              624
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 220,
+              "length": 6
+            }
+          },
+          {
+            "content": "$24.47",
+            "polygon": [
+              470,
+              602,
+              559,
+              603,
+              559,
+              627,
+              470,
+              626
+            ],
+            "confidence": 0.994,
+            "span": {
+              "offset": 227,
+              "length": 6
+            }
+          },
+          {
+            "content": "TIP",
+            "polygon": [
+              227,
+              694,
+              265,
+              694,
+              265,
+              720,
+              227,
+              719
+            ],
+            "confidence": 0.994,
+            "span": {
+              "offset": 234,
+              "length": 3
+            }
+          },
+          {
+            "content": "SUGGESTIONS",
+            "polygon": [
+              273,
+              695,
+              456,
+              698,
+              456,
+              723,
+              272,
+              720
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 238,
+              "length": 11
+            }
+          },
+          {
+            "content": "18%:",
+            "polygon": [
+              272,
+              728,
+              328,
+              729,
+              328,
+              754,
+              272,
+              753
+            ],
+            "confidence": 0.977,
+            "span": {
+              "offset": 250,
+              "length": 4
+            }
+          },
+          {
+            "content": "$4.40",
+            "polygon": [
+              337,
+              729,
+              410,
+              731,
+              410,
+              756,
+              337,
+              754
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 255,
+              "length": 5
+            }
+          },
+          {
+            "content": "20%:",
+            "polygon": [
+              268,
+              762,
+              329,
+              762,
+              329,
+              788,
+              268,
+              787
+            ],
+            "confidence": 0.977,
+            "span": {
+              "offset": 261,
+              "length": 4
+            }
+          },
+          {
+            "content": "$4.89",
+            "polygon": [
+              338,
+              763,
+              411,
+              764,
+              411,
+              789,
+              338,
+              788
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 266,
+              "length": 5
+            }
+          },
+          {
+            "content": "25%:",
+            "polygon": [
+              271,
+              795,
+              331,
+              796,
+              331,
+              822,
+              271,
+              821
+            ],
+            "confidence": 0.977,
+            "span": {
+              "offset": 272,
+              "length": 4
+            }
+          },
+          {
+            "content": "$6.12",
+            "polygon": [
+              341,
+              796,
+              407,
+              797,
+              407,
+              823,
+              341,
+              822
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 277,
+              "length": 5
+            }
+          },
+          {
+            "content": "Thank",
+            "polygon": [
+              269,
+              900,
+              344,
+              901,
+              344,
+              926,
+              269,
+              925
+            ],
+            "confidence": 0.996,
+            "span": {
+              "offset": 283,
+              "length": 5
+            }
+          },
+          {
+            "content": "You!",
+            "polygon": [
+              352,
+              901,
+              404,
+              901,
+              404,
+              927,
+              352,
+              926
+            ],
+            "confidence": 0.994,
+            "span": {
+              "offset": 289,
+              "length": 4
+            }
+          }
+        ],
+        "lines": [
+          {
+            "content": "Dona Mercedes Restaurant",
+            "polygon": [
+              190,
+              71,
+              511,
+              73,
+              510,
+              89,
+              190,
+              86
+            ],
+            "spans": [
+              {
+                "offset": 0,
+                "length": 24
+              }
+            ]
+          },
+          {
+            "content": "1030 1/2 San Fernando Rd",
+            "polygon": [
+              199,
+              89,
+              501,
+              92,
+              501,
+              110,
+              199,
+              107
+            ],
+            "spans": [
+              {
+                "offset": 25,
+                "length": 24
+              }
+            ]
+          },
+          {
+            "content": "San Fernando CA 91341",
+            "polygon": [
+              208,
+              110,
+              489,
+              114,
+              489,
+              133,
+              208,
+              129
+            ],
+            "spans": [
+              {
+                "offset": 50,
+                "length": 21
+              }
+            ]
+          },
+          {
+            "content": "CENTER L",
+            "polygon": [
+              285,
+              190,
+              410,
+              191,
+              410,
+              213,
+              285,
+              212
+            ],
+            "spans": [
+              {
+                "offset": 72,
+                "length": 8
+              }
+            ]
+          },
+          {
+            "content": "1 CHicharon",
+            "polygon": [
+              120,
+              275,
+              269,
+              279,
+              269,
+              303,
+              119,
+              300
+            ],
+            "spans": [
+              {
+                "offset": 81,
+                "length": 11
+              }
+            ]
+          },
+          {
+            "content": "$2.25",
+            "polygon": [
+              499,
+              283,
+              572,
+              284,
+              572,
+              307,
+              498,
+              307
+            ],
+            "spans": [
+              {
+                "offset": 93,
+                "length": 5
+              }
+            ]
+          },
+          {
+            "content": "3 Pupusa Queso",
+            "polygon": [
+              119,
+              309,
+              327,
+              313,
+              326,
+              340,
+              119,
+              337
+            ],
+            "spans": [
+              {
+                "offset": 99,
+                "length": 14
+              }
+            ]
+          },
+          {
+            "content": "$6.75",
+            "polygon": [
+              499,
+              316,
+              572,
+              316,
+              572,
+              341,
+              499,
+              341
+            ],
+            "spans": [
+              {
+                "offset": 114,
+                "length": 5
+              }
+            ]
+          },
+          {
+            "content": "1 Platanos Orden",
+            "polygon": [
+              120,
+              344,
+              325,
+              348,
+              325,
+              372,
+              120,
+              369
+            ],
+            "spans": [
+              {
+                "offset": 120,
+                "length": 16
+              }
+            ]
+          },
+          {
+            "content": "$7.75",
+            "polygon": [
+              503,
+              350,
+              570,
+              350,
+              570,
+              375,
+              503,
+              374
+            ],
+            "spans": [
+              {
+                "offset": 137,
+                "length": 5
+              }
+            ]
+          },
+          {
+            "content": "1 Diet coke",
+            "polygon": [
+              121,
+              378,
+              253,
+              380,
+              252,
+              404,
+              121,
+              402
+            ],
+            "spans": [
+              {
+                "offset": 143,
+                "length": 11
+              }
+            ]
+          },
+          {
+            "content": "$1.50",
+            "polygon": [
+              499,
+              383,
+              569,
+              383,
+              569,
+              408,
+              499,
+              408
+            ],
+            "spans": [
+              {
+                "offset": 155,
+                "length": 5
+              }
+            ]
+          },
+          {
+            "content": "2 Quesadilla salvadorena",
+            "polygon": [
+              122,
+              410,
+              421,
+              415,
+              420,
+              440,
+              121,
+              436
+            ],
+            "spans": [
+              {
+                "offset": 161,
+                "length": 24
+              }
+            ]
+          },
+          {
+            "content": "$4.00",
+            "polygon": [
+              492,
+              415,
+              567,
+              416,
+              567,
+              441,
+              492,
+              440
+            ],
+            "spans": [
+              {
+                "offset": 186,
+                "length": 5
+              }
+            ]
+          },
+          {
+            "content": "SUBTOTAL: $22.25",
+            "polygon": [
+              329,
+              510,
+              563,
+              513,
+              563,
+              538,
+              329,
+              535
+            ],
+            "spans": [
+              {
+                "offset": 192,
+                "length": 16
+              }
+            ]
+          },
+          {
+            "content": "TAX: $2.22",
+            "polygon": [
+              429,
+              544,
+              561,
+              546,
+              561,
+              569,
+              429,
+              567
+            ],
+            "spans": [
+              {
+                "offset": 209,
+                "length": 10
+              }
+            ]
+          },
+          {
+            "content": "TOTAL: $24.47",
+            "polygon": [
+              373,
+              600,
+              559,
+              603,
+              558,
+              627,
+              372,
+              624
+            ],
+            "spans": [
+              {
+                "offset": 220,
+                "length": 13
+              }
+            ]
+          },
+          {
+            "content": "TIP SUGGESTIONS",
+            "polygon": [
+              227,
+              694,
+              456,
+              698,
+              456,
+              723,
+              226,
+              719
+            ],
+            "spans": [
+              {
+                "offset": 234,
+                "length": 15
+              }
+            ]
+          },
+          {
+            "content": "18%: $4.40",
+            "polygon": [
+              272,
+              728,
+              410,
+              730,
+              409,
+              755,
+              271,
+              753
+            ],
+            "spans": [
+              {
+                "offset": 250,
+                "length": 10
+              }
+            ]
+          },
+          {
+            "content": "20%: $4.89",
+            "polygon": [
+              268,
+              761,
+              411,
+              764,
+              411,
+              789,
+              268,
+              787
+            ],
+            "spans": [
+              {
+                "offset": 261,
+                "length": 10
+              }
+            ]
+          },
+          {
+            "content": "25%: $6.12",
+            "polygon": [
+              271,
+              795,
+              407,
+              797,
+              407,
+              823,
+              270,
+              821
+            ],
+            "spans": [
+              {
+                "offset": 272,
+                "length": 10
+              }
+            ]
+          },
+          {
+            "content": "Thank You!",
+            "polygon": [
+              269,
+              900,
+              404,
+              901,
+              403,
+              927,
+              268,
+              925
+            ],
+            "spans": [
+              {
+                "offset": 283,
+                "length": 10
+              }
+            ]
+          }
+        ],
+        "spans": [
+          {
+            "offset": 0,
+            "length": 293
+          }
+        ]
+      }
+    ],
+    "styles": [],
+    "documents": [
+      {
+        "docType": "receipt.retailMeal",
+        "boundingRegions": [
+          {
+            "pageNumber": 1,
+            "polygon": [
+              0,
+              0,
+              750,
+              0,
+              750,
+              1000,
+              0,
+              1000
+            ]
+          }
+        ],
+        "fields": {
+          "CountryRegion": {
+            "type": "countryRegion",
+            "valueCountryRegion": "USA",
+            "confidence": 0.995
+          },
+          "Items": {
+            "type": "array",
+            "valueArray": [
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "CHicharon",
+                    "content": "CHicharon",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          140,
+                          276,
+                          270,
+                          279,
+                          270,
+                          303,
+                          139,
+                          301
+                        ]
+                      }
+                    ],
+                    "confidence": 0.986,
+                    "spans": [
+                      {
+                        "offset": 83,
+                        "length": 9
+                      }
+                    ]
+                  },
+                  "Quantity": {
+                    "type": "number",
+                    "valueNumber": 1,
+                    "content": "1",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          120,
+                          275,
+                          129,
+                          276,
+                          129,
+                          301,
+                          120,
+                          300
+                        ]
+                      }
+                    ],
+                    "confidence": 0.988,
+                    "spans": [
+                      {
+                        "offset": 81,
+                        "length": 1
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "currencySymbol": "$",
+                      "amount": 2.25,
+                      "currencyCode": "USD"
+                    },
+                    "content": "$2.25",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          499,
+                          283,
+                          572,
+                          284,
+                          572,
+                          308,
+                          499,
+                          307
+                        ]
+                      }
+                    ],
+                    "confidence": 0.989,
+                    "spans": [
+                      {
+                        "offset": 93,
+                        "length": 5
+                      }
+                    ]
+                  }
+                },
+                "content": "1 CHicharon\n$2.25",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      120,
+                      275,
+                      572,
+                      284,
+                      572,
+                      309,
+                      120,
+                      301
+                    ]
+                  }
+                ],
+                "confidence": 0.985,
+                "spans": [
+                  {
+                    "offset": 81,
+                    "length": 17
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "Pupusa Queso",
+                    "content": "Pupusa Queso",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          144,
+                          310,
+                          327,
+                          313,
+                          327,
+                          341,
+                          144,
+                          338
+                        ]
+                      }
+                    ],
+                    "confidence": 0.985,
+                    "spans": [
+                      {
+                        "offset": 101,
+                        "length": 12
+                      }
+                    ]
+                  },
+                  "Quantity": {
+                    "type": "number",
+                    "valueNumber": 3,
+                    "content": "3",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          119,
+                          309,
+                          135,
+                          310,
+                          135,
+                          338,
+                          119,
+                          337
+                        ]
+                      }
+                    ],
+                    "confidence": 0.988,
+                    "spans": [
+                      {
+                        "offset": 99,
+                        "length": 1
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "currencySymbol": "$",
+                      "amount": 6.75,
+                      "currencyCode": "USD"
+                    },
+                    "content": "$6.75",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          499,
+                          316,
+                          572,
+                          317,
+                          572,
+                          342,
+                          499,
+                          342
+                        ]
+                      }
+                    ],
+                    "confidence": 0.989,
+                    "spans": [
+                      {
+                        "offset": 114,
+                        "length": 5
+                      }
+                    ]
+                  }
+                },
+                "content": "3 Pupusa Queso\n$6.75",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      119,
+                      309,
+                      572,
+                      317,
+                      572,
+                      345,
+                      119,
+                      338
+                    ]
+                  }
+                ],
+                "confidence": 0.984,
+                "spans": [
+                  {
+                    "offset": 99,
+                    "length": 20
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "Platanos Orden",
+                    "content": "Platanos Orden",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          139,
+                          345,
+                          325,
+                          347,
+                          325,
+                          373,
+                          139,
+                          371
+                        ]
+                      }
+                    ],
+                    "confidence": 0.985,
+                    "spans": [
+                      {
+                        "offset": 122,
+                        "length": 14
+                      }
+                    ]
+                  },
+                  "Quantity": {
+                    "type": "number",
+                    "valueNumber": 1,
+                    "content": "1",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          120,
+                          344,
+                          130,
+                          345,
+                          130,
+                          370,
+                          120,
+                          369
+                        ]
+                      }
+                    ],
+                    "confidence": 0.988,
+                    "spans": [
+                      {
+                        "offset": 120,
+                        "length": 1
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "currencySymbol": "$",
+                      "amount": 7.75,
+                      "currencyCode": "USD"
+                    },
+                    "content": "$7.75",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          503,
+                          350,
+                          571,
+                          351,
+                          571,
+                          375,
+                          503,
+                          375
+                        ]
+                      }
+                    ],
+                    "confidence": 0.989,
+                    "spans": [
+                      {
+                        "offset": 137,
+                        "length": 5
+                      }
+                    ]
+                  }
+                },
+                "content": "1 Platanos Orden\n$7.75",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      120,
+                      344,
+                      571,
+                      350,
+                      571,
+                      376,
+                      120,
+                      370
+                    ]
+                  }
+                ],
+                "confidence": 0.984,
+                "spans": [
+                  {
+                    "offset": 120,
+                    "length": 22
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "Diet coke",
+                    "content": "Diet coke",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          140,
+                          378,
+                          253,
+                          380,
+                          253,
+                          404,
+                          140,
+                          402
+                        ]
+                      }
+                    ],
+                    "confidence": 0.985,
+                    "spans": [
+                      {
+                        "offset": 145,
+                        "length": 9
+                      }
+                    ]
+                  },
+                  "Quantity": {
+                    "type": "number",
+                    "valueNumber": 1,
+                    "content": "1",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          121,
+                          378,
+                          131,
+                          379,
+                          131,
+                          402,
+                          121,
+                          402
+                        ]
+                      }
+                    ],
+                    "confidence": 0.988,
+                    "spans": [
+                      {
+                        "offset": 143,
+                        "length": 1
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "currencySymbol": "$",
+                      "amount": 1.5,
+                      "currencyCode": "USD"
+                    },
+                    "content": "$1.50",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          499,
+                          383,
+                          569,
+                          384,
+                          569,
+                          408,
+                          499,
+                          408
+                        ]
+                      }
+                    ],
+                    "confidence": 0.989,
+                    "spans": [
+                      {
+                        "offset": 155,
+                        "length": 5
+                      }
+                    ]
+                  }
+                },
+                "content": "1 Diet coke\n$1.50",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      121,
+                      376,
+                      569,
+                      384,
+                      569,
+                      410,
+                      121,
+                      402
+                    ]
+                  }
+                ],
+                "confidence": 0.984,
+                "spans": [
+                  {
+                    "offset": 143,
+                    "length": 17
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "Quesadilla salvadorena",
+                    "content": "Quesadilla salvadorena",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          145,
+                          411,
+                          421,
+                          415,
+                          421,
+                          441,
+                          145,
+                          437
+                        ]
+                      }
+                    ],
+                    "confidence": 0.985,
+                    "spans": [
+                      {
+                        "offset": 163,
+                        "length": 22
+                      }
+                    ]
+                  },
+                  "Quantity": {
+                    "type": "number",
+                    "valueNumber": 2,
+                    "content": "2",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          122,
+                          410,
+                          137,
+                          411,
+                          137,
+                          436,
+                          121,
+                          436
+                        ]
+                      }
+                    ],
+                    "confidence": 0.988,
+                    "spans": [
+                      {
+                        "offset": 161,
+                        "length": 1
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "currencySymbol": "$",
+                      "amount": 4,
+                      "currencyCode": "USD"
+                    },
+                    "content": "$4.00",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          492,
+                          415,
+                          568,
+                          416,
+                          568,
+                          441,
+                          492,
+                          441
+                        ]
+                      }
+                    ],
+                    "confidence": 0.989,
+                    "spans": [
+                      {
+                        "offset": 186,
+                        "length": 5
+                      }
+                    ]
+                  }
+                },
+                "content": "2 Quesadilla salvadorena\n$4.00",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      121,
+                      409,
+                      568,
+                      416,
+                      568,
+                      444,
+                      121,
+                      436
+                    ]
+                  }
+                ],
+                "confidence": 0.984,
+                "spans": [
+                  {
+                    "offset": 161,
+                    "length": 30
+                  }
+                ]
+              }
+            ]
+          },
+          "MerchantAddress": {
+            "type": "address",
+            "content": "1030 1/2 San Fernando Rd\nSan Fernando CA 91341",
+            "boundingRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  199,
+                  88,
+                  502,
+                  92,
+                  502,
+                  134,
+                  198,
+                  130
+                ]
+              }
+            ],
+            "confidence": 0.986,
+            "spans": [
+              {
+                "offset": 25,
+                "length": 46
+              }
+            ],
+            "valueAddress": {
+              "houseNumber": "1030 1/2",
+              "road": "San Fernando Rd",
+              "postalCode": "91341",
+              "city": "San Fernando",
+              "state": "CA",
+              "streetAddress": "1030 1/2 San Fernando Rd"
+            }
+          },
+          "MerchantName": {
+            "type": "string",
+            "valueString": "Dona Mercedes Restaurant",
+            "content": "Dona Mercedes Restaurant",
+            "boundingRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  190,
+                  70,
+                  511,
+                  73,
+                  511,
+                  89,
+                  190,
+                  86
+                ]
+              }
+            ],
+            "confidence": 0.972,
+            "spans": [
+              {
+                "offset": 0,
+                "length": 24
+              }
+            ]
+          },
+          "ReceiptType": {
+            "type": "string",
+            "valueString": "Meal",
+            "confidence": 0.971
+          },
+          "Subtotal": {
+            "type": "currency",
+            "valueCurrency": {
+              "currencySymbol": "$",
+              "amount": 22.25,
+              "currencyCode": "USD"
+            },
+            "content": "$22.25",
+            "boundingRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  477,
+                  512,
+                  563,
+                  514,
+                  563,
+                  538,
+                  476,
+                  537
+                ]
+              }
+            ],
+            "confidence": 0.988,
+            "spans": [
+              {
+                "offset": 202,
+                "length": 6
+              }
+            ]
+          },
+          "Total": {
+            "type": "currency",
+            "valueCurrency": {
+              "currencySymbol": "$",
+              "amount": 24.47,
+              "currencyCode": "USD"
+            },
+            "content": "$24.47",
+            "boundingRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  470,
+                  602,
+                  559,
+                  603,
+                  559,
+                  627,
+                  470,
+                  626
+                ]
+              }
+            ],
+            "confidence": 0.747,
+            "spans": [
+              {
+                "offset": 227,
+                "length": 6
+              }
+            ]
+          },
+          "TotalTax": {
+            "type": "currency",
+            "valueCurrency": {
+              "currencySymbol": "$",
+              "amount": 2.22,
+              "currencyCode": "USD"
+            },
+            "content": "$2.22",
+            "boundingRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  492,
+                  545,
+                  562,
+                  546,
+                  562,
+                  569,
+                  492,
+                  568
+                ]
+              }
+            ],
+            "confidence": 0.995,
+            "spans": [
+              {
+                "offset": 214,
+                "length": 5
+              }
+            ]
+          }
+        },
+        "confidence": 0.971,
+        "spans": [
+          {
+            "offset": 0,
+            "length": 293
+          }
+        ]
+      }
+    ],
+    "contentFormat": "text"
+  }
+}

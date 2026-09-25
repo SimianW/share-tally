@@ -1,12 +1,51 @@
 import { BillError } from "./bill-error.js";
-import type { ReceiptDraftData } from "./receipt-input.js";
+import type { ReceiptDraftData, receiptEvidenceFields } from "./receipt-input.js";
+import type { z } from "zod";
 import type { bills, billItems } from "./db/schema.js";
 
 type Bill = typeof bills.$inferSelect;
 type Item = typeof billItems.$inferSelect;
 
-// Exact rational rather than a rounded decimal. #53 can extend rate selection here.
-export function selectFrozenTaxRate(receipt: NonNullable<Bill["receipt"]>, taxableBaseCents: number) {
+type Evidence = z.infer<typeof receiptEvidenceFields> | undefined;
+type Ratio = { taxCents: number; taxableBaseCents: number };
+
+// Number.toString() is the decimal Azure sent after JSON parsing. Turn its
+// digits (and optional exponent) into integers; never multiply a float by 100.
+function decimalRatio(value: number): Ratio | null {
+  if (!Number.isFinite(value) || value < 0) return null;
+  const match = /^(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/i.exec(value.toString());
+  if (!match) return null;
+  const exponent = Number(match[3] ?? 0) - (match[2]?.length ?? 0);
+  // Avoid unbounded powers for corrupt or subnormal observations.
+  if (Math.abs(exponent) > 20) return null;
+  let numerator = BigInt(match[1]! + (match[2] ?? ""));
+  let denominator = 1n;
+  if (exponent >= 0) numerator *= 10n ** BigInt(exponent);
+  else denominator = 10n ** BigInt(-exponent);
+  const gcd = (a: bigint, b: bigint): bigint => b ? gcd(b, a % b) : a;
+  const divisor = gcd(numerator, denominator);
+  numerator /= divisor;
+  denominator /= divisor;
+  if (numerator > BigInt(Number.MAX_SAFE_INTEGER) || denominator > BigInt(Number.MAX_SAFE_INTEGER)) return null;
+  return { taxCents: Number(numerator), taxableBaseCents: Number(denominator) };
+}
+
+export function printedTax(evidence: Evidence): { rate: Ratio; label: string } | null {
+  const details = evidence?.taxDetails ?? [];
+  const rates = details.flatMap(detail => detail.rate === undefined ? [] : [decimalRatio(detail.rate)]);
+  if (!rates.length || rates.some(rate => rate === null)) return null;
+  const [rate] = rates as Ratio[];
+  if (rates.some(other => other!.taxCents !== rate!.taxCents || other!.taxableBaseCents !== rate!.taxableBaseCents)) return null;
+  const description = details.find(detail => detail.rate !== undefined && detail.description?.trim())?.description?.trim() || "Tax";
+  // Print at most six decimal places; formatting never feeds the frozen ratio.
+  const scaled = BigInt(rate!.taxCents) * 100_000_000n / BigInt(rate!.taxableBaseCents);
+  const percent = `${scaled / 1_000_000n}${scaled % 1_000_000n ? `.${(scaled % 1_000_000n).toString().padStart(6, "0").replace(/0+$/, "")}` : ""}`;
+  return { rate: rate!, label: `${description} (${percent}%)` };
+}
+
+// Older bills have no printed rate; preserve their tax / taxable-base rule.
+export function selectFrozenTaxRate(receipt: NonNullable<Bill["receipt"]>, taxableBaseCents: number): Ratio | null {
+  if (receipt.printedTaxRate) return receipt.printedTaxRate;
   if (receipt.taxCents === 0)
     return { taxCents: 0, taxableBaseCents: taxableBaseCents || 1 };
   return taxableBaseCents > 0
@@ -47,9 +86,11 @@ export function correctedPrice(bill: Bill, old: Item, input: {
   const base = input.amountCents - input.discountCents;
   if (base < 0) throw new BillError(400, "Discount cannot exceed the printed price.");
   function part(numerator: number, weight: number | null, denominator: number | null, offset: number | null, frozenWeight: number | null) {
-    // A zero receipt component or zero weight is known even when another
-    // component is unavailable. Offsets belong only to the initial weight.
-    if (!numerator || weight === 0) return 0;
+    // Zero components are independently known. A printed Azure rate of zero
+    // can still have a nonzero original receipt allocation: preserve that
+    // residual only at its original weight, never on a changed weight.
+    if (weight === 0) return 0;
+    if (!numerator) return weight !== null && weight === frozenWeight ? offset ?? 0 : 0;
     if (weight === null || denominator === null || denominator <= 0 || (weight === frozenWeight && offset === null))
       return null;
     return roundedRatio(numerator, weight, denominator) + (weight === frozenWeight ? offset! : 0);
@@ -58,7 +99,7 @@ export function correctedPrice(bill: Bill, old: Item, input: {
   const net = discount === null || discount > base ? null : base - discount;
   const rate = selectFrozenTaxRate(receipt, bill.frozenTaxBaseCents ?? 0);
   const tax = input.taxable && !receipt.pricesIncludeTax
-    ? part(receipt.taxCents, net, rate?.taxableBaseCents ?? null, old.frozenTaxRoundingCents, old.frozenNetWeightCents) : 0;
+    ? part(rate?.taxCents ?? receipt.taxCents, net, rate?.taxableBaseCents ?? null, old.frozenTaxRoundingCents, old.frozenNetWeightCents) : 0;
   const extra = part(receipt.extraCents, net, bill.frozenExtraBaseCents, old.frozenExtraRoundingCents, old.frozenNetWeightCents);
   const derived = net === null || tax === null || extra === null ? null : net + tax + extra;
   const finalCents = input.manualFinal ? input.finalCents : derived;

@@ -3,9 +3,9 @@ import type { extractionDefaults, ExtractedReceipt } from "./receipt-extraction.
 import { applyReceiptModelResult } from "./receipt-processing.js";
 import { isDeepStrictEqual } from "node:util";
 import { and, eq, isNull, lte, ne, sql } from "drizzle-orm";
-import sharp from "sharp";
 import { z } from "zod";
 import { db } from "./db/index.js";
+import { normalizeReceiptPhoto } from "./receipt-photo.js";
 import {
   receiptDrafts,
   receiptPhotos,
@@ -27,7 +27,7 @@ import { BillError, parseBill } from "./bills.js";
 import type { Tx } from "./item-accounting.js";
 import { notifyGroupChanged } from "./group-events.js";
 import { priceDraft, unassignedReceiptTaxMessage } from "./receipt-pricing.js";
-import { frozenBases, roundingOffset } from "./frozen-receipt-pricing.js";
+import { frozenBases, roundingOffset, printedTax, selectFrozenTaxRate } from "./frozen-receipt-pricing.js";
 import { itemWasEdited } from "./receipt-needs-check.js";
 export async function requireMember(tx: Tx, groupId: string, userId: string) {
   const [m] = await tx
@@ -110,6 +110,11 @@ export async function saveDraft(
   // Canonicalize before the idempotency comparison as well as persistence.
   // A supplied final cost matters only when its manual override is enabled.
   input.data.items = priceDraft(input.data).items;
+  if (input.data.receipt) {
+    const { taxLabel: _submitted, ...receipt } = input.data.receipt;
+    const label = printedTax(receipt.evidence)?.label;
+    input.data.receipt = { ...receipt, ...(label ? { taxLabel: label } : {}) };
+  }
   await db.transaction((tx) => requireMember(tx, groupId, userId));
   const photo =
     input.photoBase64 === undefined
@@ -352,6 +357,7 @@ export async function initializeDraft(
     const { mode, items: _draftItems, receipt: _receipt, ...data } = reviewed;
     const priced = mode === "items" ? priceDraft(reviewed).items : [];
     const bases = frozenBases({ ...reviewed, items: priced });
+    const printed = printedTax(reviewed.receipt?.evidence);
     const receipt = mode === "items" ? {
       subtotalCents: reviewed.receipt?.subtotalCents ?? null,
       discountCents: reviewed.receipt?.discountCents ?? 0,
@@ -359,7 +365,9 @@ export async function initializeDraft(
       extraCents: reviewed.receipt?.extraCents ?? 0,
       pricesIncludeTax: reviewed.receipt?.pricesIncludeTax ?? false,
       totalCents: reviewed.totalCents!,
+      ...(printed ? { taxLabel: printed.label, printedTaxRate: printed.rate } : {}),
     } : null;
+    const rate = receipt && selectFrozenTaxRate(receipt, bases.taxableBase ?? 0);
     const items =
       mode === "items"
         ? checked(
@@ -435,7 +443,7 @@ export async function initializeDraft(
             frozenDiscountWeightCents: base,
             frozenNetWeightCents: net,
             frozenDiscountRoundingCents: roundingOffset(source.allocatedDiscountCents ?? null, receipt!.discountCents, base, bases.discountBase),
-            frozenTaxRoundingCents: roundingOffset(source.allocatedTaxCents ?? null, receipt!.pricesIncludeTax ? 0 : receipt!.taxCents, source.taxable === false ? 0 : net, bases.taxableBase),
+            frozenTaxRoundingCents: roundingOffset(source.allocatedTaxCents ?? null, receipt!.pricesIncludeTax ? 0 : (rate?.taxCents ?? receipt!.taxCents), source.taxable === false ? 0 : net, rate?.taxableBaseCents ?? null),
             frozenExtraRoundingCents: roundingOffset(source.allocatedExtraCents ?? null, receipt!.extraCents, net, bases.extraBase),
           };
         }),
@@ -462,7 +470,7 @@ export async function initializeDraft(
   return result.id;
 }
 function withoutEvidence(data: typeof receiptDrafts.$inferSelect.data) {
-  const { evidence: _receiptEvidence, ...receipt } = data.receipt ?? {};
+  const { evidence: _receiptEvidence, taxLabel: _taxLabel, ...receipt } = data.receipt ?? {};
   return {
     ...data,
     ...(data.receipt ? { receipt: receipt as NonNullable<typeof data.receipt> } : {}),
@@ -497,37 +505,6 @@ export async function purgeExpiredPhotos() {
       and(lte(receiptPhotos.expiresAt, new Date()), ne(receiptPhotos.base64, "")),
     );
   });
-}
-
-export async function normalizeReceiptPhoto(base64: string) {
-  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(base64))
-    throw new BillError(400, "Invalid image data.");
-  const source = Buffer.from(base64, "base64");
-  if (source.length > 8 * 1024 * 1024)
-    throw new BillError(413, "Choose a photo smaller than 8 MB.");
-  let bytes: Buffer;
-  try {
-    const image = sharp(source, { limitInputPixels: 40_000_000 });
-    const metadata = await image.metadata();
-    if (
-      !["jpeg", "png", "webp"].includes(metadata.format || "") ||
-      (metadata.pages ?? 1) > 1
-    )
-      throw new Error();
-    bytes = await image
-      .rotate()
-      .resize({
-        width: 2400,
-        height: 6000,
-        fit: "inside",
-        withoutEnlargement: true,
-      })
-      .jpeg({ quality: 90 })
-      .toBuffer();
-  } catch {
-    throw new BillError(400, "Choose a valid JPEG, PNG or WebP receipt photo.");
-  }
-  return bytes;
 }
 
 async function storePhoto(tx: Tx, id: string, bytes: Buffer) {
@@ -578,13 +555,14 @@ export async function saveProcessingDraft(
     await tx.delete(receiptEvidence).where(eq(receiptEvidence.draftId, id));
     if (analysis) await tx.insert(receiptEvidence).values({ draftId: id, analysis });
     const now = new Date();
+    const label = printedTax(extraction.receipt.evidence)?.label;
     const [draft] = await tx.update(receiptDrafts).set({
       data: checked(draftInput, {
         ...old.data,
         mode: "items",
         title: old.data.title || extraction.title,
         items: extraction.items,
-        receipt: extraction.receipt,
+        receipt: { ...extraction.receipt, ...(label ? { taxLabel: label } : {}) },
         totalCents: extraction.totalCents,
       }),
       processingStatus: "processing",

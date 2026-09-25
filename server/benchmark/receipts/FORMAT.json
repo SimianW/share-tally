@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "documentation": "Each corpus directory contains <id>.png, <id>.json (ground truth), and manifest.json (array of provenance records). Money is integer minor units with currencyExponent=2, including IDR. Quantity and rate are decimal strings, never floats. Positive discounts subtract. linePrice is before ownDiscount. Null means unprinted/unknown, not zero, and is excluded from that field's score. Empty discount and tax arrays mean verified absent. All labels must be visually checked against the image, not blindly copied from OCR or source annotations.",
+  "groundTruthExample": {
+    "schemaVersion": 1,
+    "id": "source-identifier",
+    "currency": "CAD",
+    "currencyExponent": 2,
+    "country": "CA",
+    "region": "ON",
+    "merchant": "Printed merchant",
+    "items": [
+      {
+        "id": "item-001",
+        "description": "DESCRIPTION AS PRINTED",
+        "productCode": null,
+        "quantity": "1",
+        "quantityBasis": "printed or implicit-single-line",
+        "unit": null,
+        "unitPrice": null,
+        "linePrice": 1000,
+        "ownDiscount": 100,
+        "discountLabels": ["coupon as printed"],
+        "notes": []
+      }
+    ],
+    "receiptDiscounts": [],
+    "subtotal": 900,
+    "subtotalBasis": "printed",
+    "subtotalStage": "after-discounts",
+    "taxLines": [{"label": "HST", "rate": "0.13", "rateBasis": "printed", "amount": 117}],
+    "taxTotal": 117,
+    "taxMode": "exclusive",
+    "charges": [],
+    "rounding": 0,
+    "total": 1017,
+    "taxability": [{"itemId": "item-001", "taxable": true, "basis": "printed-code", "evidence": "H code; legend H = HST", "sourceUrls": []}],
+    "notes": [],
+    "review": {"method": "manual visual transcription with arithmetic reconciliation", "date": "2026-09-24"}
+  },
+  "provenanceExample": {
+    "id": "source-identifier",
+    "image": "source-identifier.png",
+    "groundTruth": "source-identifier.json",
+    "source": "open-prices",
+    "sourceUrl": "https://example.org/original-record",
+    "imageUrl": "https://example.org/original-image",
+    "license": "CC-BY-SA-4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "licenseEvidenceUrl": "https://example.org/source-license-statement",
+    "attribution": "Original contributor and corpus publisher",
+    "retrievedAt": "2026-09-24",
+    "originalSha256": "hex SHA256 of downloaded original bytes",
+    "imageSha256": "hex SHA256 of committed redacted image",
+    "redactions": [{"reason": "payment and member identifiers", "box": [0, 100, 800, 200]}],
+    "metadataStripped": true,
+    "nonCanadian": false,
+    "rightsNotes": []
+  },
+  "entryContracts": {
+    "receiptDiscount": {"label": "Printed coupon text", "amount": 100},
+    "charge": {"label": "Printed service fee", "amount": 100, "stage": "after-subtotal"},
+    "chargeStages": ["before-subtotal", "after-subtotal"],
+    "subtotalStage": "after-discounts (default) or before-discounts. Preserve a printed pre-discount subtotal: before-discounts means subtotal = sum(gross linePrice) + before-subtotal charges; subtract ownDiscount and receiptDiscount amounts after subtotal when reconciling total. Do not duplicate a printed discount summary when already attached to an item.",
+    "taxabilityBases": ["printed-code", "printed-tax", "jurisdiction-rule"],
+    "taxabilitySourceUrls": "Required for jurisdiction-rule; printed bases point to evidence in the image via the evidence string. Taxable means bears any receipt tax, independently scored from amount extraction.",
+    "taxRate": "Decimal fraction string (0.13 means 13%) or null if not printed. rateBasis explains printed versus unprinted; do not infer a rate and present it as printed.",
+    "redactionBox": "[left, top, right, bottom] in committed-image pixels, with right and bottom exclusive. Redactions are irreversible opaque fills. Source images are never committed."
+  },
+  "arithmetic": "sum(item.linePrice - item.ownDiscount) - sum(receiptDiscounts.amount) = subtotal; subtotal + (taxMode == exclusive ? taxTotal : 0) + sum(charges.amount) + rounding = total. Discount amounts are positive; charges may be signed. Keep printed subtotal semantics: if fees occur before printed subtotal, explain and use a charge stage (before-subtotal or after-subtotal); validator will handle stages. taxTotal = sum(taxLines.amount). Rate may be null if unprinted. Never invent a printed value. If subtotal is absent, derive with subtotalBasis=derived-items and document. Preserve printed tax-inclusive line amounts and use taxMode=inclusive rather than inventing pre-tax prices."
+}

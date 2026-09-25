@@ -328,6 +328,7 @@ try {
   await alice
     .getByRole("button", { name: "Add an item", exact: true })
     .click();
+  await expect(alice.getByRole("dialog", { name: "Edit receipt item" }).getByRole("img", { name: "Receipt line" })).toHaveCount(0);
   const taxBox = await alice.getByRole("checkbox", { name: "Taxable", exact: true }).boundingBox();
   assert.ok(taxBox.width <= 24, "Tax checkbox must not inherit full-width input styling");
   await alice.getByLabel("Item name", { exact: true }).fill("Apples");
@@ -835,16 +836,32 @@ try {
       quantity: "1", amountCents, discountCents: 0, taxable,
       finalCents: amountCents, manualFinal: false,
     });
+    const data = {
+      mode: "items", title: `Compact review ${viewport.width}`, purchaseDate: "2026-09-24",
+      timeZone: "America/Toronto", notes: "", totalCents: 3000, ownShareCents: 0,
+      participantIds: [],
+      receipt: { subtotalCents: 3000, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
+      items: [item("Apples", 1000, true), item("Milk", 2000, false)],
+    };
+    const { draft: photoDraft } = await api(`/groups/${group.id}/receipt-drafts/${draftId}`, "alice-token", "PUT", {
+      revision: 0, data, photoBase64: image.toString("base64"),
+    });
+    // Simulate scan evidence from the stored photo; an unscanned upload has no regions.
     await api(`/groups/${group.id}/receipt-drafts/${draftId}`, "alice-token", "PUT", {
-      revision: 0,
-      data: {
-        mode: "items", title: `Compact review ${viewport.width}`, purchaseDate: "2026-09-24",
-        timeZone: "America/Toronto", notes: "", totalCents: 3000, ownShareCents: 0,
-        participantIds: [],
-        receipt: { subtotalCents: 3000, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
-        items: [item("Apples", 1000, true), item("Milk", 2000, false)],
+      revision: photoDraft.revision,
+      data: { ...data,
+        receipt: { ...data.receipt, evidence: { pages: [{ pageNumber: 1, width: 300, height: 500, unit: "pixel" }] } },
+        items: [{ ...data.items[0], evidence: { regions: [{ pageNumber: 1, polygon: [30, 100, 180, 100, 180, 140, 30, 140] }] } }, data.items[1]],
       },
-      photoBase64: image.toString("base64"),
+    });
+    await alice.route(`**/api/receipt-drafts/${draftId}`, async (route) => {
+      if (route.request().method() !== "GET") return route.continue();
+      const upstream = new URL(route.request().url());
+      upstream.hostname = "127.0.0.1";
+      const response = await route.fetch({ url: upstream.href });
+      const body = await response.json();
+      body.draft.data.receipt.taxLabel = "HST (13%)";
+      await route.fulfill({ response, body: JSON.stringify(body) });
     });
     await alice.setViewportSize(viewport);
     await alice.goto(`${newBillRoute}/${draftId}`);
@@ -852,6 +869,9 @@ try {
     const row = name => alice.getByRole("button", { name: `Edit ${name}`, exact: true, includeHidden: true });
     await expect(row("Apples")).toContainText("10.00");
     await expect(reconciliation()).toContainText("Matches receipt");
+    await reconciliation().click();
+    await expect(alice.getByText("HST (13%)", { exact: true })).toBeVisible();
+    await alice.getByRole("button", { name: "Close summary", exact: true }).click();
     await reconciliation().scrollIntoViewIfNeeded();
     if (viewport.width <= 640) {
       const footerBox = await alice.locator(".receipt-review-footer").boundingBox();
@@ -871,6 +891,13 @@ try {
     const editor = alice.getByRole("dialog", { name: "Edit receipt item", exact: true });
     await expect(editor).toBeVisible();
     await expect(editor).toContainText("APPLES RECEIPT LINE");
+    await expect(editor.getByRole("img", { name: "Receipt line", exact: true })).toBeVisible();
+    await expect(editor.getByRole("img", { name: "Highlighted receipt line", exact: true })).toBeVisible();
+    const crop = editor.getByRole("img", { name: "Receipt line", exact: true });
+    const [x, y, width, height] = (await crop.getAttribute("viewBox")).split(" ").map(Number);
+    assert.equal(x, 0);
+    assert.ok(y > 0 && width === 300 && height < 500, "Editor shows a line crop, not the entire photo");
+    assert.equal(await editor.getByRole("img", { name: "Highlighted receipt line", exact: true }).getAttribute("points"), "30,100 180,100 180,140 30,140");
     const editorBox = await editor.boundingBox();
     if (viewport.width < 700) {
       assert.ok(Math.abs(editorBox.x) < 2, "Mobile editor spans the viewport");
@@ -888,6 +915,12 @@ try {
     await expect(alice.getByLabel("Item name", { exact: true })).toHaveValue("Milk");
     await alice.getByRole("button", { name: "Previous item", exact: true }).click();
     await expect(alice.getByLabel("Item name", { exact: true })).toHaveValue("Reviewed apples");
+    await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+    await row("Milk").click();
+    const unregionedEditor = alice.getByRole("dialog", { name: "Edit receipt item", exact: true });
+    await expect(unregionedEditor).toBeVisible();
+    await expect(unregionedEditor.getByRole("img", { name: "Receipt line", exact: true })).toHaveCount(0);
+    await expect(unregionedEditor.getByRole("img", { name: "Highlighted receipt line", exact: true })).toHaveCount(0);
     await alice.getByRole("button", { name: "Close editor", exact: true }).click();
     await reconciliation().click();
     await alice.getByLabel("Receipt subtotal", { exact: true }).fill("30.00");
@@ -1073,7 +1106,20 @@ try {
   const correctionBill = (await api(`/receipt-drafts/${correctionDraftId}/initialize`, "alice-token", "POST", { revision: correctionDraft.revision })).bill;
   assert.deepEqual(correctionBill.items.map(item => item.finalCents), [1090, 1820]);
   assert.deepEqual(correctionBill.frozenTaxRate, { taxCents: 180, taxableBaseCents: 900 });
+  await alice.route(`**/api/bills/${correctionBill.id}`, async (route) => {
+    if (route.request().method() !== "GET") return route.continue();
+    const upstream = new URL(route.request().url());
+    upstream.hostname = "127.0.0.1";
+    const response = await route.fetch({ url: upstream.href });
+    const body = await response.json();
+    body.bill.receipt.taxLabel = "HST (13%)";
+    await route.fulfill({ response, body: JSON.stringify(body) });
+  });
   await alice.goto(`${base}#/bills/${correctionBill.id}`);
+  await alice.getByRole("button", { name: "Receipt summary", exact: true }).click();
+  const receiptSummary = alice.getByRole("dialog", { name: "Receipt summary", exact: true });
+  await expect(receiptSummary).toContainText("HST (13%)");
+  await receiptSummary.getByRole("button", { name: "Done", exact: true }).click();
   for (const viewport of [{ width: 1280, height: 1000 }, { width: 390, height: 844 }]) {
     await alice.setViewportSize(viewport);
     await alice.getByRole("button", { name: /View Taxable pears · \$/ }).click();
@@ -1164,6 +1210,41 @@ try {
   await alice.getByRole("button", { name: "Save item changes" }).click();
   await expect.poll(async () => (await api(`/bills/${inclusiveBill.id}`)).bill.items[0].finalCents).toBe(1001);
   assert.equal((await api(`/bills/${inclusiveBill.id}`)).bill.items[0].taxCents, 0);
+  // Printed Azure rate controls corrections even when printed tax ÷ base differs.
+  const printedRateId = randomUUID();
+  const printedRateDraft = (await api(`/groups/${group.id}/receipt-drafts/${printedRateId}`, "alice-token", "PUT", {
+    revision: 0,
+    data: {
+      mode: "items", title: "Printed-rate correction", purchaseDate: "2026-09-24", timeZone: "America/Toronto",
+      notes: "", totalCents: 305, ownShareCents: 0, participantIds: [initiatorId],
+      receipt: { subtotalCents: 300, discountCents: 0, taxCents: 5, extraCents: 0, pricesIncludeTax: false,
+        evidence: { taxDetails: [{ rate: 0.13, description: "HST" }] } },
+      items: [100, 200].map((amountCents, index) => ({ id: randomUUID(), name: `Taxed item ${index + 1}`,
+        originalText: "PRINTED RATE", quantity: "1", amountCents, discountCents: 0,
+        taxable: true, finalCents: 0, manualFinal: false })),
+    },
+  })).draft;
+  const printedRateBill = (await api(`/receipt-drafts/${printedRateId}/initialize`, "alice-token", "POST",
+    { revision: printedRateDraft.revision })).bill;
+  assert.deepEqual(printedRateBill.frozenTaxRate, { taxCents: 13, taxableBaseCents: 100 });
+  assert.equal(printedRateBill.items.reduce((sum, item) => sum + item.allocatedTaxCents, 0), 5);
+  await alice.goto(`${base}#/bills/${printedRateBill.id}`);
+  for (const scenario of [
+    { printed: "2.00", cost: "2.26", finalCents: 226, taxCents: 26 },
+    { printed: "0.01", cost: "0.01", finalCents: 1, taxCents: 0 },
+    { printed: "1.00", cost: "1.02", finalCents: 102, taxCents: 2 },
+  ]) {
+    await alice.getByRole("button", { name: "Edit items & prices" }).click();
+    await alice.getByRole("button", { name: "Edit Taxed item 1", exact: true }).click();
+    await alice.getByLabel("Printed price", { exact: true }).fill(scenario.printed);
+    await expect(alice.getByRole("button", { name: "Edit Taxed item 1", exact: true })).toContainText(scenario.cost);
+    await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+    await alice.getByRole("button", { name: "Save item changes" }).click();
+    await expect.poll(async () => (await api(`/bills/${printedRateBill.id}`)).bill.items[0].finalCents).toBe(scenario.finalCents);
+    const corrected = (await api(`/bills/${printedRateBill.id}`)).bill;
+    assert.equal(corrected.items[0].allocatedTaxCents, scenario.taxCents);
+    assert.deepEqual(corrected.items[1], printedRateBill.items[1]);
+  }
   // A failed check retains Azure names and flags every affected row. Exercise the
   // processing-to-fallback stream update, filter and two ways to clear a marker at both widths.
   await waitForServer("allocation-receipt-ready", "allocation-receipt");

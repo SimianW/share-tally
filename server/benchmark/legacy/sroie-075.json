@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "labelKind": "diagnostic-partial",
+  "id": "sroie-075",
+  "currency": "MYR",
+  "currencyExponent": 2,
+  "country": "MY",
+  "region": null,
+  "merchant": "Lian Hing Stationery",
+  "items": [
+    {
+      "id": "item-001",
+      "description": null,
+      "productCode": null,
+      "quantity": "200",
+      "quantityBasis": "printed",
+      "unit": null,
+      "unitPrice": 55,
+      "linePrice": 11660,
+      "ownDiscount": null,
+      "discountLabels": null,
+      "notes": [
+        "Printed unit price is before GST while printed line amount includes GST.",
+        "Description unscored: prior benchmark description 'DURAFILE H399 NAME BADGE' is not verbatim printed text. Original source annotation excerpt(s): 'DURAFILE H399 (110 X 95MM)' | 'NAME BADGE (H) @ 0.5500'. Annotation wording is preserved for diagnostic traceability, not scored as an everyday product name."
+      ]
+    },
+    {
+      "id": "item-002",
+      "description": "809 METAL NAME BADGE CLIP",
+      "productCode": null,
+      "quantity": "2",
+      "quantityBasis": "printed",
+      "unit": null,
+      "unitPrice": 2000,
+      "linePrice": 4240,
+      "ownDiscount": null,
+      "discountLabels": null,
+      "notes": [
+        "Printed unit price is before GST while printed line amount includes GST."
+      ]
+    }
+  ],
+  "receiptDiscounts": null,
+  "subtotal": null,
+  "subtotalBasis": null,
+  "subtotalStage": null,
+  "taxLines": [
+    {
+      "label": "GST",
+      "rate": "0.06",
+      "rateBasis": "printed",
+      "amount": 900
+    }
+  ],
+  "taxTotal": 900,
+  "taxMode": "inclusive",
+  "charges": null,
+  "rounding": null,
+  "total": 15900,
+  "taxability": null,
+  "notes": [
+    "Printed per-unit prices 0.5500 and 20.0000 exclude GST; printed gross line amounts are 116.60 and 42.40, including GST 9.00.",
+    "Unverified fields are null and unscored; this diagnostic label is not a strict public-corpus truth label."
+  ],
+  "review": {
+    "method": "Prior benchmark source annotation transcription visually checked against original scan; selected ambiguities rechecked against original image/CSV, 2026-09-24",
+    "date": "2026-09-24"
+  }
+}

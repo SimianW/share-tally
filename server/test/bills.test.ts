@@ -1491,13 +1491,20 @@ test('receipt drafts preserve missing money and reject initialization until requ
   const { group, draft } = await setup();
   const id = crypto.randomUUID();
   const { requestId: _requestId, ...fields } = draft;
-  const data: import('../src/receipt-input.js').ReceiptDraftData = { ...fields, mode: 'items', totalCents: null, items: [{
-    id: crypto.randomUUID(), name: 'Apples', originalText: 'APPLE', quantity: '1', taxable: null, manualFinal: false,
-    amountCents: null, finalCents: null, discountCents: 0,
-  }] };
+  const data: import('../src/receipt-input.js').ReceiptDraftData = { ...fields, mode: 'items', totalCents: null,
+    receipt: { subtotalCents: null, taxCents: 0, discountCents: 0, extraCents: 0, pricesIncludeTax: false,
+      evidence: { pages: [{ pageNumber: 1, width: 300, height: 500, unit: 'pixel' }] } },
+    items: [{
+      id: crypto.randomUUID(), name: 'Apples', originalText: 'APPLE', quantity: '1', taxable: null, manualFinal: false,
+      amountCents: null, finalCents: null, discountCents: 0,
+      evidence: { regions: [{ pageNumber: 1, polygon: [30, 100, 180, 100, 180, 140, 30, 140] }] },
+    }] };
   const saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data }))).draft;
   assert.equal(saved.data.totalCents, null);
   assert.equal(saved.data.items[0].amountCents, null);
+  const reopened = (await json(await api(`/receipt-drafts/${id}`))).draft;
+  assert.deepEqual(reopened.data.receipt.evidence.pages, data.receipt!.evidence!.pages);
+  assert.deepEqual(reopened.data.items[0].evidence.regions, data.items[0]!.evidence!.regions);
   await json(await api(`/receipt-drafts/${id}`, 'bob-token'), 404);
   await json(await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST', { revision: saved.revision }), 400);
   data.totalCents = 100;
@@ -1826,6 +1833,8 @@ test('recorded Azure evidence follows the scanned draft and expires with its pho
     const first = firstResult.extraction;
     assert.equal(firstResult.draft.processingStatus, 'processing');
     assert.equal(first.receipt.evidence.countryRegion, 'FRA');
+    assert.deepEqual(first.receipt.evidence.pages, [{ pageNumber: 1, width: 746, height: 768, unit: 'pixel' }]);
+    assert.deepEqual((await json(await api(`/receipt-drafts/${id}`))).draft.data.receipt.evidence.pages, first.receipt.evidence.pages);
     assert.equal(first.items[0].evidence.unitPrice, 12);
     assert.equal(first.items[0].amountCents, 2400);
     let row = await pool.query('SELECT analysis FROM receipt_evidence WHERE draft_id = $1', [id]);
@@ -2497,6 +2506,83 @@ test('initiating an item bill stores its receipt summary, frozen rate and deriva
     [1000, 0, false, false, 100, 0, 20, 920],
   ]);
   assert.equal(bill.totalCents, 3950);
+});
+
+test('a recorded Azure scan exposes its printed tax label on the saved draft', async () => {
+  const { id, saved } = await scannedDraft();
+  await modelControl('recorded-evidence', 'recorded-evidence-ready');
+  await modelControl('recorded-fixture-175', 'recorded-fixture-175-ready');
+  try {
+    const response = await json(await api(`/receipt-drafts/${id}/extract`, 'alice-token', 'POST',
+      { revision: saved.revision }));
+    assert.equal(response.draft.data.receipt.taxLabel, 'T (6%)');
+    const ready = await awaitModelDraft(id);
+    assert.equal(ready.data.receipt.taxLabel, 'T (6%)');
+    assert.equal(ready.data.receipt.evidence.taxDetails[0].rate, 0.06);
+  } finally {
+    await modelControl('recorded-evidence-off', 'recorded-evidence-stopped');
+  }
+});
+
+test('Azure tax rates freeze exactly while receipt tax allocation remains complete', async () => {
+  // azure-175 is a sanitized Azure recording: Rate.valueNumber is already
+  // fractional 0.06, and Description.valueString is the printed "T".
+  const analysis = JSON.parse((await import('node:fs')).readFileSync(
+    new URL('./fixtures/azure-receipt/azure-175.json', import.meta.url), 'utf8'));
+  const fields = analysis.documents[0].fields.TaxDetails.valueArray[0].valueObject;
+  const recorded = { amount: fields.Amount.valueCurrency.amount, rate: fields.Rate.valueNumber,
+    description: fields.Description.valueString };
+  assert.equal(recorded.rate, 0.06);
+  const cases = [
+    { name: 'recorded', changedTax: 12, details: [recorded], expected: { taxCents: 3, taxableBaseCents: 50 }, label: 'T (6%)' },
+    { name: 'decimal', changedTax: 26, details: [{ rate: 0.13, description: 'HST' }], expected: { taxCents: 13, taxableBaseCents: 100 }, label: 'HST (13%)' },
+    { name: 'no description', changedTax: 26, details: [{ rate: 0.13 }], expected: { taxCents: 13, taxableBaseCents: 100 }, label: 'Tax (13%)' },
+    { name: 'zero printed rate', changedTax: 0, details: [{ rate: 0, description: 'Exempt' }], expected: { taxCents: 0, taxableBaseCents: 1 }, label: 'Exempt (0%)' },
+    { name: 'no rate', changedTax: 3, details: [], expected: { taxCents: 5, taxableBaseCents: 300 }, label: undefined },
+    { name: 'several rates', changedTax: 3, details: [{ rate: 0.06, description: 'GST' }, { rate: 0.07, description: 'PST' }],
+      expected: { taxCents: 5, taxableBaseCents: 300 }, label: undefined },
+    { name: 'same rate repeated', changedTax: 26, details: [{ rate: 0.13, description: 'HST' }, { rate: 0.13 }],
+      expected: { taxCents: 13, taxableBaseCents: 100 }, label: 'HST (13%)' },
+  ];
+  for (const scenario of cases) {
+    const { group, draft } = await setup(false);
+    const { requestId: _requestId, ...fields } = draft;
+    const id = crypto.randomUUID();
+    const data = { ...fields, mode: 'items', totalCents: 305,
+      receipt: { subtotalCents: 300, taxCents: 5, discountCents: 0, extraCents: 0,
+        pricesIncludeTax: false, evidence: { taxDetails: scenario.details } },
+      items: [100, 200].map((amountCents, index) => ({ id: crypto.randomUUID(),
+        name: `Taxable ${index}`, originalText: '', quantity: '1', amountCents,
+        discountCents: 0, taxable: true, finalCents: 0, manualFinal: false })),
+    };
+    const saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT',
+      { revision: 0, data }))).draft;
+    assert.equal(saved.data.receipt.taxLabel, scenario.label, scenario.name);
+    const read = (await json(await api(`/receipt-drafts/${id}`))).draft;
+    assert.equal(read.data.receipt.taxLabel, scenario.label, scenario.name);
+    assert.equal(read.data.items.reduce((sum: number, item: { allocatedTaxCents: number }) => sum + item.allocatedTaxCents, 0), 5);
+    const initiated = (await json(await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST',
+      { revision: saved.revision }))).bill;
+    const bill = (await json(await api(`/bills/${initiated.id}`, 'bob-token'))).bill;
+    assert.deepEqual(bill.frozenTaxRate, scenario.expected, scenario.name);
+    assert.equal(bill.receipt.taxLabel, scenario.label, scenario.name);
+    assert.equal(bill.items.reduce((sum: number, item: { allocatedTaxCents: number }) => sum + item.allocatedTaxCents, 0), 5);
+    assert.equal((await pool.query('SELECT receipt FROM bills WHERE id = $1', [bill.id])).rows[0].receipt.printedTaxRate?.taxCents,
+      scenario.label ? scenario.expected.taxCents : undefined, scenario.name);
+    const original = bill.items.map((item: { allocatedTaxCents: number }) => item.allocatedTaxCents);
+    let corrected = (await json(await api(`/bills/${bill.id}/items/${bill.items[0].id}`, 'alice-token', 'PATCH', {
+      revision: bill.revision, name: bill.items[0].name, quantity: '1', amountCents: 100,
+      discountCents: 0, taxable: true, manualFinal: false,
+    }))).bill;
+    assert.deepEqual(corrected.items.map((item: { allocatedTaxCents: number }) => item.allocatedTaxCents), original,
+      `${scenario.name}: unchanged correction must reproduce full receipt allocation`);
+    corrected = (await json(await api(`/bills/${bill.id}/items/${bill.items[0].id}`, 'alice-token', 'PATCH', {
+      revision: corrected.revision, name: bill.items[0].name, quantity: '1', amountCents: 200,
+      discountCents: 0, taxable: true, manualFinal: false,
+    }))).bill;
+    assert.equal(corrected.items[0].allocatedTaxCents, scenario.changedTax, scenario.name);
+    assert.equal(corrected.items[1].allocatedTaxCents, original[1], scenario.name);
+  }
 });
 
 test('re-entering unchanged prices reproduces the stored largest-remainder allocations', async () => {

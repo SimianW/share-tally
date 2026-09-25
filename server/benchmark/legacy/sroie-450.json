@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "labelKind": "diagnostic-partial",
+  "id": "sroie-450",
+  "currency": "MYR",
+  "currencyExponent": 2,
+  "country": "MY",
+  "region": null,
+  "merchant": null,
+  "items": [
+    {
+      "id": "item-001",
+      "description": "ALUMINIUM FOIL 25SQ# 30CM*7.62M",
+      "productCode": null,
+      "quantity": "1",
+      "quantityBasis": "printed",
+      "unit": null,
+      "unitPrice": 550,
+      "linePrice": 550,
+      "ownDiscount": null,
+      "discountLabels": null,
+      "notes": []
+    },
+    {
+      "id": "item-002",
+      "description": "SEKOPLAS H/D GARBAGE 89CM*117CM 10S",
+      "productCode": null,
+      "quantity": "5",
+      "quantityBasis": "printed",
+      "unit": null,
+      "unitPrice": 950,
+      "linePrice": 4750,
+      "ownDiscount": null,
+      "discountLabels": null,
+      "notes": []
+    },
+    {
+      "id": "item-003",
+      "description": "PLASTIC BAGS",
+      "productCode": null,
+      "quantity": "1",
+      "quantityBasis": "printed",
+      "unit": null,
+      "unitPrice": 20,
+      "linePrice": 20,
+      "ownDiscount": null,
+      "discountLabels": null,
+      "notes": []
+    }
+  ],
+  "receiptDiscounts": null,
+  "subtotal": null,
+  "subtotalBasis": null,
+  "subtotalStage": null,
+  "taxLines": [
+    {
+      "label": "GST",
+      "rate": "0.06",
+      "rateBasis": "printed",
+      "amount": 301
+    }
+  ],
+  "taxTotal": 301,
+  "taxMode": "inclusive",
+  "charges": null,
+  "rounding": null,
+  "total": 5320,
+  "taxability": null,
+  "notes": [
+    "Three priced lines represent seven units; printed 53.20 includes GST 3.01.",
+    "Unverified fields are null and unscored; this diagnostic label is not a strict public-corpus truth label.",
+    "Prior benchmark merchant display name included an unprinted scenario qualifier; printed merchant not confirmed in this partial diagnostic label."
+  ],
+  "review": {
+    "method": "Prior benchmark source annotation transcription visually checked against original scan; selected ambiguities rechecked against original image/CSV, 2026-09-24",
+    "date": "2026-09-24"
+  }
+}

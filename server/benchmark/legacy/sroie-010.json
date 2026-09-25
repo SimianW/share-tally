@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "labelKind": "diagnostic-partial",
+  "id": "sroie-010",
+  "currency": "MYR",
+  "currencyExponent": 2,
+  "country": "MY",
+  "region": null,
+  "merchant": "Sam Sam Trading",
+  "items": [
+    {
+      "id": "item-001",
+      "description": null,
+      "productCode": null,
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": 520,
+      "linePrice": 520,
+      "ownDiscount": null,
+      "discountLabels": null,
+      "notes": [
+        "Description unscored: prior benchmark description 'HE EDG UNICORN TWIN SUPER GLUE USG-99' is not verbatim printed text. Original source annotation excerpt(s): 'HE EOG UNICORN TWIN SUPER GLUE USG-99-'. Annotation wording is preserved for diagnostic traceability, not scored as an everyday product name."
+      ]
+    },
+    {
+      "id": "item-002",
+      "description": null,
+      "productCode": null,
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": 890,
+      "linePrice": 890,
+      "ownDiscount": null,
+      "discountLabels": null,
+      "notes": [
+        "Description unscored: prior benchmark description 'SS EZL A4 CYBER MIX COLOR PAPER' is not verbatim printed text. Original source annotation excerpt(s): \"SS EZL A4 CYBER MIX COLOR PAPER 100'S8\". Annotation wording is preserved for diagnostic traceability, not scored as an everyday product name."
+      ]
+    }
+  ],
+  "receiptDiscounts": null,
+  "subtotal": null,
+  "subtotalBasis": null,
+  "subtotalStage": null,
+  "taxLines": [
+    {
+      "label": "GST",
+      "rate": "0.06",
+      "rateBasis": "printed",
+      "amount": 80
+    }
+  ],
+  "taxTotal": 80,
+  "taxMode": "inclusive",
+  "charges": null,
+  "rounding": null,
+  "total": 1410,
+  "taxability": null,
+  "notes": [
+    "Printed item prices 5.20 and 8.90 include GST; tax summary identifies included GST 0.80.",
+    "Unverified fields are null and unscored; this diagnostic label is not a strict public-corpus truth label."
+  ],
+  "review": {
+    "method": "Prior benchmark source annotation transcription visually checked against original scan; selected ambiguities rechecked against original image/CSV, 2026-09-24",
+    "date": "2026-09-24"
+  }
+}

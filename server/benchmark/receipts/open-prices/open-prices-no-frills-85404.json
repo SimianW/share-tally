@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 1,
+  "id": "open-prices-no-frills-85404",
+  "currency": "CAD",
+  "currencyExponent": 2,
+  "country": "CA",
+  "region": "MB",
+  "merchant": "NOFRILLS",
+  "items": [
+    {
+      "id": "item-001",
+      "description": "OR PPCRN SMRT PP",
+      "productCode": "05880750083",
+      "quantity": "2",
+      "quantityBasis": "printed",
+      "unit": null,
+      "unitPrice": 400,
+      "linePrice": 800,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-002",
+      "description": "PC MARINADE TERI",
+      "productCode": "06038302900",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 500,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-003",
+      "description": "NN PLASTIC WRAP",
+      "productCode": "06038365346",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 1199,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-004",
+      "description": "MARINADE CHKN SV",
+      "productCode": "06038398814",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 500,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-005",
+      "description": "OD CRN NCHO CHS",
+      "productCode": "06634335046",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 350,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-006",
+      "description": "ZIPLOC BAGS",
+      "productCode": "06714000161",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 1100,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-007",
+      "description": "COTTAGE CHSE",
+      "productCode": "06038311206",
+      "quantity": "2",
+      "quantityBasis": "printed",
+      "unit": null,
+      "unitPrice": 699,
+      "linePrice": 1398,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-008",
+      "description": "SQUASH BUTTERNUT",
+      "productCode": "4759",
+      "quantity": "1.925",
+      "quantityBasis": "printed",
+      "unit": "kg",
+      "unitPrice": 218,
+      "linePrice": 420,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": [
+        "Printed 1.925 kg @ $2.18/kg; line total is rounded to $4.20."
+      ]
+    }
+  ],
+  "receiptDiscounts": [],
+  "subtotal": 6267,
+  "subtotalBasis": "printed",
+  "taxLines": [
+    {
+      "label": "G=GST 5%",
+      "rate": "0.05",
+      "rateBasis": "printed",
+      "amount": 132
+    },
+    {
+      "label": "P=PST 7%",
+      "rate": "0.07",
+      "rateBasis": "printed",
+      "amount": 185
+    }
+  ],
+  "taxTotal": 317,
+  "taxMode": "exclusive",
+  "charges": [],
+  "rounding": 0,
+  "total": 6584,
+  "taxability": [
+    {
+      "itemId": "item-001",
+      "taxable": false,
+      "basis": "printed-code",
+      "evidence": "MRJ code printed on this product line, without G or P; the GST and PST taxable bases both print 26.49, exactly 11.99 + 3.50 + 11.00 from the GPMRJ-coded lines.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-002",
+      "taxable": false,
+      "basis": "printed-code",
+      "evidence": "MRJ code printed on this product line, without G or P; the GST and PST taxable bases both print 26.49, exactly 11.99 + 3.50 + 11.00 from the GPMRJ-coded lines.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-003",
+      "taxable": true,
+      "basis": "printed-code",
+      "evidence": "GPMRJ code printed on this product line; printed G=GST 5% and P=PST 7% tax legend.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-004",
+      "taxable": false,
+      "basis": "printed-code",
+      "evidence": "MRJ code printed on this product line, without G or P; the GST and PST taxable bases both print 26.49, exactly 11.99 + 3.50 + 11.00 from the GPMRJ-coded lines.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-005",
+      "taxable": true,
+      "basis": "printed-code",
+      "evidence": "GPMRJ code printed on this product line; printed G=GST 5% and P=PST 7% tax legend.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-006",
+      "taxable": true,
+      "basis": "printed-code",
+      "evidence": "GPMRJ code printed on this product line; printed G=GST 5% and P=PST 7% tax legend.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-007",
+      "taxable": false,
+      "basis": "printed-code",
+      "evidence": "MRJ code printed on this product line, without G or P; the GST and PST taxable bases both print 26.49, exactly 11.99 + 3.50 + 11.00 from the GPMRJ-coded lines.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-008",
+      "taxable": false,
+      "basis": "printed-code",
+      "evidence": "MRJ code printed on this product line, without G or P; the GST and PST taxable bases both print 26.49, exactly 11.99 + 3.50 + 11.00 from the GPMRJ-coded lines.",
+      "sourceUrls": []
+    }
+  ],
+  "notes": [
+    "Printed G=GST taxable base $26.49 and P=PST taxable base $26.49. DIG STAMP EARN 3 @ $0.00 is a zero-value loyalty marker, not a purchased product. Original franchise owner surname is redacted from the store header; NOFRILLS is the visible merchant banner."
+  ],
+  "review": {
+    "method": "manual visual transcription with arithmetic reconciliation",
+    "date": "2026-09-24"
+  }
+}

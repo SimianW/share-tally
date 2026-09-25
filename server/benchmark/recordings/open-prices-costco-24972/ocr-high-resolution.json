@@ -1,0 +1,3416 @@
+{
+  "schemaVersion": 1,
+  "imageSha256": "85a672fa790166eb30fb2d7233021cf8d44b4b3bf62fd6892dc84725f0dd8b36",
+  "request": {
+    "apiVersion": "2024-11-30",
+    "modelId": "prebuilt-receipt",
+    "options": {
+      "features": [
+        "ocrHighResolution"
+      ]
+    }
+  },
+  "analyzeResult": {
+    "apiVersion": "2024-11-30",
+    "modelId": "prebuilt-receipt",
+    "stringIndexType": "textElements",
+    "content": "COSTCO\nWHOLESALE\nNepean #540\n1849 Merivale Road\nNepean, ON K2G1E3\nSELF-CHECKOUT\n1873581 MID-DAY SQUA\n19.99 H\n21366 CLEMENTINES\n9.99\n1931475 TPD/21366\n2.00-\n1865657 TF MOCHI\n13.99 H\n30669 BANANAS\n1.69\n1813286 EGG WRAP\n19.99\n1895875 MRGHRITAPIZZ\n19.99\n129572 EGGS 2.5 DZ\n8.99\n965949 SPANAKOPITA\n19.99\n1195239 ACTIVIA LACT\n10.79\n129305 BAGELS\n11.49\n1218213 ORIGL TORTIL\n5.79\nSUBTOTAL\n140.69\nTAX\n4.42\n****\nTOTAL\n145.11",
+    "pages": [
+      {
+        "pageNumber": 1,
+        "angle": 0.2915023863315582,
+        "width": 1851,
+        "height": 3309,
+        "unit": "pixel",
+        "words": [
+          {
+            "content": "COSTCO",
+            "polygon": [
+              260,
+              134,
+              1648,
+              167,
+              1648,
+              416,
+              260,
+              414
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 0,
+              "length": 6
+            }
+          },
+          {
+            "content": "WHOLESALE",
+            "polygon": [
+              690,
+              405,
+              1622,
+              413,
+              1622,
+              513,
+              690,
+              506
+            ],
+            "confidence": 0.889,
+            "span": {
+              "offset": 7,
+              "length": 9
+            }
+          },
+          {
+            "content": "Nepean",
+            "polygon": [
+              525,
+              588,
+              982,
+              592,
+              982,
+              662,
+              524,
+              658
+            ],
+            "confidence": 0.975,
+            "span": {
+              "offset": 17,
+              "length": 6
+            }
+          },
+          {
+            "content": "#540",
+            "polygon": [
+              1077,
+              593,
+              1378,
+              593,
+              1378,
+              663,
+              1077,
+              663
+            ],
+            "confidence": 0.99,
+            "span": {
+              "offset": 24,
+              "length": 4
+            }
+          },
+          {
+            "content": "1849",
+            "polygon": [
+              527,
+              683,
+              697,
+              686,
+              697,
+              769,
+              527,
+              767
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 29,
+              "length": 4
+            }
+          },
+          {
+            "content": "Merivale",
+            "polygon": [
+              750,
+              687,
+              1104,
+              691,
+              1104,
+              773,
+              749,
+              770
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 34,
+              "length": 8
+            }
+          },
+          {
+            "content": "Road",
+            "polygon": [
+              1157,
+              691,
+              1336,
+              692,
+              1336,
+              774,
+              1157,
+              773
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 43,
+              "length": 4
+            }
+          },
+          {
+            "content": "Nepean,",
+            "polygon": [
+              607,
+              784,
+              937,
+              785,
+              937,
+              872,
+              607,
+              870
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 48,
+              "length": 7
+            }
+          },
+          {
+            "content": "ON",
+            "polygon": [
+              975,
+              786,
+              1058,
+              786,
+              1059,
+              872,
+              975,
+              872
+            ],
+            "confidence": 0.977,
+            "span": {
+              "offset": 56,
+              "length": 2
+            }
+          },
+          {
+            "content": "K2G1E3",
+            "polygon": [
+              1111,
+              786,
+              1381,
+              786,
+              1381,
+              871,
+              1111,
+              872
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 59,
+              "length": 6
+            }
+          },
+          {
+            "content": "SELF-CHECKOUT",
+            "polygon": [
+              431,
+              978,
+              1459,
+              986,
+              1459,
+              1115,
+              430,
+              1109
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 66,
+              "length": 13
+            }
+          },
+          {
+            "content": "1873581",
+            "polygon": [
+              306,
+              1336,
+              605,
+              1339,
+              605,
+              1425,
+              306,
+              1421
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 80,
+              "length": 7
+            }
+          },
+          {
+            "content": "MID-DAY",
+            "polygon": [
+              670,
+              1340,
+              984,
+              1341,
+              984,
+              1428,
+              669,
+              1425
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 88,
+              "length": 7
+            }
+          },
+          {
+            "content": "SQUA",
+            "polygon": [
+              1035,
+              1342,
+              1214,
+              1344,
+              1214,
+              1429,
+              1035,
+              1428
+            ],
+            "confidence": 0.987,
+            "span": {
+              "offset": 96,
+              "length": 4
+            }
+          },
+          {
+            "content": "19.99",
+            "polygon": [
+              1454,
+              1347,
+              1681,
+              1347,
+              1681,
+              1433,
+              1455,
+              1433
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 101,
+              "length": 5
+            }
+          },
+          {
+            "content": "H",
+            "polygon": [
+              1779,
+              1348,
+              1829,
+              1349,
+              1829,
+              1433,
+              1779,
+              1433
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 107,
+              "length": 1
+            }
+          },
+          {
+            "content": "21366",
+            "polygon": [
+              394,
+              1439,
+              621,
+              1441,
+              621,
+              1522,
+              394,
+              1521
+            ],
+            "confidence": 0.975,
+            "span": {
+              "offset": 109,
+              "length": 5
+            }
+          },
+          {
+            "content": "CLEMENTINES",
+            "polygon": [
+              670,
+              1441,
+              1169,
+              1442,
+              1169,
+              1526,
+              670,
+              1523
+            ],
+            "confidence": 0.962,
+            "span": {
+              "offset": 115,
+              "length": 11
+            }
+          },
+          {
+            "content": "9.99",
+            "polygon": [
+              1488,
+              1450,
+              1681,
+              1450,
+              1681,
+              1531,
+              1488,
+              1531
+            ],
+            "confidence": 0.991,
+            "span": {
+              "offset": 127,
+              "length": 4
+            }
+          },
+          {
+            "content": "1931475",
+            "polygon": [
+              313,
+              1536,
+              623,
+              1538,
+              623,
+              1619,
+              313,
+              1617
+            ],
+            "confidence": 0.991,
+            "span": {
+              "offset": 132,
+              "length": 7
+            }
+          },
+          {
+            "content": "TPD/21366",
+            "polygon": [
+              672,
+              1539,
+              1078,
+              1540,
+              1078,
+              1622,
+              672,
+              1620
+            ],
+            "confidence": 0.993,
+            "span": {
+              "offset": 140,
+              "length": 9
+            }
+          },
+          {
+            "content": "2.00-",
+            "polygon": [
+              1485,
+              1546,
+              1717,
+              1548,
+              1717,
+              1628,
+              1486,
+              1629
+            ],
+            "confidence": 0.994,
+            "span": {
+              "offset": 150,
+              "length": 5
+            }
+          },
+          {
+            "content": "1865657",
+            "polygon": [
+              316,
+              1634,
+              623,
+              1635,
+              623,
+              1717,
+              317,
+              1716
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 156,
+              "length": 7
+            }
+          },
+          {
+            "content": "TF",
+            "polygon": [
+              673,
+              1636,
+              758,
+              1636,
+              758,
+              1718,
+              673,
+              1717
+            ],
+            "confidence": 0.989,
+            "span": {
+              "offset": 164,
+              "length": 2
+            }
+          },
+          {
+            "content": "MOCHI",
+            "polygon": [
+              809,
+              1636,
+              1028,
+              1637,
+              1028,
+              1720,
+              809,
+              1719
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 167,
+              "length": 5
+            }
+          },
+          {
+            "content": "13.99",
+            "polygon": [
+              1446,
+              1646,
+              1669,
+              1645,
+              1669,
+              1731,
+              1446,
+              1729
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 173,
+              "length": 5
+            }
+          },
+          {
+            "content": "H",
+            "polygon": [
+              1766,
+              1649,
+              1817,
+              1651,
+              1817,
+              1733,
+              1766,
+              1733
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 179,
+              "length": 1
+            }
+          },
+          {
+            "content": "30669",
+            "polygon": [
+              401,
+              1730,
+              624,
+              1731,
+              624,
+              1815,
+              401,
+              1813
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 181,
+              "length": 5
+            }
+          },
+          {
+            "content": "BANANAS",
+            "polygon": [
+              675,
+              1732,
+              986,
+              1734,
+              986,
+              1817,
+              675,
+              1815
+            ],
+            "confidence": 0.994,
+            "span": {
+              "offset": 187,
+              "length": 7
+            }
+          },
+          {
+            "content": "1.69",
+            "polygon": [
+              1488,
+              1745,
+              1669,
+              1745,
+              1669,
+              1826,
+              1489,
+              1825
+            ],
+            "confidence": 0.989,
+            "span": {
+              "offset": 195,
+              "length": 4
+            }
+          },
+          {
+            "content": "1813286",
+            "polygon": [
+              317,
+              1828,
+              625,
+              1829,
+              625,
+              1911,
+              318,
+              1910
+            ],
+            "confidence": 0.996,
+            "span": {
+              "offset": 200,
+              "length": 7
+            }
+          },
+          {
+            "content": "EGG",
+            "polygon": [
+              684,
+              1829,
+              803,
+              1830,
+              803,
+              1913,
+              684,
+              1911
+            ],
+            "confidence": 0.997,
+            "span": {
+              "offset": 208,
+              "length": 3
+            }
+          },
+          {
+            "content": "WRAP",
+            "polygon": [
+              854,
+              1831,
+              1029,
+              1831,
+              1029,
+              1915,
+              853,
+              1913
+            ],
+            "confidence": 0.988,
+            "span": {
+              "offset": 212,
+              "length": 4
+            }
+          },
+          {
+            "content": "19.99",
+            "polygon": [
+              1442,
+              1843,
+              1667,
+              1844,
+              1667,
+              1925,
+              1442,
+              1924
+            ],
+            "confidence": 0.993,
+            "span": {
+              "offset": 217,
+              "length": 5
+            }
+          },
+          {
+            "content": "1895875",
+            "polygon": [
+              319,
+              1924,
+              625,
+              1925,
+              625,
+              2011,
+              320,
+              2009
+            ],
+            "confidence": 0.997,
+            "span": {
+              "offset": 223,
+              "length": 7
+            }
+          },
+          {
+            "content": "MRGHRITAPIZZ",
+            "polygon": [
+              673,
+              1926,
+              1210,
+              1932,
+              1210,
+              2017,
+              673,
+              2011
+            ],
+            "confidence": 0.913,
+            "span": {
+              "offset": 231,
+              "length": 12
+            }
+          },
+          {
+            "content": "19.99",
+            "polygon": [
+              1441,
+              1942,
+              1666,
+              1942,
+              1666,
+              2025,
+              1442,
+              2024
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 244,
+              "length": 5
+            }
+          },
+          {
+            "content": "129572",
+            "polygon": [
+              363,
+              2023,
+              623,
+              2024,
+              623,
+              2110,
+              364,
+              2108
+            ],
+            "confidence": 0.988,
+            "span": {
+              "offset": 250,
+              "length": 6
+            }
+          },
+          {
+            "content": "EGGS",
+            "polygon": [
+              673,
+              2025,
+              846,
+              2026,
+              846,
+              2112,
+              673,
+              2111
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 257,
+              "length": 4
+            }
+          },
+          {
+            "content": "2.5",
+            "polygon": [
+              896,
+              2027,
+              1025,
+              2027,
+              1025,
+              2115,
+              896,
+              2113
+            ],
+            "confidence": 0.993,
+            "span": {
+              "offset": 262,
+              "length": 3
+            }
+          },
+          {
+            "content": "DZ",
+            "polygon": [
+              1056,
+              2027,
+              1164,
+              2028,
+              1164,
+              2116,
+              1056,
+              2116
+            ],
+            "confidence": 0.966,
+            "span": {
+              "offset": 266,
+              "length": 2
+            }
+          },
+          {
+            "content": "8.99",
+            "polygon": [
+              1476,
+              2043,
+              1662,
+              2043,
+              1662,
+              2123,
+              1476,
+              2123
+            ],
+            "confidence": 0.988,
+            "span": {
+              "offset": 269,
+              "length": 4
+            }
+          },
+          {
+            "content": "965949",
+            "polygon": [
+              355,
+              2122,
+              623,
+              2123,
+              624,
+              2209,
+              356,
+              2208
+            ],
+            "confidence": 0.993,
+            "span": {
+              "offset": 274,
+              "length": 6
+            }
+          },
+          {
+            "content": "SPANAKOPITA",
+            "polygon": [
+              673,
+              2123,
+              1163,
+              2128,
+              1163,
+              2213,
+              673,
+              2210
+            ],
+            "confidence": 0.747,
+            "span": {
+              "offset": 281,
+              "length": 11
+            }
+          },
+          {
+            "content": "19.99",
+            "polygon": [
+              1438,
+              2140,
+              1659,
+              2140,
+              1659,
+              2221,
+              1438,
+              2220
+            ],
+            "confidence": 0.996,
+            "span": {
+              "offset": 293,
+              "length": 5
+            }
+          },
+          {
+            "content": "1195239",
+            "polygon": [
+              317,
+              2222,
+              623,
+              2222,
+              623,
+              2310,
+              317,
+              2308
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 299,
+              "length": 7
+            }
+          },
+          {
+            "content": "ACTIVIA",
+            "polygon": [
+              672,
+              2223,
+              980,
+              2224,
+              980,
+              2312,
+              672,
+              2310
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 307,
+              "length": 7
+            }
+          },
+          {
+            "content": "LACT",
+            "polygon": [
+              1010,
+              2224,
+              1203,
+              2226,
+              1203,
+              2312,
+              1010,
+              2312
+            ],
+            "confidence": 0.957,
+            "span": {
+              "offset": 315,
+              "length": 4
+            }
+          },
+          {
+            "content": "10.79",
+            "polygon": [
+              1436,
+              2236,
+              1656,
+              2236,
+              1656,
+              2317,
+              1436,
+              2317
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 320,
+              "length": 5
+            }
+          },
+          {
+            "content": "129305",
+            "polygon": [
+              360,
+              2322,
+              621,
+              2323,
+              621,
+              2407,
+              361,
+              2405
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 326,
+              "length": 6
+            }
+          },
+          {
+            "content": "BAGELS",
+            "polygon": [
+              671,
+              2323,
+              938,
+              2325,
+              938,
+              2408,
+              671,
+              2407
+            ],
+            "confidence": 0.994,
+            "span": {
+              "offset": 333,
+              "length": 6
+            }
+          },
+          {
+            "content": "11.49",
+            "polygon": [
+              1435,
+              2333,
+              1654,
+              2333,
+              1654,
+              2416,
+              1435,
+              2416
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 340,
+              "length": 5
+            }
+          },
+          {
+            "content": "1218213",
+            "polygon": [
+              316,
+              2421,
+              620,
+              2422,
+              620,
+              2507,
+              316,
+              2504
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 346,
+              "length": 7
+            }
+          },
+          {
+            "content": "ORIGL",
+            "polygon": [
+              670,
+              2423,
+              914,
+              2424,
+              915,
+              2508,
+              670,
+              2507
+            ],
+            "confidence": 0.991,
+            "span": {
+              "offset": 354,
+              "length": 5
+            }
+          },
+          {
+            "content": "TORTIL",
+            "polygon": [
+              938,
+              2424,
+              1203,
+              2425,
+              1203,
+              2510,
+              938,
+              2508
+            ],
+            "confidence": 0.993,
+            "span": {
+              "offset": 360,
+              "length": 6
+            }
+          },
+          {
+            "content": "5.79",
+            "polygon": [
+              1470,
+              2432,
+              1653,
+              2432,
+              1653,
+              2513,
+              1470,
+              2513
+            ],
+            "confidence": 0.992,
+            "span": {
+              "offset": 367,
+              "length": 4
+            }
+          },
+          {
+            "content": "SUBTOTAL",
+            "polygon": [
+              441,
+              2519,
+              801,
+              2523,
+              801,
+              2607,
+              441,
+              2603
+            ],
+            "confidence": 0.993,
+            "span": {
+              "offset": 372,
+              "length": 8
+            }
+          },
+          {
+            "content": "140.69",
+            "polygon": [
+              1389,
+              2531,
+              1652,
+              2529,
+              1652,
+              2612,
+              1390,
+              2613
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 381,
+              "length": 6
+            }
+          },
+          {
+            "content": "TAX",
+            "polygon": [
+              442,
+              2618,
+              579,
+              2619,
+              579,
+              2704,
+              442,
+              2703
+            ],
+            "confidence": 0.994,
+            "span": {
+              "offset": 388,
+              "length": 3
+            }
+          },
+          {
+            "content": "4.42",
+            "polygon": [
+              1473,
+              2631,
+              1652,
+              2628,
+              1652,
+              2710,
+              1474,
+              2711
+            ],
+            "confidence": 0.988,
+            "span": {
+              "offset": 392,
+              "length": 4
+            }
+          },
+          {
+            "content": "****",
+            "polygon": [
+              220,
+              2729,
+              397,
+              2731,
+              397,
+              2792,
+              219,
+              2790
+            ],
+            "confidence": 0.974,
+            "span": {
+              "offset": 397,
+              "length": 4
+            }
+          },
+          {
+            "content": "TOTAL",
+            "polygon": [
+              442,
+              2721,
+              663,
+              2723,
+              663,
+              2805,
+              441,
+              2802
+            ],
+            "confidence": 0.995,
+            "span": {
+              "offset": 402,
+              "length": 5
+            }
+          },
+          {
+            "content": "145.11",
+            "polygon": [
+              1390,
+              2729,
+              1692,
+              2727,
+              1692,
+              2809,
+              1391,
+              2811
+            ],
+            "confidence": 0.949,
+            "span": {
+              "offset": 408,
+              "length": 6
+            }
+          }
+        ],
+        "lines": [
+          {
+            "content": "COSTCO",
+            "polygon": [
+              260,
+              129,
+              1648,
+              156,
+              1647,
+              416,
+              260,
+              409
+            ],
+            "spans": [
+              {
+                "offset": 0,
+                "length": 6
+              }
+            ]
+          },
+          {
+            "content": "WHOLESALE",
+            "polygon": [
+              690,
+              404,
+              1622,
+              413,
+              1621,
+              513,
+              690,
+              505
+            ],
+            "spans": [
+              {
+                "offset": 7,
+                "length": 9
+              }
+            ]
+          },
+          {
+            "content": "Nepean #540",
+            "polygon": [
+              525,
+              588,
+              1378,
+              593,
+              1377,
+              663,
+              524,
+              659
+            ],
+            "spans": [
+              {
+                "offset": 17,
+                "length": 11
+              }
+            ]
+          },
+          {
+            "content": "1849 Merivale Road",
+            "polygon": [
+              527,
+              683,
+              1336,
+              692,
+              1336,
+              774,
+              526,
+              767
+            ],
+            "spans": [
+              {
+                "offset": 29,
+                "length": 18
+              }
+            ]
+          },
+          {
+            "content": "Nepean, ON K2G1E3",
+            "polygon": [
+              607,
+              783,
+              1381,
+              786,
+              1380,
+              872,
+              606,
+              871
+            ],
+            "spans": [
+              {
+                "offset": 48,
+                "length": 17
+              }
+            ]
+          },
+          {
+            "content": "SELF-CHECKOUT",
+            "polygon": [
+              431,
+              978,
+              1459,
+              985,
+              1458,
+              1115,
+              430,
+              1108
+            ],
+            "spans": [
+              {
+                "offset": 66,
+                "length": 13
+              }
+            ]
+          },
+          {
+            "content": "1873581 MID-DAY SQUA",
+            "polygon": [
+              306,
+              1336,
+              1214,
+              1343,
+              1214,
+              1429,
+              305,
+              1421
+            ],
+            "spans": [
+              {
+                "offset": 80,
+                "length": 20
+              }
+            ]
+          },
+          {
+            "content": "19.99 H",
+            "polygon": [
+              1454,
+              1345,
+              1829,
+              1346,
+              1829,
+              1433,
+              1454,
+              1432
+            ],
+            "spans": [
+              {
+                "offset": 101,
+                "length": 7
+              }
+            ]
+          },
+          {
+            "content": "21366 CLEMENTINES",
+            "polygon": [
+              394,
+              1439,
+              1169,
+              1442,
+              1168,
+              1526,
+              394,
+              1522
+            ],
+            "spans": [
+              {
+                "offset": 109,
+                "length": 17
+              }
+            ]
+          },
+          {
+            "content": "9.99",
+            "polygon": [
+              1488,
+              1449,
+              1680,
+              1449,
+              1680,
+              1530,
+              1488,
+              1531
+            ],
+            "spans": [
+              {
+                "offset": 127,
+                "length": 4
+              }
+            ]
+          },
+          {
+            "content": "1931475 TPD/21366",
+            "polygon": [
+              313,
+              1536,
+              1078,
+              1540,
+              1077,
+              1621,
+              312,
+              1616
+            ],
+            "spans": [
+              {
+                "offset": 132,
+                "length": 17
+              }
+            ]
+          },
+          {
+            "content": "2.00-",
+            "polygon": [
+              1485,
+              1546,
+              1717,
+              1547,
+              1716,
+              1628,
+              1485,
+              1628
+            ],
+            "spans": [
+              {
+                "offset": 150,
+                "length": 5
+              }
+            ]
+          },
+          {
+            "content": "1865657 TF MOCHI",
+            "polygon": [
+              316,
+              1633,
+              1028,
+              1637,
+              1028,
+              1720,
+              315,
+              1716
+            ],
+            "spans": [
+              {
+                "offset": 156,
+                "length": 16
+              }
+            ]
+          },
+          {
+            "content": "13.99 H",
+            "polygon": [
+              1446,
+              1643,
+              1817,
+              1647,
+              1817,
+              1733,
+              1445,
+              1727
+            ],
+            "spans": [
+              {
+                "offset": 173,
+                "length": 7
+              }
+            ]
+          },
+          {
+            "content": "30669 BANANAS",
+            "polygon": [
+              401,
+              1730,
+              986,
+              1734,
+              985,
+              1817,
+              400,
+              1812
+            ],
+            "spans": [
+              {
+                "offset": 181,
+                "length": 13
+              }
+            ]
+          },
+          {
+            "content": "1.69",
+            "polygon": [
+              1488,
+              1744,
+              1668,
+              1745,
+              1668,
+              1825,
+              1488,
+              1825
+            ],
+            "spans": [
+              {
+                "offset": 195,
+                "length": 4
+              }
+            ]
+          },
+          {
+            "content": "1813286 EGG WRAP",
+            "polygon": [
+              317,
+              1827,
+              1029,
+              1831,
+              1028,
+              1915,
+              317,
+              1910
+            ],
+            "spans": [
+              {
+                "offset": 200,
+                "length": 16
+              }
+            ]
+          },
+          {
+            "content": "19.99",
+            "polygon": [
+              1442,
+              1843,
+              1667,
+              1844,
+              1667,
+              1925,
+              1442,
+              1924
+            ],
+            "spans": [
+              {
+                "offset": 217,
+                "length": 5
+              }
+            ]
+          },
+          {
+            "content": "1895875 MRGHRITAPIZZ",
+            "polygon": [
+              319,
+              1923,
+              1210,
+              1931,
+              1209,
+              2016,
+              319,
+              2007
+            ],
+            "spans": [
+              {
+                "offset": 223,
+                "length": 20
+              }
+            ]
+          },
+          {
+            "content": "19.99",
+            "polygon": [
+              1441,
+              1942,
+              1665,
+              1941,
+              1665,
+              2024,
+              1442,
+              2025
+            ],
+            "spans": [
+              {
+                "offset": 244,
+                "length": 5
+              }
+            ]
+          },
+          {
+            "content": "129572 EGGS 2.5 DZ",
+            "polygon": [
+              363,
+              2023,
+              1164,
+              2028,
+              1163,
+              2116,
+              363,
+              2111
+            ],
+            "spans": [
+              {
+                "offset": 250,
+                "length": 18
+              }
+            ]
+          },
+          {
+            "content": "8.99",
+            "polygon": [
+              1476,
+              2042,
+              1662,
+              2042,
+              1662,
+              2122,
+              1476,
+              2123
+            ],
+            "spans": [
+              {
+                "offset": 269,
+                "length": 4
+              }
+            ]
+          },
+          {
+            "content": "965949 SPANAKOPITA",
+            "polygon": [
+              355,
+              2121,
+              1163,
+              2126,
+              1162,
+              2213,
+              355,
+              2206
+            ],
+            "spans": [
+              {
+                "offset": 274,
+                "length": 18
+              }
+            ]
+          },
+          {
+            "content": "19.99",
+            "polygon": [
+              1438,
+              2140,
+              1658,
+              2139,
+              1659,
+              2220,
+              1438,
+              2220
+            ],
+            "spans": [
+              {
+                "offset": 293,
+                "length": 5
+              }
+            ]
+          },
+          {
+            "content": "1195239 ACTIVIA LACT",
+            "polygon": [
+              317,
+              2221,
+              1203,
+              2225,
+              1203,
+              2312,
+              316,
+              2308
+            ],
+            "spans": [
+              {
+                "offset": 299,
+                "length": 20
+              }
+            ]
+          },
+          {
+            "content": "10.79",
+            "polygon": [
+              1436,
+              2236,
+              1655,
+              2235,
+              1655,
+              2316,
+              1436,
+              2317
+            ],
+            "spans": [
+              {
+                "offset": 320,
+                "length": 5
+              }
+            ]
+          },
+          {
+            "content": "129305 BAGELS",
+            "polygon": [
+              360,
+              2321,
+              938,
+              2324,
+              937,
+              2408,
+              360,
+              2405
+            ],
+            "spans": [
+              {
+                "offset": 326,
+                "length": 13
+              }
+            ]
+          },
+          {
+            "content": "11.49",
+            "polygon": [
+              1434,
+              2333,
+              1653,
+              2332,
+              1653,
+              2415,
+              1435,
+              2416
+            ],
+            "spans": [
+              {
+                "offset": 340,
+                "length": 5
+              }
+            ]
+          },
+          {
+            "content": "1218213 ORIGL TORTIL",
+            "polygon": [
+              316,
+              2421,
+              1203,
+              2425,
+              1203,
+              2510,
+              315,
+              2505
+            ],
+            "spans": [
+              {
+                "offset": 346,
+                "length": 20
+              }
+            ]
+          },
+          {
+            "content": "5.79",
+            "polygon": [
+              1470,
+              2432,
+              1653,
+              2431,
+              1653,
+              2512,
+              1470,
+              2513
+            ],
+            "spans": [
+              {
+                "offset": 367,
+                "length": 4
+              }
+            ]
+          },
+          {
+            "content": "SUBTOTAL",
+            "polygon": [
+              441,
+              2519,
+              801,
+              2522,
+              800,
+              2606,
+              441,
+              2602
+            ],
+            "spans": [
+              {
+                "offset": 372,
+                "length": 8
+              }
+            ]
+          },
+          {
+            "content": "140.69",
+            "polygon": [
+              1389,
+              2530,
+              1651,
+              2529,
+              1652,
+              2612,
+              1390,
+              2613
+            ],
+            "spans": [
+              {
+                "offset": 381,
+                "length": 6
+              }
+            ]
+          },
+          {
+            "content": "TAX",
+            "polygon": [
+              442,
+              2618,
+              579,
+              2619,
+              578,
+              2703,
+              441,
+              2702
+            ],
+            "spans": [
+              {
+                "offset": 388,
+                "length": 3
+              }
+            ]
+          },
+          {
+            "content": "4.42",
+            "polygon": [
+              1473,
+              2630,
+              1650,
+              2628,
+              1651,
+              2710,
+              1473,
+              2711
+            ],
+            "spans": [
+              {
+                "offset": 392,
+                "length": 4
+              }
+            ]
+          },
+          {
+            "content": "****",
+            "polygon": [
+              220,
+              2729,
+              396,
+              2731,
+              396,
+              2791,
+              219,
+              2790
+            ],
+            "spans": [
+              {
+                "offset": 397,
+                "length": 4
+              }
+            ]
+          },
+          {
+            "content": "TOTAL",
+            "polygon": [
+              442,
+              2720,
+              663,
+              2723,
+              663,
+              2805,
+              441,
+              2802
+            ],
+            "spans": [
+              {
+                "offset": 402,
+                "length": 5
+              }
+            ]
+          },
+          {
+            "content": "145.11",
+            "polygon": [
+              1390,
+              2729,
+              1691,
+              2727,
+              1692,
+              2808,
+              1391,
+              2810
+            ],
+            "spans": [
+              {
+                "offset": 408,
+                "length": 6
+              }
+            ]
+          }
+        ],
+        "spans": [
+          {
+            "offset": 0,
+            "length": 414
+          }
+        ]
+      }
+    ],
+    "styles": [],
+    "documents": [
+      {
+        "docType": "receipt.retailMeal",
+        "boundingRegions": [
+          {
+            "pageNumber": 1,
+            "polygon": [
+              0,
+              0,
+              1851,
+              0,
+              1851,
+              3309,
+              0,
+              3309
+            ]
+          }
+        ],
+        "fields": {
+          "CountryRegion": {
+            "type": "countryRegion",
+            "valueCountryRegion": "CAN",
+            "confidence": 0.995
+          },
+          "Items": {
+            "type": "array",
+            "valueArray": [
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "MID-DAY SQUA",
+                    "content": "MID-DAY SQUA",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          670,
+                          1338,
+                          1215,
+                          1343,
+                          1214,
+                          1430,
+                          669,
+                          1425
+                        ]
+                      }
+                    ],
+                    "confidence": 0.984,
+                    "spans": [
+                      {
+                        "offset": 88,
+                        "length": 12
+                      }
+                    ]
+                  },
+                  "ProductCode": {
+                    "type": "string",
+                    "valueString": "1873581",
+                    "content": "1873581",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          306,
+                          1336,
+                          605,
+                          1339,
+                          605,
+                          1425,
+                          306,
+                          1421
+                        ]
+                      }
+                    ],
+                    "confidence": 0.964,
+                    "spans": [
+                      {
+                        "offset": 80,
+                        "length": 7
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "amount": 19.99,
+                      "currencyCode": "CAD"
+                    },
+                    "content": "19.99",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          1454,
+                          1347,
+                          1681,
+                          1347,
+                          1681,
+                          1433,
+                          1455,
+                          1433
+                        ]
+                      }
+                    ],
+                    "confidence": 0.989,
+                    "spans": [
+                      {
+                        "offset": 101,
+                        "length": 5
+                      }
+                    ]
+                  }
+                },
+                "content": "1873581 MID-DAY SQUA\n19.99 H",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      306,
+                      1335,
+                      1830,
+                      1348,
+                      1829,
+                      1436,
+                      305,
+                      1423
+                    ]
+                  }
+                ],
+                "confidence": 0.981,
+                "spans": [
+                  {
+                    "offset": 80,
+                    "length": 28
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "CLEMENTINES",
+                    "content": "CLEMENTINES",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          670,
+                          1441,
+                          1169,
+                          1442,
+                          1169,
+                          1526,
+                          670,
+                          1523
+                        ]
+                      }
+                    ],
+                    "confidence": 0.986,
+                    "spans": [
+                      {
+                        "offset": 115,
+                        "length": 11
+                      }
+                    ]
+                  },
+                  "ProductCode": {
+                    "type": "string",
+                    "valueString": "21366",
+                    "content": "21366",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          394,
+                          1439,
+                          621,
+                          1441,
+                          621,
+                          1522,
+                          394,
+                          1521
+                        ]
+                      }
+                    ],
+                    "confidence": 0.963,
+                    "spans": [
+                      {
+                        "offset": 109,
+                        "length": 5
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "amount": 9.99,
+                      "currencyCode": "CAD"
+                    },
+                    "content": "9.99",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          1488,
+                          1450,
+                          1681,
+                          1450,
+                          1681,
+                          1531,
+                          1488,
+                          1531
+                        ]
+                      }
+                    ],
+                    "confidence": 0.989,
+                    "spans": [
+                      {
+                        "offset": 127,
+                        "length": 4
+                      }
+                    ]
+                  }
+                },
+                "content": "21366 CLEMENTINES\n9.99",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      394,
+                      1439,
+                      1681,
+                      1444,
+                      1681,
+                      1532,
+                      394,
+                      1527
+                    ]
+                  }
+                ],
+                "confidence": 0.984,
+                "spans": [
+                  {
+                    "offset": 109,
+                    "length": 22
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "TPD/21366",
+                    "content": "TPD/21366",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          672,
+                          1539,
+                          1078,
+                          1540,
+                          1078,
+                          1622,
+                          672,
+                          1620
+                        ]
+                      }
+                    ],
+                    "confidence": 0.986,
+                    "spans": [
+                      {
+                        "offset": 140,
+                        "length": 9
+                      }
+                    ]
+                  },
+                  "ProductCode": {
+                    "type": "string",
+                    "valueString": "1931475",
+                    "content": "1931475",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          313,
+                          1536,
+                          623,
+                          1538,
+                          623,
+                          1619,
+                          313,
+                          1617
+                        ]
+                      }
+                    ],
+                    "confidence": 0.964,
+                    "spans": [
+                      {
+                        "offset": 132,
+                        "length": 7
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "amount": -2,
+                      "currencyCode": "CAD"
+                    },
+                    "content": "2.00-",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          1485,
+                          1546,
+                          1717,
+                          1548,
+                          1717,
+                          1628,
+                          1486,
+                          1629
+                        ]
+                      }
+                    ],
+                    "confidence": 0.989,
+                    "spans": [
+                      {
+                        "offset": 150,
+                        "length": 5
+                      }
+                    ]
+                  }
+                },
+                "content": "1931475 TPD/21366\n2.00-",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      313,
+                      1536,
+                      1717,
+                      1541,
+                      1717,
+                      1630,
+                      313,
+                      1625
+                    ]
+                  }
+                ],
+                "confidence": 0.984,
+                "spans": [
+                  {
+                    "offset": 132,
+                    "length": 23
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "TF MOCHI",
+                    "content": "TF MOCHI",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          673,
+                          1635,
+                          1028,
+                          1637,
+                          1028,
+                          1720,
+                          673,
+                          1718
+                        ]
+                      }
+                    ],
+                    "confidence": 0.984,
+                    "spans": [
+                      {
+                        "offset": 164,
+                        "length": 8
+                      }
+                    ]
+                  },
+                  "ProductCode": {
+                    "type": "string",
+                    "valueString": "1865657",
+                    "content": "1865657",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          316,
+                          1634,
+                          623,
+                          1635,
+                          623,
+                          1717,
+                          317,
+                          1716
+                        ]
+                      }
+                    ],
+                    "confidence": 0.964,
+                    "spans": [
+                      {
+                        "offset": 156,
+                        "length": 7
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "amount": 13.99,
+                      "currencyCode": "CAD"
+                    },
+                    "content": "13.99",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          1446,
+                          1646,
+                          1669,
+                          1645,
+                          1669,
+                          1731,
+                          1446,
+                          1729
+                        ]
+                      }
+                    ],
+                    "confidence": 0.989,
+                    "spans": [
+                      {
+                        "offset": 173,
+                        "length": 5
+                      }
+                    ]
+                  }
+                },
+                "content": "1865657 TF MOCHI\n13.99 H",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      316,
+                      1634,
+                      1817,
+                      1640,
+                      1817,
+                      1733,
+                      316,
+                      1726
+                    ]
+                  }
+                ],
+                "confidence": 0.982,
+                "spans": [
+                  {
+                    "offset": 156,
+                    "length": 24
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "BANANAS",
+                    "content": "BANANAS",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          675,
+                          1732,
+                          986,
+                          1734,
+                          986,
+                          1817,
+                          675,
+                          1815
+                        ]
+                      }
+                    ],
+                    "confidence": 0.986,
+                    "spans": [
+                      {
+                        "offset": 187,
+                        "length": 7
+                      }
+                    ]
+                  },
+                  "ProductCode": {
+                    "type": "string",
+                    "valueString": "30669",
+                    "content": "30669",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          401,
+                          1730,
+                          624,
+                          1731,
+                          624,
+                          1815,
+                          401,
+                          1813
+                        ]
+                      }
+                    ],
+                    "confidence": 0.964,
+                    "spans": [
+                      {
+                        "offset": 181,
+                        "length": 5
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "amount": 1.69,
+                      "currencyCode": "CAD"
+                    },
+                    "content": "1.69",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          1488,
+                          1745,
+                          1669,
+                          1745,
+                          1669,
+                          1826,
+                          1489,
+                          1825
+                        ]
+                      }
+                    ],
+                    "confidence": 0.989,
+                    "spans": [
+                      {
+                        "offset": 195,
+                        "length": 4
+                      }
+                    ]
+                  }
+                },
+                "content": "30669 BANANAS\n1.69",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      401,
+                      1730,
+                      1670,
+                      1738,
+                      1669,
+                      1826,
+                      400,
+                      1818
+                    ]
+                  }
+                ],
+                "confidence": 0.984,
+                "spans": [
+                  {
+                    "offset": 181,
+                    "length": 18
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "EGG WRAP",
+                    "content": "EGG WRAP",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          684,
+                          1827,
+                          1030,
+                          1831,
+                          1029,
+                          1916,
+                          683,
+                          1911
+                        ]
+                      }
+                    ],
+                    "confidence": 0.984,
+                    "spans": [
+                      {
+                        "offset": 208,
+                        "length": 8
+                      }
+                    ]
+                  },
+                  "ProductCode": {
+                    "type": "string",
+                    "valueString": "1813286",
+                    "content": "1813286",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          317,
+                          1828,
+                          625,
+                          1829,
+                          625,
+                          1911,
+                          318,
+                          1910
+                        ]
+                      }
+                    ],
+                    "confidence": 0.964,
+                    "spans": [
+                      {
+                        "offset": 200,
+                        "length": 7
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "amount": 19.99,
+                      "currencyCode": "CAD"
+                    },
+                    "content": "19.99",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          1442,
+                          1843,
+                          1667,
+                          1844,
+                          1667,
+                          1925,
+                          1442,
+                          1924
+                        ]
+                      }
+                    ],
+                    "confidence": 0.989,
+                    "spans": [
+                      {
+                        "offset": 217,
+                        "length": 5
+                      }
+                    ]
+                  }
+                },
+                "content": "1813286 EGG WRAP\n19.99",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      317,
+                      1827,
+                      1668,
+                      1835,
+                      1667,
+                      1925,
+                      316,
+                      1918
+                    ]
+                  }
+                ],
+                "confidence": 0.982,
+                "spans": [
+                  {
+                    "offset": 200,
+                    "length": 22
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "MRGHRITAPIZZ",
+                    "content": "MRGHRITAPIZZ",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          673,
+                          1926,
+                          1210,
+                          1932,
+                          1210,
+                          2017,
+                          673,
+                          2011
+                        ]
+                      }
+                    ],
+                    "confidence": 0.985,
+                    "spans": [
+                      {
+                        "offset": 231,
+                        "length": 12
+                      }
+                    ]
+                  },
+                  "ProductCode": {
+                    "type": "string",
+                    "valueString": "1895875",
+                    "content": "1895875",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          319,
+                          1924,
+                          625,
+                          1925,
+                          625,
+                          2011,
+                          320,
+                          2009
+                        ]
+                      }
+                    ],
+                    "confidence": 0.964,
+                    "spans": [
+                      {
+                        "offset": 223,
+                        "length": 7
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "amount": 19.99,
+                      "currencyCode": "CAD"
+                    },
+                    "content": "19.99",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          1441,
+                          1942,
+                          1666,
+                          1942,
+                          1666,
+                          2025,
+                          1442,
+                          2024
+                        ]
+                      }
+                    ],
+                    "confidence": 0.989,
+                    "spans": [
+                      {
+                        "offset": 244,
+                        "length": 5
+                      }
+                    ]
+                  }
+                },
+                "content": "1895875 MRGHRITAPIZZ\n19.99",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      319,
+                      1923,
+                      1666,
+                      1930,
+                      1666,
+                      2025,
+                      319,
+                      2018
+                    ]
+                  }
+                ],
+                "confidence": 0.983,
+                "spans": [
+                  {
+                    "offset": 223,
+                    "length": 26
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "EGGS 2.5 DZ",
+                    "content": "EGGS 2.5 DZ",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          673,
+                          2025,
+                          1165,
+                          2028,
+                          1164,
+                          2117,
+                          672,
+                          2114
+                        ]
+                      }
+                    ],
+                    "confidence": 0.982,
+                    "spans": [
+                      {
+                        "offset": 257,
+                        "length": 11
+                      }
+                    ]
+                  },
+                  "ProductCode": {
+                    "type": "string",
+                    "valueString": "129572",
+                    "content": "129572",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          363,
+                          2023,
+                          623,
+                          2024,
+                          623,
+                          2110,
+                          364,
+                          2108
+                        ]
+                      }
+                    ],
+                    "confidence": 0.964,
+                    "spans": [
+                      {
+                        "offset": 250,
+                        "length": 6
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "amount": 8.99,
+                      "currencyCode": "CAD"
+                    },
+                    "content": "8.99",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          1476,
+                          2043,
+                          1662,
+                          2043,
+                          1662,
+                          2123,
+                          1476,
+                          2123
+                        ]
+                      }
+                    ],
+                    "confidence": 0.989,
+                    "spans": [
+                      {
+                        "offset": 269,
+                        "length": 4
+                      }
+                    ]
+                  }
+                },
+                "content": "129572 EGGS 2.5 DZ\n8.99",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      363,
+                      2022,
+                      1663,
+                      2030,
+                      1662,
+                      2124,
+                      362,
+                      2117
+                    ]
+                  }
+                ],
+                "confidence": 0.976,
+                "spans": [
+                  {
+                    "offset": 250,
+                    "length": 23
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "SPANAKOPITA",
+                    "content": "SPANAKOPITA",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          673,
+                          2123,
+                          1163,
+                          2128,
+                          1163,
+                          2213,
+                          673,
+                          2210
+                        ]
+                      }
+                    ],
+                    "confidence": 0.984,
+                    "spans": [
+                      {
+                        "offset": 281,
+                        "length": 11
+                      }
+                    ]
+                  },
+                  "ProductCode": {
+                    "type": "string",
+                    "valueString": "965949",
+                    "content": "965949",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          355,
+                          2122,
+                          623,
+                          2123,
+                          624,
+                          2209,
+                          356,
+                          2208
+                        ]
+                      }
+                    ],
+                    "confidence": 0.964,
+                    "spans": [
+                      {
+                        "offset": 274,
+                        "length": 6
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "amount": 19.99,
+                      "currencyCode": "CAD"
+                    },
+                    "content": "19.99",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          1438,
+                          2140,
+                          1659,
+                          2140,
+                          1659,
+                          2221,
+                          1438,
+                          2220
+                        ]
+                      }
+                    ],
+                    "confidence": 0.989,
+                    "spans": [
+                      {
+                        "offset": 293,
+                        "length": 5
+                      }
+                    ]
+                  }
+                },
+                "content": "965949 SPANAKOPITA\n19.99",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      355,
+                      2122,
+                      1659,
+                      2127,
+                      1659,
+                      2221,
+                      355,
+                      2216
+                    ]
+                  }
+                ],
+                "confidence": 0.982,
+                "spans": [
+                  {
+                    "offset": 274,
+                    "length": 24
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "ACTIVIA LACT",
+                    "content": "ACTIVIA LACT",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          672,
+                          2222,
+                          1203,
+                          2225,
+                          1203,
+                          2313,
+                          672,
+                          2310
+                        ]
+                      }
+                    ],
+                    "confidence": 0.984,
+                    "spans": [
+                      {
+                        "offset": 307,
+                        "length": 12
+                      }
+                    ]
+                  },
+                  "ProductCode": {
+                    "type": "string",
+                    "valueString": "1195239",
+                    "content": "1195239",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          317,
+                          2222,
+                          623,
+                          2222,
+                          623,
+                          2310,
+                          317,
+                          2308
+                        ]
+                      }
+                    ],
+                    "confidence": 0.965,
+                    "spans": [
+                      {
+                        "offset": 299,
+                        "length": 7
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "amount": 10.79,
+                      "currencyCode": "CAD"
+                    },
+                    "content": "10.79",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          1436,
+                          2236,
+                          1656,
+                          2236,
+                          1656,
+                          2317,
+                          1436,
+                          2317
+                        ]
+                      }
+                    ],
+                    "confidence": 0.989,
+                    "spans": [
+                      {
+                        "offset": 320,
+                        "length": 5
+                      }
+                    ]
+                  }
+                },
+                "content": "1195239 ACTIVIA LACT\n10.79",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      317,
+                      2221,
+                      1656,
+                      2227,
+                      1656,
+                      2318,
+                      317,
+                      2312
+                    ]
+                  }
+                ],
+                "confidence": 0.981,
+                "spans": [
+                  {
+                    "offset": 299,
+                    "length": 26
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "BAGELS",
+                    "content": "BAGELS",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          671,
+                          2323,
+                          938,
+                          2325,
+                          938,
+                          2408,
+                          671,
+                          2407
+                        ]
+                      }
+                    ],
+                    "confidence": 0.986,
+                    "spans": [
+                      {
+                        "offset": 333,
+                        "length": 6
+                      }
+                    ]
+                  },
+                  "ProductCode": {
+                    "type": "string",
+                    "valueString": "129305",
+                    "content": "129305",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          360,
+                          2322,
+                          621,
+                          2323,
+                          621,
+                          2407,
+                          361,
+                          2405
+                        ]
+                      }
+                    ],
+                    "confidence": 0.964,
+                    "spans": [
+                      {
+                        "offset": 326,
+                        "length": 6
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "amount": 11.49,
+                      "currencyCode": "CAD"
+                    },
+                    "content": "11.49",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          1435,
+                          2333,
+                          1654,
+                          2333,
+                          1654,
+                          2416,
+                          1435,
+                          2416
+                        ]
+                      }
+                    ],
+                    "confidence": 0.989,
+                    "spans": [
+                      {
+                        "offset": 340,
+                        "length": 5
+                      }
+                    ]
+                  }
+                },
+                "content": "129305 BAGELS\n11.49",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      360,
+                      2321,
+                      1654,
+                      2329,
+                      1654,
+                      2417,
+                      360,
+                      2410
+                    ]
+                  }
+                ],
+                "confidence": 0.984,
+                "spans": [
+                  {
+                    "offset": 326,
+                    "length": 19
+                  }
+                ]
+              },
+              {
+                "type": "object",
+                "valueObject": {
+                  "Description": {
+                    "type": "string",
+                    "valueString": "ORIGL TORTIL",
+                    "content": "ORIGL TORTIL",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          670,
+                          2422,
+                          1203,
+                          2425,
+                          1203,
+                          2510,
+                          670,
+                          2507
+                        ]
+                      }
+                    ],
+                    "confidence": 0.984,
+                    "spans": [
+                      {
+                        "offset": 354,
+                        "length": 12
+                      }
+                    ]
+                  },
+                  "ProductCode": {
+                    "type": "string",
+                    "valueString": "1218213",
+                    "content": "1218213",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          316,
+                          2421,
+                          620,
+                          2422,
+                          620,
+                          2507,
+                          316,
+                          2504
+                        ]
+                      }
+                    ],
+                    "confidence": 0.964,
+                    "spans": [
+                      {
+                        "offset": 346,
+                        "length": 7
+                      }
+                    ]
+                  },
+                  "TotalPrice": {
+                    "type": "currency",
+                    "valueCurrency": {
+                      "amount": 5.79,
+                      "currencyCode": "CAD"
+                    },
+                    "content": "5.79",
+                    "boundingRegions": [
+                      {
+                        "pageNumber": 1,
+                        "polygon": [
+                          1470,
+                          2432,
+                          1653,
+                          2432,
+                          1653,
+                          2513,
+                          1470,
+                          2513
+                        ]
+                      }
+                    ],
+                    "confidence": 0.989,
+                    "spans": [
+                      {
+                        "offset": 367,
+                        "length": 4
+                      }
+                    ]
+                  }
+                },
+                "content": "1218213 ORIGL TORTIL\n5.79",
+                "boundingRegions": [
+                  {
+                    "pageNumber": 1,
+                    "polygon": [
+                      316,
+                      2420,
+                      1653,
+                      2428,
+                      1653,
+                      2514,
+                      316,
+                      2506
+                    ]
+                  }
+                ],
+                "confidence": 0.982,
+                "spans": [
+                  {
+                    "offset": 346,
+                    "length": 25
+                  }
+                ]
+              }
+            ]
+          },
+          "MerchantAddress": {
+            "type": "address",
+            "content": "1849 Merivale Road\nNepean, ON K2G1E3",
+            "boundingRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  527,
+                  683,
+                  1382,
+                  688,
+                  1381,
+                  874,
+                  526,
+                  870
+                ]
+              }
+            ],
+            "confidence": 0.986,
+            "spans": [
+              {
+                "offset": 29,
+                "length": 36
+              }
+            ],
+            "valueAddress": {
+              "houseNumber": "1849",
+              "road": "Merivale Road",
+              "postalCode": "K2G1E3",
+              "city": "Nepean",
+              "state": "ON",
+              "streetAddress": "1849 Merivale Road"
+            }
+          },
+          "MerchantName": {
+            "type": "string",
+            "valueString": "COSTCO",
+            "content": "COSTCO",
+            "boundingRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  260,
+                  134,
+                  1648,
+                  167,
+                  1648,
+                  416,
+                  260,
+                  414
+                ]
+              }
+            ],
+            "confidence": 0.972,
+            "spans": [
+              {
+                "offset": 0,
+                "length": 6
+              }
+            ]
+          },
+          "ReceiptType": {
+            "type": "string",
+            "valueString": "Supplies",
+            "confidence": 0.97
+          },
+          "Subtotal": {
+            "type": "currency",
+            "valueCurrency": {
+              "amount": 140.69,
+              "currencyCode": "CAD"
+            },
+            "content": "140.69",
+            "boundingRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1389,
+                  2531,
+                  1652,
+                  2529,
+                  1652,
+                  2612,
+                  1390,
+                  2613
+                ]
+              }
+            ],
+            "confidence": 0.984,
+            "spans": [
+              {
+                "offset": 381,
+                "length": 6
+              }
+            ]
+          },
+          "Total": {
+            "type": "currency",
+            "valueCurrency": {
+              "amount": 145.11,
+              "currencyCode": "CAD"
+            },
+            "content": "145.11",
+            "boundingRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1390,
+                  2729,
+                  1692,
+                  2727,
+                  1692,
+                  2809,
+                  1391,
+                  2811
+                ]
+              }
+            ],
+            "confidence": 0.985,
+            "spans": [
+              {
+                "offset": 408,
+                "length": 6
+              }
+            ]
+          },
+          "TotalTax": {
+            "type": "currency",
+            "valueCurrency": {
+              "amount": 4.42,
+              "currencyCode": "CAD"
+            },
+            "content": "4.42",
+            "boundingRegions": [
+              {
+                "pageNumber": 1,
+                "polygon": [
+                  1473,
+                  2631,
+                  1652,
+                  2628,
+                  1652,
+                  2710,
+                  1474,
+                  2711
+                ]
+              }
+            ],
+            "confidence": 0.988,
+            "spans": [
+              {
+                "offset": 392,
+                "length": 4
+              }
+            ]
+          }
+        },
+        "confidence": 0.97,
+        "spans": [
+          {
+            "offset": 0,
+            "length": 414
+          }
+        ]
+      }
+    ],
+    "contentFormat": "text"
+  }
+}

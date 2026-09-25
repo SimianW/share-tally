@@ -1,0 +1,201 @@
+{
+  "schemaVersion": 1,
+  "id": "open-prices-costco-21942",
+  "currency": "CAD",
+  "currencyExponent": 2,
+  "country": "CA",
+  "region": "ON",
+  "merchant": "COSTCO WHOLESALE",
+  "items": [
+    {
+      "id": "item-001",
+      "description": "KS COLDSINUS",
+      "productCode": "1279452",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 1099,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-002",
+      "description": "BANANAS",
+      "productCode": "30669",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 169,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-003",
+      "description": "RIVAJ NAAN",
+      "productCode": "328795",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 489,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-004",
+      "description": "HP SOUL BOWL",
+      "productCode": "5054110",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 1399,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-005",
+      "description": "HERO",
+      "productCode": "1828317",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 2999,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-006",
+      "description": "PINEAPPLE",
+      "productCode": "15099",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 499,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-007",
+      "description": "WHIP CREAM1L",
+      "productCode": "999",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 629,
+      "ownDiscount": 0,
+      "discountLabels": [],
+      "notes": []
+    },
+    {
+      "id": "item-008",
+      "description": "CRACKER CUT",
+      "productCode": "380420",
+      "quantity": "1",
+      "quantityBasis": "implicit-single-line",
+      "unit": null,
+      "unitPrice": null,
+      "linePrice": 1799,
+      "ownDiscount": 400,
+      "discountLabels": [
+        "TPD/380420"
+      ],
+      "notes": []
+    }
+  ],
+  "receiptDiscounts": [],
+  "subtotal": 8682,
+  "subtotalBasis": "printed",
+  "taxLines": [
+    {
+      "label": "TAX",
+      "rate": null,
+      "rateBasis": "unprinted",
+      "amount": 533
+    }
+  ],
+  "taxTotal": 533,
+  "taxMode": "exclusive",
+  "charges": [],
+  "rounding": 0,
+  "total": 9215,
+  "taxability": [
+    {
+      "itemId": "item-001",
+      "taxable": true,
+      "basis": "printed-code",
+      "evidence": "Printed Y tax marker.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-002",
+      "taxable": false,
+      "basis": "printed-code",
+      "evidence": "Printed N tax marker.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-003",
+      "taxable": false,
+      "basis": "printed-code",
+      "evidence": "Printed N tax marker.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-004",
+      "taxable": false,
+      "basis": "printed-code",
+      "evidence": "Printed N tax marker.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-005",
+      "taxable": true,
+      "basis": "printed-code",
+      "evidence": "Printed Y tax marker.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-006",
+      "taxable": false,
+      "basis": "printed-code",
+      "evidence": "Printed N tax marker.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-007",
+      "taxable": false,
+      "basis": "printed-code",
+      "evidence": "Printed N tax marker.",
+      "sourceUrls": []
+    },
+    {
+      "itemId": "item-008",
+      "taxable": false,
+      "basis": "printed-code",
+      "evidence": "Printed N tax marker.",
+      "sourceUrls": []
+    }
+  ],
+  "notes": [
+    "All quantities are implicit one per printed purchase row; package sizes in descriptions are not purchase quantities. Unit prices are not separately printed and are null.",
+    "Own discounts are attached to the preceding matching product; linePrice is the printed amount before that discount.",
+    "Digital receipt; Y/N tax markers are printed beside each item. Y-marked net items total 40.98, consistent with printed tax 5.33 at Ontario HST 13%; the rate is not printed and remains null.",
+    "The discount product code 1916083 identifies the printed TPD/380420 discount row, not an extra item."
+  ],
+  "review": {
+    "method": "manual visual transcription with arithmetic reconciliation",
+    "date": "2026-09-24"
+  }
+}

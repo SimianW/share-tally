@@ -8,6 +8,7 @@ import { ReceiptAmount } from "./ReceiptAmount";
 import { ReceiptItemRow } from "./ReceiptItemRow";
 import { ReceiptFilterChips } from "./ReceiptFilterChips";
 import { Notification } from "./Notification";
+import { ReceiptLinePhoto } from "./ReceiptLinePhoto";
 import { Button } from "./ui";
 
 function fieldsValid(container: HTMLElement | null) {
@@ -22,7 +23,7 @@ function itemNeedsCheck(item: ReceiptDraftItem) {
   return item.needsCheck ?? (item.amountCents === null);
 }
 
-export function ReceiptReviewItems({ items, change, mode = "review", hasFrozenRate = true, processing = false, processingStatus = "ready", scanned = false, onConfirm }: { items: ReceiptDraftItem[]; change: (items: ReceiptDraftItem[]) => void; mode?: "review" | "correction"; hasFrozenRate?: boolean; processing?: boolean; processingStatus?: "ready" | "processing" | "fallback"; scanned?: boolean; onConfirm?: (itemId: string, flag: "needsCheck" | "taxNotChecked") => Promise<boolean> }) {
+export function ReceiptReviewItems({ items, change, mode = "review", hasFrozenRate = true, processing = false, processingStatus = "ready", scanned = false, onConfirm, photo }: { items: ReceiptDraftItem[]; change: (items: ReceiptDraftItem[]) => void; mode?: "review" | "correction"; hasFrozenRate?: boolean; processing?: boolean; processingStatus?: "ready" | "processing" | "fallback"; scanned?: boolean; onConfirm?: (itemId: string, flag: "needsCheck" | "taxNotChecked") => Promise<boolean>; photo?: { id: string; version: number; pages?: { pageNumber: number; width: number; height: number; unit: string }[] } }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "needs-check" | "tax-not-checked">("all");
   const [readyDismissed, setReadyDismissed] = useState(false);
@@ -30,6 +31,8 @@ export function ReceiptReviewItems({ items, change, mode = "review", hasFrozenRa
   const originallyFlagged = useRef(false);
   const index = items.findIndex((item) => item.id === selected);
   const active = items[index];
+  const region = active?.evidence?.regions?.[0] ?? active?.evidence?.descriptionRegions?.[0];
+  const page = photo?.pages?.find((entry) => entry.pageNumber === region?.pageNumber);
   const fields = useRef<HTMLDivElement>(null);
   const needsCheckCount = items.filter(itemNeedsCheck).length;
   const taxNotCheckedCount = items.filter((item) => item.taxNotChecked).length;
@@ -82,6 +85,7 @@ export function ReceiptReviewItems({ items, change, mode = "review", hasFrozenRa
       <div ref={fields} key={active.id} className="receipt-sheet-content">
         {processing && <p className="receipt-lock-note" role="status"><LockKeyhole size={18} aria-hidden="true" /> Checking the name and tax for this item. Editing unlocks when it finishes.</p>}
         {!processing && active.taxNotChecked && <p className="receipt-lock-note receipt-lock-warning">Tax wasn't checked automatically. This item is set to taxable; turn it off if it isn't taxed.</p>}
+        {photo && page && region && region.pageNumber === 1 && <ReceiptLinePhoto id={photo.id} version={photo.version} page={page} polygon={region.polygon} />}
         <div className="receipt-original-text"><span className="eyebrow">ON THE RECEIPT</span><p>{active.originalText || "Manually added item"}</p></div>
         <fieldset className="receipt-editor-controls" disabled={processing}>
         <div className="receipt-editor-fields">
@@ -134,6 +138,7 @@ export function ReceiptSummary({ data, change, close, disabled = false }: { data
           <ReceiptAmount label="Receipt subtotal" required={false} value={receipt.subtotalCents} change={(subtotalCents) => change({ receipt: { ...receipt, subtotalCents } })} />
           <ReceiptAmount label="Receipt discount" emptyAsZero value={receipt.discountCents} change={(discountCents) => change({ receipt: { ...receipt, discountCents: discountCents ?? 0 } })} />
           <ReceiptAmount label="Receipt tax" emptyAsZero value={receipt.taxCents} change={(taxCents) => change({ receipt: { ...receipt, taxCents: taxCents ?? 0 } })} />
+          {receipt.taxLabel && <small className="receipt-tax-label">{receipt.taxLabel}</small>}
           <ReceiptAmount label="Other adjustments" emptyAsZero signed value={receipt.extraCents} change={(extraCents) => change({ receipt: { ...receipt, extraCents: extraCents ?? 0 } })} />
           <ReceiptAmount label="Receipt total" required={false} value={data.totalCents} change={(totalCents) => change({ totalCents })} />
         </div>
