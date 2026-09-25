@@ -25,7 +25,7 @@ type AnalyzeResult = {
   apiVersion?: string;
   content?: string;
   documents?: { fields?: Record<string, Field>; confidence?: number }[];
-  pages?: unknown[];
+  pages?: { pageNumber?: number; width?: number; height?: number; unit?: string }[];
 };
 function amount(field?: Field) {
   const n = field?.valueCurrency?.amount ?? field?.valueNumber;
@@ -95,6 +95,11 @@ export function normalizeAzure(result: AnalyzeResult) {
   });
   return {
     evidence: {
+      pages: (result.pages ?? []).flatMap(({ pageNumber, width, height, unit }) =>
+        Number.isInteger(pageNumber) && typeof width === "number" && width > 0 &&
+        typeof height === "number" && height > 0 && typeof unit === "string"
+          ? [{ pageNumber: pageNumber!, width, height, unit }]
+          : []),
       ...(f.CountryRegion?.valueCountryRegion ? { countryRegion: f.CountryRegion.valueCountryRegion } : {}),
       ...(taxDetails ? { taxDetails } : {}),
     },

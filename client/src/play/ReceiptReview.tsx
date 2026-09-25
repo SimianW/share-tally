@@ -6,6 +6,7 @@ import { requestId } from "./request-id";
 import Dialog from "./Dialog";
 import { ReceiptAmount } from "./ReceiptAmount";
 import { ReceiptItemRow } from "./ReceiptItemRow";
+import { ReceiptLinePhoto } from "./ReceiptLinePhoto";
 import { Button } from "./ui";
 
 function fieldsValid(container: HTMLElement | null) {
@@ -16,10 +17,12 @@ function fieldsValid(container: HTMLElement | null) {
   return false;
 }
 
-export function ReceiptReviewItems({ items, change, mode = "review", hasFrozenRate = true, processing = false }: { items: ReceiptDraftItem[]; change: (items: ReceiptDraftItem[]) => void; mode?: "review" | "correction"; hasFrozenRate?: boolean; processing?: boolean }) {
+export function ReceiptReviewItems({ items, change, mode = "review", hasFrozenRate = true, processing = false, photo }: { items: ReceiptDraftItem[]; change: (items: ReceiptDraftItem[]) => void; mode?: "review" | "correction"; hasFrozenRate?: boolean; processing?: boolean; photo?: { id: string; version: number; pages?: { pageNumber: number; width: number; height: number; unit: string }[] } }) {
   const [selected, setSelected] = useState<string | null>(null);
   const index = items.findIndex((item) => item.id === selected);
   const active = items[index];
+  const region = active?.evidence?.regions?.[0] ?? active?.evidence?.descriptionRegions?.[0];
+  const page = photo?.pages?.find((entry) => entry.pageNumber === region?.pageNumber);
   const fields = useRef<HTMLDivElement>(null);
   useEffect(() => {
     fields.current?.querySelector<HTMLInputElement>("[data-autofocus]")?.focus({ preventScroll: true });
@@ -40,6 +43,7 @@ export function ReceiptReviewItems({ items, change, mode = "review", hasFrozenRa
     }}><Plus size={16} aria-hidden="true" /> Add an item</Button>}
     {active && !processing && <Dialog title={mode === "correction" ? "Correct item price" : "Edit receipt item"} kicker={`ITEM ${index + 1} OF ${items.length}`} className="receipt-sheet" closeLabel="Close editor" close={close}>
       <div ref={fields} key={active.id} className="receipt-sheet-content">
+        {photo && page && region && region.pageNumber === 1 && <ReceiptLinePhoto id={photo.id} version={photo.version} page={page} polygon={region.polygon} />}
         <div className="receipt-original-text"><span className="eyebrow">ON THE RECEIPT</span><p>{active.originalText || "Manually added item"}</p></div>
         <div className="receipt-editor-fields">
           <label className="receipt-field-wide">Item name<input data-autofocus required={mode === "correction"} maxLength={160} value={active.name} onChange={(event) => update({ name: event.target.value })} /></label>
