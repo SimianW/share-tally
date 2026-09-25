@@ -49,7 +49,7 @@ A bill draft whose receipt is still being interpreted after scanning. Its initia
 _Avoid_: Pending draft, since "pending" already describes repayment records.
 
 **Receipt evidence**:
-Everything the receipt reader extracted from a scanned receipt photo, including the raw analysis, retained with the photo and deleted with it.
+The complete raw analysis the receipt reader returned for a scanned receipt photo, retained with the photo and deleted with it. The receipt text and reviewed items outlive it.
 _Avoid_: OCR data, scan result.
 
 **Bill initiation**:
