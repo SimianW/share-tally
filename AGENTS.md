@@ -15,3 +15,7 @@ Default vocabulary; each label string equals its canonical role name. See `docs/
 ### Domain docs
 
 Single-context: `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### Subagent model for frontend design
+
+When delegating frontend design work (UI/UX, layout, visual design) to a subagent, set the Agent tool's `model` to `"opus"` (Opus 5.5). This overrides the global instruction to leave `model` unset for this kind of task only.
