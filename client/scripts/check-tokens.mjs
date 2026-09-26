@@ -7,8 +7,8 @@ const sourceExtensions = new Set(['.css', '.ts', '.tsx']);
 const allowedFile = (file) => ['tokens.css', 'palettes.css'].includes(path.basename(file).toLowerCase());
 
 const namedColors = new Set(`aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue blueviolet brown burlywood cadetblue chartreuse chocolate coral cornflowerblue cornsilk crimson cyan darkblue darkcyan darkgoldenrod darkgray darkgreen darkgrey darkkhaki darkmagenta darkolivegreen darkorange darkorchid darkred darksalmon darkseagreen darkslateblue darkslategray darkslategrey darkturquoise darkviolet deeppink deepskyblue dimgray dimgrey dodgerblue firebrick floralwhite forestgreen fuchsia gainsboro ghostwhite gold goldenrod gray green greenyellow grey honeydew hotpink indianred indigo ivory khaki lavender lavenderblush lawngreen lemonchiffon lightblue lightcoral lightcyan lightgoldenrodyellow lightgray lightgreen lightgrey lightpink lightsalmon lightseagreen lightskyblue lightslategray lightslategrey lightsteelblue lightyellow lime limegreen linen magenta maroon mediumaquamarine mediumblue mediumorchid mediumpurple mediumseagreen mediumslateblue mediumspringgreen mediumturquoise mediumvioletred midnightblue mintcream mistyrose moccasin navajowhite navy oldlace olive olivedrab orange orangered orchid palegoldenrod palegreen paleturquoise palevioletred papayawhip peachpuff peru pink plum powderblue purple rebeccapurple red rosybrown royalblue saddlebrown salmon sandybrown seagreen seashell sienna silver skyblue slateblue slategray slategrey snow springgreen steelblue tan teal thistle tomato turquoise violet wheat white whitesmoke yellow yellowgreen`.split(/\s+/));
-const colorProperties = /^(?:color|background(?:-color)?|border(?:-(?:top|right|bottom|left|inline|block))?(?:-color)?|outline(?:-color)?|box-shadow|text-shadow|text-decoration-color|column-rule(?:-color)?|fill|stroke|stop-color|flood-color|lighting-color|caret-color|accent-color|(?:--[\w-]+))$/i;
-const colorSyntax = /#[\da-f]{3,8}\b|\b(?:rgba?|hsla?)\s*\(/i;
+const colorProperties = /^(?:color|background(?:-(?:color|image))?|(?:-webkit-)?mask(?:-image)?|border(?:-(?:top|right|bottom|left|inline|block))?(?:-color)?|outline(?:-color)?|box-shadow|text-shadow|text-decoration-color|column-rule(?:-color)?|fill|stroke|stop-color|flood-color|lighting-color|caret-color|accent-color|(?:--[\w-]+))$/i;
+const colorSyntax = /#[\da-f]{3,8}\b|\b(?:rgba?|hsla?|oklch|oklab|lab|lch|hwb)\s*\(/i;
 const genericFonts = new Set(['serif', 'sans-serif', 'monospace', 'cursive', 'fantasy', 'system-ui', 'ui-serif', 'ui-sans-serif', 'ui-monospace', 'ui-rounded', 'emoji', 'math', 'fangsong', 'inherit', 'initial', 'unset', 'revert', 'revert-layer']);
 
 async function listSources(directory) {
@@ -103,9 +103,14 @@ function inspectTypescript(text, file, errors) {
     }
   }
   // Also catch keyed color lookup data such as { Simon: '#abc' }, without reading arbitrary strings.
-  const literalColor = /(['"`])\s*(#[\da-f]{3,8}|rgba?\s*\([^)]*\)|hsla?\s*\([^)]*\))\s*\1/gi;
+  const literalColor = /(['"`])\s*(#[\da-f]{3,8}|(?:rgba?|hsla?|oklch|oklab|lab|lch|hwb)\s*\([^)]*\)|color-mix\s*\((?:[^()]|\([^()]*\))*\)|[a-z]+)\s*\1/gi;
   for (const match of text.matchAll(literalColor)) {
-    if (styledRanges.some(([start, end]) => match.index >= start && match.index < end)) continue;
+    const value = match[2];
+    const words = value.toLowerCase().match(/[a-z]+/g) ?? [];
+    const hasLiteralColor = colorSyntax.test(value) || words.some((word) => namedColors.has(word));
+    if (/^[a-z]+$/i.test(value) && !namedColors.has(value.toLowerCase())) continue;
+    if (/^color-mix\s*\(/i.test(value) && !hasLiteralColor) continue;
+    if (styledRanges.some(([start, end]) => match.index >= start && match.index < end) && !/^color-mix\s*\(/i.test(value)) continue;
     const before = code.slice(0, match.index);
     if (!/(?:^|[{,])\s*[\w$]+\s*:\s*$/.test(before)) continue;
     const line = text.slice(0, match.index).split('\n').length;
