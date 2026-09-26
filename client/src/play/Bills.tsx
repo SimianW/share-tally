@@ -21,6 +21,8 @@ import { GroupBalances } from "./GroupBalances";
 import { InitiatorActions, ShareActions } from "./BillActions";
 
 import { NextTransfer } from './NextTransfer';
+// PROTOTYPE ONLY (#94): alternative group-page layouts, chosen in the dev switcher.
+import { GroupPagePrototype, useLayout } from './prototype-layout/GroupPagePrototype';
 
 // The member's balance in this group. There is no cross-group balance: each
 // group settles on its own (ADR-0005).
@@ -90,6 +92,14 @@ export function GroupBills({ id, selectedRepaymentId, onDeleted, title }: {
     setMembersOpen(false);
     setRevision(n => n + 1);
   }
+  const layout = useLayout();
+  if (data && layout !== 'current') return <>
+    <GroupPagePrototype layout={layout} data={data} groupId={id} api={api} title={title(data.group)}
+      openMembers={() => setMembersOpen(true)} refresh={() => setRevision(n => n + 1)}
+      drafts={<ReceiptDrafts key={`${id}:${revision}`} groupId={id} open={draftId => { window.location.hash = `/new-bill/${id}/${draftId}`; }} />}
+      records={<Repayments key={`${id}:${selectedRepaymentId ?? ""}`} selectedId={selectedRepaymentId} group={data.group} records={data.repayments} api={api} refresh={() => setRevision(n => n + 1)} />} />
+    {membersOpen && <GroupDetails id={id} api={groups} close={closeMembers} onDeleted={onDeleted} />}
+  </>;
   return (
     <section className="bills-page">
       <div className="bill-heading group-heading">

@@ -61,8 +61,10 @@ export function Repayments({ group, records, api, refresh, selectedId }: {
   </section>;
 }
 
-function RecordRepayment({ group, api, close, saved }: {
+// PROTOTYPE (#94): exported with an optional prefill for "I sent this".
+export function RecordRepayment({ group, api, close, saved, initial }: {
   group: GroupDetail; api: BillApi; close: () => void; saved: () => void;
+  initial?: { recipientId: string; amountCents: number };
 }) {
   const me = group.members.find(member => member.isCurrentUser)!;
   const storageKey = `repayment-creation:${me.id}:${group.id}`;
@@ -70,8 +72,8 @@ function RecordRepayment({ group, api, close, saved }: {
     try { const stored = sessionStorage.getItem(storageKey); return stored ? JSON.parse(stored) : null; }
     catch { return null; }
   });
-  const [recipientId, setRecipientId] = useState(request?.recipientId ?? '');
-  const [amount, setAmount] = useState(request ? (request.amountCents / 100).toFixed(2) : '');
+  const [recipientId, setRecipientId] = useState(request?.recipientId ?? initial?.recipientId ?? '');
+  const [amount, setAmount] = useState(request ? (request.amountCents / 100).toFixed(2) : initial ? (initial.amountCents / 100).toFixed(2) : '');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
