@@ -211,6 +211,14 @@ try {
   const retryDrafts = (await api(`/groups/${group.id}/receipt-drafts`)).drafts;
   assert.equal(retryDrafts.length, 1);
   await expect.poll(async () => (await api(`/receipt-drafts/${retryDrafts[0].id}`)).draft.processingStatus).toBe("ready");
+  // Public seam: a saved, ready receipt draft is resumed from its Home action.
+  await alice.getByRole("link", { name: "ShareTally home", exact: true }).click();
+  const draftAction = alice.getByRole("region", { name: "Needs your attention" })
+    .getByRole("link", { name: /Review draft.*Receipt friends/ });
+  await expect(draftAction).toBeVisible();
+  await draftAction.click();
+  await expect(alice).toHaveURL(`${newBillRoute}/${retryDrafts[0].id}`);
+  await expect(alice.getByRole("heading", { name: "Check your items" })).toBeVisible();
   await alice.getByRole("button", { name: "Back to group" }).click();
   await expect(alice).toHaveURL(groupRoute);
   await alice.getByRole("button", { name: `Delete ${retryDrafts[0].data.title || "untitled bill"}`, exact: true }).click();
@@ -394,7 +402,12 @@ try {
   await alice.getByRole("button", { name: "Confirm my item claims" }).click();
   await expect(alice.locator(".claim-list .receipt-row-badges").first()).toContainText("Your claim");
   const bob = await pageFor("bob-token", { width: 390, height: 844 });
-  await bob.goto(`${base}#/bills/${billId}`);
+  await bob.goto(base);
+  const itemAction = bob.getByRole("region", { name: "Needs your attention" })
+    .getByRole("link", { name: /Claim your items.*Shared apples/ });
+  await expect(itemAction).toBeVisible();
+  await itemAction.click();
+  await expect(bob).toHaveURL(`${base}#/bills/${billId}`);
   await bob.getByRole("button", { name: "View Apples · $3.00", exact: true }).click();
   await itemOption(bob, "1/3 · $1.00").click();
   await claimSheet(bob).getByRole("button", { name: "Close claim", exact: true }).click();
