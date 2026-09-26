@@ -23,12 +23,20 @@ export function TopBar({ account, openAccount }: { account: SignedInAccount; ope
 
 function AccountMenu({ account, openAccount }: { account: SignedInAccount; openAccount: () => void }) {
   const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
   const triggerId = useId();
   const menuId = useId();
   useEffect(() => {
-    if (open) menu.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+    if (!open) return;
+    menu.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+    // Touch browsers such as iOS Safari do not blur on a tap on non-focusable content.
+    function pressedOutside(event: PointerEvent) {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
+    }
+    document.addEventListener('pointerdown', pressedOutside);
+    return () => document.removeEventListener('pointerdown', pressedOutside);
   }, [open]);
 
   function close() {
@@ -39,7 +47,7 @@ function AccountMenu({ account, openAccount }: { account: SignedInAccount; openA
     close();
     action();
   }
-  // Clicking elsewhere or tabbing away moves focus out of the menu and closes it.
+  // Tabbing away, or a click that moves focus elsewhere, also closes the menu.
   function focusLeft(event: FocusEvent<HTMLDivElement>) {
     if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
   }
@@ -57,7 +65,7 @@ function AccountMenu({ account, openAccount }: { account: SignedInAccount; openA
     items[(next + items.length) % items.length].focus();
   }
 
-  return <div className="account-menu" onBlur={focusLeft}>
+  return <div ref={root} className="account-menu" onBlur={focusLeft}>
     <button ref={trigger} id={triggerId} type="button" className="account-menu-trigger"
       aria-label="Account menu" aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuId : undefined}
       onClick={() => setOpen(value => !value)}
@@ -81,7 +89,7 @@ function AccountMenu({ account, openAccount }: { account: SignedInAccount; openA
           <ShieldCheck size={18} aria-hidden="true" />Profile &amp; security
         </button>
         <div role="separator" />
-        <button type="button" role="menuitem" tabIndex={-1} onClick={() => { setOpen(false); account.signOut(); }}>
+        <button type="button" role="menuitem" tabIndex={-1} onClick={() => choose(account.signOut)}>
           <LogOut size={18} aria-hidden="true" />Sign out
         </button>
       </div>

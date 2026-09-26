@@ -187,6 +187,17 @@ async function checkTopBar(page, label) {
   await expect(menu).toBeVisible();
   await page.mouse.click(5, 400); // Outside the menu, which covers the heading at 390px.
   await expect(menu).toHaveCount(0);
+  // iOS Safari taps on non-focusable content do not blur the focused item; the press alone must close it.
+  await menuButton.click();
+  await expect(menu.getByRole('menuitem', { name: 'Account', exact: true })).toBeFocused();
+  await page.evaluate(() => document.querySelector('main').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+  await expect(menu).toHaveCount(0);
+  // A press inside the menu keeps it open.
+  await menuButton.click();
+  await page.evaluate(() => document.querySelector('[role="menu"]').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+  await expect(menu).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
 
   await menuButton.click();
   await menu.getByRole('menuitem', { name: 'Account', exact: true }).click();
