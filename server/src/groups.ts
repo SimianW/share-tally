@@ -1,11 +1,11 @@
 import { withoutEvidence } from './receipt-drafts.js';
 import { lockGroupForMember } from './group-access.js';
 import { notifyGroupChanged, notifyGroupDeleted } from './group-events.js';
-import { readBillsInSnapshot } from './bills.js';
+import { readBillsInSnapshot, readMemberBalancesInSnapshot } from './bills.js';
 import { readRepayments } from './repayments.js';
 import { groupLedger } from './group-ledger.js';
 import { randomBytes } from 'node:crypto';
-import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 
 import { db } from "./db/index.js";
 import { groupMembers, groups, receiptDrafts, receiptEvidence, receiptPhotos, users } from "./db/schema.js";
@@ -56,28 +56,37 @@ export async function createGroup(
       throw new Error('Group insert returned no row.')
     }
 
-    await tx
+    const [membership] = await tx
       .insert(groupMembers)
       .values({
         groupId: group.id,
         userId: creatorId,
       })
+      .returning({ joinedAt: groupMembers.joinedAt })
 
     // 回调成功结束后，Drizzle 才提交事务。
     // 如果上面的任意操作抛错，整个事务回滚。
-    return toGroup({ ...group, creatorName: creator.displayName ?? "Member", memberCount: 1 }, creatorId)
+    // A new group has no bills yet, so its creator's balance is zero.
+    const creatorName = creator.displayName ?? "Member";
+    return {
+      ...toGroup({ ...group, joinedAt: membership!.joinedAt, creatorName, memberCount: 1 }, creatorId),
+      netCents: 0,
+      memberPreview: [{ id: creatorId, displayName: creatorName }],
+    }
   })
 };
 
 
+// Read through the current user's membership row: joinedAt is when they joined.
 const summaryFields = {
   ...publicGroupFields,
+  joinedAt: groupMembers.joinedAt,
   creatorName: sql<string>`coalesce(${users.displayName}, 'Member')`,
   memberCount: sql<number>`(select count(*) from ${groupMembers} where ${groupMembers.groupId} = ${groups.id})`.mapWith(Number),
 };
 
 function toGroup(row: {
-  id: string; name: string; icon: string; createdBy: string; createdAt: Date;
+  id: string; name: string; icon: string; createdBy: string; createdAt: Date; joinedAt: Date;
   creatorName: string; memberCount: number;
 }, userId: string) {
   const separator = row.icon.indexOf(':');
@@ -88,13 +97,33 @@ function toGroup(row: {
   };
 }
 
+// Home's avatar stack shows this many members.
+const previewSize = 4;
+
+// Groups in the order the member joined them, so the order never shuffles. Each
+// carries the member's own balance there, the same number as its group page.
 export async function listGroupsForUser(userId: string) {
-  const rows = await db.select(summaryFields).from(groupMembers)
-    .innerJoin(groups, eq(groupMembers.groupId, groups.id))
-    .innerJoin(users, eq(groups.createdBy, users.id))
-    .where(and(eq(groupMembers.userId, userId), isNull(groups.deletedAt)))
-    .orderBy(desc(groups.createdAt), groups.id);
-  return rows.map(row => toGroup(row, userId));
+  return db.transaction(async tx => {
+    const rows = await tx.select(summaryFields).from(groupMembers)
+      .innerJoin(groups, eq(groupMembers.groupId, groups.id))
+      .innerJoin(users, eq(groups.createdBy, users.id))
+      .where(and(eq(groupMembers.userId, userId), isNull(groups.deletedAt)))
+      .orderBy(groupMembers.joinedAt, groups.id);
+    const ids = rows.map(row => row.id);
+    const balances = await readMemberBalancesInSnapshot(tx, userId, ids);
+    const members = ids.length ? await tx.select({
+      groupId: groupMembers.groupId,
+      id: users.id,
+      displayName: sql<string>`coalesce(${users.displayName}, 'Member')`,
+    }).from(groupMembers).innerJoin(users, eq(groupMembers.userId, users.id))
+      .where(inArray(groupMembers.groupId, ids)).orderBy(groupMembers.joinedAt, users.id) : [];
+    return rows.map(row => ({
+      ...toGroup(row, userId),
+      netCents: balances.get(row.id)!,
+      memberPreview: members.filter(member => member.groupId === row.id).slice(0, previewSize)
+        .map(({ id, displayName }) => ({ id, displayName })),
+    }));
+  }, { isolationLevel: 'repeatable read', accessMode: 'read only' });
 }
 
 export class GroupAccessError extends Error {

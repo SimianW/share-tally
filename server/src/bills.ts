@@ -6,7 +6,7 @@ import { cents, isUuid } from "./input-validation.js";
 export { isUuid } from "./input-validation.js";
 import { confirmedRepaymentEntries } from "./repayment-accounting.js";
 import { readRepayments, type Repayment } from './repayments.js';
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { safeCents } from "./money.js";
 import { groupLedger } from "./group-ledger.js";
 import { db } from "./db/index.js";
@@ -507,11 +507,15 @@ export async function readSummary(userId: string) {
     return summarize(rows, userId, repayments);
   }, { isolationLevel: "repeatable read", accessMode: "read only" });
 }
-export function summarize(
-  rows: Awaited<ReturnType<typeof readBills>>,
-  userId: string,
-  repayments: Repayment[] = [],
-) {
+// The fields of a bill that decide a member's balance.
+type BalanceBill = Pick<typeof bills.$inferSelect,
+  'groupId' | 'initiatorId' | 'totalCents' | 'adjustmentCents' | 'completedAt' | 'canceledAt'> & {
+  participants: { userId: string; amountCents: number | null }[];
+};
+
+// The member's net balance in each group, from completed bills and confirmed
+// repayments. The group page and the group list both use this arithmetic.
+function memberBalances(rows: BalanceBill[], userId: string, repayments: Repayment[]) {
   const balances = new Map<string, bigint>();
   const add = (groupId: string, amount: bigint) => balances.set(groupId, (balances.get(groupId) ?? 0n) + amount);
   for (const bill of rows) {
@@ -525,6 +529,32 @@ export function summarize(
   for (const entry of confirmedRepaymentEntries(repayments)) {
     if (entry.userId === userId) add(entry.groupId, entry.amountCents);
   }
+  return balances;
+}
+
+// Reads only the member's own shares of completed bills, which is all the
+// balance needs, rather than every participant and item of every bill.
+export async function readMemberBalancesInSnapshot(tx: Tx, userId: string, groupIds: string[]) {
+  if (!groupIds.length) return new Map<string, number>();
+  const rows = await tx.select({
+    groupId: bills.groupId, initiatorId: bills.initiatorId, totalCents: bills.totalCents,
+    adjustmentCents: bills.adjustmentCents, completedAt: bills.completedAt, canceledAt: bills.canceledAt,
+    amountCents: billShares.amountCents,
+  }).from(bills)
+    .innerJoin(billShares, and(eq(billShares.billId, bills.id), eq(billShares.userId, userId)))
+    .where(and(inArray(bills.groupId, groupIds), isNotNull(bills.completedAt), isNull(bills.canceledAt)));
+  const repayments = (await readRepayments(tx, userId)).filter(repayment => groupIds.includes(repayment.groupId));
+  const balances = memberBalances(
+    rows.map(({ amountCents, ...bill }) => ({ ...bill, participants: [{ userId, amountCents }] })), userId, repayments);
+  return new Map(groupIds.map(id => [id, safeCents(balances.get(id) ?? 0n)]));
+}
+
+export function summarize(
+  rows: Awaited<ReturnType<typeof readBills>>,
+  userId: string,
+  repayments: Repayment[] = [],
+) {
+  const balances = memberBalances(rows, userId, repayments);
   let receivable = 0n, payable = 0n;
   for (const balance of balances.values()) {
     if (balance > 0n) receivable += balance;

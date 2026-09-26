@@ -459,6 +459,49 @@ test("summary combines groups without including incomplete or nonparticipant bil
   assert.equal((await json(await api(second.path))).summary.netCents, -3000);
 });
 
+test("the group list orders groups by the member's join time and carries their group page balance", async () => {
+  // Carol's group is the oldest, but Alice joins it last.
+  const early = await create("carol-token");
+  const first = await setup(false);
+  const a = await billCreate(first.path, first.draft);
+  await submit(a.id, 6000);
+  await billCreate(first.path, { ...first.draft, requestId: crypto.randomUUID() });
+  const second = await setup(false);
+  const b = (await json(await api(second.path, "bob-token", "POST", { ...second.draft, ownShareCents: 7000 }), 201)).bill;
+  await submit(b.id, 3000, "alice-token");
+  await decide((await recordRepayment(second.group.id, second.ids.Bob, 1000, "alice-token")).id, "confirmed", "bob-token");
+  const invite = await json(await api(`/groups/${early.id}/invitation`, "carol-token"));
+  await json(await api("/groups/join", "alice-token", "POST", { token: invite.path.split("/").at(-1) }));
+
+  const list = async (token: string) => (await json(await api("/groups", token))).groups;
+  const aliceGroups = await list("alice-token");
+  assert.deepEqual(aliceGroups.map((g: { id: string }) => g.id), [first.group.id, second.group.id, early.id]);
+  for (const group of aliceGroups) {
+    const page = await json(await api(`/groups/${group.id}/bills`));
+    assert.equal(group.netCents, page.summary.netCents);
+  }
+  assert.deepEqual(aliceGroups.map((g: { netCents: number }) => g.netCents), [6000, -2000, 0]);
+  assert.ok(aliceGroups.every((g: { joinedAt: string }) => !Number.isNaN(Date.parse(g.joinedAt))));
+  assert.deepEqual(aliceGroups[2].memberPreview.map((m: { displayName: string }) => m.displayName), ["Carol", "Alice"]);
+  assert.equal(aliceGroups[0].memberPreview[0].id, first.ids.Alice);
+  assert.equal(typeof aliceGroups[0].memberPreview[0].imageUrl, "string");
+  const bobGroups = await list("bob-token");
+  assert.deepEqual(bobGroups.map((g: { id: string; netCents: number }) => [g.id, g.netCents]),
+    [[first.group.id, -6000], [second.group.id, 2000]]);
+  assert.deepEqual((await list("carol-token")).map((g: { netCents: number }) => g.netCents), [0]);
+});
+
+test("the group list previews at most four members, earliest first", async () => {
+  const group = await create();
+  const invite = await json(await api(`/groups/${group.id}/invitation`));
+  const token = invite.path.split("/").at(-1);
+  for (const member of ["bob-token", "carol-token", "member-1-token", "member-2-token"])
+    await json(await api("/groups/join", member, "POST", { token }));
+  const [listed] = (await json(await api("/groups", "member-2-token"))).groups;
+  assert.equal(listed.memberCount, 5);
+  assert.deepEqual(listed.memberPreview.map((m: { displayName: string }) => m.displayName), ["Alice", "Bob", "Carol", "Member"]);
+});
+
 test("competing first amounts cannot overwrite each other", async () => {
   const { path, draft } = await setup(false);
   const bill = await billCreate(path, draft);
