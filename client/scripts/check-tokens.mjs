@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url';
 const srcDir = fileURLToPath(new URL('../src/', import.meta.url));
 const sourceExtensions = new Set(['.css', '.ts', '.tsx']);
 const allowedFile = (file) => ['tokens.css', 'palettes.css'].includes(path.basename(file).toLowerCase());
-const fontFaceFile = (file) => path.basename(file).toLowerCase() === 'fonts.css';
 
 const namedColors = new Set(`aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue blueviolet brown burlywood cadetblue chartreuse chocolate coral cornflowerblue cornsilk crimson cyan darkblue darkcyan darkgoldenrod darkgray darkgreen darkgrey darkkhaki darkmagenta darkolivegreen darkorange darkorchid darkred darksalmon darkseagreen darkslateblue darkslategray darkslategrey darkturquoise darkviolet deeppink deepskyblue dimgray dimgrey dodgerblue firebrick floralwhite forestgreen fuchsia gainsboro ghostwhite gold goldenrod gray green greenyellow grey honeydew hotpink indianred indigo ivory khaki lavender lavenderblush lawngreen lemonchiffon lightblue lightcoral lightcyan lightgoldenrodyellow lightgray lightgreen lightgrey lightpink lightsalmon lightseagreen lightskyblue lightslategray lightslategrey lightsteelblue lightyellow lime limegreen linen magenta maroon mediumaquamarine mediumblue mediumorchid mediumpurple mediumseagreen mediumslateblue mediumspringgreen mediumturquoise mediumvioletred midnightblue mintcream mistyrose moccasin navajowhite navy oldlace olive olivedrab orange orangered orchid palegoldenrod palegreen paleturquoise palevioletred papayawhip peachpuff peru pink plum powderblue purple rebeccapurple red rosybrown royalblue saddlebrown salmon sandybrown seagreen seashell sienna silver skyblue slateblue slategray slategrey snow springgreen steelblue tan teal thistle tomato turquoise violet wheat white whitesmoke yellow yellowgreen`.split(/\s+/));
 const colorProperties = /^(?:color|background(?:-color)?|border(?:-(?:top|right|bottom|left|inline|block))?(?:-color)?|outline(?:-color)?|box-shadow|text-shadow|text-decoration-color|column-rule(?:-color)?|fill|stroke|stop-color|flood-color|lighting-color|caret-color|accent-color|(?:--[\w-]+))$/i;
@@ -37,9 +36,9 @@ function inspectCss(text, file, errors) {
         if (found) errors.push(`${file}:${line}: use a design token instead of the named color "${found}"`);
       }
     }
-    if (property === 'font-family' && !fontFaceFile(file)) checkFontValue(value, file, line, errors);
+    if (property === 'font-family') checkFontValue(value, file, line, errors);
     // A font shorthand may also specify a family after its size/line-height.
-    if (property === 'font' && !fontFaceFile(file)) {
+    if (property === 'font') {
       const family = value.match(/\b(?:\d*\.)?\d+(?:px|rem|em|%)\s*(?:\/\s*[\w.%-]+)?\s+(.+)$/i)?.[1];
       if (family) checkFontValue(family, file, line, errors);
     }
