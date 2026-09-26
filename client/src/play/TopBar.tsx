@@ -1,6 +1,7 @@
-import { useEffect, useId, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react';
+import { useEffect, useId, useRef, type KeyboardEvent } from 'react';
 import { ChevronDown, LogOut, ShieldCheck, UserRound } from 'lucide-react';
 import { Avatar, Logo } from './ui';
+import { keyTarget, usePopup } from './popup';
 import './top-bar.css';
 
 export type SignedInAccount = {
@@ -22,34 +23,17 @@ export function TopBar({ account, openAccount }: { account: SignedInAccount; ope
 }
 
 function AccountMenu({ account, openAccount }: { account: SignedInAccount; openAccount: () => void }) {
-  const [open, setOpen] = useState(false);
-  const root = useRef<HTMLDivElement>(null);
-  const trigger = useRef<HTMLButtonElement>(null);
+  const { open, setOpen, close, root, trigger, focusLeft } = usePopup();
   const menu = useRef<HTMLDivElement>(null);
   const triggerId = useId();
   const menuId = useId();
   useEffect(() => {
-    if (!open) return;
-    menu.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
-    // Touch browsers such as iOS Safari do not blur on a tap on non-focusable content.
-    function pressedOutside(event: PointerEvent) {
-      if (!root.current?.contains(event.target as Node)) setOpen(false);
-    }
-    document.addEventListener('pointerdown', pressedOutside);
-    return () => document.removeEventListener('pointerdown', pressedOutside);
+    if (open) menu.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
   }, [open]);
 
-  function close() {
-    setOpen(false);
-    trigger.current?.focus();
-  }
   function choose(action: () => void) {
     close();
     action();
-  }
-  // Tabbing away, or a click that moves focus elsewhere, also closes the menu.
-  function focusLeft(event: FocusEvent<HTMLDivElement>) {
-    if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
   }
   // Bound on the root, so Escape also closes the menu after Shift+Tab back to the button.
   function navigate(event: KeyboardEvent<HTMLDivElement>) {
@@ -60,11 +44,10 @@ function AccountMenu({ account, openAccount }: { account: SignedInAccount; openA
       return;
     }
     const items = [...(menu.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])];
-    const current = items.indexOf(document.activeElement as HTMLElement);
-    const next = { ArrowDown: current + 1, ArrowUp: (current < 0 ? items.length : current) - 1, Home: 0, End: items.length - 1 }[event.key];
-    if (next === undefined || !items.length) return;
+    const next = keyTarget(items, document.activeElement as HTMLElement, event.key, true);
+    if (!next) return;
     event.preventDefault();
-    items[(next + items.length) % items.length].focus();
+    next.focus();
   }
 
   return <div ref={root} className="account-menu" onBlur={focusLeft} onKeyDown={navigate}>

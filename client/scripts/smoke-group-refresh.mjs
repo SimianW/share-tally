@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test';
+import { openGroupSwitcher } from './smoke-navigation.mjs';
 
 // Successful membership writes must remain visible even when the list read fails.
 export async function checkGroupRefresh(pageFor, base) {
@@ -20,13 +21,17 @@ export async function checkGroupRefresh(pageFor, base) {
     // Closing the new group's details leaves its creator on that group's page.
     await expect(owner).toHaveURL(/#\/group-bills\//);
     await expect(owner.locator('#main-content').getByRole('heading', { name })).toBeVisible();
-    const ownerNav = owner.getByRole('navigation', { name: 'Groups', exact: true });
-    await expect(ownerNav.getByRole('link', { name: new RegExp(name) })).toHaveCount(1);
-    await expect(ownerNav.getByRole('alert')).toContainText('Group list temporarily unavailable.');
+    // The group list failure shows where it matters: in the group switcher.
+    let switcher = await openGroupSwitcher(owner);
+    await expect(switcher.getByRole('option', { name, exact: true })).toHaveCount(1);
+    await expect(owner.locator('.group-switcher').getByRole('alert')).toContainText('Group list temporarily unavailable.');
+    await owner.screenshot({ path: new URL('../test-results/group-switcher-error-desktop.png', import.meta.url).pathname, animations: 'disabled' });
     await owner.unroute('**/api/groups');
     await owner.getByRole('button', { name: 'Retry groups', exact: true }).click();
-    await expect(ownerNav.getByRole('alert')).toHaveCount(0);
-    await expect(ownerNav.getByRole('link', { name: new RegExp(name) })).toHaveCount(1);
+    await expect(owner.locator('.group-switcher').getByRole('alert')).toHaveCount(0);
+    switcher = await openGroupSwitcher(owner);
+    await expect(switcher.getByRole('option', { name, exact: true })).toHaveCount(1);
+    await owner.keyboard.press('Escape');
 
     await joiner.goto(base);
     await expect(joiner.getByText('Start with a group for your next shared purchase.')).toBeVisible();
@@ -39,7 +44,8 @@ export async function checkGroupRefresh(pageFor, base) {
       await expect(joiner).toHaveURL(/#\/group-bills\//);
       await expect(joiner.getByRole('dialog')).toHaveCount(0);
       await expect(joiner.locator('.group-member-count')).toContainText('2 members');
-      await expect(joiner.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: new RegExp(name) })).toHaveCount(1);
+      await expect((await openGroupSwitcher(joiner)).getByRole('option', { name, exact: true })).toHaveCount(1);
+      await joiner.keyboard.press('Escape');
     }
     await joiner.getByRole('link', { name: 'ShareTally home', exact: true }).click();
     await expect(joiner.locator('.group-card').filter({ hasText: name })).toHaveCount(1);

@@ -1,5 +1,5 @@
 import { checkGroupRefresh } from './smoke-group-refresh.mjs';
-import { checkNavigation } from './smoke-navigation.mjs';
+import { checkNavigation, switchGroup } from './smoke-navigation.mjs';
 // Run after installing both client and server dependencies and Chromium:
 // cd client && pnpm exec playwright install chromium && pnpm test:groups
 // Real UI + Express + temporary PostgreSQL. Only Clerk is replaced; this does
@@ -285,11 +285,9 @@ try {
   await expect(alice.getByRole('dialog')).toContainText('Apartment');
   await alice.getByRole('button', { name: 'Close dialog' }).click();
   await expect(alice.locator('#main-content').getByRole('heading', { name: 'Apartment' })).toBeVisible();
-  await alice.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: /Apartment/ }).click();
   await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$0.00');
-  await alice.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: /Costco friends/ }).click();
+  await switchGroup(alice, 'Costco friends');
   await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$59.97');
-  await expect(alice.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: /Costco friends/ })).toContainText('You are owed $59.97');
   await expect(alice.getByRole('dialog')).toHaveCount(0);
   await checkNavigation(alice, pageFor);
   await alice.reload();
@@ -300,13 +298,11 @@ try {
   await alice.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect(alice.getByRole('alert')).toHaveCount(0);
   await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$59.97');
-  await expect(alice.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: /Costco friends/ })).toContainText('You are owed $59.97');
   await alice.unroute(selectedBillsPattern);
   // The visible group recovers through automatic reconnection without a manual retry.
   await expect(alice.getByRole('alert')).toHaveCount(0, { timeout: 20_000 });
   await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$59.97', { timeout: 20_000 });
   await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$59.97');
-  await expect(alice.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: /Costco friends/ })).toContainText('You are owed $59.97');
   await alice.screenshot({ path: `${clientRoot}/test-results/workspace-desktop.png`, fullPage: true });
   await alice.setViewportSize({ width: 390, height: 844 });
   assert.equal(await alice.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
@@ -469,7 +465,6 @@ try {
   await expect(bobAgain.locator('.workspace-content .balance-number')).toHaveText('$99.97');
   await expect(bobAgain.locator('.repayment-list')).toContainText('Confirmed');
   await expect(bobAgain.getByRole('region', { name: 'Group balances and repayment suggestions' })).toContainText('$99.97');
-  await expect(bobAgain.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: /Costco friends/ })).toContainText('You owe $99.97');
   await bobAgain.getByRole('button', { name: 'Record repayment', exact: true }).click();
   await bobAgain.getByLabel('Recipient', { exact: true }).selectOption({ label: 'Alice' });
   await bobAgain.getByLabel('Amount sent · CAD').fill('5.00');

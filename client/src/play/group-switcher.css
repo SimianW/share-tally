@@ -1,0 +1,132 @@
+.group-switcher { position: relative; min-width: 0; margin: 6px 0 8px; }
+.group-switcher h2 { line-height: 1.15; }
+
+.group-switcher-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100% + 10px);
+  min-height: 56px;
+  margin-left: -10px;
+  padding: 5px 12px 5px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  letter-spacing: -0.02em;
+  transition: background 0.2s, border-color 0.2s;
+}
+.group-switcher-trigger[aria-expanded="true"] { background: #f4f7ee; border-color: #dfe7d1; }
+.group-switcher-trigger:focus-visible { outline-offset: 2px; }
+.group-switcher-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  background: #eef4e2;
+  color: #4d6a31;
+}
+.group-switcher-name { min-width: 0; overflow-wrap: anywhere; }
+.group-switcher-chevron {
+  align-self: center;
+  color: var(--muted);
+  transition: transform 0.2s, color 0.2s;
+}
+.group-switcher-trigger[aria-expanded="true"] .group-switcher-chevron { transform: rotate(180deg); color: var(--ink); }
+
+.group-switcher-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: -10px;
+  z-index: 15;
+  width: min(340px, calc(100vw - 64px));
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: 0 16px 40px #15220e1f;
+  animation: popup-in 0.14s ease-out;
+}
+.group-switcher-label {
+  padding: 10px 10px 8px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.7px;
+  text-transform: uppercase;
+}
+.group-switcher [role="listbox"] {
+  display: grid;
+  gap: 2px;
+  max-height: min(360px, 55vh);
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.group-switcher [role="option"] {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 48px;
+  padding: 6px 12px 6px 6px;
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font-size: var(--text-base);
+  font-weight: 600;
+  line-height: 1.3;
+  cursor: pointer;
+}
+.group-switcher-option-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #f1f4e9;
+  color: #4d6a31;
+}
+.group-switcher-option-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.group-switcher-check { flex-shrink: 0; color: #5d7a3a; }
+.group-switcher [role="option"][aria-selected="true"] { background: #f4f8ec; font-weight: 700; }
+.group-switcher [role="option"][aria-selected="true"] .group-switcher-option-icon { background: #e3eecd; }
+.group-switcher [role="option"]:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; background: #eef6df; color: #34472a; }
+/* Touch taps leave :hover behind; only devices that really hover get hover styles. */
+@media (hover: hover) {
+  .group-switcher-trigger:hover { background: #f4f7ee; border-color: #dfe7d1; }
+  .group-switcher-trigger:hover .group-switcher-chevron { color: var(--ink); }
+  .group-switcher [role="option"]:hover { background: #eef6df; color: #34472a; }
+}
+
+.group-switcher-note { padding: 8px 10px 10px; color: var(--muted); font-size: var(--text-sm); }
+.group-switcher-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 6px 0 0;
+  padding: 10px 10px 10px 12px;
+  border-radius: var(--radius-sm);
+  background: #fbefeb;
+  color: var(--danger);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+.group-switcher-error > span { flex: 1; min-width: 140px; }
+.group-switcher-error > button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid #efd3ca;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--danger);
+  font-weight: 700;
+}
+
+@media (max-width: 650px) {
+  .group-switcher-trigger { gap: 10px; min-height: 50px; }
+  .group-switcher-icon { width: 38px; height: 38px; border-radius: 11px; }
+  .group-switcher-icon > * { transform: scale(0.85); }
+}
