@@ -1,20 +1,134 @@
+/* Local font faces are declared alongside their semantic font roles. */
+@font-face {
+  font-family: "DM Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(/fonts/dm-sans-400-normal.ttf) format("truetype");
+}
+@font-face {
+  font-family: "DM Sans";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(/fonts/dm-sans-500-normal.ttf) format("truetype");
+}
+@font-face {
+  font-family: "DM Sans";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(/fonts/dm-sans-600-normal.ttf) format("truetype");
+}
+@font-face {
+  font-family: "DM Sans";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(/fonts/dm-sans-700-normal.ttf) format("truetype");
+}
+@font-face {
+  font-family: "Nunito";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(/fonts/nunito-500-normal.ttf) format("truetype");
+}
+@font-face {
+  font-family: "Nunito";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(/fonts/nunito-600-normal.ttf) format("truetype");
+}
+@font-face {
+  font-family: "Nunito";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(/fonts/nunito-700-normal.ttf) format("truetype");
+}
+@font-face {
+  font-family: "Nunito";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url(/fonts/nunito-800-normal.ttf) format("truetype");
+}
+@font-face {
+  font-family: "Nunito";
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url(/fonts/nunito-900-normal.ttf) format("truetype");
+}
+
+/* Fifty semantic color roles are the component-facing API. Derived colors
+   always read palette swatches (or other roles), so changing data-palette
+   recolors interaction states as well as the resting page. */
 :root {
-  /* Existing ShareTally palette and type, shared across review surfaces. */
-  --bg: #fafbf8;
-  --surface: #fff;
-  --surface-soft: #f7faf2;
-  --ink: #273323;
-  --muted: #7b8275;
-  --line: #e8ebe3;
-  --accent: #c4f178;
-  --accent-ink: #2a4020;
-  --success: #53772c;
-  --warning: #946124;
-  --warning-bg: #fff4df;
-  --danger: #a13e2b;
-  --focus: #6b8c4b;
+  /* Surfaces: preserve the page canvases and prominent highlight fills. */
+  --bg: var(--palette-canvas);
+  --page-bg: var(--palette-page);
+  --surface: var(--palette-white);
+  --surface-soft: color-mix(in srgb, var(--palette-lime-tint) 35%, var(--palette-white));
+  --surface-sunken: var(--palette-mist);
+  --surface-raised: color-mix(in srgb, var(--palette-line) 60%, var(--palette-white));
+  --surface-accent: color-mix(in srgb, var(--palette-lime-tint) 70%, var(--palette-mist));
+  --surface-selected: var(--palette-lime-tint);
+  --surface-highlight: var(--palette-chartreuse);
+  /* Ink: secondary labels are darker than muted metadata. */
+  --ink: var(--palette-ink);
+  --page-ink: var(--palette-page-ink);
+  --ink-muted: var(--palette-muted);
+  --ink-secondary: var(--palette-secondary);
+  --ink-subtle: var(--palette-subtle);
+  --ink-on-action: var(--palette-action-ink);
+  --ink-inverse: var(--palette-white);
+  /* Lines: neutral boundaries and tinted accent boundaries. */
+  --line: var(--palette-line);
+  --line-strong: color-mix(in srgb, var(--palette-line) 72%, var(--palette-secondary));
+  --line-accent: color-mix(in srgb, var(--palette-lime-tint) 85%, var(--palette-leaf));
+  /* Actions and emphasis, shared by every component. */
+  --action: var(--palette-lime);
+  --action-hover: var(--palette-lime-hover);
+  --action-edge: var(--palette-leaf-edge);
+  --accent-ink: var(--palette-leaf);
+  --accent-ink-muted: color-mix(in srgb, var(--palette-leaf) 82%, var(--palette-sage));
+  --accent-mark: color-mix(in srgb, var(--palette-lime) 60%, var(--palette-white));
+  --accent-decoration: var(--palette-leaf-bright);
+  --focus: color-mix(in srgb, var(--palette-leaf-bright) 47%, var(--palette-leaf));
+  /* Money roles remain independent of status meaning. */
+  --money-owed: var(--palette-green);
+  --money-owed-bg: color-mix(in srgb, var(--palette-lime-tint) 65%, var(--palette-white));
+  --money-owe: var(--palette-ochre);
+  --money-owe-bg: var(--palette-cream);
+  --money-pending: color-mix(in srgb, var(--palette-secondary) 93%, var(--palette-blue));
+  /* Status tints are derived, not additional raw swatches. */
+  --status-success: color-mix(in srgb, var(--palette-green) 85%, var(--palette-deep));
+  --status-success-bg: var(--money-owed-bg);
+  --status-warning: color-mix(in srgb, var(--palette-ochre) 90%, var(--palette-deep));
+  --status-warning-bg: color-mix(in srgb, var(--palette-cream) 75%, var(--palette-white));
+  --status-danger: var(--palette-red);
+  --status-danger-bg: color-mix(in srgb, var(--palette-red) 7%, var(--palette-white));
+  --status-danger-hover: color-mix(in srgb, var(--palette-red) 60%, var(--palette-deep));
+  --status-info: var(--palette-blue);
+  --status-info-bg: color-mix(in srgb, var(--palette-blue) 9%, var(--palette-white));
+  /* Transient emphasis and indexed avatar tints. */
+  --highlight: var(--palette-amber);
+  --avatar-1: var(--palette-sage);
+  --avatar-2: var(--palette-rose);
+  --avatar-3: var(--palette-sky);
+  --avatar-4: var(--palette-peach);
+  --avatar-5: var(--palette-lilac);
+  --avatar-default: color-mix(in srgb, var(--palette-line) 88%, var(--palette-secondary));
+  /* Shadow geometry/opacity is chosen at the use site; hue is shared. */
+  --shadow-color: var(--palette-deep);
+  --overlay: color-mix(in srgb, var(--palette-deep) 40%, transparent);
+  /* Typography and layout */
   --font-body: "DM Sans", sans-serif;
-  --heading: "Nunito", sans-serif;
+  --font-heading: "Nunito", sans-serif;
+  --font-code: monospace;
   --text-xs: 0.75rem;
   --text-sm: 0.8125rem;
   --text-base: 0.875rem;
@@ -28,7 +142,7 @@
   --space-6: 24px;
   --space-8: 32px;
   --top-bar-height: 68px;
-  --shadow-photo-label: 0 2px 12px #15220e15;
+  --shadow-floating: 0 2px 12px color-mix(in srgb, var(--shadow-color) 8%, transparent);
   --radius-sm: 10px;
   --radius-md: 16px;
   --radius: 22px;

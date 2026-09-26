@@ -1,0 +1,37 @@
+/* The classic palette is the default with or without a root attribute.
+   Thirty raw swatches cover the whole UI. Add another :root[data-palette]
+   block with the same swatch names; semantic roles then update together.
+   A palette may also override a role for a different foreground pairing. */
+:root,
+:root[data-palette="classic"] {
+  --palette-white: #fff;
+  --palette-canvas: #fafbf8;
+  --palette-page: #f9faf6;
+  --palette-ink: #273323;
+  --palette-page-ink: #263021;
+  --palette-mist: #f8f9f5;
+  --palette-muted: #7b8275;
+  --palette-secondary: #65705f;
+  --palette-subtle: #919985;
+  --palette-line: #e8ebe3;
+  --palette-deep: #15220e;
+  --palette-lime: #c4f178;
+  --palette-lime-hover: #b7e56c;
+  --palette-leaf-edge: #a2c86a;
+  --palette-action-ink: #2a4020;
+  --palette-leaf: #4d6a31;
+  --palette-leaf-bright: #83b445;
+  --palette-chartreuse: #d9f572;
+  --palette-lime-tint: #e9f3d8;
+  --palette-green: #53772c;
+  --palette-ochre: #946124;
+  --palette-cream: #fff4df;
+  --palette-red: #a0382b;
+  --palette-blue: #3e648b;
+  --palette-amber: #f5df9b;
+  --palette-sage: #e5edc5;
+  --palette-rose: #edcee0;
+  --palette-sky: #c4dce9;
+  --palette-peach: #f2d0ae;
+  --palette-lilac: #d7d0ec;
+}

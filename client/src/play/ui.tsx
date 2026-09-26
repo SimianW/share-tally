@@ -137,17 +137,18 @@ export function Avatar({
 }) {
   const [failedUrls, setFailedUrls] = useState<string[]>([]);
   const source = [imageUrl, fallbackImageUrl].find(url => url && !failedUrls.includes(url));
-  const colors: Record<string, string> = {
-    Simon: "#e5edc5",
-    Emma: "#edcee0",
-    Alex: "#c4dce9",
-    Jamie: "#f2d0ae",
-    Riley: "#d7d0ec",
+  const colorIndex: Record<string, number> = {
+    Simon: 1,
+    Emma: 2,
+    Alex: 3,
+    Jamie: 4,
+    Riley: 5,
   };
+  const color = colorIndex[name] ? `var(--avatar-${colorIndex[name]})` : "var(--avatar-default)";
   return (
     <span
       className={`avatar ${small ? "small" : ""}`}
-      style={{ "--avatar-color": colors[name] || "#d8dfd0" } as CSSProperties}
+      style={{ "--avatar-color": color } as CSSProperties}
       title={name}
     >
       {source ? (

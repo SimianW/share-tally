@@ -4,7 +4,7 @@
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
-  box-shadow: 0 2px 0 #0000000a;
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--shadow-color) 4%, transparent);
 }
 .attention-header {
   display: flex;
@@ -17,7 +17,7 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  font: 800 19px/1.3 var(--heading);
+  font: 800 19px/1.3 var(--font-heading);
   letter-spacing: -0.5px;
 }
 .attention-header .text-action:disabled { opacity: 0.55; cursor: default; }
@@ -44,17 +44,17 @@
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: #eef4e2;
-  color: #4d6a31;
+  background: var(--surface-accent);
+  color: var(--accent-ink);
 }
-.attention-type-icon.repayment { background: #e7f0f6; color: #36607e; }
-.attention-type-icon.draft { background: var(--warning-bg); color: var(--warning); }
+.attention-type-icon.repayment { background: var(--status-info-bg); color: var(--status-info); }
+.attention-type-icon.draft { background: var(--money-owe-bg); color: var(--money-owe); }
 .attention-action-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .attention-action-text strong { display: block; font-size: var(--text-base); font-weight: 700; line-height: 1.35; }
-.attention-action-text > span { display: block; margin-top: 2px; color: var(--muted); font-size: var(--text-sm); line-height: 1.4; }
+.attention-action-text > span { display: block; margin-top: 2px; color: var(--ink-secondary); font-size: var(--text-sm); line-height: 1.4; }
 .attention-action-amount { flex-shrink: 0; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.attention-action-amount small { color: var(--muted); font-size: 11px; font-weight: 600; }
-.attention-chevron { flex-shrink: 0; color: #9aa18f; transition: transform 0.2s, color 0.2s; }
+.attention-action-amount small { color: var(--ink-secondary); font-size: 11px; font-weight: 600; }
+.attention-chevron { flex-shrink: 0; color: var(--ink-subtle); transition: transform 0.2s, color 0.2s; }
 @media (hover: hover) {
   .attention-list a:hover { background: var(--surface-soft); }
   .attention-list a:hover .attention-chevron { color: var(--ink); transform: translateX(2px); }
@@ -68,7 +68,7 @@
 .attention-skeleton span span { width: min(240px, 70%); height: 13px; border-radius: 7px; }
 .attention-skeleton span span + span { width: min(160px, 45%); height: 11px; }
 .attention-skeleton > div > span:first-child,
-.attention-skeleton span span { background: #eef1e8; animation: skeleton-pulse 1.4s ease-in-out infinite; }
+.attention-skeleton span span { background: var(--surface-raised); animation: skeleton-pulse 1.4s ease-in-out infinite; }
 
 @media (max-width: 640px) {
   .attention-card { padding: 4px 14px; border-radius: 18px; }

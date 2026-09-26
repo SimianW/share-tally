@@ -1,7 +1,7 @@
 .notification {
-  --notice-tone: #8a570e;
-  --notice-wash: #fff7e5;
-  --notice-line: #e8cc92;
+  --notice-tone: var(--status-warning);
+  --notice-wash: var(--status-warning-bg);
+  --notice-line: color-mix(in srgb, var(--highlight) 88%, var(--status-warning));
   display: flex;
   align-items: flex-start;
   gap: 14px;
@@ -11,18 +11,18 @@
   border-left: 4px solid var(--notice-tone);
   border-radius: 16px;
   background: var(--notice-wash);
-  color: #343b2d;
+  color: color-mix(in srgb, var(--ink) 90%, var(--ink-muted));
   overflow-wrap: anywhere;
 }
-.notification-error { --notice-tone: #ae403a; --notice-wash: #fff0ed; --notice-line: #edc1bb; }
-.notification-success { --notice-tone: #3e6b30; --notice-wash: #f1f8e8; --notice-line: #cbdcbb; }
-.notification-info { --notice-tone: #3e648b; --notice-wash: #edf4fa; --notice-line: #c8d9e8; }
+.notification-error { --notice-tone: color-mix(in srgb, var(--status-danger) 95%, var(--ink-inverse)); --notice-wash: var(--status-danger-bg); --notice-line: color-mix(in srgb, var(--status-danger) 24%, var(--status-danger-bg)); }
+.notification-success { --notice-tone: var(--status-success); --notice-wash: var(--status-success-bg); --notice-line: color-mix(in srgb, var(--status-success) 22%, var(--status-success-bg)); }
+.notification-info { --notice-tone: var(--status-info); --notice-wash: var(--status-info-bg); --notice-line: color-mix(in srgb, var(--status-info) 20%, var(--status-info-bg)); }
 .notification-icon { flex-shrink: 0; color: var(--notice-tone); margin-top: 2px; }
 .notification-content { flex: 1; min-width: 0; }
 .notification-title { display: block; font-size: 1rem; line-height: 1.4; }
 .notification-body { margin-top: 6px; font-size: .875rem; line-height: 1.6; }
 .notification-body p { margin: 6px 0; }
-.notification-body > .button { margin-top: 12px; background: var(--notice-tone); color: white; border-color: var(--notice-tone); box-shadow: none; }
+.notification-body > .button { margin-top: 12px; background: var(--notice-tone); color: var(--ink-inverse); border-color: var(--notice-tone); box-shadow: none; }
 .notification-dismiss { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 36px; height: 36px; margin: -8px; border: 0; border-radius: 8px; background: transparent; color: var(--notice-tone); cursor: pointer; }
 .notification-dismiss:hover { background: var(--notice-line); }
 @media (max-width: 600px) {

@@ -39,8 +39,8 @@
 .receipt-edit-row {
   padding: 18px;
   margin: 12px 0;
-  border: 1px solid #e3e7df;
-  background: #fbfcf9;
+  border: 1px solid var(--line);
+  background: var(--bg);
   border-radius: 18px;
 }
 .receipt-edit-row h3 {
@@ -94,9 +94,9 @@
   width: 100%;
   box-sizing: border-box;
   padding: 10px;
-  border: 1px solid #d8ded3;
+  border: 1px solid var(--line);
   border-radius: 9px;
-  background: white;
+  background: var(--surface);
 }
 .receipt-tax-status {
   display: inline-block;
@@ -104,8 +104,8 @@
   margin-top: 10px;
   padding: 4px 9px;
   border-radius: 999px;
-  color: #465c29;
-  background: #edf4df;
+  color: var(--accent-ink);
+  background: var(--surface-accent);
   font-size: 12px;
   font-weight: 700;
 }
@@ -127,7 +127,7 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: #e8efdc;
+  background: var(--surface-accent);
 }
 .receipt-crop-preview {
   position: relative;
@@ -142,8 +142,8 @@
 }
 .receipt-crop-preview > div {
   position: absolute;
-  border: 3px solid #6a872f;
-  background: #6a872f11;
+  border: 3px solid var(--focus);
+  background: color-mix(in srgb, var(--focus) 7%, transparent);
   pointer-events: none;
 }
 .receipt-crop-sliders {
@@ -165,7 +165,7 @@
   min-width: 0;
 }
 .field-error {
-  color: #a13427;
+  color: var(--status-danger);
   font-size: 0.85rem;
 }
 .receipt-upload .receipt-camera-button {
@@ -216,7 +216,7 @@
   display: flex;
   gap: 16px;
   padding: 0 0 22px;
-  border-bottom: 1px solid #e3e8dc;
+  border-bottom: 1px solid var(--line);
   margin-bottom: 24px;
 }
 .receipt-steps button {
@@ -227,7 +227,7 @@
   padding: 4px 0;
   border: 0;
   background: transparent;
-  color: #77826b;
+  color: var(--ink-muted);
   text-align: left;
   font: inherit;
   font-size: 12px;
@@ -240,15 +240,15 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: #eef2e7;
+  background: var(--surface-soft);
   font-size: 11px;
 }
 .receipt-steps button[aria-current="step"] {
-  color: #344522;
+  color: var(--ink-on-action);
   font-weight: 700;
 }
 .receipt-steps button[aria-current="step"] > span {
-  background: #c4ef7b;
+  background: var(--action);
 }
 .receipt-steps button:disabled {
   opacity: 0.5;
@@ -260,7 +260,7 @@
   margin: 0 0 8px;
 }
 .receipt-step-description {
-  color: #6d795f;
+  color: var(--ink-secondary);
   font-size: 13px;
   line-height: 1.6;
   margin: 0 0 22px;
@@ -268,14 +268,14 @@
 .receipt-source {
   max-width: 650px;
   margin: 0 auto;
-  border: 1px dashed #c7d5b7;
+  border: 1px dashed var(--line-accent);
   border-radius: 18px;
-  background: #f7faf2;
+  background: var(--surface-soft);
   padding: 24px;
   text-align: center;
 }
 .receipt-source > svg {
-  color: #688644;
+  color: var(--accent-ink-muted);
   margin-bottom: 10px;
 }
 .receipt-source h4 {
@@ -283,7 +283,7 @@
   margin: 0 0 8px;
 }
 .receipt-source > p {
-  color: #75836a;
+  color: var(--ink-muted);
   font-size: 13px;
   margin: 0 0 20px;
 }
@@ -316,7 +316,7 @@
   margin-top: 16px;
 }
 .receipt-entry-alternative > span {
-  color: #89947d;
+  color: var(--ink-subtle);
   font-size: 12px;
 }
 .receipt-without-photo {
@@ -328,8 +328,8 @@
 .receipt-adjustments {
   margin: 24px 0 16px;
   padding: 16px 0;
-  border-top: 1px solid #e2e8d9;
-  border-bottom: 1px solid #e2e8d9;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
 }
 .receipt-adjustments > summary {
   cursor: pointer;
@@ -348,7 +348,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  border-top: 1px solid #e3e8dc;
+  border-top: 1px solid var(--line);
   padding: 18px 0;
   margin-top: 24px;
 }
@@ -396,13 +396,13 @@
 }
 .receipt-drafts h3 small {
   margin-left: 8px;
-  color: var(--muted);
+  color: var(--ink-secondary);
 }
 .draft-private {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--muted);
+  color: var(--ink-secondary);
   font-size: 12px;
 }
 .draft-list-row {
@@ -413,7 +413,7 @@
   border-bottom: 1px solid var(--line);
 }
 .draft-list-icon {
-  color: #6a7f4f;
+  color: var(--accent-ink-muted);
   flex-shrink: 0;
 }
 .draft-list-copy {
@@ -426,7 +426,7 @@
   display: block;
 }
 .draft-list-copy small {
-  color: var(--muted);
+  color: var(--ink-secondary);
   font-size: 12px;
   margin-top: 4px;
 }
@@ -435,7 +435,7 @@
 }
 .draft-delete {
   background: transparent;
-  color: #7b8275;
+  color: var(--ink-secondary);
   border-radius: 10px;
   width: 44px;
   height: 44px;
@@ -444,20 +444,20 @@
   flex-shrink: 0;
 }
 .draft-delete:hover:not(:disabled) {
-  background: #fff0ea;
-  color: #a13e2b;
+  background: var(--status-danger-bg);
+  color: var(--status-danger);
 }
 .draft-delete:disabled {
   opacity: 0.45;
   cursor: default;
 }
 .button.draft-danger {
-  background: #a13e2b;
-  color: white;
-  box-shadow: 0 3px 0 #813120;
+  background: var(--status-danger);
+  color: var(--surface);
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--status-danger) 40%, var(--status-danger-hover));
 }
 .button.draft-delete-text {
-  color: #a13e2b;
+  color: var(--status-danger);
 }
 @media (max-width: 600px) {
   .draft-list-row {
@@ -499,7 +499,7 @@
   margin-bottom: 18px;
 }
 .receipt-page-heading h1 span {
-  color: var(--muted);
+  color: var(--ink-secondary);
   font-size: 0.7em;
   font-weight: 600;
 }

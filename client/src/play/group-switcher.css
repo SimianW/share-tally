@@ -15,7 +15,7 @@
   letter-spacing: -0.02em;
   transition: background 0.2s, border-color 0.2s;
 }
-.group-switcher-trigger[aria-expanded="true"] { background: #f4f7ee; border-color: #dfe7d1; }
+.group-switcher-trigger[aria-expanded="true"] { background: var(--surface-soft); border-color: var(--line-accent); }
 .group-switcher-trigger:focus-visible { outline-offset: 2px; }
 .group-switcher-icon {
   display: grid;
@@ -24,13 +24,13 @@
   width: 44px;
   height: 44px;
   border-radius: 13px;
-  background: #eef4e2;
-  color: #4d6a31;
+  background: var(--surface-accent);
+  color: var(--accent-ink);
 }
 .group-switcher-name { min-width: 0; overflow-wrap: anywhere; }
 .group-switcher-chevron {
   align-self: center;
-  color: var(--muted);
+  color: var(--ink-secondary);
   transition: transform 0.2s, color 0.2s;
 }
 .group-switcher-trigger[aria-expanded="true"] .group-switcher-chevron { transform: rotate(180deg); color: var(--ink); }
@@ -45,12 +45,12 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: var(--surface);
-  box-shadow: 0 16px 40px #15220e1f;
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--shadow-color) 12%, transparent);
   animation: popup-in 0.14s ease-out;
 }
 .group-switcher-label {
   padding: 10px 10px 8px;
-  color: var(--muted);
+  color: var(--ink-secondary);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 1.7px;
@@ -85,23 +85,23 @@
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: #f1f4e9;
-  color: #4d6a31;
+  background: var(--surface-soft);
+  color: var(--accent-ink);
 }
 .group-switcher-option-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .group-switcher-count { flex-shrink: 0; font-variant-numeric: tabular-nums; }
-.group-switcher-check { flex-shrink: 0; color: #5d7a3a; }
-.group-switcher [role="option"][aria-selected="true"] { background: #f4f8ec; font-weight: 700; }
-.group-switcher [role="option"][aria-selected="true"] .group-switcher-option-icon { background: #e3eecd; }
-.group-switcher [role="option"]:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; background: #eef6df; color: #34472a; }
+.group-switcher-check { flex-shrink: 0; color: var(--accent-ink-muted); }
+.group-switcher [role="option"][aria-selected="true"] { background: var(--surface-soft); font-weight: 700; }
+.group-switcher [role="option"][aria-selected="true"] .group-switcher-option-icon { background: var(--surface-selected); }
+.group-switcher [role="option"]:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; background: var(--surface-accent); color: var(--ink-on-action); }
 /* Touch taps leave :hover behind; only devices that really hover get hover styles. */
 @media (hover: hover) {
-  .group-switcher-trigger:hover { background: #f4f7ee; border-color: #dfe7d1; }
+  .group-switcher-trigger:hover { background: var(--surface-soft); border-color: var(--line-accent); }
   .group-switcher-trigger:hover .group-switcher-chevron { color: var(--ink); }
-  .group-switcher [role="option"]:hover { background: #eef6df; color: #34472a; }
+  .group-switcher [role="option"]:hover { background: var(--surface-accent); color: var(--ink-on-action); }
 }
 
-.group-switcher-note { padding: 8px 10px 10px; color: var(--muted); font-size: var(--text-sm); }
+.group-switcher-note { padding: 8px 10px 10px; color: var(--ink-secondary); font-size: var(--text-sm); }
 .group-switcher-error {
   display: flex;
   flex-wrap: wrap;
@@ -110,8 +110,8 @@
   margin: 6px 0 0;
   padding: 10px 10px 10px 12px;
   border-radius: var(--radius-sm);
-  background: #fbefeb;
-  color: var(--danger);
+  background: var(--status-danger-bg);
+  color: var(--status-danger);
   font-size: var(--text-sm);
   line-height: 1.4;
 }
@@ -119,10 +119,10 @@
 .group-switcher-error > button {
   min-height: 36px;
   padding: 0 12px;
-  border: 1px solid #efd3ca;
+  border: 1px solid color-mix(in srgb, var(--status-danger) 16%, var(--status-danger-bg));
   border-radius: 8px;
   background: var(--surface);
-  color: var(--danger);
+  color: var(--status-danger);
   font-weight: 700;
 }
 
