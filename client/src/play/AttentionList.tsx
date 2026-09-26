@@ -2,7 +2,7 @@ import { Notification } from './Notification';
 import { useEffect, useState } from 'react';
 import { money, useBillApi, type AttentionAction } from './bill-api';
 import { errorMessage } from './group-api';
-import { Button } from './ui';
+import { Button, Icon } from './ui';
 import './attention.css';
 
 export function AttentionList({ revision }: { revision: string }) {
@@ -38,26 +38,32 @@ export function AttentionList({ revision }: { revision: string }) {
     };
   }, [api, revision, refresh]);
 
+  if (!loading && !error && actions?.length === 0) return null;
+
   return <section className="attention-card" aria-labelledby="attention-heading" aria-busy={loading}>
     <div className="bill-heading">
       <h2 id="attention-heading">Needs your attention{actions && <small> {actions.length}</small>}</h2>
       <Button variant="text" disabled={loading} onClick={() => setRefresh(n => n + 1)}>Refresh actions</Button>
     </div>
-    <p>Your shares to confirm and incoming transfers to review.</p>
     {loading && <p role="status">Checking your actions…</p>}
     {error && <Notification>Could not load your actions. {error} Use Refresh actions to try again.</Notification>}
-    {!loading && actions?.length === 0 && <p>No actions waiting for you.</p>}
     {actions && actions.length > 0 && <ul className="attention-list">
       {actions.map(action => {
         const repayment = action.kind === 'review-repayment';
-        const label = repayment ? 'Review incoming transfer' : action.kind === 'missing-share' ? 'Enter your share' : 'Confirm your share';
-        const href = repayment
-          ? `#/group-bills/${action.groupId}?repayment=${action.repaymentId}`
+        const draft = action.kind === 'review-draft';
+        const label = draft ? 'Review draft' : repayment ? 'Review incoming transfer'
+          : action.mode === 'items' ? action.kind === 'missing-share' ? 'Claim your items' : 'Confirm your items'
+          : action.kind === 'missing-share' ? 'Enter your share' : 'Confirm your share';
+        const href = draft ? `#/new-bill/${action.groupId}/${action.draftId}`
+          : repayment ? `#/group-bills/${action.groupId}?repayment=${action.repaymentId}`
           : `#/bills/${action.billId}`;
-        return <li key={repayment ? action.repaymentId : action.billId}>
+        const detail = repayment ? `From ${action.senderName}` : action.title;
+        const key = draft ? `draft:${action.draftId}` : repayment ? `repayment:${action.repaymentId}` : `share:${action.billId}`;
+        return <li key={key}>
           <a href={href}>
-            <div><strong>{label}</strong><span>{action.groupName} · {repayment ? `From ${action.senderName}` : action.title}</span></div>
-            <span>{action.amountCents !== null && `${money(action.amountCents)} CAD`} <span aria-hidden="true">→</span></span>
+            <span className="attention-type-icon"><Icon name={draft ? 'receipt' : repayment ? 'arrows' : 'basket'} /></span>
+            <div className="attention-action-text"><strong>{label}</strong><span>{action.groupName} · {detail}</span></div>
+            <span className="attention-action-amount">{action.amountCents !== null && `${money(action.amountCents)} CAD`} <span aria-hidden="true">→</span></span>
           </a>
         </li>;
       })}

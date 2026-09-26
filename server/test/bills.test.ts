@@ -1427,6 +1427,43 @@ test('SSE repayment decisions publish after commit and refresh the complete fina
   } finally { await watching.close(); }
 });
 
+test('attention shows the signed-in initiator\'s ready receipt draft', async () => {
+  const { group, draft } = await setup(false);
+  const id = crypto.randomUUID();
+  await pool.query(`INSERT INTO receipt_drafts (id, group_id, initiator_id, data)
+    SELECT $1, $2, id, $3 FROM users WHERE display_name = 'Alice'`,
+  [id, group.id, JSON.stringify({ title: draft.title, totalCents: draft.totalCents })]);
+  assert.deepEqual((await json(await api('/attention'))).actions, [{
+    kind: 'review-draft', draftId: id, groupId: group.id, groupName: 'Costco',
+    title: draft.title, amountCents: draft.totalCents, processingStatus: 'ready',
+  }]);
+});
+
+test('attention includes fallback but excludes processing, another owner, initiated and deleted-group drafts', async () => {
+  const { group, ids, path, draft } = await setup(false);
+  const other = await create();
+  const fixture = async (id: string, groupId: string, owner: string, status: string, billId: string | null = null) => {
+    await pool.query(`INSERT INTO receipt_drafts
+      (id, group_id, initiator_id, data, processing_status, processing_started_at, bill_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [id, groupId, owner, JSON.stringify({ title: 'Review me', totalCents: null }), status,
+      status === 'processing' ? new Date() : null, billId]);
+  };
+  const ready = crypto.randomUUID(), fallback = crypto.randomUUID(), processing = crypto.randomUUID();
+  await fixture(ready, group.id, ids.Alice, 'ready');
+  await fixture(fallback, group.id, ids.Alice, 'fallback');
+  await fixture(processing, group.id, ids.Alice, 'processing');
+  const initiatedBill = await billCreate(path, draft);
+  await fixture(crypto.randomUUID(), group.id, ids.Alice, 'ready', initiatedBill.id);
+  await fixture(crypto.randomUUID(), group.id, ids.Bob, 'ready');
+  await fixture(crypto.randomUUID(), other.id, ids.Alice, 'ready');
+  await pool.query('UPDATE groups SET deleted_at = now() WHERE id = $1', [other.id]);
+  const actions = (await json(await api('/attention'))).actions;
+  assert.deepEqual(new Set(actions.map((action: { draftId: string }) => action.draftId)), new Set([ready, fallback]));
+  assert.equal(actions.find((action: { draftId: string }) => action.draftId === fallback).processingStatus, 'fallback');
+  assert.deepEqual((await json(await api('/attention', 'carol-token'))).actions, []);
+});
+
 test('attention lists only the signed-in participant’s missing shares and reconfirmations', async () => {
   const { path, draft, ids } = await setup();
   const bill = await billCreate(path, draft);
@@ -1435,14 +1472,14 @@ test('attention lists only the signed-in participant’s missing shares and reco
   assert.deepEqual(await attention('alice-token'), []);
   assert.deepEqual(await attention('bob-token'), [{
     kind: 'missing-share', billId: bill.id, groupId: bill.groupId,
-    groupName: 'Costco', title: 'Costco run', amountCents: null,
+    groupName: 'Costco', title: 'Costco run', amountCents: null, mode: 'manual',
   }]);
   await submit(bill.id, 0);
   assert.deepEqual(await attention('bob-token'), []);
   await submit(bill.id, 5000, 'alice-token');
   assert.deepEqual(await attention('bob-token'), [{
     kind: 'confirm-share', billId: bill.id, groupId: bill.groupId,
-    groupName: 'Costco', title: 'Costco run', amountCents: 0,
+    groupName: 'Costco', title: 'Costco run', amountCents: 0, mode: 'manual',
   }]);
   assert.equal((await attention('carol-token'))[0].kind, 'missing-share');
   const current = (await json(await api(`/bills/${bill.id}`))).bill;
@@ -1451,6 +1488,57 @@ test('attention lists only the signed-in participant’s missing shares and reco
     notes: draft.notes, totalCents: draft.totalCents, revision: current.revision, participantIds: [ids.Alice, ids.Carol],
   }));
   assert.deepEqual(await attention('bob-token'), []);
+});
+
+test('attention identifies item-based shares for the participant', async () => {
+  const { path, draft } = await setup(false);
+  const bill = await billCreate(path, draft);
+  await pool.query(`UPDATE bills SET mode = 'items' WHERE id = $1`, [bill.id]);
+  const [action] = (await json(await api('/attention', 'bob-token'))).actions;
+  assert.equal(action.billId, bill.id);
+  assert.equal(action.mode, 'items');
+  assert.equal(action.kind, 'missing-share');
+  await pool.query(`UPDATE bills SET mode = 'manual' WHERE id = $1`, [bill.id]);
+  await submit(bill.id, 0);
+  await submit(bill.id, 5000, 'alice-token');
+  await pool.query(`UPDATE bills SET mode = 'items' WHERE id = $1`, [bill.id]);
+  const [confirmation] = (await json(await api('/attention', 'bob-token'))).actions;
+  assert.equal(confirmation.mode, 'items');
+  assert.equal(confirmation.kind, 'confirm-share');
+});
+
+test('attention orders shares, incoming repayments, then drafts by creation time and ID', async () => {
+  const { group, ids, path, draft } = await setup(false);
+  const billsForBob = await Promise.all([0, 1, 2].map(async () =>
+    billCreate(path, { ...draft, requestId: crypto.randomUUID() })));
+  const transfers = [];
+  for (const cents of [101, 102, 103])
+    transfers.push(await recordRepayment(group.id, ids.Bob, cents, 'alice-token'));
+  const drafts = ['00000000-0000-4000-8000-000000000003',
+    '00000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000001'];
+  for (const [index, id] of drafts.entries()) {
+    await pool.query(`INSERT INTO receipt_drafts (id, group_id, initiator_id, data, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6)`, [id, group.id, ids.Bob,
+      JSON.stringify({ title: 'Draft', totalCents: null }), index === 0 ? '2024-01-01' : '2025-01-01',
+      index === 0 ? '2026-01-01' : '2025-01-01']);
+  }
+  const earliest = '2024-01-01', tied = '2025-01-01';
+  for (const [table, entries] of [['bills', billsForBob], ['repayments', transfers]] as const) {
+    for (const [index, entry] of entries.entries())
+      await pool.query(`UPDATE ${table} SET created_at = $2 WHERE id = $1`,
+        [entry.id, index === 0 ? earliest : tied]);
+  }
+  const sortTied = (entries: { id: string }[]) => [entries[0].id,
+    ...entries.slice(1).map(entry => entry.id).sort()];
+  const actions = (await json(await api('/attention', 'bob-token'))).actions;
+  assert.deepEqual(actions.map((action: { kind: string }) => action.kind), [
+    'missing-share', 'missing-share', 'missing-share',
+    'review-repayment', 'review-repayment', 'review-repayment',
+    'review-draft', 'review-draft', 'review-draft',
+  ]);
+  assert.deepEqual(actions.slice(0, 3).map((action: { billId: string }) => action.billId), sortTied(billsForBob));
+  assert.deepEqual(actions.slice(3, 6).map((action: { repaymentId: string }) => action.repaymentId), sortTied(transfers));
+  assert.deepEqual(actions.slice(6).map((action: { draftId: string }) => action.draftId), [drafts[0], drafts[2], drafts[1]]);
 });
 
 test('attention includes incoming pending repayments across groups, never another member’s actions', async () => {

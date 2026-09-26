@@ -578,11 +578,11 @@ try {
   // Attention refresh, direct repayment review, stale links, and account isolation.
   await alice.goto(base);
   const attention = alice.getByRole('region', { name: 'Needs your attention' });
-  await expect(attention).toContainText('No actions waiting for you.');
+  await expect(attention).toHaveCount(0);
   const { repayment: incoming } = await liveApi(`/groups/${liveGroupId}/repayments`, 'bob-token', 'POST', {
     requestId: crypto.randomUUID(), recipientId: liveIds.Alice, amountCents: 321,
   });
-  await attention.getByRole('button', { name: 'Refresh actions' }).click();
+  await alice.evaluate(() => window.dispatchEvent(new Event('focus')));
   const incomingLink = attention.getByRole('link', { name: /Review incoming transfer.*From Bob/ });
   await expect(incomingLink).toContainText('$3.21');
   const incomingHref = await incomingLink.getAttribute('href');
@@ -597,7 +597,8 @@ try {
   await alice.getByRole('button', { name: 'Confirm receipt', exact: true }).click();
   await expect(alice.getByRole('dialog')).toHaveCount(0);
   await alice.getByRole('link', { name: 'ShareTally home', exact: true }).click();
-  await expect(attention).toContainText('No actions waiting for you.');
+  await expect(alice.getByRole('heading', { name: /Hey Alice/ })).toBeVisible();
+  await expect(attention).toHaveCount(0);
   await alice.goto(`${base}${incomingHref}`);
   await expect(alice.getByRole('dialog')).toContainText('already confirmed');
   await expect(alice.getByRole('button', { name: 'Confirm receipt', exact: true })).toHaveCount(0);
@@ -610,19 +611,20 @@ try {
   await alice.getByRole('button', { name: 'Reject record', exact: true }).click();
   await expect(alice.getByRole('dialog')).toHaveCount(0);
   await alice.getByRole('link', { name: 'ShareTally home', exact: true }).click();
-  await expect(attention).toContainText('No actions waiting for you.');
+  await expect(alice.getByRole('heading', { name: /Hey Alice/ })).toBeVisible();
+  await expect(attention).toHaveCount(0);
   assert.equal((await liveApi(`/groups/${liveGroupId}/bills`, 'alice-token')).repayments.find(r => r.id === rejected.id).status, 'rejected');
   assert.equal((await liveApi(`/groups/${liveGroupId}/bills`, 'alice-token')).repayments.find(r => r.id === incoming.id).status, 'confirmed');
   await liveApi(`/groups/${liveGroupId}/repayments`, 'bob-token', 'POST', {
     requestId: crypto.randomUUID(), recipientId: liveIds.Alice, amountCents: 456,
   });
-  await attention.getByRole('button', { name: 'Refresh actions' }).click();
+  await alice.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(incomingLink).toContainText('$4.56');
   await alice.getByRole('button', { name: 'Account menu', exact: true }).click();
   await alice.getByRole('menuitem', { name: 'Sign out', exact: true }).click();
   await expect(alice.getByRole('region', { name: 'Needs your attention' })).toHaveCount(0);
   await alice.getByRole('button', { name: 'Sign in', exact: true }).click(); // Bob in the test boundary.
-  await expect(alice.getByRole('region', { name: 'Needs your attention' })).toContainText('No actions waiting for you.');
+  await expect(alice.getByRole('region', { name: 'Needs your attention' })).toHaveCount(0);
   console.log('Attention smoke passed: mobile missing shares, reconfirmation links, refresh recovery, receipt decisions, stale links, and account isolation.');
   }
   // Issue #76: creator-only deletion of a cleared group uses its own fixture.

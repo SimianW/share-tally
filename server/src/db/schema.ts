@@ -174,6 +174,7 @@ export const receiptDrafts = pgTable('receipt_drafts', {
   billId: uuid('bill_id').references(() => bills.id),
   processingStatus: text('processing_status').$type<'ready' | 'processing' | 'fallback'>().notNull().default('ready'),
   processingStartedAt: timestamp('processing_started_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, table => [
   index('receipt_drafts_owner_idx').on(table.initiatorId, table.groupId),
