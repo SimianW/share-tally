@@ -39,7 +39,7 @@
 .receipt-edit-row {
   padding: 18px;
   margin: 12px 0;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   background: var(--bg);
   border-radius: 18px;
 }
@@ -94,7 +94,7 @@
   width: 100%;
   box-sizing: border-box;
   padding: 10px;
-  border: 1px solid var(--line-input);
+  border: 1px solid var(--line);
   border-radius: 9px;
   background: var(--surface);
 }
@@ -104,8 +104,8 @@
   margin-top: 10px;
   padding: 4px 9px;
   border-radius: 999px;
-  color: var(--accent-receipt-ink);
-  background: var(--accent-soft);
+  color: var(--accent-ink);
+  background: var(--surface-accent);
   font-size: 12px;
   font-weight: 700;
 }
@@ -127,7 +127,7 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: var(--accent-receipt-field);
+  background: var(--surface-accent);
 }
 .receipt-crop-preview {
   position: relative;
@@ -142,8 +142,8 @@
 }
 .receipt-crop-preview > div {
   position: absolute;
-  border: 3px solid var(--accent-receipt-outline);
-  background: var(--accent-receipt-outline-soft);
+  border: 3px solid var(--focus);
+  background: color-mix(in srgb, var(--focus) 7%, transparent);
   pointer-events: none;
 }
 .receipt-crop-sliders {
@@ -165,7 +165,7 @@
   min-width: 0;
 }
 .field-error {
-  color: var(--status-danger-receipt);
+  color: var(--status-danger);
   font-size: 0.85rem;
 }
 .receipt-upload .receipt-camera-button {
@@ -216,7 +216,7 @@
   display: flex;
   gap: 16px;
   padding: 0 0 22px;
-  border-bottom: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line);
   margin-bottom: 24px;
 }
 .receipt-steps button {
@@ -227,7 +227,7 @@
   padding: 4px 0;
   border: 0;
   background: transparent;
-  color: var(--ink-receipt-note);
+  color: var(--ink-muted);
   text-align: left;
   font: inherit;
   font-size: 12px;
@@ -240,11 +240,11 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: var(--accent-hover);
+  background: var(--surface-soft);
   font-size: 11px;
 }
 .receipt-steps button[aria-current="step"] {
-  color: var(--accent-receipt-note);
+  color: var(--ink-on-action);
   font-weight: 700;
 }
 .receipt-steps button[aria-current="step"] > span {
@@ -260,7 +260,7 @@
   margin: 0 0 8px;
 }
 .receipt-step-description {
-  color: var(--ink-receipt-muted);
+  color: var(--ink-secondary);
   font-size: 13px;
   line-height: 1.6;
   margin: 0 0 22px;
@@ -268,14 +268,14 @@
 .receipt-source {
   max-width: 650px;
   margin: 0 auto;
-  border: 1px dashed var(--accent-receipt-edge);
+  border: 1px dashed var(--line-accent);
   border-radius: 18px;
   background: var(--surface-soft);
   padding: 24px;
   text-align: center;
 }
 .receipt-source > svg {
-  color: var(--accent-receipt-icon);
+  color: var(--accent-ink-muted);
   margin-bottom: 10px;
 }
 .receipt-source h4 {
@@ -283,7 +283,7 @@
   margin: 0 0 8px;
 }
 .receipt-source > p {
-  color: var(--ink-receipt-note);
+  color: var(--ink-muted);
   font-size: 13px;
   margin: 0 0 20px;
 }
@@ -316,7 +316,7 @@
   margin-top: 16px;
 }
 .receipt-entry-alternative > span {
-  color: var(--ink-receipt-faint);
+  color: var(--ink-subtle);
   font-size: 12px;
 }
 .receipt-without-photo {
@@ -328,8 +328,8 @@
 .receipt-adjustments {
   margin: 24px 0 16px;
   padding: 16px 0;
-  border-top: 1px solid var(--surface-skeleton-bar);
-  border-bottom: 1px solid var(--surface-skeleton-bar);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
 }
 .receipt-adjustments > summary {
   cursor: pointer;
@@ -348,7 +348,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  border-top: 1px solid var(--line-strong);
+  border-top: 1px solid var(--line);
   padding: 18px 0;
   margin-top: 24px;
 }
@@ -396,13 +396,13 @@
 }
 .receipt-drafts h3 small {
   margin-left: 8px;
-  color: var(--ink-muted);
+  color: var(--ink-secondary);
 }
 .draft-private {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--ink-muted);
+  color: var(--ink-secondary);
   font-size: 12px;
 }
 .draft-list-row {
@@ -413,7 +413,7 @@
   border-bottom: 1px solid var(--line);
 }
 .draft-list-icon {
-  color: var(--accent-receipt-secondary);
+  color: var(--accent-ink-muted);
   flex-shrink: 0;
 }
 .draft-list-copy {
@@ -426,7 +426,7 @@
   display: block;
 }
 .draft-list-copy small {
-  color: var(--ink-muted);
+  color: var(--ink-secondary);
   font-size: 12px;
   margin-top: 4px;
 }
@@ -435,7 +435,7 @@
 }
 .draft-delete {
   background: transparent;
-  color: var(--ink-muted);
+  color: var(--ink-secondary);
   border-radius: 10px;
   width: 44px;
   height: 44px;
@@ -454,7 +454,7 @@
 .button.draft-danger {
   background: var(--status-danger);
   color: var(--surface);
-  box-shadow: 0 3px 0 var(--status-danger-button-edge);
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--status-danger) 40%, var(--status-danger-hover));
 }
 .button.draft-delete-text {
   color: var(--status-danger);
@@ -499,7 +499,7 @@
   margin-bottom: 18px;
 }
 .receipt-page-heading h1 span {
-  color: var(--ink-muted);
+  color: var(--ink-secondary);
   font-size: 0.7em;
   font-weight: 600;
 }

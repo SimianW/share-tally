@@ -1,8 +1,8 @@
 .balance-card,
 .difference-card {
-  background: var(--accent-card);
-  color: var(--accent-card-ink);
-  border: 1px solid var(--accent-card-line);
+  background: var(--surface-highlight);
+  color: var(--ink);
+  border: 1px solid color-mix(in srgb, var(--surface-highlight) 60%, var(--ink-secondary));
   border-radius: 28px;
   padding: 30px;
 }
@@ -52,7 +52,7 @@
   overflow-wrap: anywhere;
 }
 .bill-heading p {
-  color: var(--ink-bill-note);
+  color: var(--money-pending);
 }
 #my-share-amount {
   scroll-margin-block: 100px;
@@ -67,7 +67,7 @@
   font-size: 0.875rem;
 }
 .difference-card dl {
-  border-top: 1px solid var(--accent-card-line);
+  border-top: 1px solid color-mix(in srgb, var(--surface-highlight) 60%, var(--ink-secondary));
   padding-top: 18px;
   margin-top: 30px;
 }
@@ -82,7 +82,7 @@
   font-weight: 800;
 }
 .bill-people {
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   background: var(--surface);
   border-radius: 28px;
   padding: 26px;
@@ -97,7 +97,7 @@
   align-items: center;
   gap: 12px;
   padding: 20px 0;
-  border-top: 1px solid var(--line-strong);
+  border-top: 1px solid var(--line);
 }
 .bill-person > div {
   flex: 1;
@@ -110,7 +110,7 @@
 .bill-list-row span {
   display: block;
   font-size: 0.875rem;
-  color: var(--ink-bill-detail);
+  color: var(--ink-secondary);
   margin-top: 4px;
 }
 .bill-person > strong {
@@ -121,7 +121,7 @@
 }
 .bill-adjustment {
   grid-column: 1/-1;
-  background: var(--surface-inactive-soft);
+  background: var(--surface-raised);
   border-radius: 20px;
   padding: 20px 26px;
 }
@@ -134,7 +134,7 @@
 .bill-notes {
   margin-top: 24px;
   padding: 20px 26px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: 20px;
   background: var(--surface);
 }
@@ -157,7 +157,7 @@
   gap: 20px;
   background: var(--surface);
   padding: 22px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: 18px;
   text-decoration: none;
   color: inherit;
@@ -192,7 +192,7 @@
   width: 100%;
   box-sizing: border-box;
   padding: 12px;
-  border: 1px solid var(--line-muted);
+  border: 1px solid var(--line-strong);
   border-radius: 10px;
   background: var(--surface);
   font: inherit;
@@ -224,7 +224,7 @@
   max-width: 600px;
   margin-top: 28px;
   background: var(--surface);
-  border: 1px solid var(--line-subtle);
+  border: 1px solid color-mix(in srgb, var(--line-strong) 50%, var(--surface));
   border-radius: 22px;
   padding: 24px;
 }
@@ -291,11 +291,11 @@
   padding-top: 30px;
 }
 .bill-danger {
-  color: var(--status-danger-strong);
+  color: var(--status-danger);
 }
 .difference-card.canceled-bill {
-  background: var(--surface-inactive);
-  border-color: var(--line-inactive);
+  background: var(--line);
+  border-color: var(--line-strong);
 }
 .bill-action-layout .share-form {
   width: 100%;

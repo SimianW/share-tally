@@ -40,10 +40,10 @@ html:has(.top-bar) { scroll-padding-top: var(--top-bar-height); }
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--surface);
-  color: var(--ink-muted);
+  color: var(--ink-secondary);
   transition: background 0.2s, border-color 0.2s;
 }
-.account-menu-trigger[aria-expanded="true"] { background: var(--accent-hover); border-color: var(--accent-hover-edge); color: var(--ink); }
+.account-menu-trigger[aria-expanded="true"] { background: var(--surface-soft); border-color: var(--line-accent); color: var(--ink); }
 .account-menu-trigger .avatar { width: 34px; height: 34px; border: 0; font-size: 14px; }
 .account-menu-chevron { transition: transform 0.2s; }
 .account-menu-trigger[aria-expanded="true"] .account-menu-chevron { transform: rotate(180deg); }
@@ -57,7 +57,7 @@ html:has(.top-bar) { scroll-padding-top: var(--top-bar-height); }
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: var(--surface);
-  box-shadow: 0 16px 40px var(--shadow-menu);
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--shadow-color) 12%, transparent);
   animation: popup-in 0.14s ease-out;
 }
 .account-menu-identity {
@@ -72,7 +72,7 @@ html:has(.top-bar) { scroll-padding-top: var(--top-bar-height); }
 .account-menu-identity strong,
 .account-menu-identity small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .account-menu-identity strong { font-size: var(--text-base); }
-.account-menu-identity small { color: var(--ink-muted); font-size: var(--text-xs); }
+.account-menu-identity small { color: var(--ink-secondary); font-size: var(--text-xs); }
 .account-menu [role="menu"] { display: grid; gap: 2px; }
 .account-menu [role="menuitem"] {
   display: flex;
@@ -86,15 +86,15 @@ html:has(.top-bar) { scroll-padding-top: var(--top-bar-height); }
   font-size: var(--text-base);
   font-weight: 600;
 }
-.account-menu [role="menuitem"] > svg { color: var(--ink-muted); }
-.account-menu [role="menuitem"]:focus-visible { background: var(--accent-selected); color: var(--accent-selected-ink); }
-.account-menu [role="menuitem"]:focus-visible > svg { color: var(--accent-selected-icon); }
+.account-menu [role="menuitem"] > svg { color: var(--ink-secondary); }
+.account-menu [role="menuitem"]:focus-visible { background: var(--surface-accent); color: var(--ink-on-action); }
+.account-menu [role="menuitem"]:focus-visible > svg { color: var(--accent-ink-muted); }
 /* Touch taps leave :hover behind; only devices that really hover get hover styles. */
 @media (hover: hover) {
-  .top-bar-home:hover { background: var(--accent-hover); }
-  .account-menu-trigger:hover { background: var(--accent-hover); border-color: var(--accent-hover-edge); color: var(--ink); }
-  .account-menu [role="menuitem"]:hover { background: var(--accent-selected); color: var(--accent-selected-ink); }
-  .account-menu [role="menuitem"]:hover > svg { color: var(--accent-selected-icon); }
+  .top-bar-home:hover { background: var(--surface-soft); }
+  .account-menu-trigger:hover { background: var(--surface-soft); border-color: var(--line-accent); color: var(--ink); }
+  .account-menu [role="menuitem"]:hover { background: var(--surface-accent); color: var(--ink-on-action); }
+  .account-menu [role="menuitem"]:hover > svg { color: var(--accent-ink-muted); }
 }
 .account-menu [role="menuitem"]:focus-visible { outline-offset: -3px; }
 .account-menu [role="separator"] { height: 1px; margin: 4px 6px; background: var(--line); }

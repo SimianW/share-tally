@@ -63,139 +63,68 @@
   src: url(/fonts/nunito-900-normal.ttf) format("truetype");
 }
 
-/* Semantic roles are the only colors consumed by components. Each role reads
-   a raw classic palette swatch; another [data-palette] can replace those swatches
-   or override a role directly when a foreground/background pairing needs it. */
+/* Fifty semantic color roles are the component-facing API. Derived colors
+   always read palette swatches (or other roles), so changing data-palette
+   recolors interaction states as well as the resting page. */
 :root {
-  /* Neutral */
-  --bg: var(--palette-neutral-01);
-  --page-bg: var(--palette-neutral-02);
-  --page-ink: var(--palette-neutral-03);
-  --surface: var(--palette-neutral-04);
-  --surface-soft: var(--palette-neutral-05);
-  --surface-sunken: var(--palette-neutral-06);
-  --surface-raised: var(--palette-neutral-07);
-  --surface-disabled: var(--palette-neutral-08);
-  --surface-skeleton: var(--palette-neutral-09);
-  --surface-skeleton-bar: var(--palette-neutral-10);
-  --surface-inactive: var(--palette-neutral-11);
-  --surface-inactive-soft: var(--palette-neutral-12);
-  --ink: var(--palette-neutral-13);
-  --ink-on-action: var(--action-ink);
-  --ink-on-notice: var(--surface);
-  --ink-muted: var(--palette-neutral-14);
-  --ink-muted-dialog: var(--palette-neutral-15);
-  --ink-subtle: var(--palette-neutral-16);
-  --ink-note: var(--palette-neutral-17);
-  --ink-bill-note: var(--palette-neutral-18);
-  --ink-bill-detail: var(--palette-neutral-19);
-  --ink-picker-note: var(--palette-neutral-20);
-  --ink-picker-detail: var(--palette-neutral-21);
-  --ink-receipt-muted: var(--palette-neutral-22);
-  --ink-receipt-note: var(--palette-neutral-23);
-  --ink-receipt-faint: var(--palette-neutral-24);
-  --ink-notice: var(--palette-neutral-25);
-  --ink-dialog: var(--palette-neutral-26);
-  --line: var(--palette-neutral-27);
-  --line-strong: var(--palette-neutral-28);
-  --line-input: var(--palette-neutral-29);
-  --line-invitation: var(--palette-neutral-30);
-  --line-dashed: var(--palette-neutral-31);
-  --line-subtle: var(--palette-neutral-32);
-  --line-muted: var(--palette-neutral-33);
-  --line-inactive: var(--palette-neutral-34);
-  --shadow-subtle: var(--palette-neutral-35);
-  --shadow-hover: var(--palette-neutral-36);
-  --shadow-menu: var(--palette-neutral-37);
-  --shadow-dialog: var(--palette-neutral-38);
-  --shadow-photo: var(--palette-neutral-39);
-  --shadow-footer: var(--palette-neutral-40);
-  --overlay: var(--palette-neutral-41);
-  /* Accent */
-  --action: var(--palette-accent-01);
-  --action-hover: var(--palette-accent-02);
-  --action-edge: var(--palette-accent-03);
-  --action-line: var(--palette-accent-04);
-  --action-ink: var(--palette-accent-05);
-  --accent-ink: var(--palette-accent-06);
-  --accent-mark: var(--palette-accent-07);
-  --accent-heading: var(--palette-accent-08);
-  --accent-soft: var(--palette-accent-09);
-  --accent-soft-strong: var(--palette-accent-10);
-  --accent-card: var(--palette-accent-11);
-  --accent-card-line: var(--palette-accent-12);
-  --accent-card-ink: var(--palette-accent-13);
-  --accent-selected: var(--palette-accent-14);
-  --accent-selected-ink: var(--palette-accent-15);
-  --accent-selected-icon: var(--palette-accent-16);
-  --accent-selected-strong: var(--palette-accent-17);
-  --accent-picker: var(--palette-accent-18);
-  --accent-picker-line: var(--palette-accent-19);
-  --accent-picker-preview: var(--palette-accent-20);
-  --accent-picker-edge: var(--palette-accent-21);
-  --accent-picker-ink: var(--palette-accent-22);
-  --accent-picker-check: var(--palette-accent-23);
-  --accent-picker-more: var(--palette-accent-24);
-  --accent-receipt-ink: var(--palette-accent-25);
-  --accent-receipt-field: var(--palette-accent-26);
-  --accent-receipt-note: var(--palette-accent-27);
-  --accent-receipt-icon: var(--palette-accent-28);
-  --accent-receipt-secondary: var(--palette-accent-29);
-  --accent-receipt-edge: var(--palette-accent-30);
-  --accent-receipt-outline: var(--palette-accent-31);
-  --accent-receipt-outline-soft: var(--palette-accent-32);
-  --accent-quiet: var(--palette-accent-33);
-  --accent-hover-line: var(--palette-accent-34);
-  --accent-create-line: var(--palette-accent-35);
-  --accent-hover: var(--palette-accent-36);
-  --accent-hover-edge: var(--palette-accent-37);
-  --accent-switcher-hover: var(--palette-accent-38);
-  --accent-switcher-edge: var(--palette-accent-39);
-  --accent-selection: var(--palette-accent-40);
-  --accent-selection-ink: var(--palette-accent-41);
-  --accent-pill: var(--palette-accent-42);
-  --focus: var(--palette-accent-43);
-  --focus-picker: var(--palette-accent-44);
-  /* Money */
-  --money-owed: var(--palette-money-01);
-  --money-owed-bg: var(--palette-money-02);
-  --money-owe: var(--palette-money-03);
-  --money-owe-bg: var(--palette-money-04);
-  --money-pending: var(--palette-neutral-18);
-  --money-pending-bg: var(--palette-neutral-12);
-  /* Status */
-  --status-success: var(--palette-status-01);
-  --status-success-bg: var(--palette-money-02);
-  --status-success-line: var(--palette-status-02);
-  --status-warning: var(--palette-status-03);
-  --status-warning-bg: var(--palette-status-04);
-  --status-warning-note-bg: var(--palette-status-05);
-  --status-warning-line: var(--palette-status-06);
-  --status-danger: var(--palette-status-07);
-  --status-danger-receipt: var(--palette-status-08);
-  --status-danger-strong: var(--palette-status-09);
-  --status-danger-hover: var(--palette-status-10);
-  --status-danger-edge: var(--palette-status-11);
-  --status-danger-button-edge: var(--palette-status-12);
-  --status-danger-form: var(--palette-status-13);
-  --status-danger-notice: var(--palette-status-14);
-  --status-danger-bg: var(--palette-status-15);
-  --status-danger-line: var(--palette-status-16);
-  --status-danger-switcher-bg: var(--palette-status-17);
-  --status-danger-switcher-line: var(--palette-status-18);
-  --status-info: var(--palette-status-19);
-  --status-info-bg: var(--palette-status-20);
-  --status-info-line: var(--palette-status-21);
-  --status-repayment: var(--palette-status-22);
-  --status-repayment-bg: var(--palette-status-23);
-  --highlight: var(--palette-status-24);
-  /* Avatar */
-  --avatar-simon: var(--palette-accent-42);
-  --avatar-emma: var(--palette-avatar-01);
-  --avatar-alex: var(--palette-avatar-02);
-  --avatar-jamie: var(--palette-avatar-03);
-  --avatar-riley: var(--palette-avatar-04);
-  --avatar-default: var(--palette-avatar-05);
+  /* Surfaces: preserve the page canvases and prominent highlight fills. */
+  --bg: var(--palette-canvas);
+  --page-bg: var(--palette-page);
+  --surface: var(--palette-white);
+  --surface-soft: color-mix(in srgb, var(--palette-lime-tint) 35%, var(--palette-white));
+  --surface-sunken: var(--palette-mist);
+  --surface-raised: color-mix(in srgb, var(--palette-line) 60%, var(--palette-white));
+  --surface-accent: color-mix(in srgb, var(--palette-lime-tint) 70%, var(--palette-mist));
+  --surface-selected: var(--palette-lime-tint);
+  --surface-highlight: var(--palette-chartreuse);
+  /* Ink: secondary labels are darker than muted metadata. */
+  --ink: var(--palette-ink);
+  --page-ink: var(--palette-page-ink);
+  --ink-muted: var(--palette-muted);
+  --ink-secondary: var(--palette-secondary);
+  --ink-subtle: var(--palette-subtle);
+  --ink-on-action: var(--palette-action-ink);
+  --ink-inverse: var(--palette-white);
+  /* Lines: neutral boundaries and tinted accent boundaries. */
+  --line: var(--palette-line);
+  --line-strong: color-mix(in srgb, var(--palette-line) 72%, var(--palette-secondary));
+  --line-accent: color-mix(in srgb, var(--palette-lime-tint) 85%, var(--palette-leaf));
+  /* Actions and emphasis, shared by every component. */
+  --action: var(--palette-lime);
+  --action-hover: var(--palette-lime-hover);
+  --action-edge: var(--palette-leaf-edge);
+  --accent-ink: var(--palette-leaf);
+  --accent-ink-muted: color-mix(in srgb, var(--palette-leaf) 82%, var(--palette-sage));
+  --accent-mark: color-mix(in srgb, var(--palette-lime) 60%, var(--palette-white));
+  --accent-decoration: var(--palette-leaf-bright);
+  --focus: color-mix(in srgb, var(--palette-leaf-bright) 47%, var(--palette-leaf));
+  /* Money roles remain independent of status meaning. */
+  --money-owed: var(--palette-green);
+  --money-owed-bg: color-mix(in srgb, var(--palette-lime-tint) 65%, var(--palette-white));
+  --money-owe: var(--palette-ochre);
+  --money-owe-bg: var(--palette-cream);
+  --money-pending: color-mix(in srgb, var(--palette-secondary) 93%, var(--palette-blue));
+  /* Status tints are derived, not additional raw swatches. */
+  --status-success: color-mix(in srgb, var(--palette-green) 85%, var(--palette-deep));
+  --status-success-bg: var(--money-owed-bg);
+  --status-warning: color-mix(in srgb, var(--palette-ochre) 90%, var(--palette-deep));
+  --status-warning-bg: color-mix(in srgb, var(--palette-cream) 75%, var(--palette-white));
+  --status-danger: var(--palette-red);
+  --status-danger-bg: color-mix(in srgb, var(--palette-red) 7%, var(--palette-white));
+  --status-danger-hover: color-mix(in srgb, var(--palette-red) 60%, var(--palette-deep));
+  --status-info: var(--palette-blue);
+  --status-info-bg: color-mix(in srgb, var(--palette-blue) 9%, var(--palette-white));
+  /* Transient emphasis and indexed avatar tints. */
+  --highlight: var(--palette-amber);
+  --avatar-1: var(--palette-sage);
+  --avatar-2: var(--palette-rose);
+  --avatar-3: var(--palette-sky);
+  --avatar-4: var(--palette-peach);
+  --avatar-5: var(--palette-lilac);
+  --avatar-default: color-mix(in srgb, var(--palette-line) 88%, var(--palette-secondary));
+  /* Shadow geometry/opacity is chosen at the use site; hue is shared. */
+  --shadow-color: var(--palette-deep);
+  --overlay: color-mix(in srgb, var(--palette-deep) 40%, transparent);
   /* Typography and layout */
   --font-body: "DM Sans", sans-serif;
   --font-heading: "Nunito", sans-serif;
@@ -213,7 +142,7 @@
   --space-6: 24px;
   --space-8: 32px;
   --top-bar-height: 68px;
-  --shadow-photo-label: 0 2px 12px var(--shadow-photo);
+  --shadow-floating: 0 2px 12px color-mix(in srgb, var(--shadow-color) 8%, transparent);
   --radius-sm: 10px;
   --radius-md: 16px;
   --radius: 22px;

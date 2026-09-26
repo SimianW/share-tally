@@ -1,129 +1,37 @@
-/* Classic reproduces the original client colors. The attribute is optional:
-   :root is the fallback when no palette has been selected. Swatches are raw
-   values; components always use the semantic roles in tokens.css instead. */
+/* The classic palette is the default with or without a root attribute.
+   Thirty raw swatches cover the whole UI. Add another :root[data-palette]
+   block with the same swatch names; semantic roles then update together.
+   A palette may also override a role for a different foreground pairing. */
 :root,
 :root[data-palette="classic"] {
-  /* Neutral */
-  --palette-neutral-01: #fafbf8; /* bg */
-  --palette-neutral-02: #f9faf6; /* page-bg */
-  --palette-neutral-03: #263021; /* page-ink */
-  --palette-neutral-04: #fff; /* surface */
-  --palette-neutral-05: #f7faf2; /* surface-soft */
-  --palette-neutral-06: #f8f9f5; /* surface-sunken */
-  --palette-neutral-07: #f2f2eb; /* surface-raised */
-  --palette-neutral-08: #f4f6ef; /* surface-disabled */
-  --palette-neutral-09: #eef1e8; /* surface-skeleton */
-  --palette-neutral-10: #e2e8d9; /* surface-skeleton-bar */
-  --palette-neutral-11: #e9ece5; /* surface-inactive */
-  --palette-neutral-12: #f1f3ec; /* surface-inactive-soft, money-pending-bg */
-  --palette-neutral-13: #273323; /* ink */
-  --palette-neutral-14: #7b8275; /* ink-muted */
-  --palette-neutral-15: #65705f; /* ink-muted-dialog */
-  --palette-neutral-16: #9aa18f; /* ink-subtle */
-  --palette-neutral-17: #67745d; /* ink-note */
-  --palette-neutral-18: #626a63; /* ink-bill-note, money-pending */
-  --palette-neutral-19: #646c61; /* ink-bill-detail */
-  --palette-neutral-20: #65765b; /* ink-picker-note */
-  --palette-neutral-21: #677360; /* ink-picker-detail */
-  --palette-neutral-22: #6d795f; /* ink-receipt-muted */
-  --palette-neutral-23: #77826b; /* ink-receipt-note */
-  --palette-neutral-24: #89947d; /* ink-receipt-faint */
-  --palette-neutral-25: #343b2d; /* ink-notice */
-  --palette-neutral-26: #414637; /* ink-dialog */
-  --palette-neutral-27: #e8ebe3; /* line */
-  --palette-neutral-28: #e2e5dc; /* line-strong */
-  --palette-neutral-29: #d8ded3; /* line-input */
-  --palette-neutral-30: #c9c9bf; /* line-invitation */
-  --palette-neutral-31: #d3dbc8; /* line-dashed */
-  --palette-neutral-32: #ddd; /* line-subtle */
-  --palette-neutral-33: #b4bbaa; /* line-muted */
-  --palette-neutral-34: #c4cbbd; /* line-inactive */
-  --palette-neutral-35: #0000000a; /* shadow-subtle */
-  --palette-neutral-36: #25380e0f; /* shadow-hover */
-  --palette-neutral-37: #15220e1f; /* shadow-menu */
-  --palette-neutral-38: #15220e35; /* shadow-dialog */
-  --palette-neutral-39: #15220e15; /* shadow-photo */
-  --palette-neutral-40: rgba(0,0,0,.05); /* shadow-footer */
-  --palette-neutral-41: #14200e66; /* overlay */
-  /* Accent */
-  --palette-accent-01: #c4f178; /* action */
-  --palette-accent-02: #b7e56c; /* action-hover */
-  --palette-accent-03: #a2c86a; /* action-edge */
-  --palette-accent-04: #a6d45f; /* action-line */
-  --palette-accent-05: #2a4020; /* action-ink */
-  --palette-accent-06: #4d6a31; /* accent-ink */
-  --palette-accent-07: #dcf4ae; /* accent-mark */
-  --palette-accent-08: #83b445; /* accent-heading */
-  --palette-accent-09: #eef4e2; /* accent-soft */
-  --palette-accent-10: #e9f3d8; /* accent-soft-strong */
-  --palette-accent-11: #d9f572; /* accent-card */
-  --palette-accent-12: #aabe62; /* accent-card-line */
-  --palette-accent-13: #26351d; /* accent-card-ink */
-  --palette-accent-14: #eef6df; /* accent-selected */
-  --palette-accent-15: #34472a; /* accent-selected-ink */
-  --palette-accent-16: #5d7a3a; /* accent-selected-icon */
-  --palette-accent-17: #e3eecd; /* accent-selected-strong */
-  --palette-accent-18: #e8f6d4; /* accent-picker */
-  --palette-accent-19: #bad59a; /* accent-picker-line */
-  --palette-accent-20: #e6f5ce; /* accent-picker-preview */
-  --palette-accent-21: #a3bf81; /* accent-picker-edge */
-  --palette-accent-22: #3d5c27; /* accent-picker-ink */
-  --palette-accent-23: #507437; /* accent-picker-check */
-  --palette-accent-24: #506d39; /* accent-picker-more */
-  --palette-accent-25: #465c29; /* accent-receipt-ink */
-  --palette-accent-26: #e8efdc; /* accent-receipt-field */
-  --palette-accent-27: #344522; /* accent-receipt-note */
-  --palette-accent-28: #688644; /* accent-receipt-icon */
-  --palette-accent-29: #6a7f4f; /* accent-receipt-secondary */
-  --palette-accent-30: #c7d5b7; /* accent-receipt-edge */
-  --palette-accent-31: #6a872f; /* accent-receipt-outline */
-  --palette-accent-32: #6a872f11; /* accent-receipt-outline-soft */
-  --palette-accent-33: #e6ecdc; /* accent-quiet */
-  --palette-accent-34: #d3e2ba; /* accent-hover-line */
-  --palette-accent-35: #b7cf92; /* accent-create-line */
-  --palette-accent-36: #f0f3e9; /* accent-hover */
-  --palette-accent-37: #d9e2c8; /* accent-hover-edge */
-  --palette-accent-38: #f4f7ee; /* accent-switcher-hover */
-  --palette-accent-39: #dfe7d1; /* accent-switcher-edge */
-  --palette-accent-40: #d7f69a; /* accent-selection */
-  --palette-accent-41: #203a1d; /* accent-selection-ink */
-  --palette-accent-42: #e5edc5; /* accent-pill, avatar-simon */
-  --palette-accent-43: #6b8c4b; /* focus */
-  --palette-accent-44: #7ca844; /* focus-picker */
-  /* Money */
-  --palette-money-01: #53772c; /* money-owed */
-  --palette-money-02: #f1f8e8; /* money-owed-bg, status-success-bg */
-  --palette-money-03: #946124; /* money-owe */
-  --palette-money-04: #fff4df; /* money-owe-bg */
-  /* Status */
-  --palette-status-01: #3e6b30; /* status-success */
-  --palette-status-02: #cbdcbb; /* status-success-line */
-  --palette-status-03: #8a570e; /* status-warning */
-  --palette-status-04: #fff7e5; /* status-warning-bg */
-  --palette-status-05: #fff5e8; /* status-warning-note-bg */
-  --palette-status-06: #e8cc92; /* status-warning-line */
-  --palette-status-07: #a13e2b; /* status-danger */
-  --palette-status-08: #a13427; /* status-danger-receipt */
-  --palette-status-09: #963c31; /* status-danger-strong */
-  --palette-status-10: #782d26; /* status-danger-hover */
-  --palette-status-11: #66241f; /* status-danger-edge */
-  --palette-status-12: #813120; /* status-danger-button-edge */
-  --palette-status-13: #9e2424; /* status-danger-form */
-  --palette-status-14: #ae403a; /* status-danger-notice */
-  --palette-status-15: #fff0ed; /* status-danger-bg */
-  --palette-status-16: #edc1bb; /* status-danger-line */
-  --palette-status-17: #fbefeb; /* status-danger-switcher-bg */
-  --palette-status-18: #efd3ca; /* status-danger-switcher-line */
-  --palette-status-19: #3e648b; /* status-info */
-  --palette-status-20: #edf4fa; /* status-info-bg */
-  --palette-status-21: #c8d9e8; /* status-info-line */
-  --palette-status-22: #36607e; /* status-repayment */
-  --palette-status-23: #e7f0f6; /* status-repayment-bg */
-  --palette-status-24: #f5df9b; /* highlight */
-  /* Avatar */
-  --palette-avatar-01: #edcee0; /* avatar-emma */
-  --palette-avatar-02: #c4dce9; /* avatar-alex */
-  --palette-avatar-03: #f2d0ae; /* avatar-jamie */
-  --palette-avatar-04: #d7d0ec; /* avatar-riley */
-  --palette-avatar-05: #d8dfd0; /* avatar-default */
+  --palette-white: #fff;
+  --palette-canvas: #fafbf8;
+  --palette-page: #f9faf6;
+  --palette-ink: #273323;
+  --palette-page-ink: #263021;
+  --palette-mist: #f8f9f5;
+  --palette-muted: #7b8275;
+  --palette-secondary: #65705f;
+  --palette-subtle: #919985;
+  --palette-line: #e8ebe3;
+  --palette-deep: #15220e;
+  --palette-lime: #c4f178;
+  --palette-lime-hover: #b7e56c;
+  --palette-leaf-edge: #a2c86a;
+  --palette-action-ink: #2a4020;
+  --palette-leaf: #4d6a31;
+  --palette-leaf-bright: #83b445;
+  --palette-chartreuse: #d9f572;
+  --palette-lime-tint: #e9f3d8;
+  --palette-green: #53772c;
+  --palette-ochre: #946124;
+  --palette-cream: #fff4df;
+  --palette-red: #a0382b;
+  --palette-blue: #3e648b;
+  --palette-amber: #f5df9b;
+  --palette-sage: #e5edc5;
+  --palette-rose: #edcee0;
+  --palette-sky: #c4dce9;
+  --palette-peach: #f2d0ae;
+  --palette-lilac: #d7d0ec;
 }

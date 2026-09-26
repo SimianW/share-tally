@@ -14,7 +14,7 @@
 }
 .receipt-list-heading > span,
 .receipt-row-quantity,
-.receipt-row-secondary { color: var(--ink-muted); }
+.receipt-row-secondary { color: var(--ink-secondary); }
 .receipt-filter-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
 .receipt-filter-chip { min-height: 36px; padding: var(--space-2) var(--space-4); border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); font-size: var(--text-sm); font-weight: 600; }
 .receipt-filter-chip[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: var(--surface); }
@@ -46,18 +46,18 @@
 .receipt-row-name strong { font-size: var(--text-base); overflow-wrap: anywhere; }
 .receipt-row-quantity { font-size: var(--text-sm); white-space: nowrap; }
 .receipt-row-cost { display: flex; align-items: center; gap: var(--space-2); white-space: nowrap; font-weight: 700; font-variant-numeric: tabular-nums; }
-.receipt-row-cost small { color: var(--ink-muted); font-size: var(--text-xs); font-weight: 400; }
+.receipt-row-cost small { color: var(--ink-secondary); font-size: var(--text-xs); font-weight: 400; }
 .receipt-processing-spin { animation: receipt-spin 1.2s linear infinite; }
 @keyframes receipt-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .receipt-processing-spin { animation: none; } }
-.receipt-row-cost > svg { color: var(--ink-muted); }
+.receipt-row-cost > svg { color: var(--ink-secondary); }
 .receipt-row-badges { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .receipt-row-badges:not(:empty) { margin-top: var(--space-1); }
-.receipt-badge { padding: 2px var(--space-2); border-radius: var(--radius-sm); background: var(--surface-soft); color: var(--ink-muted); font-size: var(--text-xs); }
+.receipt-badge { padding: 2px var(--space-2); border-radius: var(--radius-sm); background: var(--surface-soft); color: var(--ink-secondary); font-size: var(--text-xs); }
 .receipt-badge-warning { background: var(--money-owe-bg); color: var(--money-owe); }
 .receipt-row-secondary { display: block; margin-top: var(--space-2); font-size: var(--text-xs); }
 .receipt-row-actions { padding: 0 var(--space-5) var(--space-3); }
-.receipt-list-empty { padding: var(--space-6); color: var(--ink-muted); }
+.receipt-list-empty { padding: var(--space-6); color: var(--ink-secondary); }
 .receipt-review-items > .button { display: inline-flex; align-items: center; gap: var(--space-2); }
 .receipt-photo-panel { top: calc(var(--top-bar-height) + var(--space-6)); }
 .receipt-review-layout .receipt-scan-actions { margin-bottom: var(--space-4); }
@@ -92,19 +92,19 @@
 .receipt-field-wide { grid-column: 1 / -1; }
 .receipt-sheet label.receipt-tax-toggle { display: flex; gap: var(--space-2); align-items: center; min-height: 44px; margin: 0; font-weight: 600; font-size: var(--text-sm); }
 .receipt-tax-toggle input { width: 20px; height: 20px; accent-color: var(--money-owed); flex-shrink: 0; }
-.receipt-field-help { color: var(--ink-muted); font-size: var(--text-sm); line-height: 1.6; }
+.receipt-field-help { color: var(--ink-secondary); font-size: var(--text-sm); line-height: 1.6; }
 .receipt-cost-breakdown { margin: 0; display: grid; gap: var(--space-3); font-size: var(--text-sm); }
 .receipt-cost-breakdown > div { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
-.receipt-cost-breakdown dt { color: var(--ink-muted); }
+.receipt-cost-breakdown dt { color: var(--ink-secondary); }
 .receipt-cost-breakdown dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
-.receipt-tax-label { color: var(--ink-muted); font-size: var(--text-xs); }
+.receipt-tax-label { color: var(--ink-secondary); font-size: var(--text-xs); }
 .receipt-bill-summary { display: grid; gap: var(--space-3); padding: var(--space-4); border-radius: var(--radius-sm); background: var(--surface-soft); }
 .receipt-bill-summary h3 { margin: 0; font-family: var(--font-heading); font-size: var(--text-base); }
 .receipt-cost-breakdown .receipt-final-cost { border-top: 1px solid var(--line); padding-top: var(--space-4); font-weight: 700; }
 .receipt-final-cost dt { color: var(--ink); }
 .receipt-final-cost output { font-family: var(--font-heading); font-size: var(--text-lg); }
 .receipt-manual-override { display: grid; gap: var(--space-3); padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-soft); }
-.receipt-manual-override p { color: var(--ink-muted); font-size: var(--text-sm); }
+.receipt-manual-override p { color: var(--ink-secondary); font-size: var(--text-sm); }
 .receipt-editor-navigation,
 .receipt-editor-bottom { display: flex; justify-content: space-between; gap: var(--space-3); }
 .receipt-editor-navigation { border-top: 1px solid var(--line); padding-top: var(--space-5); }
@@ -131,13 +131,13 @@
 .receipt-reconciliation strong { display: flex; align-items: center; gap: var(--space-1); color: var(--money-owe); font-size: var(--text-base); }
 .receipt-reconciliation.is-matched strong { color: var(--money-owed); }
 .receipt-reconciliation span > span { display: block; font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
-.receipt-reconciliation small { display: block; color: var(--ink-muted); font-size: var(--text-xs); }
+.receipt-reconciliation small { display: block; color: var(--ink-secondary); font-size: var(--text-xs); }
 
 .receipt-photo-label { margin-bottom: var(--space-3); }
 .receipt-photo-open { display: block; position: relative; padding: 0; width: 100%; background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius-md); overflow: hidden; }
 .receipt-photo-open img { display: block; }
-.receipt-photo-open > span { position: absolute; bottom: var(--space-3); left: 50%; transform: translateX(-50%); display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); background: var(--surface); font-size: var(--text-xs); box-shadow: var(--shadow-photo-label); }
-.receipt-photo > small { display: block; color: var(--ink-muted); font-size: var(--text-xs); margin-top: var(--space-2); }
+.receipt-photo-open > span { position: absolute; bottom: var(--space-3); left: 50%; transform: translateX(-50%); display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); background: var(--surface); font-size: var(--text-xs); box-shadow: var(--shadow-floating); }
+.receipt-photo > small { display: block; color: var(--ink-secondary); font-size: var(--text-xs); margin-top: var(--space-2); }
 .play-dialog.receipt-photo-viewer { position: fixed; inset: 0; margin: 0; width: 100vw; max-width: none; height: 100dvh; max-height: 100dvh; border: 0; border-radius: 0; padding: var(--space-5); overflow: hidden; }
 .receipt-photo-viewer[open] { display: flex; flex-direction: column; gap: var(--space-3); }
 .receipt-photo-tools { display: flex; align-items: center; justify-content: center; gap: var(--space-3); }
@@ -170,7 +170,7 @@
 }
 
 .receipt-correction { display: grid; gap: var(--space-4); margin-top: var(--space-5); }
-.receipt-correction > p { color: var(--ink-muted); font-size: var(--text-sm); }
+.receipt-correction > p { color: var(--ink-secondary); font-size: var(--text-sm); }
 .receipt-correction-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
 
 /* Participant claiming reuses the compact item surface and receipt sheet. */
@@ -193,7 +193,7 @@
 .claim-custom .button { justify-self: start; }
 .claim-custom [role="alert"] { color: var(--money-owe); }
 .claim-remove { grid-column: 1 / -1; justify-self: start; }
-.claim-sticky-footer { position: sticky; bottom: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-4); background: var(--bg); border-top: 1px solid var(--line); box-shadow: 0 -5px 16px var(--shadow-footer); }
+.claim-sticky-footer { position: sticky; bottom: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-4); background: var(--bg); border-top: 1px solid var(--line); box-shadow: 0 -5px 16px color-mix(in srgb, var(--shadow-color) 5%, transparent); }
 .claim-summary-trigger { padding: var(--space-2); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); font: inherit; font-size: var(--text-sm); }
 .claim-share { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; }
 @media (max-width: 700px) {
