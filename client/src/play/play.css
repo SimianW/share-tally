@@ -618,3 +618,8 @@ h1 {
 .group-bills-action svg {
   flex-shrink: 0;
 }
+
+/* Menus and listboxes that drop down from a button. */
+@keyframes popup-in {
+  from { opacity: 0; transform: translateY(-4px); }
+}

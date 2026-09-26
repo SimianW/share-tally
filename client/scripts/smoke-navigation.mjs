@@ -6,7 +6,6 @@ export async function checkNavigation(page, pageFor) {
   const groupUrl = page.url();
   const path = new URL(groupUrl).hash.slice('#/group-bills/'.length);
   const pattern = `**/api/groups/${path}/bills`;
-  const groups = page.getByRole('navigation', { name: 'Groups', exact: true });
   await page.evaluate(() => {
     window.uxFlashes = [];
     window.uxObserver = new MutationObserver(() => {
@@ -14,9 +13,9 @@ export async function checkNavigation(page, pageFor) {
       if (/Live updates interrupted|Retry group bills|Loading bills\.\.\.|Loading balances\.\.\./.test(text)) window.uxFlashes.push(text);
     });
     window.uxObserver.observe(document.body, { subtree: true, childList: true, characterData: true });
-    window.uxSidebar = document.querySelector('.workspace-groups');
+    window.uxTopBar = document.querySelector('.top-bar');
   });
-  await groups.getByRole('link', { name: /Apartment/ }).click();
+  await switchGroup(page, 'Apartment');
   await expect(page.locator('.workspace-content .balance-number')).toHaveText('$0.00');
   let release;
   let reads = 0;
@@ -28,11 +27,11 @@ export async function checkNavigation(page, pageFor) {
     await gate;
     try { await route.continue(); } finally { active--; }
   });
-  await groups.getByRole('link', { name: /Costco friends/ }).click();
+  await switchGroup(page, 'Costco friends');
   await expect.poll(() => reads).toBeGreaterThan(0);
   await expect(page.locator('.workspace-content .balance-number')).toHaveText('$59.97');
   await expect(page.getByRole('status', { name: 'Loading group', exact: true })).toHaveCount(0);
-  assert.equal(await page.evaluate(() => window.uxSidebar === document.querySelector('.workspace-groups')), true);
+  assert.equal(await page.evaluate(() => window.uxTopBar === document.querySelector('.top-bar')), true);
   release();
   await expect.poll(() => active).toBe(0);
   for (const event of ['focus', 'visibilitychange', 'online']) {
@@ -50,16 +49,21 @@ export async function checkNavigation(page, pageFor) {
   gate = new Promise(resolve => { release = resolve; });
   await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect.poll(() => reads).toBeGreaterThan(0);
-  await groups.getByRole('link', { name: /Apartment/ }).click();
+  await switchGroup(page, 'Apartment');
   await expect(page.locator('.workspace-content .balance-number')).toHaveText('$0.00');
   release();
   await expect.poll(() => active).toBe(0);
   await expect(page.locator('.workspace-content .balance-number')).toHaveText('$0.00');
-  await expect(page.locator('.workspace-content h2').first()).toHaveText('Apartment');
-  await groups.getByRole('link', { name: /Costco friends/ }).click();
+  await expect(page.locator('#main-content').getByRole('heading', { level: 2 }).first()).toHaveText('Apartment');
+  await switchGroup(page, 'Costco friends');
   await expect(page.locator('.workspace-content .balance-number')).toHaveText('$59.97');
-  assert.equal(maxActive, 1, 'Sidebar and main panel share the same request');
+  assert.equal(maxActive, 1, 'Group page reads are deduplicated');
   await page.unroute(pattern);
+  await checkGroupSwitcher(page, 'desktop');
+  const desktop = page.viewportSize();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await checkGroupSwitcher(page, 'mobile');
+  await page.setViewportSize(desktop);
   await checkTopBar(page, 'desktop');
   await expect(page.locator('.balance-number')).toHaveText('$59.97');
   await page.locator('.group-card').filter({ hasText: 'Costco friends' }).click();
@@ -133,7 +137,7 @@ export async function checkNavigation(page, pageFor) {
   });
   await expect.poll(() => accountRead).toBe(true);
   await expect(fresh.locator('.workspace-content .balance-number')).toHaveCount(0);
-  await expect(fresh.getByRole('navigation', { name: 'Groups', exact: true })).not.toContainText('Costco friends');
+  await expect(fresh.locator('#main-content')).not.toContainText('Costco friends');
   release();
   await fresh.unrouteAll({ behavior: 'wait' });
   await fresh.getByRole('button', { name: 'Account menu', exact: true }).click();
@@ -144,7 +148,131 @@ export async function checkNavigation(page, pageFor) {
   await expect(fresh.locator('.balance-card h2')).toHaveText('You owe, net');
   await checkTopBar(fresh, 'mobile');
   await fresh.context().close();
-  console.log('Navigation UX passed: top bar with Home and account menu, delayed cached navigation, shared group rail, deduplication, no warning flashes, background recovery, initial failure, revoked access and account isolation.');
+  console.log('Navigation UX passed: top bar with Home and account menu, delayed cached navigation, group switcher, deduplication, no warning flashes, background recovery, initial failure, revoked access and account isolation.');
+}
+
+// The group page heading's dropdown switches groups.
+export function groupSwitcher(page) {
+  return page.locator('#main-content').getByRole('heading', { level: 2 }).getByRole('button');
+}
+export async function openGroupSwitcher(page) {
+  const trigger = groupSwitcher(page);
+  if (await trigger.getAttribute('aria-expanded') !== 'true') await trigger.click();
+  const listbox = page.getByRole('listbox', { name: 'Switch group', exact: true });
+  await expect(listbox).toBeVisible();
+  return listbox;
+}
+export async function switchGroup(page, name) {
+  const listbox = await openGroupSwitcher(page);
+  await listbox.getByRole('option', { name, exact: true }).click();
+  await expect(listbox).toHaveCount(0);
+  await expect(groupSwitcher(page)).toHaveAccessibleName(name);
+}
+
+// Starts and ends on "Costco friends"; the member also belongs to "Apartment".
+async function checkGroupSwitcher(page, label) {
+  const clientRoot = new URL('../', import.meta.url).pathname;
+  const costcoUrl = page.url();
+  const trigger = groupSwitcher(page);
+  const listbox = page.getByRole('listbox', { name: 'Switch group', exact: true });
+  const option = name => listbox.getByRole('option', { name, exact: true });
+  const options = listbox.getByRole('option');
+  await expect(page.locator('.workspace-content .balance-number')).toHaveText('$59.97');
+  await expect(page.getByRole('navigation', { name: 'Groups', exact: true })).toHaveCount(0);
+  assert.equal(await page.evaluate(() => {
+    const main = document.querySelector('#main-content');
+    const style = getComputedStyle(main);
+    const available = main.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    return Math.abs(document.querySelector('.workspace-content').getBoundingClientRect().width - available) < 1;
+  }), true, `Group page uses the full width: ${label}`);
+  await expect(trigger).toHaveAccessibleName('Costco friends');
+  await expect(trigger).toHaveAttribute('aria-haspopup', 'listbox');
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await assertNoHorizontalOverflow(page, `${label} group page`);
+  // Screenshot the resting state, without a focus ring left over from earlier keyboard checks.
+  await page.evaluate(() => document.activeElement?.blur());
+  await page.screenshot({ path: `${clientRoot}test-results/group-switcher-closed-${label}.png`, animations: 'disabled' });
+
+  // Mouse: the current group is marked and focused; choosing another navigates.
+  await trigger.click();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  await expect(trigger).toHaveAttribute('aria-controls', await listbox.getAttribute('id'));
+  await expect(options).toHaveCount(2);
+  await expect(option('Costco friends')).toHaveAttribute('aria-selected', 'true');
+  await expect(option('Apartment')).toHaveAttribute('aria-selected', 'false');
+  await expect(option('Costco friends')).toBeFocused();
+  await assertNoHorizontalOverflow(page, `${label} group switcher`);
+  await page.screenshot({ path: `${clientRoot}test-results/group-switcher-open-${label}.png`, animations: 'disabled' });
+  await option('Apartment').click();
+  await expect(listbox).toHaveCount(0);
+  await expect(page).toHaveURL(/#\/group-bills\/[^/?#]+$/);
+  assert.notEqual(page.url(), costcoUrl);
+  const apartmentUrl = page.url();
+  await expect(trigger).toHaveAccessibleName('Apartment');
+  await expect(page.locator('.workspace-content .balance-number')).toHaveText('$0.00');
+  await trigger.click();
+  await expect(option('Apartment')).toHaveAttribute('aria-selected', 'true');
+  await expect(option('Costco friends')).toHaveAttribute('aria-selected', 'false');
+  // Choosing the current group only closes the list.
+  await option('Apartment').click();
+  await expect(listbox).toHaveCount(0);
+  await expect(page).toHaveURL(apartmentUrl);
+
+  // Keyboard: open, move through options without wrapping, Escape, choose with Enter.
+  await trigger.focus();
+  await page.keyboard.press('ArrowDown');
+  await expect(option('Apartment')).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(options.last()).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(options.last()).toBeFocused();
+  await page.keyboard.press('Home');
+  await expect(options.first()).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await expect(options.first()).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(listbox).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+  await expect(page).toHaveURL(apartmentUrl);
+  // Shift+Tab back to the still-open list's button; Escape must still close it.
+  await page.keyboard.press('Enter');
+  await expect(option('Apartment')).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(trigger).toBeFocused();
+  await expect(listbox).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(listbox).toHaveCount(0);
+  // Tabbing out of the list closes it.
+  await page.keyboard.press(' ');
+  await expect(option('Apartment')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(listbox).toHaveCount(0);
+  await trigger.focus();
+  await page.keyboard.press('Enter');
+  const costcoIndex = await options.evaluateAll(items => items.findIndex(item => item.textContent.includes('Costco friends')));
+  await page.keyboard.press(costcoIndex === 0 ? 'ArrowUp' : 'ArrowDown');
+  await expect(option('Costco friends')).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(listbox).toHaveCount(0);
+  await expect(page).toHaveURL(costcoUrl);
+  await expect(trigger).toHaveAccessibleName('Costco friends');
+  await expect(trigger).toBeFocused();
+  await expect(page.locator('.workspace-content .balance-number')).toHaveText('$59.97');
+
+  // A press outside closes the list, including a touch press that does not move focus.
+  await trigger.click();
+  await expect(listbox).toBeVisible();
+  await page.mouse.click(5, 600);
+  await expect(listbox).toHaveCount(0);
+  await trigger.click();
+  await page.evaluate(() => document.querySelector('.page-footer').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+  await expect(listbox).toHaveCount(0);
+  await trigger.click();
+  await page.evaluate(() => document.querySelector('[role="listbox"]').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+  await expect(listbox).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(listbox).toHaveCount(0);
+  await expect(page).toHaveURL(costcoUrl);
 }
 
 async function assertNoHorizontalOverflow(page, where) {

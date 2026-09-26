@@ -58,10 +58,7 @@ html:has(.top-bar) { scroll-padding-top: var(--top-bar-height); }
   border-radius: var(--radius-md);
   background: var(--surface);
   box-shadow: 0 16px 40px #15220e1f;
-  animation: account-menu-in 0.14s ease-out;
-}
-@keyframes account-menu-in {
-  from { opacity: 0; transform: translateY(-4px); }
+  animation: popup-in 0.14s ease-out;
 }
 .account-menu-identity {
   display: flex;

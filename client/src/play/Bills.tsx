@@ -6,7 +6,7 @@ import { AnimatedMoney } from './AnimatedMoney';
 import { useAuth } from '@clerk/react';
 import { startGroupSync } from './group-sync';
 import { Repayments } from './Repayments';
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   useBillApi,
   money,
@@ -69,7 +69,13 @@ function LoadingFinancials({ label }: { label: string }) {
     <div /><div /><div />
   </div>;
 }
-export function GroupBills({ id, selectedRepaymentId, onDeleted }: { id: string; selectedRepaymentId?: string; onDeleted: () => void }) {
+// `title` renders the heading for the group, which is undefined until the group page loads.
+export function GroupBills({ id, selectedRepaymentId, onDeleted, title }: {
+  id: string;
+  selectedRepaymentId?: string;
+  onDeleted: () => void;
+  title: (group: GroupDetail | undefined) => ReactNode;
+}) {
   const [membersOpen, setMembersOpen] = useState(false);
   const repaymentHistory = useRef<HTMLDivElement>(null);
   const api = useBillApi();
@@ -107,7 +113,7 @@ export function GroupBills({ id, selectedRepaymentId, onDeleted }: { id: string;
   return (
     <section className="bills-page">
       <div className="bill-heading group-heading">
-        <div><span className="eyebrow">YOUR SHOPPING CIRCLE</span><h2>{data?.group.name ?? "Group bills"}</h2>
+        <div><span className="eyebrow">YOUR SHOPPING CIRCLE</span>{title(data?.group)}
         {data && <p className="group-member-count">{data.group.memberCount} {data.group.memberCount === 1 ? 'member' : 'members'} · CAD</p>}</div>
         {data && <div className="group-actions">
           <Button variant="secondary" onClick={() => setMembersOpen(true)}><Icon name="people" /> Members & invites</Button>
