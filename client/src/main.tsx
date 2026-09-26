@@ -7,8 +7,11 @@ import App from './App.tsx';
 import { applyPalette, currentPalette } from './play/prototype-palette/palette-choice';
 import { PaletteSwitcher } from './play/prototype-palette/PaletteSwitcher';
 import PaletteSpecimen from './play/prototype-palette/PaletteSpecimen';
+import { applyButtons, currentButtons } from './play/prototype-buttons/button-choice';
+import './play/prototype-buttons/prototype-buttons.css';
 
 applyPalette(currentPalette());
+applyButtons(currentButtons());
 if (localStorage.getItem('prototype-hide-switcher') === '1') document.documentElement.dataset.hideSwitcher = '';
 const switcherRoot = document.createElement('div');
 document.body.append(switcherRoot);

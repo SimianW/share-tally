@@ -14,7 +14,10 @@ import react from '@vitejs/plugin-react';
 const palettes = ['classic', 'marigold', 'raspberry', 'plum-butter', 'lagoon', 'blueberry'];
 const pages = ['specimen', 'home', 'group', 'bill-open', 'bill-complete', 'dialog', 'members'];
 const layouts = ['current', 'column', 'sidebar', 'hero', 'board', 'table'];
-const layoutsMode = process.argv.includes('--layouts');
+// --buttons compares button styles on layout A (column); it reuses the layout seeding.
+const buttonsMode = process.argv.includes('--buttons');
+const buttonStyles = ['current', 'pill', 'ink', 'soft', 'tinted'];
+const layoutsMode = process.argv.includes('--layouts') || buttonsMode;
 const requested = process.argv.find(arg => arg.startsWith('--palettes='));
 const selected = requested ? requested.slice('--palettes='.length).split(',') : palettes;
 if (layoutsMode && requested) throw new Error('Use --layouts without --palettes; layouts always use classic.');
@@ -58,7 +61,10 @@ async function montage(inputs, destination, width) {
   ]));
 }
 async function captureLayouts(base, groupId) {
-  const output = '/tmp/st-layouts';
+  const output = buttonsMode ? '/tmp/st-buttons' : '/tmp/st-layouts';
+  const variants = buttonsMode
+    ? buttonStyles.map(buttons => ({ key: buttons, layout: 'column', buttons }))
+    : layouts.map(layout => ({ key: layout, layout, buttons: 'current' }));
   const findings = [];
   const viewports = { desktop: { width: 1280, height: 900 }, mobile: { width: 390, height: 844 } };
   async function screenshot(page, layout, name, device) {
@@ -80,19 +86,20 @@ async function captureLayouts(base, groupId) {
     await page.screenshot({ path, fullPage: true, animations: 'disabled' });
     console.log(path);
   }
-  for (const layout of layouts) {
+  for (const { key: layout, layout: layoutKey, buttons } of variants) {
     await mkdir(`${output}/${layout}`, { recursive: true });
     for (const [device, viewport] of Object.entries(viewports)) {
       for (const [name, identity] of [['group-alice', 'alice-token'], ['group-carol', 'carol-token']]) {
         const context = await browser.newContext({ viewport, reducedMotion: 'reduce' });
         // Same Clerk stub as the palette captures, but each member has an
         // isolated context. Select the layout before the app's entrypoint runs.
-        await context.addInitScript(({ layout, identity }) => {
+        await context.addInitScript(({ layout, identity, buttons }) => {
           localStorage.setItem('prototype-palette', 'classic');
+          localStorage.setItem('prototype-buttons', buttons);
           localStorage.setItem('prototype-layout', layout);
           localStorage.setItem('prototype-hide-switcher', '1');
           localStorage.setItem('smoke-token', identity);
-        }, { layout, identity });
+        }, { layout: layoutKey, identity, buttons });
         const page = await context.newPage();
         page.setDefaultTimeout(15_000);
         page.on('pageerror', error => {
@@ -103,7 +110,18 @@ async function captureLayouts(base, groupId) {
         try {
           await page.goto(`${base}?shot=${name}-${device}#/group-bills/${groupId}`);
           await screenshot(page, layout, name, device);
-          if (name === 'group-alice') {
+          if (buttonsMode && name === 'group-carol') {
+            await page.getByRole('button', { name: 'I sent this' }).first().click();
+            await expect(page.getByRole('dialog', { name: 'Record repayment' })).toBeVisible();
+            await page.evaluate(() => document.fonts.ready);
+            await page.screenshot({ path: `${output}/${layout}/dialog-${device}.png`, animations: 'disabled' });
+          }
+          if (buttonsMode && name === 'group-alice' && device === 'desktop') {
+            await page.goto(`${base}?shot=specimen#/prototype/palette`);
+            await page.evaluate(() => document.fonts.ready);
+            await page.screenshot({ path: `${output}/${layout}/specimen-desktop.png`, fullPage: true, animations: 'disabled' });
+          }
+          if (!buttonsMode && name === 'group-alice') {
             const showAll = page.getByRole('button', { name: /Show all/i }).first();
             if (await showAll.isVisible()) {
               await showAll.click();
@@ -121,10 +139,10 @@ async function captureLayouts(base, groupId) {
     ['group-carol', 'desktop', 'compare-carol-desktop'],
     ['group-alice', 'mobile', 'compare-alice-mobile'],
   ]) {
-    await montage(layouts.map(layout => [`${output}/${layout}/${name}-${device}.png`, layout]),
+    await montage(variants.map(({ key }) => [`${output}/${key}/${name}-${device}.png`, key]),
       `${output}/${comparison}.png`, device === 'desktop' ? 480 : 300);
   }
-  console.log(`Completed ${layouts.length} layouts in ${((Date.now() - started) / 1000).toFixed(1)}s; output: ${output}`);
+  console.log(`Completed ${variants.length} variants in ${((Date.now() - started) / 1000).toFixed(1)}s; output: ${output}`);
   if (findings.length) console.warn(`Layout diagnostics (${findings.length}):\n${findings.join('\n')}`);
   else console.log('No page errors, Vite overlays or mobile horizontal overflow detected.');
 }

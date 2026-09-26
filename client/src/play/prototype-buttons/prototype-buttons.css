@@ -1,0 +1,57 @@
+/* PROTOTYPE ONLY (#94): four candidate button styles. Every style drops the
+   hard 3px bottom edge and settles on 40px buttons (32px small). Tokens only. */
+html:not([data-buttons="current"]) .button:not(.text) {
+  min-height: 40px; padding: 9px 16px; gap: 8px;
+  font: 600 14px/1.2 var(--font-body); letter-spacing: 0;
+  box-shadow: none; transform: none;
+  transition: background .15s, border-color .15s, box-shadow .15s, transform .1s;
+}
+html:not([data-buttons="current"]) .button:not(.text):active:not(:disabled) { transform: scale(.98); }
+html:not([data-buttons="current"]) .button:disabled { opacity: .5; cursor: not-allowed; }
+html:not([data-buttons="current"]) .button:not(.text) svg { width: 17px; height: 17px; }
+html:not([data-buttons="current"]) .button.gp-small { min-height: 32px; padding: 5px 12px; font-size: 13px; }
+
+/* 1 · Soft pill: fully rounded and flat; secondary is a quiet grey fill. */
+html[data-buttons="pill"] .button:not(.text) { border-radius: 999px; padding-inline: 18px; }
+html[data-buttons="pill"] .button.primary { background: var(--action); color: var(--ink-on-action); border: 1px solid transparent; }
+html[data-buttons="pill"] .button.primary:hover:not(:disabled) { background: var(--action-hover); box-shadow: none; transform: none; }
+html[data-buttons="pill"] .button.secondary { background: var(--surface-sunken); color: var(--ink); border: 1px solid transparent; }
+html[data-buttons="pill"] .button.secondary:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 7%, var(--surface-sunken)); }
+
+/* 2 · Ink: dark primary, crisp corners, outline secondary. The palette accent
+   is left for badges and highlights. */
+html[data-buttons="ink"] .button:not(.text) { border-radius: 10px; }
+html[data-buttons="ink"] .button.primary { background: var(--ink); color: var(--ink-inverse); border: 1px solid var(--ink); }
+html[data-buttons="ink"] .button.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 84%, var(--surface)); box-shadow: none; transform: none; }
+html[data-buttons="ink"] .button.secondary { background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong); }
+html[data-buttons="ink"] .button.secondary:hover:not(:disabled) { background: var(--surface-soft); border-color: var(--ink-subtle); }
+
+/* 3 · Soft depth: keeps a little physicality with a soft shadow and top
+   highlight instead of the hard edge. */
+html[data-buttons="soft"] .button:not(.text) { border-radius: 14px; min-height: 42px; padding-inline: 18px; font-weight: 700; }
+html[data-buttons="soft"] .button.primary {
+  background: var(--action); color: var(--ink-on-action);
+  border: 1px solid color-mix(in srgb, var(--action-edge) 55%, var(--action));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink-inverse) 45%, transparent),
+    0 1px 2px color-mix(in srgb, var(--shadow-color) 14%, transparent),
+    0 4px 12px color-mix(in srgb, var(--action-edge) 22%, transparent);
+}
+html[data-buttons="soft"] .button.primary:hover:not(:disabled) {
+  background: var(--action-hover); transform: translateY(-1px);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink-inverse) 45%, transparent),
+    0 2px 4px color-mix(in srgb, var(--shadow-color) 14%, transparent),
+    0 8px 18px color-mix(in srgb, var(--action-edge) 26%, transparent);
+}
+html[data-buttons="soft"] .button.secondary {
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 8%, transparent), inset 0 -1px 0 color-mix(in srgb, var(--ink) 5%, transparent);
+}
+html[data-buttons="soft"] .button.secondary:hover:not(:disabled) { background: var(--surface-soft); }
+html[data-buttons="soft"] .button.gp-small { min-height: 32px; }
+
+/* 4 · Tinted: flat and borderless; secondary is a light tint of the accent. */
+html[data-buttons="tinted"] .button:not(.text) { border-radius: 12px; border: 0; }
+html[data-buttons="tinted"] .button.primary { background: var(--action); color: var(--ink-on-action); }
+html[data-buttons="tinted"] .button.primary:hover:not(:disabled) { background: var(--action-hover); box-shadow: none; transform: none; }
+html[data-buttons="tinted"] .button.secondary { background: var(--surface-selected); color: var(--accent-ink); }
+html[data-buttons="tinted"] .button.secondary:hover:not(:disabled) { background: color-mix(in srgb, var(--accent-ink) 12%, var(--surface-selected)); }
