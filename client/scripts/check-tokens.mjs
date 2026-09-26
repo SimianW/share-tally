@@ -52,7 +52,7 @@ function checkFontValue(value, file, line, errors) {
 }
 
 function maskNonStyleStrings(text) {
-  const styleKeys = 'color|backgroundColor|borderColor|borderTopColor|borderRightColor|borderBottomColor|borderLeftColor|outlineColor|textDecorationColor|fill|stroke|caretColor|accentColor|boxShadow|textShadow|fontFamily';
+  const styleKeys = 'color|backgroundColor|backgroundImage|maskImage|WebkitMaskImage|borderColor|borderTopColor|borderRightColor|borderBottomColor|borderLeftColor|outlineColor|textDecorationColor|fill|stroke|caretColor|accentColor|boxShadow|textShadow|fontFamily';
   const output = [...text];
   let index = 0;
   while (index < text.length) {
@@ -89,7 +89,7 @@ function maskNonStyleStrings(text) {
 
 function inspectTypescript(text, file, errors) {
   const code = maskNonStyleStrings(text);
-  const stylingProperty = /\b(color|backgroundColor|borderColor|borderTopColor|borderRightColor|borderBottomColor|borderLeftColor|outlineColor|textDecorationColor|fill|stroke|caretColor|accentColor|boxShadow|textShadow)\s*:\s*([^,}\n]+)/gi;
+  const stylingProperty = /\b(color|backgroundColor|backgroundImage|maskImage|WebkitMaskImage|borderColor|borderTopColor|borderRightColor|borderBottomColor|borderLeftColor|outlineColor|textDecorationColor|fill|stroke|caretColor|accentColor|boxShadow|textShadow)\s*:\s*([^,}\n]+)/gi;
   const styledRanges = [];
   for (const match of code.matchAll(stylingProperty)) {
     styledRanges.push([match.index, match.index + match[0].length]);
