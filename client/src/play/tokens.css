@@ -27,8 +27,7 @@
   --space-5: 20px;
   --space-6: 24px;
   --space-8: 32px;
-  --mobile-nav-height: 76px;
-  --app-bottom-inset: 0px;
+  --top-bar-height: 68px;
   --shadow-photo-label: 0 2px 12px #15220e15;
   --radius-sm: 10px;
   --radius-md: 16px;
@@ -36,5 +35,5 @@
 }
 
 @media (max-width: 640px) {
-  :root { --app-bottom-inset: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom)); }
+  :root { --top-bar-height: 60px; }
 }

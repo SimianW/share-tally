@@ -20,8 +20,11 @@ export function Show({ when, children }: { when: string; children: ReactNode }) 
   const current = useToken();
   return (when === 'signed-in' ? !!current : !current) ? children : null;
 }
-export function UserButton() {
-  return <button onClick={() => { localStorage.removeItem('smoke-token'); location.reload(); }}>Sign out</button>;
+export function useClerk() {
+  return {
+    signOut: async () => { localStorage.removeItem('smoke-token'); location.reload(); },
+    openUserProfile: () => {},
+  };
 }
 export function SignInButton({ children, forceRedirectUrl }: { children: ReactElement<{ onClick: () => void }>; forceRedirectUrl: string }) {
   return cloneElement(children, { onClick: () => { localStorage.setItem('smoke-token', 'bob-token');

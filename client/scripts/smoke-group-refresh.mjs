@@ -17,6 +17,9 @@ export async function checkGroupRefresh(pageFor, base) {
     await owner.getByRole('button', { name: 'Get invitation link', exact: true }).click();
     const link = await owner.getByLabel('Invitation link', { exact: true }).inputValue();
     await owner.getByRole('button', { name: 'Close dialog', exact: true }).click();
+    // Closing the new group's details leaves its creator on that group's page.
+    await expect(owner).toHaveURL(/#\/group-bills\//);
+    await expect(owner.locator('#main-content').getByRole('heading', { name })).toBeVisible();
     const ownerNav = owner.getByRole('navigation', { name: 'Groups', exact: true });
     await expect(ownerNav.getByRole('link', { name: new RegExp(name) })).toHaveCount(1);
     await expect(ownerNav.getByRole('alert')).toContainText('Group list temporarily unavailable.');
@@ -32,11 +35,13 @@ export async function checkGroupRefresh(pageFor, base) {
     for (let attempt = 0; attempt < 2; attempt++) {
       await joiner.evaluate(hash => { location.hash = hash; }, new URL(link).hash);
       await joiner.getByRole('button', { name: 'Join group', exact: true }).click();
-      await expect(joiner.getByRole('dialog')).toContainText('2 members');
-      await joiner.getByRole('button', { name: 'Close dialog', exact: true }).click();
+      // Accepting an invitation lands on the joined group's page.
+      await expect(joiner).toHaveURL(/#\/group-bills\//);
+      await expect(joiner.getByRole('dialog')).toHaveCount(0);
+      await expect(joiner.locator('.group-member-count')).toContainText('2 members');
       await expect(joiner.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: new RegExp(name) })).toHaveCount(1);
     }
-    await joiner.getByRole('button', { name: 'Overview', exact: true }).click();
+    await joiner.getByRole('link', { name: 'ShareTally home', exact: true }).click();
     await expect(joiner.locator('.group-card').filter({ hasText: name })).toHaveCount(1);
     await joiner.unroute('**/api/groups');
     await joiner.getByRole('button', { name: 'Refresh', exact: true }).click();

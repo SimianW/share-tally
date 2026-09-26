@@ -16,6 +16,10 @@
 .receipt-photo,
 .receipt-photo-panel {
   position: sticky;
+  top: var(--top-bar-height);
+}
+/* Sheets scroll on their own, below the page's top bar. */
+.receipt-sheet .receipt-photo {
   top: 0;
 }
 .receipt-photo-panel .receipt-photo {

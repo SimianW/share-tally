@@ -360,6 +360,15 @@ try {
   const itemOption = (page, label, name = "Apples") => claimSheet(page, name).getByRole("button", { name: label, exact: true });
   await alice.getByRole("button", { name: "View Apples · $3.00", exact: true }).click();
   await expect(claimSheet(alice)).toBeVisible();
+  // The sheet scrolls on its own, so a receipt photo in it must not keep the page top bar's sticky offset.
+  // This bill has no photo; probe the rule with a stand-in element in the open sheet.
+  assert.equal(await claimSheet(alice).locator(".receipt-sheet-content").evaluate(content => {
+    const probe = content.appendChild(document.createElement("div"));
+    probe.className = "receipt-photo";
+    const { position, top } = getComputedStyle(probe);
+    probe.remove();
+    return `${position} ${top}`;
+  }), "sticky 0px");
   await expect(claimSheet(alice)).toContainText("Printed price");
   await expect(claimSheet(alice)).toContainText("Receipt discount share");
   await expect(claimSheet(alice)).toContainText("Tax share");
@@ -874,9 +883,10 @@ try {
     await alice.getByRole("button", { name: "Close summary", exact: true }).click();
     await reconciliation().scrollIntoViewIfNeeded();
     if (viewport.width <= 640) {
+      // The top bar replaced the mobile bottom navigation; nothing may cover the sticky actions.
+      await expect(alice.locator(".main-nav")).toHaveCount(0);
       const footerBox = await alice.locator(".receipt-review-footer").boundingBox();
-      const navigationBox = await alice.locator(".main-nav").boundingBox();
-      assert.ok(footerBox.y + footerBox.height <= navigationBox.y + 1, "Sticky review actions must clear mobile navigation");
+      assert.ok(footerBox.y + footerBox.height <= viewport.height + 1, "Sticky review actions stay within the viewport");
     }
     await alice.getByRole("button", { name: "View receipt photo", exact: true }).click();
     const photoDialog = alice.getByRole("dialog", { name: "Receipt photo", exact: true });

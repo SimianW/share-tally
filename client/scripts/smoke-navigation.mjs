@@ -60,13 +60,14 @@ export async function checkNavigation(page, pageFor) {
   await expect(page.locator('.workspace-content .balance-number')).toHaveText('$59.97');
   assert.equal(maxActive, 1, 'Sidebar and main panel share the same request');
   await page.unroute(pattern);
-  await page.getByRole('button', { name: 'Overview', exact: true }).click();
+  await checkTopBar(page, 'desktop');
   await expect(page.locator('.balance-number')).toHaveText('$59.97');
-  await page.getByRole('button', { name: 'My groups', exact: true }).click();
+  await page.locator('.group-card').filter({ hasText: 'Costco friends' }).click();
+  await expect(page.locator('.workspace-content .balance-number')).toHaveText('$59.97');
   let summaryRead = false;
   gate = new Promise(resolve => { release = resolve; });
   await page.route('**/api/summary', async route => { summaryRead = true; await gate; await route.continue(); });
-  await page.getByRole('button', { name: 'Overview', exact: true }).click();
+  await page.getByRole('link', { name: 'ShareTally home', exact: true }).click();
   await expect.poll(() => summaryRead).toBe(true);
   await expect(page.locator('.balance-number')).toHaveText('$59.97');
   await expect(page.getByRole('status', { name: 'Loading balances', exact: true })).toHaveCount(0);
@@ -135,11 +136,89 @@ export async function checkNavigation(page, pageFor) {
   await expect(fresh.getByRole('navigation', { name: 'Groups', exact: true })).not.toContainText('Costco friends');
   release();
   await fresh.unrouteAll({ behavior: 'wait' });
-  await fresh.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await fresh.getByRole('button', { name: 'Account menu', exact: true }).click();
+  await fresh.getByRole('menuitem', { name: 'Sign out', exact: true }).click();
   await expect(fresh.getByText('Costco friends', { exact: true })).toHaveCount(0);
   await fresh.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(fresh.locator('.workspace-content .balance-number')).toHaveText('$59.97');
   await expect(fresh.locator('.balance-card h2')).toHaveText('You owe, net');
+  await checkTopBar(fresh, 'mobile');
   await fresh.context().close();
-  console.log('Navigation UX passed: delayed cached navigation, shared sidebar, deduplication, no warning flashes, background recovery, initial failure, revoked access and account isolation.');
+  console.log('Navigation UX passed: top bar with Home and account menu, delayed cached navigation, shared group rail, deduplication, no warning flashes, background recovery, initial failure, revoked access and account isolation.');
+}
+
+async function assertNoHorizontalOverflow(page, where) {
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `No horizontal overflow: ${where}`);
+}
+
+// Home is the only top-level page. The logo returns to it; Account lives in the avatar menu.
+async function checkTopBar(page, label) {
+  const clientRoot = new URL('../', import.meta.url).pathname;
+  const banner = page.getByRole('banner');
+  const menuButton = banner.getByRole('button', { name: 'Account menu', exact: true });
+  const menu = page.getByRole('menu', { name: 'Account menu', exact: true });
+  await expect(page.locator('aside')).toHaveCount(0);
+  await expect(page.getByRole('navigation', { name: 'Main navigation', exact: true })).toHaveCount(0);
+  for (const name of ['Overview', 'My groups']) await expect(page.getByRole('button', { name, exact: true })).toHaveCount(0);
+  await assertNoHorizontalOverflow(page, `${label} group page`);
+
+  await banner.getByRole('link', { name: 'ShareTally home', exact: true }).click();
+  await expect(page).toHaveURL(/#$/);
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Hey');
+  await expect(page.getByRole('heading', { name: 'Your people' })).toBeVisible();
+  await assertNoHorizontalOverflow(page, `${label} Home`);
+
+  await expect(menuButton).toHaveAttribute('aria-expanded', 'false');
+  await menuButton.click();
+  await expect(menu).toBeVisible();
+  await expect(menu.getByRole('menuitem')).toHaveText(['Account', 'Profile & security', 'Sign out']);
+  await expect(menu.getByRole('menuitem', { name: 'Account', exact: true })).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(menu.getByRole('menuitem', { name: 'Profile & security', exact: true })).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowUp');
+  await expect(menu.getByRole('menuitem', { name: 'Sign out', exact: true })).toBeFocused();
+  await assertNoHorizontalOverflow(page, `${label} account menu`);
+  await page.screenshot({ path: `${clientRoot}test-results/top-bar-menu-${label}.png`, animations: 'disabled' });
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+  await expect(menuButton).toBeFocused();
+  // Shift+Tab from the first item returns to the still-open menu's button; Escape must still close it.
+  await menuButton.click();
+  await expect(menu.getByRole('menuitem', { name: 'Account', exact: true })).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(menuButton).toBeFocused();
+  await expect(menu).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+  await expect(menuButton).toBeFocused();
+  await menuButton.click();
+  await expect(menu).toBeVisible();
+  await page.mouse.click(5, 400); // Outside the menu, which covers the heading at 390px.
+  await expect(menu).toHaveCount(0);
+  // iOS Safari taps on non-focusable content do not blur the focused item; the press alone must close it.
+  await menuButton.click();
+  await expect(menu.getByRole('menuitem', { name: 'Account', exact: true })).toBeFocused();
+  await page.evaluate(() => document.querySelector('main').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+  await expect(menu).toHaveCount(0);
+  // A press inside the menu keeps it open.
+  await menuButton.click();
+  await page.evaluate(() => document.querySelector('[role="menu"]').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+  await expect(menu).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+
+  await menuButton.click();
+  await menu.getByRole('menuitem', { name: 'Account', exact: true }).click();
+  await expect(menu).toHaveCount(0);
+  await expect(page).toHaveURL(/#\/account$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Account' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Check Account identity', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'New group', exact: true })).toHaveCount(0);
+  await assertNoHorizontalOverflow(page, `${label} Account`);
+  await page.screenshot({ path: `${clientRoot}test-results/top-bar-account-${label}.png`, fullPage: true, animations: 'disabled' });
+
+  await banner.getByRole('link', { name: 'ShareTally home', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Your people' })).toBeVisible();
+  await page.screenshot({ path: `${clientRoot}test-results/top-bar-home-${label}.png`, fullPage: true, animations: 'disabled' });
 }

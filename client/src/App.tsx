@@ -2,7 +2,7 @@ import {
   Show,
   SignInButton,
   SignUpButton,
-  UserButton,
+  useClerk,
   useUser,
 } from "@clerk/react";
 
@@ -13,11 +13,19 @@ import { Logo } from "./play/ui";
 
 function SignedInApp() {
   const { user } = useUser();
+  const clerk = useClerk();
   if (!user) return <p role="status">Loading your account…</p>;
+  const displayName = user.firstName || user.fullName || "friend";
   return (
     <SessionQueries key={user.id}><PlayApp
-      displayName={user.firstName || user.fullName || "friend"}
-      accountControl={<UserButton />}
+      displayName={displayName}
+      account={{
+        name: user.fullName || displayName,
+        email: user.primaryEmailAddress?.emailAddress,
+        imageUrl: user.imageUrl,
+        openProfile: () => clerk.openUserProfile(),
+        signOut: () => void clerk.signOut(),
+      }}
     /></SessionQueries>
   );
 }
