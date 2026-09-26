@@ -182,8 +182,12 @@ try {
   // Issue #4: real bill creation, response-loss retry, share confirmation, and balances.
   await alice.getByRole('button', { name: 'View bills and balance' }).click();
   await alice.getByRole('button', { name: 'New bill', exact: true }).click();
-  if (await alice.getByRole('button', { name: 'Split by amounts instead', exact: true }).count()) await alice.getByRole('button', { name: 'Split by amounts instead', exact: true }).click();
-  await expect(alice.getByRole('group', { name: 'Who shared this purchase?' })).toBeVisible();
+  // The new-bill page reads its group before showing either the receipt step or the people step.
+  const splitByAmounts = alice.getByRole('button', { name: 'Split by amounts instead', exact: true });
+  const people = alice.getByRole('group', { name: 'Who shared this purchase?' });
+  await expect(splitByAmounts.or(people).first()).toBeVisible();
+  if (await splitByAmounts.count()) await splitByAmounts.click();
+  await expect(people).toBeVisible();
   await expect(alice.getByRole('checkbox', { name: 'Alice · You, initiator' })).toBeDisabled();
   await alice.getByRole('button', { name: 'Select everyone', exact: true }).click();
   await expect(alice.getByRole('checkbox', { name: 'Carol', exact: true })).toBeChecked();
@@ -210,8 +214,7 @@ try {
   releaseSnapshot();
   await expect(carol.locator('.bill-list-row')).toContainText('Weekend groceries', { timeout: 3000 });
   await alice.reload();
-  await alice.getByRole('button', { name: 'New bill', exact: true }).click();
-  await alice.getByRole('button', { name: 'Split by amounts instead', exact: true }).click();
+  // The new-bill page is its own route, so a reload restores the unsent bill in place.
   await expect(alice.getByLabel('Bill title', { exact: true })).toHaveValue('Weekend groceries');
   await alice.getByRole('button', { name: 'Retry initiation' }).click();
   await expect(alice.getByRole('heading', { name: 'Weekend groceries' })).toBeVisible();
