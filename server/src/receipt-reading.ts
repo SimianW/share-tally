@@ -10,12 +10,13 @@ export function startReceiptModel(
   draft: typeof receiptDrafts.$inferSelect,
   scanned: ExtractedReceipt,
   interpret: typeof interpretReceiptNames,
+  onSettled?: () => void,
 ) {
   void runReceiptModel(draft, scanned, interpret).catch(() => {
     // A persistence outage leaves the processing row recoverable on read/startup.
     // Never log provider exceptions, which can include receipt content.
     console.error("Receipt processing completion failed");
-  });
+  }).finally(onSettled);
 }
 
 async function runReceiptModel(

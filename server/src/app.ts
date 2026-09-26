@@ -30,6 +30,7 @@ type Authentication = {
   avatarUrl?: AvatarLookup
   receiptNames?: typeof interpretReceiptNames
   receiptExtractor?: ReceiptExtractor
+  receiptProcessingSettled?: () => void
   displayName?: (clerkUserId: string) => Promise<string>
 };
 
@@ -74,7 +75,7 @@ export function createApp(auth: Authentication = {
     const receipt = /^\/(receipt-drafts\/|groups\/[^/]+\/(receipt-drafts|receipt-preview)|bills\/[^/]+\/(items|claims))/.test(req.path);
     return express.json({ limit: receipt ? '12mb' : '16kb' })(req, res, next);
   });
-  app.use('/api', createReceiptRouter(displayName, auth.receiptExtractor, auth.receiptNames));
+  app.use('/api', createReceiptRouter(displayName, auth.receiptExtractor, auth.receiptNames, auth.receiptProcessingSettled));
   app.get('/api/groups/:groupId/events', async (req, res) => {
     if (!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(req.params.groupId)) {
       res.status(404).json({ error: 'Group not found.' }); return;

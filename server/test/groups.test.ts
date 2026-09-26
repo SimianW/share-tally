@@ -42,6 +42,19 @@ async function startServer() {
   baseUrl = `http://127.0.0.1:${port}`;
 }
 
+function waitForProcessMessage(expected: string) {
+  return new Promise<void>((resolve, reject) => {
+    assert.ok(child);
+    const onMessage = (message: unknown) => {
+      if (message !== expected) return;
+      child!.off('message', onMessage);
+      resolve();
+    };
+    child.on('message', onMessage);
+    child.once('exit', code => { child?.off('message', onMessage); reject(new Error(`Server exited before ${expected}: ${code}`)); });
+  });
+}
+
 async function stopServer() {
   const running = child;
   child = undefined;
@@ -384,7 +397,7 @@ test('deletion notifies every connected member with its name after commit, then 
       new Promise<never>((_, reject) => timeout.addEventListener('abort', () => reject(new Error('Group streams did not end')), { once: true })),
     ]);
     for (const stream of streams) {
-      const frames = stream.trim().split('\n\n');
+      const frames = stream.trim().split('\n\n').filter(frame => !frame.startsWith(':'));
       assert.deepEqual(frames, [
         'event: ready\ndata: {}',
         `event: group-deleted\ndata: ${JSON.stringify({ id: group.id, name: group.name })}`,
@@ -541,8 +554,12 @@ test('deleting a group while receipt interpretation is held discards late comple
     assert.equal((await pool.query('SELECT count(*)::int AS n FROM receipt_drafts WHERE id = $1', [id])).rows[0].n, 0);
     assert.equal((await pool.query('SELECT count(*)::int AS n FROM receipt_photos WHERE draft_id = $1', [id])).rows[0].n, 0);
     assert.equal((await pool.query('SELECT count(*)::int AS n FROM receipt_evidence WHERE draft_id = $1', [id])).rows[0].n, 0);
-    const released = once(child!, 'message'); child!.send('release-model');
-    assert.equal((await released)[0], 'model-released');
+    const tracking = once(child!, 'message'); child!.send('track-processing-settled');
+    assert.equal((await tracking)[0], 'tracking-processing-settled');
+    const released = waitForProcessMessage('model-released');
+    const settled = waitForProcessMessage('receipt-processing-settled');
+    child!.send('release-model');
+    await Promise.all([released, settled]);
     await json(await api(`/receipt-drafts/${id}`), 404);
     await json(await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST', { revision: scan.draft.revision }), 404);
     assert.equal((await pool.query('SELECT count(*)::int AS n FROM receipt_drafts WHERE id = $1', [id])).rows[0].n, 0);

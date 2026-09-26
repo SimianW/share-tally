@@ -5,7 +5,7 @@ import { AttentionList } from './AttentionList';
 import { BillDetails, OverviewBalance } from './Bills';
 import GroupWorkspace from './GroupWorkspace';
 import { NewBillPage } from './ReceiptDraft';
-import { useRoute, leaveDeletedGroup } from './route';
+import { useRoute, leaveDeletedGroup, routeBelongsToDeletedGroup } from './route';
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import AccountCheck from "../AccountCheck";
@@ -67,8 +67,15 @@ export default function PlayApp({
       if (!detail?.isCreator && !listed?.isCreator) {
         setDeletionNotice(`${groupName} was deleted by the group creator`);
       }
-      setView('groups');
-      leaveDeletedGroup();
+      const route = window.location.hash;
+      const billId = route.match(/^#\/bills\/([^/?#]+)/)?.[1];
+      const billGroupId = billId
+        ? cache.getQueryData<{ bill: { groupId: string } }>([`/bills/${billId}`])?.bill.groupId
+        : undefined;
+      if (routeBelongsToDeletedGroup(route, id, billGroupId)) {
+        setView('groups');
+        leaveDeletedGroup();
+      }
     }
     window.addEventListener(groupDeletedEvent, deleted);
     return () => window.removeEventListener(groupDeletedEvent, deleted);

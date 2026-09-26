@@ -1,0 +1,1 @@
+CREATE INDEX "receipt_drafts_group_idx" ON "receipt_drafts" USING btree ("group_id");

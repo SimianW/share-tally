@@ -29,6 +29,7 @@ export function createReceiptRouter(
   displayName: (id: string) => Promise<string>,
   extract: ReceiptExtractor = azureExtract,
   names: typeof interpretReceiptNames = interpretReceiptNames,
+  onProcessingSettled?: () => void,
 ) {
   const router = Router();
   const active = new Set<string>();
@@ -100,7 +101,7 @@ export function createReceiptRouter(
         if (scanned.scanTimings) scanned.scanTimings.mappingMs += performance.now() - mappingStart;
         if ("draftId" in input) {
           const draft = await saveProcessingDraft(input.draftId, u.id, input.revision, extraction, scanned.rawAnalysis);
-          startReceiptModel(draft, scanned, names);
+          startReceiptModel(draft, scanned, names, onProcessingSettled);
           res.json({ draft, extraction });
         } else {
           // Unsaved previews map Azure only; saved scans own background work.
@@ -167,7 +168,7 @@ export function createReceiptRouter(
       const extraction = processReceipt(scanned);
       if (scanned.scanTimings) scanned.scanTimings.mappingMs += performance.now() - mappingStart;
       const processing = await saveProcessingDraft(req.params.draftId, u.id, revision, extraction, scanned.rawAnalysis);
-      startReceiptModel(processing, scanned, names);
+      startReceiptModel(processing, scanned, names, onProcessingSettled);
       res.json({ draft: processing, extraction });
     } finally {
       active.delete(u.id);
