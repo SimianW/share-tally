@@ -75,7 +75,7 @@ jobs:
     needs: gate
     if: needs.gate.outputs.proceed == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     concurrency:
       group: jbot-review-${{ needs.gate.outputs.number }}
       cancel-in-progress: true
@@ -131,7 +131,7 @@ jobs:
           enable-guideline-pass: 'true'
           min-severity: P3
           max-findings: '10'
-          time-budget-minutes: '30'
+          time-budget-minutes: '45'
           skip-doc-only: 'false'
           enable-context7: 'false'
           fail-on-error: 'true'
