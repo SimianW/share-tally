@@ -4,10 +4,10 @@ import { readBillsInSnapshot } from './bills.js';
 import { readRepayments } from './repayments.js';
 import { groupLedger } from './group-ledger.js';
 import { randomBytes } from 'node:crypto';
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 
 import { db } from "./db/index.js";
-import { groupMembers, groups, users } from "./db/schema.js";
+import { groupMembers, groups, receiptDrafts, receiptEvidence, receiptPhotos, users } from "./db/schema.js";
 
 import { parseGroupIcon, type GroupIconInput } from './group-icon.js';
 
@@ -220,6 +220,18 @@ export async function deleteGroup(groupId: string, userId: string) {
     await lockGroupForCreator(tx, groupId, userId);
     const reasons = await deletionReasons(tx, groupId, userId);
     if (reasons.length) throw new GroupDeletionError(reasons);
+
+    // Lock drafts before their evidence/photos, matching the order used by
+    // photo expiry and processing completion. Initiated drafts keep receipt
+    // text behind preserved bills; uninitiated drafts are voided altogether.
+    const draftIds = await tx.select({ id: receiptDrafts.id }).from(receiptDrafts)
+      .where(eq(receiptDrafts.groupId, groupId)).orderBy(receiptDrafts.id).for('update');
+    if (draftIds.length) {
+      const ids = draftIds.map(draft => draft.id);
+      await tx.delete(receiptEvidence).where(inArray(receiptEvidence.draftId, ids));
+      await tx.delete(receiptPhotos).where(inArray(receiptPhotos.draftId, ids));
+    }
+    await tx.delete(receiptDrafts).where(and(eq(receiptDrafts.groupId, groupId), isNull(receiptDrafts.billId)));
     await tx.update(groups).set({ deletedAt: new Date() }).where(eq(groups.id, groupId));
   });
 }

@@ -54,13 +54,15 @@ async function runReceiptModel(
   }
   const modelMs = performance.now() - modelStart;
   const result = await completeProcessingDraft(draft.id, startedAt, attempt);
+  // The group may have been deleted while interpretation was in flight. Its
+  // draft is gone; do not report a fabricated timeout or publish a result.
+  if (!result) return;
   console.info("Receipt scan", JSON.stringify({
     azureSubmitMs: scanned.scanTimings?.azureSubmitMs ?? null,
     azurePollMs: scanned.scanTimings?.azurePollMs ?? null,
     mappingMs: scanned.scanTimings?.mappingMs ?? null,
     modelMs,
-    // A competing recovery sweep has already applied the timeout fallback.
-    outcome: result?.outcome ?? "fallback",
-    reason: result?.reason ?? (result ? null : "timeout"),
+    outcome: result.outcome,
+    reason: result.reason,
   }));
 }
