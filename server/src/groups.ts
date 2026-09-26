@@ -1,3 +1,4 @@
+import { withoutEvidence } from './receipt-drafts.js';
 import { lockGroupForMember } from './group-access.js';
 import { notifyGroupChanged, notifyGroupDeleted } from './group-events.js';
 import { readBillsInSnapshot } from './bills.js';
@@ -225,10 +226,14 @@ export async function deleteGroup(groupId: string, userId: string) {
     // Lock drafts before their evidence/photos, matching the order used by
     // photo expiry and processing completion. Initiated drafts keep receipt
     // text behind preserved bills; uninitiated drafts are voided altogether.
-    const draftIds = await tx.select({ id: receiptDrafts.id }).from(receiptDrafts)
+    const drafts = await tx.select().from(receiptDrafts)
       .where(eq(receiptDrafts.groupId, groupId)).orderBy(receiptDrafts.id).for('update');
-    if (draftIds.length) {
-      const ids = draftIds.map(draft => draft.id);
+    if (drafts.length) {
+      const ids = drafts.map(draft => draft.id);
+      for (const draft of drafts) {
+        if (draft.billId) await tx.update(receiptDrafts)
+          .set({ data: withoutEvidence(draft.data) }).where(eq(receiptDrafts.id, draft.id));
+      }
       await tx.delete(receiptEvidence).where(inArray(receiptEvidence.draftId, ids));
       await tx.delete(receiptPhotos).where(inArray(receiptPhotos.draftId, ids));
     }

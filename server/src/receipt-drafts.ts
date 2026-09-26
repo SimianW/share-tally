@@ -471,7 +471,7 @@ export async function initializeDraft(
   notifyGroupChanged(result.groupId);
   return result.id;
 }
-function withoutEvidence(data: typeof receiptDrafts.$inferSelect.data) {
+export function withoutEvidence(data: typeof receiptDrafts.$inferSelect.data) {
   const { evidence: _receiptEvidence, taxLabel: _taxLabel, ...receipt } = data.receipt ?? {};
   return {
     ...data,

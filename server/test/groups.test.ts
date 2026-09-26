@@ -502,7 +502,7 @@ test('deletion purges draft and initiated bill photos and evidence while keeping
     [unrelatedId, unrelated.id, unrelated.createdBy, null],
   ]) {
     await pool.query('INSERT INTO receipt_drafts (id, group_id, initiator_id, data, bill_id) VALUES ($1, $2, $3, $4, $5)',
-      [id, groupId, initiatorId, JSON.stringify({ title: 'Reviewed receipt', receipt: { text: 'APPLE 1.00' }, items: [] }), linkedBill]);
+      [id, groupId, initiatorId, JSON.stringify({ title: 'Reviewed receipt', receipt: { text: 'APPLE 1.00', evidence: { total: { text: '1.00' } }, taxLabel: 'HST' }, items: [{ name: 'Apple', evidence: { text: 'APPLE' } }] }), linkedBill]);
     await pool.query("INSERT INTO receipt_photos (draft_id, base64, expires_at) VALUES ($1, 'cGhvdG8=', now() + interval '6 months')", [id]);
     await pool.query("INSERT INTO receipt_evidence (draft_id, analysis) VALUES ($1, '{\"raw\":true}')", [id]);
   }
@@ -514,7 +514,10 @@ test('deletion purges draft and initiated bill photos and evidence while keeping
   }
   const drafts = await pool.query('SELECT id, data FROM receipt_drafts ORDER BY id');
   assert.deepEqual(drafts.rows.map(row => row.id).sort(), [initiatedId, unrelatedId].sort());
-  assert.equal(drafts.rows.find(row => row.id === initiatedId).data.receipt.text, 'APPLE 1.00');
+  const retained = drafts.rows.find(row => row.id === initiatedId).data;
+  assert.deepEqual(retained.receipt, { text: 'APPLE 1.00' });
+  assert.deepEqual(retained.items, [{ name: 'Apple' }]);
+  assert.ok(drafts.rows.find(row => row.id === unrelatedId).data.receipt.evidence);
   assert.equal((await pool.query('SELECT name FROM bill_items WHERE id = $1', [itemId])).rows[0].name, 'Apple');
   await json(await api(`/receipt-drafts/${initiatedId}/photo`), 404);
   // The scheduled expiry pass still handles another group's surviving photos.
