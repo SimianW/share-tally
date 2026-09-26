@@ -16,7 +16,7 @@
 .receipt-photo,
 .receipt-photo-panel {
   position: sticky;
-  top: 0;
+  top: var(--top-bar-height);
 }
 .receipt-photo-panel .receipt-photo {
   position: static;

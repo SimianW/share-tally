@@ -59,7 +59,7 @@
 .receipt-row-actions { padding: 0 var(--space-5) var(--space-3); }
 .receipt-list-empty { padding: var(--space-6); color: var(--muted); }
 .receipt-review-items > .button { display: inline-flex; align-items: center; gap: var(--space-2); }
-.receipt-photo-panel { top: var(--space-6); }
+.receipt-photo-panel { top: calc(var(--top-bar-height) + var(--space-6)); }
 .receipt-review-layout .receipt-scan-actions { margin-bottom: var(--space-4); }
 
 .play-dialog.receipt-sheet {
@@ -115,7 +115,7 @@
 
 .receipt-wizard-actions.receipt-review-footer {
   position: sticky;
-  bottom: var(--app-bottom-inset);
+  bottom: 0;
   z-index: 5;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -193,7 +193,7 @@
 .claim-custom .button { justify-self: start; }
 .claim-custom [role="alert"] { color: var(--warning); }
 .claim-remove { grid-column: 1 / -1; justify-self: start; }
-.claim-sticky-footer { position: sticky; bottom: var(--app-bottom-inset); z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-4); background: var(--bg); border-top: 1px solid var(--line); box-shadow: 0 -5px 16px rgba(0,0,0,.05); }
+.claim-sticky-footer { position: sticky; bottom: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-4); background: var(--bg); border-top: 1px solid var(--line); box-shadow: 0 -5px 16px rgba(0,0,0,.05); }
 .claim-summary-trigger { padding: var(--space-2); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); font: inherit; font-size: var(--text-sm); }
 .claim-share { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; }
 @media (max-width: 700px) {

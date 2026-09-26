@@ -133,15 +133,22 @@ try {
   await bob.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(bob.getByRole('dialog')).toContainText('Join your friends');
   await bob.getByRole('button', { name: 'Join group', exact: true }).click();
+  // Accepting an invitation lands on the joined group's page.
+  await expect(bob).toHaveURL(/#\/group-bills\//);
+  await expect(bob.getByRole('dialog')).toHaveCount(0);
+  await expect(bob.locator('#main-content').getByRole('heading', { name: 'Costco friends' })).toBeVisible();
+  await expect(bob.locator('.group-member-count')).toContainText('2 members');
+  await bob.getByRole('button', { name: 'Members & invites', exact: true }).click();
   await expect(bob.getByRole('dialog')).toContainText('Bob · You');
-  await expect(bob.getByRole('dialog')).toContainText('2 members');
   await expect(bob.getByRole('button', { name: 'Get invitation link' })).toHaveCount(0);
+  await bob.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await bob.reload();
-  await expect(bob.getByRole('dialog')).toContainText('2 members');
+  await expect(bob.locator('.group-member-count')).toContainText('2 members');
   assert.equal(await bob.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await bob.goto(oldLink);
   await bob.getByRole('button', { name: 'Join group', exact: true }).click();
-  await expect(bob.getByRole('dialog')).toContainText('2 members');
+  await expect(bob).toHaveURL(/#\/group-bills\//);
+  await expect(bob.locator('.group-member-count')).toContainText('2 members');
 
   await alice.getByRole('button', { name: 'Refresh members' }).click();
   await expect(alice.getByRole('dialog')).toContainText('Bob');
@@ -158,9 +165,8 @@ try {
   await expect(carol.getByRole('alert')).toContainText('invalid or has been replaced');
   await carol.goto(newLink);
   await carol.getByRole('button', { name: 'Join group', exact: true }).click();
-  await expect(carol.getByRole('dialog')).toContainText('3 members');
-
-  await carol.getByRole('button', { name: 'View bills and balance' }).click();
+  await expect(carol).toHaveURL(/#\/group-bills\//);
+  await expect(carol.locator('.group-member-count')).toContainText('3 members');
   // Wait for an actual subscribed snapshot; an empty selector also matches the loading screen.
   await expect(carol.locator('.workspace-content .balance-number')).toHaveText('$0.00');
   await expect(carol.locator('.bill-list-row')).toHaveCount(0);
@@ -270,8 +276,7 @@ try {
   await alice.getByRole('link', { name: 'Group bills', exact: false }).click();
   await expect(alice.locator('.bill-list-row')).toHaveCount(1);
   await expect(alice.locator('.balance-number')).toHaveText('$59.97');
-  await alice.getByRole('button', { name: 'My groups', exact: true }).click();
-  await alice.getByRole('button', { name: 'Overview', exact: true }).click();
+  await alice.getByRole('link', { name: 'ShareTally home', exact: true }).click();
   await expect(alice.locator('.balance-number')).toHaveText('$59.97');
   // Group navigation opens finances directly and survives reloads.
   await alice.getByRole('button', { name: 'New group', exact: true }).first().click();
@@ -279,7 +284,7 @@ try {
   await alice.getByRole('button', { name: 'Create group', exact: true }).click();
   await expect(alice.getByRole('dialog')).toContainText('Apartment');
   await alice.getByRole('button', { name: 'Close dialog' }).click();
-  await alice.getByRole('button', { name: 'My groups', exact: true }).click();
+  await expect(alice.locator('#main-content').getByRole('heading', { name: 'Apartment' })).toBeVisible();
   await alice.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: /Apartment/ }).click();
   await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$0.00');
   await alice.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: /Costco friends/ }).click();
@@ -318,7 +323,8 @@ try {
   await bob.reload();
   await expect(bob.getByRole('dialog')).toContainText('3 members');
   await bob.getByRole('button', { name: 'Close dialog' }).click();
-  await bob.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await bob.getByRole('button', { name: 'Account menu', exact: true }).click();
+  await bob.getByRole('menuitem', { name: 'Sign out', exact: true }).click();
   await expect(bob.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
   await expect(bob.getByText('Costco friends')).toHaveCount(0);
   await alice.reload();
@@ -590,7 +596,7 @@ try {
   await expect(alice.getByRole('dialog', { name: 'Review repayment' })).toContainText('$3.21');
   await alice.getByRole('button', { name: 'Confirm receipt', exact: true }).click();
   await expect(alice.getByRole('dialog')).toHaveCount(0);
-  await alice.getByRole('button', { name: 'Overview', exact: true }).click();
+  await alice.getByRole('link', { name: 'ShareTally home', exact: true }).click();
   await expect(attention).toContainText('No actions waiting for you.');
   await alice.goto(`${base}${incomingHref}`);
   await expect(alice.getByRole('dialog')).toContainText('already confirmed');
@@ -599,11 +605,11 @@ try {
   const { repayment: rejected } = await liveApi(`/groups/${liveGroupId}/repayments`, 'bob-token', 'POST', {
     requestId: crypto.randomUUID(), recipientId: liveIds.Alice, amountCents: 123,
   });
-  await alice.getByRole('button', { name: 'Overview', exact: true }).click();
+  await alice.getByRole('link', { name: 'ShareTally home', exact: true }).click();
   await incomingLink.click();
   await alice.getByRole('button', { name: 'Reject record', exact: true }).click();
   await expect(alice.getByRole('dialog')).toHaveCount(0);
-  await alice.getByRole('button', { name: 'Overview', exact: true }).click();
+  await alice.getByRole('link', { name: 'ShareTally home', exact: true }).click();
   await expect(attention).toContainText('No actions waiting for you.');
   assert.equal((await liveApi(`/groups/${liveGroupId}/bills`, 'alice-token')).repayments.find(r => r.id === rejected.id).status, 'rejected');
   assert.equal((await liveApi(`/groups/${liveGroupId}/bills`, 'alice-token')).repayments.find(r => r.id === incoming.id).status, 'confirmed');
@@ -612,7 +618,8 @@ try {
   });
   await attention.getByRole('button', { name: 'Refresh actions' }).click();
   await expect(incomingLink).toContainText('$4.56');
-  await alice.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await alice.getByRole('button', { name: 'Account menu', exact: true }).click();
+  await alice.getByRole('menuitem', { name: 'Sign out', exact: true }).click();
   await expect(alice.getByRole('region', { name: 'Needs your attention' })).toHaveCount(0);
   await alice.getByRole('button', { name: 'Sign in', exact: true }).click(); // Bob in the test boundary.
   await expect(alice.getByRole('region', { name: 'Needs your attention' })).toContainText('No actions waiting for you.');
@@ -630,11 +637,9 @@ try {
   const deleteMember = await pageFor('bob-token', { width: 1280, height: 900 });
   await deleteMember.goto(deleteInvite);
   await deleteMember.getByRole('button', { name: 'Join group', exact: true }).click();
-  await expect(deleteMember.getByRole('dialog')).toContainText('Deletion smoke group');
+  await expect(deleteMember).toHaveURL(/#\/group-bills\//);
   await expect(deleteMember.getByRole('button', { name: 'Delete group', exact: true })).toHaveCount(0);
   // The populated workspace confirms Bob's group stream has delivered its ready snapshot.
-  // It may already be connected behind the members dialog before the click.
-  await deleteMember.getByRole('button', { name: 'View bills and balance' }).click();
   await expect(deleteMember.locator('#main-content').getByRole('heading', { name: 'Deletion smoke group' })).toBeVisible();
   await deleteOwner.getByRole('button', { name: 'Delete group', exact: true }).click();
   const deleteDialog = deleteOwner.getByRole('dialog', { name: 'Delete Deletion smoke group?' });
@@ -674,12 +679,14 @@ try {
   await deleteInput.fill('Deletion smoke group');
   await expect(deleteButton).toBeEnabled();
   await deleteButton.click();
-  await expect(deleteOwner.getByRole('navigation', { name: 'Groups', exact: true })).toBeVisible();
-  await expect(deleteOwner.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: /Deletion smoke group/ })).toHaveCount(0);
+  // Both the creator and a member viewing the group return to Home.
+  await expect(deleteOwner).toHaveURL(`${base}#`);
+  await expect(deleteOwner.getByRole('heading', { name: 'Your people' })).toBeVisible();
+  await expect(deleteOwner.locator('.group-card').filter({ hasText: 'Deletion smoke group' })).toHaveCount(0);
   await expect(deleteMember).toHaveURL(`${base}#`);
-  await expect(deleteMember.getByRole('heading', { name: 'My groups' })).toBeVisible();
-  await expect(deleteMember.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: /Deletion smoke group/ })).toHaveCount(0);
-  await expect(deleteMember.getByRole('status')).toContainText('Deletion smoke group was deleted by the group creator');
+  await expect(deleteMember.getByRole('heading', { name: 'Your people' })).toBeVisible();
+  await expect(deleteMember.locator('.group-card').filter({ hasText: 'Deletion smoke group' })).toHaveCount(0);
+  await expect(deleteMember.getByRole('status').filter({ hasText: 'Deletion smoke group was deleted by the group creator' })).toBeVisible();
   await expect(deleteOwner.getByText('Deletion smoke group was deleted by the group creator')).toHaveCount(0);
   console.log('Delete group smoke passed: creator-only action, eligibility read, 409 race reasons, exact-name confirmation, and live member navigation with a deletion notice.');
   assert.deepEqual(errors, []);

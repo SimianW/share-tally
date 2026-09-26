@@ -874,9 +874,10 @@ try {
     await alice.getByRole("button", { name: "Close summary", exact: true }).click();
     await reconciliation().scrollIntoViewIfNeeded();
     if (viewport.width <= 640) {
+      // The top bar replaced the mobile bottom navigation; nothing may cover the sticky actions.
+      await expect(alice.locator(".main-nav")).toHaveCount(0);
       const footerBox = await alice.locator(".receipt-review-footer").boundingBox();
-      const navigationBox = await alice.locator(".main-nav").boundingBox();
-      assert.ok(footerBox.y + footerBox.height <= navigationBox.y + 1, "Sticky review actions must clear mobile navigation");
+      assert.ok(footerBox.y + footerBox.height <= viewport.height + 1, "Sticky review actions stay within the viewport");
     }
     await alice.getByRole("button", { name: "View receipt photo", exact: true }).click();
     const photoDialog = alice.getByRole("dialog", { name: "Receipt photo", exact: true });

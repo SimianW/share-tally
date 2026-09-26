@@ -1,0 +1,110 @@
+html:has(.top-bar) { scroll-padding-top: var(--top-bar-height); }
+
+.top-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: saturate(1.4) blur(10px);
+}
+.top-bar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  max-width: 1560px;
+  height: var(--top-bar-height);
+  margin: 0 auto;
+  padding: 0 44px;
+}
+.top-bar-home {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-left: -10px;
+  padding: 0 10px;
+  border-radius: 13px;
+  color: var(--ink);
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.account-menu { position: relative; }
+.account-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 4px 10px 4px 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  transition: background 0.2s, border-color 0.2s;
+}
+.account-menu-trigger[aria-expanded="true"] { background: #f0f3e9; border-color: #d9e2c8; color: var(--ink); }
+.account-menu-trigger .avatar { width: 34px; height: 34px; border: 0; font-size: 14px; }
+.account-menu-chevron { transition: transform 0.2s; }
+.account-menu-trigger[aria-expanded="true"] .account-menu-chevron { transform: rotate(180deg); }
+
+.account-menu-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(280px, calc(100vw - 32px));
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: 0 16px 40px #15220e1f;
+  animation: account-menu-in 0.14s ease-out;
+}
+@keyframes account-menu-in {
+  from { opacity: 0; transform: translateY(-4px); }
+}
+.account-menu-identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px 10px 14px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.account-menu-identity > span { display: grid; gap: 2px; min-width: 0; }
+.account-menu-identity strong,
+.account-menu-identity small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-menu-identity strong { font-size: var(--text-base); }
+.account-menu-identity small { color: var(--muted); font-size: var(--text-xs); }
+.account-menu [role="menu"] { display: grid; gap: 2px; }
+.account-menu [role="menuitem"] {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+.account-menu [role="menuitem"] > svg { color: var(--muted); }
+.account-menu [role="menuitem"]:focus-visible { background: #eef6df; color: #34472a; }
+.account-menu [role="menuitem"]:focus-visible > svg { color: #5d7a3a; }
+/* Touch taps leave :hover behind; only devices that really hover get hover styles. */
+@media (hover: hover) {
+  .top-bar-home:hover { background: #f0f3e9; }
+  .account-menu-trigger:hover { background: #f0f3e9; border-color: #d9e2c8; color: var(--ink); }
+  .account-menu [role="menuitem"]:hover { background: #eef6df; color: #34472a; }
+  .account-menu [role="menuitem"]:hover > svg { color: #5d7a3a; }
+}
+.account-menu [role="menuitem"]:focus-visible { outline-offset: -3px; }
+.account-menu [role="separator"] { height: 1px; margin: 4px 6px; background: var(--line); }
+
+@media (max-width: 1000px) {
+  .top-bar-inner { padding: 0 24px; }
+}
+@media (max-width: 640px) {
+  .top-bar-inner { padding: 0 20px; }
+}
