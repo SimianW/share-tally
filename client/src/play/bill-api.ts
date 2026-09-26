@@ -120,8 +120,6 @@ export function useBillApi() {
     return {
       attention: (signal?: AbortSignal) =>
         request<{ actions: AttentionAction[] }>("/attention", "GET", undefined, signal),
-      summary: (signal?: AbortSignal) =>
-        request<{ summary: Summary }>("/summary", "GET", undefined, signal),
       list: (id: string, signal?: AbortSignal) =>
         request<{ bills: Bill[]; repayments: Repayment[]; summary: Summary; ledger: GroupLedger }>(
           `/groups/${encodeURIComponent(id)}/bills`,

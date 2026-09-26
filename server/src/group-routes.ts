@@ -6,11 +6,17 @@ import { createGroup, deleteGroup, getGroupForMember, groupDeletionEligibility, 
 
 export function createGroupsRouter(displayName: (id: string) => Promise<string>, avatars: AvatarReader) {
   const router = Router();
-  async function withAvatars<T extends { createdBy: string; members?: { id: string }[] }>(group: T, knownImages?: Map<string, AvatarImages | null>) {
-    const images = knownImages ?? await avatars([group.createdBy, ...(group.members ?? []).map(m => m.id)]);
+  type Listed = { id: string };
+  const memberIds = (group: { createdBy: string; members?: Listed[]; memberPreview?: Listed[] }) =>
+    [group.createdBy, ...(group.members ?? []).map(m => m.id), ...(group.memberPreview ?? []).map(m => m.id)];
+  async function withAvatars<T extends { createdBy: string; members?: Listed[]; memberPreview?: Listed[] }>(group: T, knownImages?: Map<string, AvatarImages | null>) {
+    const images = knownImages ?? await avatars(memberIds(group));
+    const withImages = <M extends Listed>(member: M) => ({ ...member, imageUrl: images.get(member.id)?.imageUrl ?? null,
+      fallbackImageUrl: images.get(member.id)?.fallbackImageUrl ?? null });
     return { ...group, creatorImageUrl: images.get(group.createdBy)?.imageUrl ?? null,
       creatorFallbackImageUrl: images.get(group.createdBy)?.fallbackImageUrl ?? null,
       ...(group.members ? { members: group.members.map(m => ({ ...m, ...images.get(m.id) })) } : {}),
+      ...(group.memberPreview ? { memberPreview: group.memberPreview.map(withImages) } : {}),
     };
   }
   const currentUser = (clerkUserId: string) => getGroupUser(clerkUserId, displayName);
@@ -18,7 +24,7 @@ export function createGroupsRouter(displayName: (id: string) => Promise<string>,
   router.get('/', async (_req, res) => {
     const user = await currentUser(res.locals.clerkUserId);
     const groups = await listGroupsForUser(user.id);
-    const images = await avatars(groups.map(group => group.createdBy));
+    const images = await avatars(groups.flatMap(memberIds));
     res.json({ groups: await Promise.all(groups.map(group => withAvatars(group, images))) });
   });
 

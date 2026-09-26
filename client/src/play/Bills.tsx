@@ -22,46 +22,21 @@ import { InitiatorActions, ShareActions } from "./BillActions";
 
 import { NextTransfer } from './NextTransfer';
 
-export function Balance({
-  summary,
-  group = false,
-}: {
-  summary: Summary;
-  group?: boolean;
-}) {
+// The member's balance in this group. There is no cross-group balance: each
+// group settles on its own (ADR-0005).
+export function Balance({ summary }: { summary: Summary }) {
   return (
     <section className="balance-card">
-      <span className="eyebrow">
-        {group ? "IN THIS GROUP" : "ACROSS YOUR GROUPS"} · CAD
-      </span>
+      <span className="eyebrow">IN THIS GROUP · CAD</span>
       <h2>{summary.netCents < 0 ? "You owe, net" : "You are owed, net"}</h2>
       <strong className="balance-number">
-        {group ? <AnimatedMoney cents={summary.netCents} /> : money(Math.abs(summary.netCents))}
+        <AnimatedMoney cents={summary.netCents} />
       </strong>
-      {!group && <div className="balance-breakdown">
-        <span>
-          You are owed <b>{money(summary.receivableCents)}</b>
-        </span>
-        <span>
-          You owe <b>{money(summary.payableCents)}</b>
-        </span>
-      </div>}
       <p>
         Completed bills and confirmed repayments.
-        {!group && " Repayments are worked out within each group."}
       </p>
     </section>
   );
-}
-export function OverviewBalance({ revision }: { revision: string }) {
-  const api = useBillApi();
-  const query = useCached<{ summary: Summary }>('/summary');
-  const [retry, setRetry] = useState(0);
-  useEffect(() => { void api.summary().catch(() => {}); }, [api, revision, retry]);
-  return <>
-    {query.error && <Notification><p>{query.data ? "Couldn't refresh your balances." : errorMessage(query.error)}</p><Button onClick={() => setRetry(n => n + 1)}>Retry balances</Button></Notification>}
-    {query.data ? <Balance summary={query.data.summary} /> : !query.error && <LoadingFinancials label="Loading balances" />}
-  </>;
 }
 
 function LoadingFinancials({ label }: { label: string }) {
@@ -126,7 +101,7 @@ export function GroupBills({ id, selectedRepaymentId, onDeleted, title }: {
       ) : (
         <>
           <div className="workspace-balance">
-            <div className="group-balance-overview"><Balance summary={data.summary} group />
+            <div className="group-balance-overview"><Balance summary={data.summary} />
               <div className="group-member-faces" aria-label={`${data.group.memberCount} group members`}>
                 {data.group.members.slice(0, 5).map(member => <Avatar key={member.id} name={member.displayName} imageUrl={member.imageUrl} fallbackImageUrl={member.fallbackImageUrl} small />)}
                 {data.group.memberCount > 5 && <span>+{data.group.memberCount - 5}</span>}

@@ -195,11 +195,13 @@ export function Button({
   );
 }
 export function SectionHeading({
+  id,
   title,
   action,
   onAction,
   count,
 }: {
+  id?: string;
   title: string;
   action?: string;
   onAction?: () => void;
@@ -207,7 +209,7 @@ export function SectionHeading({
 }) {
   return (
     <div className="section-heading">
-      <h2>
+      <h2 id={id}>
         {title}
         {count !== undefined && <span className="count">{count}</span>}
       </h2>

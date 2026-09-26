@@ -1,52 +1,24 @@
+import { ChevronRight } from 'lucide-react';
 import { Notification } from './Notification';
-import { useEffect, useState } from 'react';
-import { money, useBillApi, type AttentionAction } from './bill-api';
-import { errorMessage } from './group-api';
-import { Button, Icon } from './ui';
+import { money } from './bill-api';
+import type { Attention } from './attention';
+import { Icon } from './ui';
 import './attention.css';
 
-export function AttentionList({ revision }: { revision: string }) {
-  const api = useBillApi();
-  const [actions, setActions] = useState<AttentionAction[] | null>(null);
-  const [error, setError] = useState('');
-  const [refresh, setRefresh] = useState(0);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    let controller: AbortController;
-    function load() {
-      controller?.abort();
-      controller = new AbortController();
-      const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)]);
-      const request = controller;
-      setLoading(true);
-      api.attention(signal).then(result => {
-        if (!request.signal.aborted) { setActions(result.actions); setError(''); }
-      }).catch(error => {
-        if (!request.signal.aborted) { setActions(null); setError(errorMessage(error)); }
-      }).finally(() => { if (!request.signal.aborted) setLoading(false); });
-    }
-    const visible = () => { if (document.visibilityState === 'visible') load(); };
-    load();
-    window.addEventListener('focus', load);
-    window.addEventListener('online', load);
-    document.addEventListener('visibilitychange', visible);
-    return () => {
-      controller.abort();
-      window.removeEventListener('focus', load);
-      window.removeEventListener('online', load);
-      document.removeEventListener('visibilitychange', visible);
-    };
-  }, [api, revision, refresh]);
-
+export function AttentionList({ attention: { actions, error, loading, refresh } }: { attention: Attention }) {
   if (!loading && !error && actions?.length === 0) return null;
+  // A background reload keeps the current list in place instead of flashing a loading state.
+  const firstRead = loading && !actions;
 
   return <section className="attention-card" aria-labelledby="attention-heading" aria-busy={loading}>
-    <div className="bill-heading">
-      <h2 id="attention-heading">Needs your attention{actions && <small> {actions.length}</small>}</h2>
-      <Button variant="text" disabled={loading} onClick={() => setRefresh(n => n + 1)}>Refresh actions</Button>
+    <div className="attention-header">
+      <h2 id="attention-heading">Needs your attention{actions && <> <span className="count">{actions.length}</span></>}</h2>
+      <button type="button" className="text-action" disabled={loading} onClick={refresh}>Refresh actions</button>
     </div>
-    {loading && <p role="status">Checking your actions…</p>}
-    {error && <Notification>Could not load your actions. {error} Use Refresh actions to try again.</Notification>}
+    {firstRead && <div className="attention-skeleton" role="status" aria-label="Checking your actions">
+      {[0, 1].map(row => <div key={row}><span /><span><span /><span /></span></div>)}
+    </div>}
+    {error && !loading && <Notification>Could not load your actions. {error} Use Refresh actions to try again.</Notification>}
     {actions && actions.length > 0 && <ul className="attention-list">
       {actions.map(action => {
         const repayment = action.kind === 'review-repayment';
@@ -59,11 +31,13 @@ export function AttentionList({ revision }: { revision: string }) {
           : `#/bills/${action.billId}`;
         const detail = repayment ? `From ${action.senderName}` : action.title;
         const key = draft ? `draft:${action.draftId}` : repayment ? `repayment:${action.repaymentId}` : `share:${action.billId}`;
+        const type = draft ? 'draft' : repayment ? 'repayment' : 'share';
         return <li key={key}>
           <a href={href}>
-            <span className="attention-type-icon"><Icon name={draft ? 'receipt' : repayment ? 'arrows' : 'basket'} /></span>
+            <span className={`attention-type-icon ${type}`}><Icon name={draft ? 'receipt' : repayment ? 'arrows' : 'basket'} /></span>
             <div className="attention-action-text"><strong>{label}</strong><span>{action.groupName} · {detail}</span></div>
-            <span className="attention-action-amount">{action.amountCents !== null && `${money(action.amountCents)} CAD`} <span aria-hidden="true">→</span></span>
+            {action.amountCents !== null && <span className="attention-action-amount">{money(action.amountCents)} <small>CAD</small></span>}
+            <ChevronRight className="attention-chevron" size={20} aria-hidden="true" />
           </a>
         </li>;
       })}

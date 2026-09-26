@@ -1,5 +1,20 @@
+import assert from 'node:assert/strict';
 import { expect } from '@playwright/test';
-import { openGroupSwitcher } from './smoke-navigation.mjs';
+import { homeRow, openGroupSwitcher } from './smoke-navigation.mjs';
+
+const screenshots = new URL('../test-results/', import.meta.url).pathname;
+
+// A member without groups can start one, or ask a friend for an invitation link.
+async function checkNoGroups(page, label) {
+  const empty = page.getByRole('region', { name: 'Your people, together.' });
+  await expect(empty.getByText('Start with a group for your next shared purchase.')).toBeVisible();
+  await expect(empty.getByRole('button', { name: 'Create your first group', exact: true })).toBeVisible();
+  await expect(empty).toContainText("Joining friends? Ask them to send you their group's invitation link.");
+  await expect(page.getByRole('region', { name: /^Your groups/ })).toHaveCount(0);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText("Hey Member, you're all caught up");
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${label} zero-group Home overflows`);
+  await page.screenshot({ path: `${screenshots}home-zero-${label}.png`, fullPage: true, animations: 'disabled' });
+}
 
 // Successful membership writes must remain visible even when the list read fails.
 export async function checkGroupRefresh(pageFor, base) {
@@ -8,7 +23,7 @@ export async function checkGroupRefresh(pageFor, base) {
   const name = 'Refresh failure group';
   try {
     await owner.goto(base);
-    await expect(owner.getByText('Start with a group for your next shared purchase.')).toBeVisible();
+    await checkNoGroups(owner, 'desktop');
     await owner.route('**/api/groups', route => route.request().method() === 'GET'
       ? route.fulfill({ status: 503, json: { error: 'Group list temporarily unavailable.' } }) : route.continue());
     await owner.getByRole('button', { name: 'New group', exact: true }).click();
@@ -41,7 +56,7 @@ export async function checkGroupRefresh(pageFor, base) {
     await expect(owner.locator('#main-content').getByRole('heading', { level: 2 }).getByRole('button')).toBeFocused();
 
     await joiner.goto(base);
-    await expect(joiner.getByText('Start with a group for your next shared purchase.')).toBeVisible();
+    await checkNoGroups(joiner, 'mobile');
     await joiner.route('**/api/groups', route => route.fulfill({ status: 503, json: { error: 'Group list temporarily unavailable.' } }));
     // Repeat joining also exercises replacement rather than duplicate insertion.
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -55,10 +70,13 @@ export async function checkGroupRefresh(pageFor, base) {
       await joiner.keyboard.press('Escape');
     }
     await joiner.getByRole('link', { name: 'ShareTally home', exact: true }).click();
-    await expect(joiner.locator('.group-card').filter({ hasText: name })).toHaveCount(1);
+    await expect(homeRow(joiner, name)).toHaveCount(1);
+    // Without a list read the joined group's balance is unknown, so none is shown.
+    await expect(homeRow(joiner, name).locator('.home-balance')).toHaveCount(0);
     await joiner.unroute('**/api/groups');
     await joiner.getByRole('button', { name: 'Refresh', exact: true }).click();
-    await expect(joiner.locator('.group-card').filter({ hasText: name })).toHaveCount(1);
+    await expect(homeRow(joiner, name)).toHaveCount(1);
+    await expect(homeRow(joiner, name)).toContainText('All square Settled');
     console.log('Group refresh regression passed: create/join survive list failure, retry recovers, repeated joins do not duplicate.');
   } finally { await owner.context().close(); await joiner.context().close(); }
 }

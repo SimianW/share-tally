@@ -17,10 +17,9 @@ export async function evictDeletedGroup(cache: QueryClient, id: string) {
   await cache.cancelQueries(scoped);
   cache.removeQueries(scoped);
   await cache.cancelQueries({ queryKey: ['/groups'], exact: true });
-  cache.setQueryData<{ groups: GroupView[] }>(['/groups'], current => current && {
+  cache.setQueryData<{ groups: ListedGroup[] }>(['/groups'], current => current && {
     groups: current.groups.filter(group => group.id !== id),
   });
-  await cache.invalidateQueries({ queryKey: ['/summary'], exact: true });
 }
 
 export type GroupDraft = { name: string; icon: GroupIcon };
@@ -33,7 +32,14 @@ export type GroupView = GroupDraft & {
   creatorFallbackImageUrl?: string | null;
   memberCount: number;
   isCreator: boolean;
+  // When the current user joined this group.
+  joinedAt: string;
 };
+export type MemberPreview = { id: string; displayName: string; imageUrl: string | null; fallbackImageUrl: string | null };
+// A group in the member's list, ordered by when they joined it. netCents is their
+// own balance there, the same number as the group page; it is null only for a
+// group joined here whose list entry has not been read back yet.
+export type ListedGroup = GroupView & { netCents: number | null; memberPreview: MemberPreview[] };
 export type GroupDetail = GroupView & {
   members: { id: string; displayName: string; imageUrl?: string | null; fallbackImageUrl?: string | null; joinedAt: string; isCreator: boolean; isCurrentUser: boolean }[];
 };
@@ -96,20 +102,23 @@ export function useGroupApi() {
       if (method !== 'GET' && method !== 'DELETE') await refreshFinancialQueries(cache);
       return result;
     }
-    async function rememberGroup({ group }: { group: GroupView }) {
+    async function rememberGroup({ group }: { group: ListedGroup | GroupDetail }) {
       // The successful write is authoritative even if the next list read fails.
       // Cancel an older list snapshot before inserting/replacing this membership.
       await cache.cancelQueries({ queryKey: ['/groups'], exact: true });
-      cache.setQueryData<{ groups: GroupView[] }>(['/groups'], current => {
+      cache.setQueryData<{ groups: ListedGroup[] }>(['/groups'], current => {
         const existing = current?.groups ?? [];
-        return { groups: existing.some(item => item.id === group.id)
-          ? existing.map(item => item.id === group.id ? group : item)
-          : [group, ...existing] };
+        const listed = existing.find(item => item.id === group.id);
+        const entry = asListed(group, listed);
+        // A new membership is the most recently joined, so it goes last.
+        return { groups: listed
+          ? existing.map(item => item.id === group.id ? entry : item)
+          : [...existing, entry] };
       });
     }
     return {
-      list: (signal?: AbortSignal) => request<{ groups: GroupView[] }>('', 'GET', undefined, signal),
-      create: (draft: GroupDraft) => request<{ group: GroupView }>('', 'POST', draft, undefined, rememberGroup),
+      list: (signal?: AbortSignal) => request<{ groups: ListedGroup[] }>('', 'GET', undefined, signal),
+      create: (draft: GroupDraft) => request<{ group: ListedGroup }>('', 'POST', draft, undefined, rememberGroup),
       detail: (id: string, signal?: AbortSignal) => request<{ group: GroupDetail }>(`/${encodeURIComponent(id)}`, 'GET', undefined, signal),
       deletion: (id: string, signal?: AbortSignal) => request<GroupDeletionEligibility>(`/${encodeURIComponent(id)}/deletion`, 'GET', undefined, signal),
       invitation: (id: string, regenerate = false) => request<{ path: string }>(`/${encodeURIComponent(id)}/invitation`, regenerate ? 'POST' : 'GET'),
@@ -128,6 +137,21 @@ export function useGroupApi() {
   }, [getToken, cache]);
 }
 export type GroupApi = ReturnType<typeof useGroupApi>;
+
+// A join reply is the group's detail, without the list's balance. Keep the listed
+// balance for a repeat join; otherwise the list read after the write supplies it.
+function asListed(group: ListedGroup | GroupDetail, listed?: ListedGroup): ListedGroup {
+  if (!('members' in group)) return group;
+  const { members, ...view } = group;
+  return {
+    ...view,
+    netCents: listed?.netCents ?? null,
+    memberPreview: listed?.memberPreview ?? members.slice(0, 4).map(member => ({
+      id: member.id, displayName: member.displayName,
+      imageUrl: member.imageUrl ?? null, fallbackImageUrl: member.fallbackImageUrl ?? null,
+    })),
+  };
+}
 export function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : 'Something went wrong. Please try again.';
 }

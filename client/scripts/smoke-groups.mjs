@@ -1,5 +1,5 @@
 import { checkGroupRefresh } from './smoke-group-refresh.mjs';
-import { checkNavigation, switchGroup } from './smoke-navigation.mjs';
+import { checkNavigation, homeRow, homeGroupNames, switchGroup } from './smoke-navigation.mjs';
 // Run after installing both client and server dependencies and Chromium:
 // cd client && pnpm exec playwright install chromium && pnpm test:groups
 // Real UI + Express + temporary PostgreSQL. Only Clerk is replaced; this does
@@ -22,6 +22,15 @@ const { migrate } = serverRequire('drizzle-orm/node-postgres/migrator');
 const clientRoot = fileURLToPath(new URL('../', import.meta.url));
 const serverRoot = fileURLToPath(new URL('../../server/', import.meta.url));
 let container, pool, child, vite, browser;
+// Screenshots Home on desktop and at 390px, where nothing may overflow sideways.
+async function checkHomeLayout(page, label) {
+  const viewport = page.viewportSize();
+  await page.screenshot({ path: `${clientRoot}/test-results/home-${label}-desktop.png`, fullPage: true, animations: 'disabled' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${label} Home overflows at 390px`);
+  await page.screenshot({ path: `${clientRoot}/test-results/home-${label}-mobile.png`, fullPage: true, animations: 'disabled' });
+  await page.setViewportSize(viewport);
+}
 const errors = [];
 const networkChangeFailures = new Map();
 try {
@@ -231,6 +240,11 @@ try {
   await bob.goto(base);
   const bobAttention = bob.getByRole('region', { name: 'Needs your attention' });
   await expect(bobAttention.getByRole('link', { name: /Enter your share.*Weekend groceries/ })).toBeVisible();
+  // A member with one group still lands on Home, and the heading counts the same actions as the list.
+  await expect(bob).toHaveURL(base);
+  assert.deepEqual(await homeGroupNames(bob), ['Costco friends']);
+  await expect(homeRow(bob, 'Costco friends')).toContainText('All square Settled');
+  await expect(bob.getByRole('heading', { level: 1 })).toHaveText('Hey Bob, 1 thing needs you');
   assert.equal(await bob.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await bob.screenshot({ path: `${clientRoot}/test-results/attention-mobile.png`, fullPage: true });
   await bobAttention.getByRole('link', { name: /Enter your share.*Weekend groceries/ }).click();
@@ -276,8 +290,14 @@ try {
   await alice.getByRole('link', { name: 'Group bills', exact: false }).click();
   await expect(alice.locator('.bill-list-row')).toHaveCount(1);
   await expect(alice.locator('.balance-number')).toHaveText('$59.97');
+  const aliceGroupBalance = await alice.locator('.balance-number').innerText();
   await alice.getByRole('link', { name: 'ShareTally home', exact: true }).click();
-  await expect(alice.locator('.balance-number')).toHaveText('$59.97');
+  // Home's row shows the group page's number; there is no cross-group balance.
+  await expect(homeRow(alice, 'Costco friends')).toContainText(`You're owed ${aliceGroupBalance}`);
+  await expect(alice.locator('.balance-card')).toHaveCount(0);
+  await expect(alice.getByText(/ACROSS YOUR GROUPS|, net/)).toHaveCount(0);
+  await bob.goto(base);
+  await expect(homeRow(bob, 'Costco friends')).toContainText(`You owe ${aliceGroupBalance}`);
   // Group navigation opens finances directly and survives reloads.
   await alice.getByRole('button', { name: 'New group', exact: true }).first().click();
   await alice.getByLabel('Group name').fill('Apartment');
@@ -580,20 +600,36 @@ try {
   await alice.evaluate(() => window.dispatchEvent(new Event('focus')));
   const incomingLink = attention.getByRole('link', { name: /Review incoming transfer.*From Bob/ });
   await expect(incomingLink).toContainText('$3.21');
+  const aliceHeading = alice.getByRole('heading', { level: 1 });
+  await expect(aliceHeading).toHaveText('Hey Alice, 1 thing needs you');
+  await expect(attention.locator('.attention-list > li')).toHaveCount(1);
+  await checkHomeLayout(alice, 'busy');
   const incomingHref = await incomingLink.getAttribute('href');
   await alice.route('**/api/attention', route => route.fulfill({ status: 503, json: { error: 'Temporarily unavailable' } }));
   await attention.getByRole('button', { name: 'Refresh actions' }).click();
   await expect(attention.getByRole('alert')).toContainText('Could not load your actions');
   await expect(incomingLink).toHaveCount(0);
+  // Unknown actions never read as caught up.
+  await expect(aliceHeading).toHaveText('Hey Alice');
   await alice.unroute('**/api/attention');
   await attention.getByRole('button', { name: 'Refresh actions' }).click();
   await incomingLink.click();
   await expect(alice.getByRole('dialog', { name: 'Review repayment' })).toContainText('$3.21');
   await alice.getByRole('button', { name: 'Confirm receipt', exact: true }).click();
   await expect(alice.getByRole('dialog')).toHaveCount(0);
+  // While the actions load, the heading shows a placeholder and never the caught-up message.
+  let releaseAttention;
+  const attentionHeld = new Promise(resolve => { releaseAttention = resolve; });
+  await alice.route('**/api/attention', async route => { await attentionHeld; await route.continue(); });
   await alice.getByRole('link', { name: 'ShareTally home', exact: true }).click();
-  await expect(alice.getByRole('heading', { name: /Hey Alice/ })).toBeVisible();
+  await expect(aliceHeading.getByRole('status')).toBeVisible();
+  await expect(aliceHeading).toHaveText('Hey Alice, checking what needs you');
+  await expect(attention.getByRole('status', { name: 'Checking your actions' })).toBeVisible();
+  releaseAttention();
+  await alice.unroute('**/api/attention');
+  await expect(aliceHeading).toHaveText("Hey Alice, you're all caught up");
   await expect(attention).toHaveCount(0);
+  await checkHomeLayout(alice, 'caught-up');
   await alice.goto(`${base}${incomingHref}`);
   await expect(alice.getByRole('dialog')).toContainText('already confirmed');
   await expect(alice.getByRole('button', { name: 'Confirm receipt', exact: true })).toHaveCount(0);
@@ -682,11 +718,11 @@ try {
   await deleteButton.click();
   // Both the creator and a member viewing the group return to Home.
   await expect(deleteOwner).toHaveURL(`${base}#`);
-  await expect(deleteOwner.getByRole('heading', { name: 'Your people' })).toBeVisible();
-  await expect(deleteOwner.locator('.group-card').filter({ hasText: 'Deletion smoke group' })).toHaveCount(0);
+  await expect(deleteOwner.getByRole('heading', { name: 'Your groups' })).toBeVisible();
+  await expect(homeRow(deleteOwner, 'Deletion smoke group')).toHaveCount(0);
   await expect(deleteMember).toHaveURL(`${base}#`);
-  await expect(deleteMember.getByRole('heading', { name: 'Your people' })).toBeVisible();
-  await expect(deleteMember.locator('.group-card').filter({ hasText: 'Deletion smoke group' })).toHaveCount(0);
+  await expect(deleteMember.getByRole('heading', { name: 'Your groups' })).toBeVisible();
+  await expect(homeRow(deleteMember, 'Deletion smoke group')).toHaveCount(0);
   await expect(deleteMember.getByRole('status').filter({ hasText: 'Deletion smoke group was deleted by the group creator' })).toBeVisible();
   await expect(deleteOwner.getByText('Deletion smoke group was deleted by the group creator')).toHaveCount(0);
   console.log('Delete group smoke passed: creator-only action, eligibility read, 409 race reasons, exact-name confirmation, and live member navigation with a deletion notice.');

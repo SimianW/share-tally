@@ -65,16 +65,20 @@ export async function checkNavigation(page, pageFor) {
   await checkGroupSwitcher(page, 'mobile');
   await page.setViewportSize(desktop);
   await checkTopBar(page, 'desktop');
-  await expect(page.locator('.balance-number')).toHaveText('$59.97');
-  await page.locator('.group-card').filter({ hasText: 'Costco friends' }).click();
+  // Rows keep the order Alice joined her groups in, and each shows her group page balance.
+  assert.deepEqual(await homeGroupNames(page), ['Costco friends', 'Apartment']);
+  await expect(homeRow(page, 'Costco friends')).toContainText("You're owed $59.97");
+  await expect(homeRow(page, 'Apartment')).toContainText('All square Settled');
+  await homeRow(page, 'Costco friends').click();
   await expect(page.locator('.workspace-content .balance-number')).toHaveText('$59.97');
-  let summaryRead = false;
+  // Returning Home rereads the balances without replacing the known rows with a loading state.
+  let listRead = false;
   gate = new Promise(resolve => { release = resolve; });
-  await page.route('**/api/summary', async route => { summaryRead = true; await gate; await route.continue(); });
+  await page.route('**/api/groups', async route => { listRead = true; await gate; await route.continue(); });
   await page.getByRole('link', { name: 'ShareTally home', exact: true }).click();
-  await expect.poll(() => summaryRead).toBe(true);
-  await expect(page.locator('.balance-number')).toHaveText('$59.97');
-  await expect(page.getByRole('status', { name: 'Loading balances', exact: true })).toHaveCount(0);
+  await expect.poll(() => listRead).toBe(true);
+  await expect(homeRow(page, 'Costco friends')).toContainText('$59.97');
+  await expect(page.getByRole('status', { name: 'Loading groups', exact: true })).toHaveCount(0);
   release();
   await page.unrouteAll({ behavior: 'wait' });
   assert.deepEqual(await page.evaluate(() => window.uxFlashes), []);
@@ -149,6 +153,16 @@ export async function checkNavigation(page, pageFor) {
   await checkTopBar(fresh, 'mobile');
   await fresh.context().close();
   console.log('Navigation UX passed: top bar with Home and account menu, delayed cached navigation, group switcher, deduplication, no warning flashes, background recovery, initial failure, revoked access and account isolation.');
+}
+
+// Home lists one row per group, in the order the member joined them.
+export function homeRow(page, name) {
+  return page.getByRole('region', { name: /^Your groups/ }).locator('a.home-group-row').filter({
+    has: page.locator('.home-group-name').getByText(name, { exact: true }),
+  });
+}
+export async function homeGroupNames(page) {
+  return page.getByRole('region', { name: /^Your groups/ }).locator('.home-group-name').allInnerTexts();
 }
 
 // The group page heading's dropdown switches groups.
@@ -293,7 +307,7 @@ async function checkTopBar(page, label) {
   await banner.getByRole('link', { name: 'ShareTally home', exact: true }).click();
   await expect(page).toHaveURL(/#$/);
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Hey');
-  await expect(page.getByRole('heading', { name: 'Your people' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your groups' })).toBeVisible();
   await assertNoHorizontalOverflow(page, `${label} Home`);
 
   await expect(menuButton).toHaveAttribute('aria-expanded', 'false');
@@ -347,6 +361,6 @@ async function checkTopBar(page, label) {
   await page.screenshot({ path: `${clientRoot}test-results/top-bar-account-${label}.png`, fullPage: true, animations: 'disabled' });
 
   await banner.getByRole('link', { name: 'ShareTally home', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Your people' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your groups' })).toBeVisible();
   await page.screenshot({ path: `${clientRoot}test-results/top-bar-home-${label}.png`, fullPage: true, animations: 'disabled' });
 }
