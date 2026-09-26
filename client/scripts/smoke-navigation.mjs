@@ -183,6 +183,15 @@ async function checkTopBar(page, label) {
   await page.keyboard.press('Escape');
   await expect(menu).toHaveCount(0);
   await expect(menuButton).toBeFocused();
+  // Shift+Tab from the first item returns to the still-open menu's button; Escape must still close it.
+  await menuButton.click();
+  await expect(menu.getByRole('menuitem', { name: 'Account', exact: true })).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(menuButton).toBeFocused();
+  await expect(menu).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+  await expect(menuButton).toBeFocused();
   await menuButton.click();
   await expect(menu).toBeVisible();
   await page.mouse.click(5, 400); // Outside the menu, which covers the heading at 390px.

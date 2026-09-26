@@ -51,21 +51,23 @@ function AccountMenu({ account, openAccount }: { account: SignedInAccount; openA
   function focusLeft(event: FocusEvent<HTMLDivElement>) {
     if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
   }
+  // Bound on the root, so Escape also closes the menu after Shift+Tab back to the button.
   function navigate(event: KeyboardEvent<HTMLDivElement>) {
+    if (!open) return;
     if (event.key === 'Escape') {
       event.preventDefault();
       close();
       return;
     }
-    const items = [...event.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]')];
+    const items = [...(menu.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])];
     const current = items.indexOf(document.activeElement as HTMLElement);
-    const next = { ArrowDown: current + 1, ArrowUp: current - 1, Home: 0, End: items.length - 1 }[event.key];
-    if (next === undefined) return;
+    const next = { ArrowDown: current + 1, ArrowUp: (current < 0 ? items.length : current) - 1, Home: 0, End: items.length - 1 }[event.key];
+    if (next === undefined || !items.length) return;
     event.preventDefault();
     items[(next + items.length) % items.length].focus();
   }
 
-  return <div ref={root} className="account-menu" onBlur={focusLeft}>
+  return <div ref={root} className="account-menu" onBlur={focusLeft} onKeyDown={navigate}>
     <button ref={trigger} id={triggerId} type="button" className="account-menu-trigger"
       aria-label="Account menu" aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuId : undefined}
       onClick={() => setOpen(value => !value)}
@@ -81,7 +83,7 @@ function AccountMenu({ account, openAccount }: { account: SignedInAccount; openA
           <small>{account.email || 'Personal account'}</small>
         </span>
       </div>
-      <div ref={menu} id={menuId} role="menu" aria-labelledby={triggerId} onKeyDown={navigate}>
+      <div ref={menu} id={menuId} role="menu" aria-labelledby={triggerId}>
         <button type="button" role="menuitem" tabIndex={-1} onClick={() => choose(openAccount)}>
           <UserRound size={18} aria-hidden="true" />Account
         </button>
