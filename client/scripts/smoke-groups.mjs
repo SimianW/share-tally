@@ -75,6 +75,8 @@ try {
     page.on('console', message => { if (message.text().includes('net::ERR_NETWORK_CHANGED')) return; if (message.type() === 'error') { console.error('Browser console:', message.text()); if (message.text().includes('Encountered two children')) errors.push(message.text()); } });
     return page;
   }
+  // Set GROUP_DELETE_ONLY=1 to skip unrelated bill workflows and run this scenario alone.
+  if (process.env.GROUP_DELETE_ONLY !== '1') {
   await checkGroupRefresh(pageFor, base);
   const alice = await pageFor('alice-token', { width: 1280, height: 900 });
   await alice.goto(base);
@@ -612,6 +614,7 @@ try {
   await alice.getByRole('button', { name: 'Sign in', exact: true }).click(); // Bob in the test boundary.
   await expect(alice.getByRole('region', { name: 'Needs your attention' })).toContainText('No actions waiting for you.');
   console.log('Attention smoke passed: mobile missing shares, reconfirmation links, refresh recovery, receipt decisions, stale links, and account isolation.');
+  }
   // Issue #76: creator-only deletion of a cleared group uses its own fixture.
   const deleteOwner = await pageFor('alice-token', { width: 1280, height: 900 });
   await deleteOwner.goto(base);
@@ -628,6 +631,34 @@ try {
   await expect(deleteMember.getByRole('button', { name: 'Delete group', exact: true })).toHaveCount(0);
   await deleteOwner.getByRole('button', { name: 'Delete group', exact: true }).click();
   const deleteDialog = deleteOwner.getByRole('dialog', { name: 'Delete Deletion smoke group?' });
+  await expect(deleteDialog.getByRole('textbox')).toBeVisible();
+  const deletionId = (await pool.query('SELECT id FROM groups WHERE name = $1', ['Deletion smoke group'])).rows[0].id;
+  const deleteMembers = (await pool.query('SELECT user_id FROM group_members WHERE group_id = $1', [deletionId])).rows.map(row => row.user_id);
+  const blockedBill = await fetch(`http://127.0.0.1:${port}/api/groups/${deletionId}/bills`, {
+    method: 'POST', headers: { Authorization: 'Bearer alice-token', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requestId: crypto.randomUUID(), title: 'Not settled', purchaseDate: '2026-01-01',
+      timeZone: 'America/Toronto', notes: '', totalCents: 100, ownShareCents: 40,
+      participantIds: deleteMembers }),
+  });
+  assert.equal(blockedBill.status, 201, await blockedBill.clone().text());
+  const bill = (await blockedBill.json()).bill;
+  // The previously eligible dialog must also handle a bill added before DELETE.
+  await deleteDialog.getByRole('textbox').fill('Deletion smoke group');
+  await deleteDialog.getByRole('button', { name: 'Delete group', exact: true }).click();
+  await expect(deleteDialog).toContainText('1 incomplete bill');
+  await expect(deleteDialog.getByRole('textbox')).toHaveCount(0);
+  // Opening again performs a new eligibility read before offering confirmation.
+  await deleteDialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await deleteOwner.getByRole('button', { name: 'Delete group', exact: true }).click();
+  await expect(deleteDialog).toContainText('1 incomplete bill');
+  await expect(deleteDialog.getByRole('textbox')).toHaveCount(0);
+  const canceled = await fetch(`http://127.0.0.1:${port}/api/bills/${bill.id}/cancel`, {
+    method: 'POST', headers: { Authorization: 'Bearer alice-token', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ revision: bill.revision }),
+  });
+  assert.equal(canceled.status, 200, await canceled.clone().text());
+  await deleteDialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await deleteOwner.getByRole('button', { name: 'Delete group', exact: true }).click();
   const deleteInput = deleteDialog.getByRole('textbox');
   const deleteButton = deleteDialog.getByRole('button', { name: 'Delete group', exact: true });
   await expect(deleteButton).toBeDisabled();
@@ -638,9 +669,10 @@ try {
   await deleteButton.click();
   await expect(deleteOwner.getByRole('navigation', { name: 'Groups', exact: true })).toBeVisible();
   await expect(deleteOwner.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: /Deletion smoke group/ })).toHaveCount(0);
-  console.log('Delete group smoke passed: creator-only action, exact-name confirmation, deletion navigation, and group-list removal.');
+  console.log('Delete group smoke passed: creator-only action, eligibility read, 409 race reasons, exact-name confirmation, deletion navigation, and group-list removal.');
   assert.deepEqual(errors, []);
-  console.log('Group and bill browser smoke passed: creation, Unicode icon, persistence, sign-in return, membership, invitation permissions, rotation, invalid links, repeat joining, mobile layout, sign-out, bill creation and confirmation, response-loss retries, initiator adjustment, balances, completed-bill finality, stale confirmation, correction, reconfirmation, removal, and cancellation.');
+  if (process.env.GROUP_DELETE_ONLY !== '1')
+    console.log('Group and bill browser smoke passed: creation, Unicode icon, persistence, sign-in return, membership, invitation permissions, rotation, invalid links, repeat joining, mobile layout, sign-out, bill creation and confirmation, response-loss retries, initiator adjustment, balances, completed-bill finality, stale confirmation, correction, reconfirmation, removal, and cancellation.');
 } catch (error) {
   if (networkChangeFailures.size) {
     console.error('Browser resource loading was interrupted by ERR_NETWORK_CHANGED. Host network changes, including concurrent Docker container startup/shutdown, can leave the app blank before UI assertions run. Run browser smoke separately from container-changing jobs; the assertion still fails.');

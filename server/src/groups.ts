@@ -161,12 +161,12 @@ export async function joinGroup(token: string, userId: string) {
 }
 
 
-type GroupDeletionReason =
+export type GroupDeletionReason =
   | { code: 'incomplete_bills'; count: number }
   | { code: 'pending_repayments'; count: number }
   | { code: 'nonzero_balances'; members: { userId: string; displayName: string; netCents: number }[] };
 
-class GroupDeletionError extends GroupAccessError {
+export class GroupDeletionError extends GroupAccessError {
   constructor(public reasons: GroupDeletionReason[]) {
     const descriptions = reasons.map(reason => {
       switch (reason.code) {
@@ -179,29 +179,47 @@ class GroupDeletionError extends GroupAccessError {
   }
 }
 
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+// Caller holds the group row lock while reading this ledger. Deletion and all
+// financial writes serialize on that row, so the decision cannot go stale
+// between this check and the update in deleteGroup.
+async function deletionReasons(tx: Tx, groupId: string, userId: string): Promise<GroupDeletionReason[]> {
+  const bills = await readBillsInSnapshot(tx, userId, groupId);
+  const repayments = await readRepayments(tx, userId, groupId);
+  const members = await tx.select({ userId: users.id, displayName: users.displayName })
+    .from(groupMembers).innerJoin(users, eq(users.id, groupMembers.userId))
+    .where(eq(groupMembers.groupId, groupId)).orderBy(users.id);
+  const ledger = groupLedger(bills, members, repayments);
+  const reasons: GroupDeletionReason[] = [];
+  if (ledger.incompleteBillIds.length)
+    reasons.push({ code: 'incomplete_bills', count: ledger.incompleteBillIds.length });
+  const pendingCount = repayments.filter(repayment => repayment.status === 'pending').length;
+  if (pendingCount) reasons.push({ code: 'pending_repayments', count: pendingCount });
+  const nonzeroMembers = ledger.members.filter(member => member.netCents !== 0);
+  if (nonzeroMembers.length) reasons.push({ code: 'nonzero_balances', members: nonzeroMembers });
+  return reasons;
+}
+
+async function lockGroupForCreator(tx: Tx, groupId: string, userId: string) {
+  const group = await lockGroupForMember(tx, groupId, userId);
+  if (group.createdBy !== userId)
+    throw new GroupAccessError(403, 'Only the group creator can delete this group.');
+}
+
+export async function groupDeletionEligibility(groupId: string, userId: string) {
+  return db.transaction(async tx => {
+    await lockGroupForCreator(tx, groupId, userId);
+    const reasons = await deletionReasons(tx, groupId, userId);
+    return { eligible: reasons.length === 0, reasons };
+  });
+}
+
 export async function deleteGroup(groupId: string, userId: string) {
   await db.transaction(async tx => {
-    const group = await lockGroupForMember(tx, groupId, userId);
-    if (group.createdBy !== userId)
-      throw new GroupAccessError(403, 'Only the group creator can delete this group.');
-
-    // Use the same ledger as the group view, inside the transaction holding the
-    // group lock. No competing bill or repayment write can change these inputs.
-    const bills = await readBillsInSnapshot(tx, userId, groupId);
-    const repayments = await readRepayments(tx, userId, groupId);
-    const members = await tx.select({ userId: users.id, displayName: users.displayName })
-      .from(groupMembers).innerJoin(users, eq(users.id, groupMembers.userId))
-      .where(eq(groupMembers.groupId, groupId)).orderBy(users.id);
-    const ledger = groupLedger(bills, members, repayments);
-    const reasons: GroupDeletionReason[] = [];
-    if (ledger.incompleteBillIds.length)
-      reasons.push({ code: 'incomplete_bills', count: ledger.incompleteBillIds.length });
-    const pendingCount = repayments.filter(repayment => repayment.status === 'pending').length;
-    if (pendingCount) reasons.push({ code: 'pending_repayments', count: pendingCount });
-    const nonzeroMembers = ledger.members.filter(member => member.netCents !== 0);
-    if (nonzeroMembers.length) reasons.push({ code: 'nonzero_balances', members: nonzeroMembers });
+    await lockGroupForCreator(tx, groupId, userId);
+    const reasons = await deletionReasons(tx, groupId, userId);
     if (reasons.length) throw new GroupDeletionError(reasons);
-
     await tx.update(groups).set({ deletedAt: new Date() }).where(eq(groups.id, groupId));
   });
 }

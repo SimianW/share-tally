@@ -755,6 +755,9 @@ h1 {
 .group-delete-form { margin-top: 20px; gap: 16px; }
 .group-delete-form label strong { overflow-wrap: anywhere; }
 .group-delete-form .dialog-actions { margin-top: 0; }
+.group-deletion-reasons { margin: 8px 0 0; padding-left: 22px; }
+.group-deletion-reasons > li + li { margin-top: 8px; }
+.group-deletion-reasons ul { margin: 4px 0 0; padding-left: 22px; }
 .button.primary.group-delete-submit { background: #963c31; color: white; border-color: #782d26; box-shadow: 0 3px 0 #782d26; }
 .button.primary.group-delete-submit:hover:not(:disabled) { background: #782d26; box-shadow: 0 4px 0 #66241f; }
 .dialog-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }

@@ -2,7 +2,7 @@ import type { AvatarReader, AvatarImages } from "./avatars.js";
 import { Router } from 'express';
 import { getGroupUser } from './users.js';
 import { parseGroupIcon } from './group-icon.js';
-import { createGroup, deleteGroup, getGroupForMember, groupInvitation, joinGroup, listGroupsForUser } from './groups.js';
+import { createGroup, deleteGroup, getGroupForMember, groupDeletionEligibility, groupInvitation, joinGroup, listGroupsForUser } from './groups.js';
 
 export function createGroupsRouter(displayName: (id: string) => Promise<string>, avatars: AvatarReader) {
   const router = Router();
@@ -59,6 +59,11 @@ export function createGroupsRouter(displayName: (id: string) => Promise<string>,
   router.get('/:groupId', async (req, res) => {
     const user = await currentUser(res.locals.clerkUserId);
     res.json({ group: await withAvatars(await getGroupForMember(req.params.groupId, user.id)) });
+  });
+
+  router.get('/:groupId/deletion', async (req, res) => {
+    const user = await currentUser(res.locals.clerkUserId);
+    res.json(await groupDeletionEligibility(req.params.groupId, user.id));
   });
 
   router.delete('/:groupId', async (req, res) => {

@@ -13,7 +13,7 @@ import { BillError } from './bills.js';
 import express, { type ErrorRequestHandler, type Request, type RequestHandler } from 'express';
 import { clerkClient, clerkMiddleware, getAuth } from '@clerk/express';
 import { getOrCreateUser } from './users.js';
-import { GroupAccessError } from './groups.js';
+import { GroupAccessError, GroupDeletionError } from './groups.js';
 import { createGroupsRouter } from './group-routes.js';
 import { InvalidGroupIconError } from './group-icon.js';
 
@@ -110,7 +110,8 @@ export function createApp(auth: Authentication = {
     }
 
     if (error instanceof GroupAccessError || error instanceof BillError) {
-      res.status(error.status).json({ error: error.message });
+      res.status(error.status).json({ error: error.message,
+        ...(error instanceof GroupDeletionError ? { reasons: error.reasons } : {}) });
       return;
     }
 

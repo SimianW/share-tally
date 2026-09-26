@@ -150,7 +150,7 @@ test('anonymous and forged identities cannot read groups or manage invitations',
   const path = `/groups/${group.id}`;
   for (const [url, method, body] of [
     ['/groups', 'GET', undefined], ['/groups', 'POST', { name: 'Fake', icon: { type: 'lucide', value: 'house' } }],
-    [path, 'GET', undefined], [`${path}/invitation`, 'GET', undefined],
+    [path, 'GET', undefined], [`${path}/deletion`, 'GET', undefined], [`${path}/invitation`, 'GET', undefined],
     [`${path}/invitation`, 'POST', undefined], ['/groups/join', 'POST', { token: '0'.repeat(64) }],
   ] as const) {
     await json(await api(url, 'unknown-token', method, body), 401);
@@ -305,6 +305,10 @@ test('only a creator can delete a cleared group; deletion hides every entry poin
   const group = await create();
   const invitationToken = await inviteMember(group.id);
   const other = await create('bob-token');
+  const eligibilityPath = `/groups/${group.id}/deletion`;
+  assert.deepEqual(await json(await api(eligibilityPath)), { eligible: true, reasons: [] });
+  await json(await api(eligibilityPath, 'bob-token'), 403);
+  await json(await api(eligibilityPath, 'carol-token'), 404);
   await json(await api(`/groups/${group.id}`, 'bob-token', 'DELETE'), 403);
   await json(await api(`/groups/${group.id}`, 'carol-token', 'DELETE'), 404);
   assert.equal((await pool.query('SELECT deleted_at FROM groups WHERE id = $1', [group.id])).rows[0].deleted_at, null);
@@ -312,6 +316,8 @@ test('only a creator can delete a cleared group; deletion hides every entry poin
   const deleted = await json(await api(`/groups/${group.id}`, 'alice-token', 'DELETE'));
   assert.deepEqual(deleted, { deleted: true });
   assert.ok((await pool.query('SELECT deleted_at FROM groups WHERE id = $1', [group.id])).rows[0].deleted_at);
+  await json(await api(eligibilityPath), 404);
+  await json(await api(eligibilityPath, 'bob-token'), 404);
   assert.deepEqual((await json(await api('/groups'))).groups, []);
   assert.deepEqual((await json(await api('/groups', 'bob-token'))).groups.map((g: { id: string }) => g.id), [other.id]);
   assert.deepEqual((await json(await api('/attention'))).actions, []);
@@ -346,8 +352,13 @@ test('completed bills and confirmed repayments remain stored after a cleared gro
     amountCents: 600, revision: bill.revision, expectedAmountCents: null,
   }))).bill;
   assert.ok(completed.completedAt);
+  const balanceReason = { code: 'nonzero_balances', members: [
+    { userId: group.createdBy, displayName: 'Alice', netCents: 600 },
+    { userId: bobId, displayName: 'Bob', netCents: -600 },
+  ].sort((a, b) => a.userId.localeCompare(b.userId)) };
+  assert.deepEqual(await json(await api(`/groups/${group.id}/deletion`)), { eligible: false, reasons: [balanceReason] });
   const nonzero = await json(await api(`/groups/${group.id}`, 'alice-token', 'DELETE'), 409);
-  assert.deepEqual(Object.keys(nonzero), ['error']);
+  assert.deepEqual(nonzero.reasons, [balanceReason]);
   assert.match(nonzero.error, /balance/i);
   const repayment = (await json(await api(`/groups/${group.id}/repayments`, 'bob-token', 'POST', {
     requestId: crypto.randomUUID(), recipientId: group.createdBy, amountCents: 600,
@@ -366,13 +377,19 @@ test('incomplete bills and pending repayments each block deletion independently'
   await inviteMember(group.id);
   const bill = await groupBill(group.id, group.createdBy,
     (await json(await api(`/groups/${group.id}`))).group.members.find((m: { displayName: string }) => m.displayName === 'Bob').id);
+  const incompleteReason = { code: 'incomplete_bills', count: 1 };
+  assert.deepEqual(await json(await api(`/groups/${group.id}/deletion`)), { eligible: false, reasons: [incompleteReason] });
   const incomplete = await json(await api(`/groups/${group.id}`, 'alice-token', 'DELETE'), 409);
+  assert.deepEqual(incomplete.reasons, [incompleteReason]);
   assert.match(incomplete.error, /incomplete/i);
   await json(await api(`/bills/${bill.id}/cancel`, 'alice-token', 'POST', { revision: bill.revision }));
   const repayment = (await json(await api(`/groups/${group.id}/repayments`, 'bob-token', 'POST', {
     requestId: crypto.randomUUID(), recipientId: group.createdBy, amountCents: 100,
   }), 201)).repayment;
+  const pendingReason = { code: 'pending_repayments', count: 1 };
+  assert.deepEqual(await json(await api(`/groups/${group.id}/deletion`)), { eligible: false, reasons: [pendingReason] });
   const pending = await json(await api(`/groups/${group.id}`, 'alice-token', 'DELETE'), 409);
+  assert.deepEqual(pending.reasons, [pendingReason]);
   assert.match(pending.error, /pending/i);
   await json(await api(`/repayments/${repayment.id}/decision`, 'alice-token', 'POST', { decision: 'rejected' }));
   await json(await api(`/groups/${group.id}`, 'alice-token', 'DELETE'));
