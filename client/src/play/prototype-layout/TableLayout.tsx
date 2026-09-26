@@ -24,7 +24,7 @@ export function TableLayout(props: LayoutProps) {
         {view.rows.map(row => {
           const line = describeRow(row, props);
           return <li key={`${row.direction}:${row.otherId}`} className={`gpe-chip gpe-chip-${line.tone}`}>
-            <span>{line.text}</span><b>{money(line.amountCents)}</b>
+            <span>{line.text}</span>{line.tone !== 'pending' && <b>{money(line.amountCents)}</b>}
             {line.action
               ? <button type="button" className={`button ${line.action.primary ? 'primary' : 'secondary'} gp-small`} onClick={line.action.run}>{line.action.label}</button>
               : line.status && line.tone !== 'owed' && <small>{line.status}</small>}

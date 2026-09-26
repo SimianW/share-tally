@@ -25,7 +25,7 @@ export function SidebarLayout(props: LayoutProps) {
             const person = face(row.otherId);
             return <div className="gpb-row" key={`${row.direction}:${row.otherId}`}>
               <Avatar name={row.otherName} imageUrl={person?.imageUrl} fallbackImageUrl={person?.fallbackImageUrl} small />
-              <span>{line.text}{line.status && <small>{line.status}</small>}</span>
+              <span><span>{line.text}</span>{line.status && <small>{line.status}</small>}</span>
               <b className={`gp-tone-${line.tone}`}>{money(line.amountCents)}</b>
               {line.action && <button type="button" className={`button ${line.action.primary ? 'primary' : 'secondary'} gp-small gpb-row-action`} onClick={line.action.run}>{line.action.label}</button>}
             </div>;

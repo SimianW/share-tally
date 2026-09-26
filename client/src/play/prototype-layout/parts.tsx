@@ -58,7 +58,7 @@ export function describeRow(row: DashboardRow, actions: Pick<LayoutProps, 'recor
     text: <><b>{row.otherName}</b> says they sent {money(incoming.amountCents)}</>,
     amountCents: incoming.amountCents, tone: 'pending' as const,
     action: { label: 'Review', primary: true, run: () => actions.review(incoming.id) },
-    status: null,
+    status: row.suggestedCents ? `Suggested: ${row.otherName} pays you ${money(row.suggestedCents)}` : null,
   };
   if (row.direction === 'pay') return {
     text: <>You pay <b>{row.otherName}</b></>,
