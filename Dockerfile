@@ -8,8 +8,16 @@ RUN pnpm install --frozen-lockfile
 COPY server/ ./
 RUN pnpm typecheck && pnpm build
 
+FROM node-base AS client-lint
+COPY client/package.json client/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+COPY client/ ./
+RUN pnpm lint && touch /client-lint-passed
+
 # Run this image with the host Docker socket, so tests can create disposable DBs.
 FROM server-build AS checks
+# Depend on the client lint stage even when only --target checks is built.
+COPY --from=client-lint /client-lint-passed /client-lint-passed
 # Client/server pricing parity tests import the client's type-only pricing mirror
 # from ../../client/src relative to /app/test.
 COPY client/src/ /client/src/
@@ -29,13 +37,10 @@ USER node
 EXPOSE 3000
 CMD ["node", "dist/index.js"]
 
-FROM node-base AS client-build
-COPY client/package.json client/pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
-COPY client/ ./
+FROM client-lint AS client-build
 # Vite embeds this PUBLIC key in browser assets. Never pass the Clerk secret here.
 ARG VITE_CLERK_PUBLISHABLE_KEY
-RUN test -n "$VITE_CLERK_PUBLISHABLE_KEY" && pnpm lint && pnpm build
+RUN test -n "$VITE_CLERK_PUBLISHABLE_KEY" && pnpm build
 
 FROM public.ecr.aws/docker/library/nginx:1.28-alpine AS web
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
