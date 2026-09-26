@@ -10,6 +10,13 @@ export function notifyGroupChanged(groupId: string) {
   }
 }
 
+export function notifyGroupDeleted(groupId: string, name: string) {
+  for (const response of subscribers.get(groupId) ?? []) {
+    // end(data) queues the final event before the stream's EOF, even under backpressure.
+    response.end(`event: group-deleted\ndata: ${JSON.stringify({ id: groupId, name })}\n\n`);
+  }
+}
+
 export function openGroupEvents(groupId: string, response: Response, expiresAt: number) {
   response.setHeader('Content-Type', 'text/event-stream');
   response.setHeader('Cache-Control', 'no-store');

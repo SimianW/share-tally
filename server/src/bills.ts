@@ -1,3 +1,4 @@
+import { requireMember as member, lockGroupForMember } from './group-access.js';
 import { itemDetails, recalculateItemBill } from './item-accounting.js';
 import { selectFrozenTaxRate } from './frozen-receipt-pricing.js';
 import { notifyGroupChanged } from './group-events.js';
@@ -5,7 +6,7 @@ import { cents, isUuid } from "./input-validation.js";
 export { isUuid } from "./input-validation.js";
 import { confirmedRepaymentEntries } from "./repayment-accounting.js";
 import { readRepayments, type Repayment } from './repayments.js';
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { safeCents } from "./money.js";
 import { groupLedger } from "./group-ledger.js";
 import { db } from "./db/index.js";
@@ -146,15 +147,6 @@ export function parseBill(value: unknown) {
   };
 }
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-async function member(tx: Tx, groupId: string, userId: string) {
-  const [row] = await tx
-    .select()
-    .from(groupMembers)
-    .where(
-      and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)),
-    );
-  if (!row) throw new BillError(404, "Group not found.");
-}
 async function complete(tx: Tx, bill: typeof bills.$inferSelect) {
   const shares = await tx
     .select()
@@ -188,8 +180,7 @@ export async function createBill(
 ) {
   const id = await db.transaction(async (tx) => {
     // Serialize creation with membership changes and other creations in this group.
-    await tx.select().from(groups).where(eq(groups.id, groupId)).for("update");
-    await member(tx, groupId, userId);
+    await lockGroupForMember(tx, groupId, userId);
     const payload = JSON.stringify({ groupId, ...input });
     const [existing] = await tx
       .select()
@@ -252,13 +243,15 @@ export async function createBill(
   return id;
 }
 async function lockedBill(tx: Tx, id: string, userId: string) {
+  const [scope] = await tx.select({ groupId: bills.groupId }).from(bills).where(eq(bills.id, id));
+  if (!scope) throw new BillError(404, "Bill not found.");
+  await lockGroupForMember(tx, scope.groupId, userId);
   const [bill] = await tx
     .select()
     .from(bills)
     .where(eq(bills.id, id))
     .for("update");
   if (!bill) throw new BillError(404, "Bill not found.");
-  await member(tx, bill.groupId, userId);
   return bill;
 }
 function assertMutableRevision(
@@ -422,11 +415,12 @@ export async function submitShare(
   });
   notifyGroupChanged(groupId);
 }
-async function readBillsInSnapshot(tx: Tx, userId: string, groupId?: string, id?: string) {
+export async function readBillsInSnapshot(tx: Tx, userId: string, groupId?: string, id?: string) {
   if (groupId) await member(tx, groupId, userId);
   const rows = await tx
     .select({ bill: bills })
     .from(bills)
+    .innerJoin(groups, and(eq(groups.id, bills.groupId), isNull(groups.deletedAt)))
     .innerJoin(
       groupMembers,
       and(

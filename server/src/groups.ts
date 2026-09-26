@@ -1,9 +1,14 @@
-import { notifyGroupChanged } from './group-events.js';
+import { withoutEvidence } from './receipt-drafts.js';
+import { lockGroupForMember } from './group-access.js';
+import { notifyGroupChanged, notifyGroupDeleted } from './group-events.js';
+import { readBillsInSnapshot } from './bills.js';
+import { readRepayments } from './repayments.js';
+import { groupLedger } from './group-ledger.js';
 import { randomBytes } from 'node:crypto';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 
 import { db } from "./db/index.js";
-import { groupMembers, groups, users } from "./db/schema.js";
+import { groupMembers, groups, receiptDrafts, receiptEvidence, receiptPhotos, users } from "./db/schema.js";
 
 import { parseGroupIcon, type GroupIconInput } from './group-icon.js';
 
@@ -87,7 +92,7 @@ export async function listGroupsForUser(userId: string) {
   const rows = await db.select(summaryFields).from(groupMembers)
     .innerJoin(groups, eq(groupMembers.groupId, groups.id))
     .innerJoin(users, eq(groups.createdBy, users.id))
-    .where(eq(groupMembers.userId, userId))
+    .where(and(eq(groupMembers.userId, userId), isNull(groups.deletedAt)))
     .orderBy(desc(groups.createdAt), groups.id);
   return rows.map(row => toGroup(row, userId));
 }
@@ -100,7 +105,7 @@ export async function getGroupForMember(groupId: string, userId: string) {
   const [row] = await db.select(summaryFields).from(groupMembers)
     .innerJoin(groups, eq(groupMembers.groupId, groups.id))
     .innerJoin(users, eq(groups.createdBy, users.id))
-    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)));
+    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId), isNull(groups.deletedAt)));
   // Do not reveal whether an inaccessible group exists.
   if (!row) throw new GroupAccessError(404, 'Group not found.');
   const members = await db.select({
@@ -122,11 +127,7 @@ export async function getGroupForMember(groupId: string, userId: string) {
 export async function groupInvitation(groupId: string, userId: string, regenerate: boolean) {
   return db.transaction(async tx => {
     // Joining and rotating the token serialize on this same row.
-    const [group] = await tx.select().from(groups).where(eq(groups.id, groupId)).for('update');
-    if (!group) throw new GroupAccessError(404, 'Group not found.');
-    const [member] = await tx.select().from(groupMembers)
-      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)));
-    if (!member) throw new GroupAccessError(404, 'Group not found.');
+    const group = await lockGroupForMember(tx, groupId, userId);
     if (group.createdBy !== userId) throw new GroupAccessError(403, 'Only the group creator can manage invitations.');
     let token = group.invitationToken;
     if (regenerate || token === null) {
@@ -142,7 +143,7 @@ export async function joinGroup(token: string, userId: string) {
   const groupId = await db.transaction(async tx => {
     // PostgreSQL rechecks this predicate after waiting for a concurrent rotation.
     const [group] = await tx.select({ id: groups.id }).from(groups)
-      .where(eq(groups.invitationToken, token)).for('update');
+      .where(and(eq(groups.invitationToken, token), isNull(groups.deletedAt))).for('update');
     if (!group) throw new GroupAccessError(404, 'This invitation is invalid or has been replaced.');
     // The group row lock makes the capacity check and insertion one operation
     // relative to every other join. Existing members may retry even at capacity.
@@ -158,4 +159,87 @@ export async function joinGroup(token: string, userId: string) {
   });
   notifyGroupChanged(groupId);
   return getGroupForMember(groupId, userId);
+}
+
+
+export type GroupDeletionReason =
+  | { code: 'incomplete_bills'; count: number }
+  | { code: 'pending_repayments'; count: number }
+  | { code: 'nonzero_balances'; members: { userId: string; displayName: string; netCents: number }[] };
+
+export class GroupDeletionError extends GroupAccessError {
+  constructor(public reasons: GroupDeletionReason[]) {
+    const descriptions = reasons.map(reason => {
+      switch (reason.code) {
+        case 'incomplete_bills': return `${reason.count} incomplete bill${reason.count === 1 ? '' : 's'}`;
+        case 'pending_repayments': return `${reason.count} pending repayment${reason.count === 1 ? '' : 's'}`;
+        case 'nonzero_balances': return reason.members.map(member => `${member.displayName}'s balance is not zero`).join(', ');
+      }
+    });
+    super(409, `This group cannot be deleted: ${descriptions.join('; ')}.`);
+  }
+}
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+// Caller holds the group row lock while reading this ledger. Deletion and all
+// financial writes serialize on that row, so the decision cannot go stale
+// between this check and the update in deleteGroup.
+async function deletionReasons(tx: Tx, groupId: string, userId: string): Promise<GroupDeletionReason[]> {
+  const bills = await readBillsInSnapshot(tx, userId, groupId);
+  const repayments = await readRepayments(tx, userId, groupId);
+  const members = await tx.select({ userId: users.id, displayName: users.displayName })
+    .from(groupMembers).innerJoin(users, eq(users.id, groupMembers.userId))
+    .where(eq(groupMembers.groupId, groupId)).orderBy(users.id);
+  const ledger = groupLedger(bills, members, repayments);
+  const reasons: GroupDeletionReason[] = [];
+  if (ledger.incompleteBillIds.length)
+    reasons.push({ code: 'incomplete_bills', count: ledger.incompleteBillIds.length });
+  const pendingCount = repayments.filter(repayment => repayment.status === 'pending').length;
+  if (pendingCount) reasons.push({ code: 'pending_repayments', count: pendingCount });
+  const nonzeroMembers = ledger.members.filter(member => member.netCents !== 0);
+  if (nonzeroMembers.length) reasons.push({ code: 'nonzero_balances', members: nonzeroMembers });
+  return reasons;
+}
+
+async function lockGroupForCreator(tx: Tx, groupId: string, userId: string) {
+  const group = await lockGroupForMember(tx, groupId, userId);
+  if (group.createdBy !== userId)
+    throw new GroupAccessError(403, 'Only the group creator can delete this group.');
+  return group;
+}
+
+export async function groupDeletionEligibility(groupId: string, userId: string) {
+  return db.transaction(async tx => {
+    await lockGroupForCreator(tx, groupId, userId);
+    const reasons = await deletionReasons(tx, groupId, userId);
+    return { eligible: reasons.length === 0, reasons };
+  });
+}
+
+export async function deleteGroup(groupId: string, userId: string) {
+  const name = await db.transaction(async tx => {
+    const group = await lockGroupForCreator(tx, groupId, userId);
+    const reasons = await deletionReasons(tx, groupId, userId);
+    if (reasons.length) throw new GroupDeletionError(reasons);
+
+    // Lock drafts before their evidence/photos, matching the order used by
+    // photo expiry and processing completion. Initiated drafts keep receipt
+    // text behind preserved bills; uninitiated drafts are voided altogether.
+    const drafts = await tx.select().from(receiptDrafts)
+      .where(eq(receiptDrafts.groupId, groupId)).orderBy(receiptDrafts.id).for('update');
+    if (drafts.length) {
+      const ids = drafts.map(draft => draft.id);
+      for (const draft of drafts) {
+        if (draft.billId) await tx.update(receiptDrafts)
+          .set({ data: withoutEvidence(draft.data) }).where(eq(receiptDrafts.id, draft.id));
+      }
+      await tx.delete(receiptEvidence).where(inArray(receiptEvidence.draftId, ids));
+      await tx.delete(receiptPhotos).where(inArray(receiptPhotos.draftId, ids));
+    }
+    await tx.delete(receiptDrafts).where(and(eq(receiptDrafts.groupId, groupId), isNull(receiptDrafts.billId)));
+    await tx.update(groups).set({ deletedAt: new Date() }).where(eq(groups.id, groupId));
+    return group.name;
+  });
+  notifyGroupDeleted(groupId, name);
 }

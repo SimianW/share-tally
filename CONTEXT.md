@@ -92,7 +92,10 @@ A bill withdrawn by its initiator and retained as a canceled record.
 The amount a member is currently owed or owes within a group after accounting for eligible bills and repayments. Every member having a zero net balance means no repayments are needed at that moment.
 
 **Group creator**:
-The member who created a group. This role is distinct from a bill's initiator.
+The member who created a group. This role is distinct from a bill's initiator. Only the group creator may delete the group, and only when it is cleared.
+
+**Deleted group**:
+A group marked as deleted by its creator after every member's net balance is zero, there are no incomplete bills, and there are no pending repayment records. Its financial records remain stored, but the group is gone for all members: it is absent from their group lists and its endpoints and invitation link no longer provide access. There is no read-only history view or restoration workflow. Uninitiated bill drafts, including processing drafts, are deleted and cannot be resumed. Receipt photos and raw receipt evidence are physically purged during group deletion, including those linked to initiated bills; receipt text and reviewed items are retained.
 
 **Invitation link**:
 A shareable link through which a signed-in user can join a group.

@@ -10,12 +10,13 @@ export function startReceiptModel(
   draft: typeof receiptDrafts.$inferSelect,
   scanned: ExtractedReceipt,
   interpret: typeof interpretReceiptNames,
+  onSettled?: () => void,
 ) {
   void runReceiptModel(draft, scanned, interpret).catch(() => {
     // A persistence outage leaves the processing row recoverable on read/startup.
     // Never log provider exceptions, which can include receipt content.
     console.error("Receipt processing completion failed");
-  });
+  }).finally(onSettled);
 }
 
 async function runReceiptModel(
@@ -54,13 +55,15 @@ async function runReceiptModel(
   }
   const modelMs = performance.now() - modelStart;
   const result = await completeProcessingDraft(draft.id, startedAt, attempt);
+  // The group may have been deleted while interpretation was in flight. Its
+  // draft is gone; do not report a fabricated timeout or publish a result.
+  if (!result) return;
   console.info("Receipt scan", JSON.stringify({
     azureSubmitMs: scanned.scanTimings?.azureSubmitMs ?? null,
     azurePollMs: scanned.scanTimings?.azurePollMs ?? null,
     mappingMs: scanned.scanTimings?.mappingMs ?? null,
     modelMs,
-    // A competing recovery sweep has already applied the timeout fallback.
-    outcome: result?.outcome ?? "fallback",
-    reason: result?.reason ?? (result ? null : "timeout"),
+    outcome: result.outcome,
+    reason: result.reason,
   }));
 }

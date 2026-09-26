@@ -1,15 +1,16 @@
 import { Notification } from './Notification';
-import { useCached } from './query-cache';
+import { useCached, useCachedRequest } from './query-cache';
+import { groupDeletedEvent, type GroupDeleted } from './group-sync';
 import { AttentionList } from './AttentionList';
 import { BillDetails, OverviewBalance } from './Bills';
 import GroupWorkspace from './GroupWorkspace';
 import { NewBillPage } from './ReceiptDraft';
-import { useRoute } from './route';
-import { useEffect, useState } from "react";
+import { useRoute, leaveDeletedGroup, routeBelongsToDeletedGroup } from './route';
+import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import AccountCheck from "../AccountCheck";
 import { GroupDetails, JoinGroup } from './GroupDetails';
-import { useGroupApi, errorMessage, type GroupDraft, type GroupView } from './group-api';
+import { useGroupApi, errorMessage, evictDeletedGroup, deletedLocally, type GroupDetail, type GroupDraft, type GroupView } from './group-api';
 import {
   CreateGroupDialog,
   GroupList,
@@ -47,6 +48,38 @@ export default function PlayApp({
     "overview",
   );
   const api = useGroupApi();
+  const cache = useCachedRequest();
+  const [deletionNotice, setDeletionNotice] = useState('');
+  const handledDeletions = useRef(new Set<string>());
+  const knownGroups = useRef(new Map<string, GroupView>());
+  useEffect(() => {
+    function deleted(event: Event) {
+      const { id, name } = (event as CustomEvent<GroupDeleted>).detail;
+      if (handledDeletions.current.has(id) || deletedLocally(id)) return;
+      const detail = cache.getQueryData<{ group: GroupDetail }>([`/groups/${id}`])?.group;
+      const listed = cache.getQueryData<{ groups: GroupView[] }>(['/groups'])?.groups.find(group => group.id === id)
+        ?? knownGroups.current.get(id);
+      // A 404 for an unknown/unauthorized ID is not evidence of a deleted membership.
+      if (!name && !detail && !listed) return;
+      handledDeletions.current.add(id);
+      const groupName = name ?? detail?.name ?? listed?.name;
+      void evictDeletedGroup(cache, id);
+      if (!detail?.isCreator && !listed?.isCreator) {
+        setDeletionNotice(`${groupName} was deleted by the group creator`);
+      }
+      const route = window.location.hash;
+      const billId = route.match(/^#\/bills\/([^/?#]+)/)?.[1];
+      const billGroupId = billId
+        ? cache.getQueryData<{ bill: { groupId: string } }>([`/bills/${billId}`])?.bill.groupId
+        : undefined;
+      if (routeBelongsToDeletedGroup(route, id, billGroupId)) {
+        setView('groups');
+        leaveDeletedGroup();
+      }
+    }
+    window.addEventListener(groupDeletedEvent, deleted);
+    return () => window.removeEventListener(groupDeletedEvent, deleted);
+  }, [cache]);
   const route = useRoute();
   const selectedId = route.startsWith('#/groups/') ? route.slice('#/groups/'.length) : null;
   const billId = route.startsWith('#/bills/') ? route.slice('#/bills/'.length) : null;
@@ -54,6 +87,9 @@ export default function PlayApp({
   const billGroupId = route.startsWith('#/group-bills/') ? route.slice('#/group-bills/'.length).split('?')[0] : null;
   const invitationToken = route.startsWith('#/join/') ? route.slice('#/join/'.length) : null;
   const groupQuery = useCached<{ groups: GroupView[] }>('/groups');
+  useEffect(() => {
+    for (const group of groupQuery.data?.groups ?? []) knownGroups.current.set(group.id, group);
+  }, [groupQuery.data]);
   const groups = groupQuery.data?.groups ?? [];
   const [creating, setCreating] = useState(false);
   const loading = !groupQuery.data && !groupQuery.error;
@@ -63,6 +99,11 @@ export default function PlayApp({
   useEffect(() => {
     void api.list().catch(() => {});
   }, [api, revision]);
+
+  function deletedGroup() {
+    setView('groups');
+    closeGroup();
+  }
 
   async function createGroup(draft: GroupDraft) {
     const { group } = await api.create(draft);
@@ -144,7 +185,8 @@ export default function PlayApp({
               </Button>
             )}
           </header>}
-          {billId ? <BillDetails key={billId} id={billId} /> : newBill ? <NewBillPage key={`${newBill[1]}:${newBill[2] ?? "new"}`} groupId={newBill[1]} draftId={newBill[2]} /> : (billGroupId || view === "groups") ? <GroupWorkspace groups={groups} selectedId={billGroupId ?? undefined} selectedRepaymentId={new URLSearchParams(route.split('?')[1]).get('repayment') ?? undefined} loading={loading} error={error} retry={() => setRevision(value => value + 1)} onCreate={() => setCreating(true)} /> : view === "account" ? (
+          {deletionNotice && <Notification tone="info" onDismiss={() => setDeletionNotice('')}>{deletionNotice}</Notification>}
+          {billId ? <BillDetails key={billId} id={billId} /> : newBill ? <NewBillPage key={`${newBill[1]}:${newBill[2] ?? "new"}`} groupId={newBill[1]} draftId={newBill[2]} /> : (billGroupId || view === "groups") ? <GroupWorkspace groups={groups} selectedId={billGroupId ?? undefined} selectedRepaymentId={new URLSearchParams(route.split('?')[1]).get('repayment') ?? undefined} loading={loading} error={error} retry={() => setRevision(value => value + 1)} onCreate={() => setCreating(true)} onDeleted={deletedGroup} /> : view === "account" ? (
             <section className="account-panel">
               <AccountCheck />
             </section>
@@ -178,7 +220,7 @@ export default function PlayApp({
           onCreate={createGroup}
         />
       )}
-      {selectedId && <GroupDetails key={selectedId} id={selectedId} api={api} close={closeGroup} onViewBills={() => { window.location.hash = `/group-bills/${selectedId}`; }} />}
+      {selectedId && <GroupDetails key={selectedId} id={selectedId} api={api} close={closeGroup} onDeleted={deletedGroup} onViewBills={() => { window.location.hash = `/group-bills/${selectedId}`; }} />}
       {invitationToken !== null && <JoinGroup key={invitationToken} token={invitationToken} api={api} close={closeGroup} joined={group => {
         setView('groups');
         goToGroup(group);

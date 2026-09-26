@@ -1,5 +1,12 @@
 // Authenticated invalidation stream. Start the snapshot only after `ready`.
 // Reads are serialized and invalidations during a read trigger another read.
+export const groupDeletedEvent = 'share-tally:group-deleted';
+export type GroupDeleted = { id: string; name?: string };
+
+function announceDeletion(group: GroupDeleted) {
+  window.dispatchEvent(new CustomEvent<GroupDeleted>(groupDeletedEvent, { detail: group }));
+}
+
 export function startGroupSync<T>(options: {
   groupId: string;
   getToken: () => Promise<string | null>;
@@ -10,7 +17,13 @@ export function startGroupSync<T>(options: {
   invalidateRead?: () => void;
 }) {
   let stopped = false;
+  let seenReady = false;
   let attempt = 0;
+  function deleted(name?: string) {
+    if (stopped) return;
+    stopped = true;
+    announceDeletion({ id: options.groupId, name });
+  }
   let active: AbortController | undefined;
   let reconnect: ReturnType<typeof setTimeout> | undefined;
   const stale = 'Live updates interrupted. Displayed data may be out of date.';
@@ -57,7 +70,12 @@ export function startGroupSync<T>(options: {
       const response = await fetch(`/api/groups/${encodeURIComponent(options.groupId)}/events`, {
         headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
       });
-      if ([401, 403, 404].includes(response.status)) options.accessDenied?.(response.status);
+      if (response.status === 404) {
+        if (seenReady) deleted();
+        else { options.accessDenied?.(404); stopped = true; }
+        return;
+      }
+      if ([401, 403].includes(response.status)) options.accessDenied?.(response.status);
       if (!response.ok || !response.body || !response.headers.get('content-type')?.includes('text/event-stream')) {
         throw new Error('Stream unavailable');
       }
@@ -74,6 +92,17 @@ export function startGroupSync<T>(options: {
           while ((end = pending.indexOf('\n\n')) !== -1) {
             const event = pending.slice(0, end);
             pending = pending.slice(end + 2);
+            if (/^event: group-deleted$/m.test(event)) {
+              try {
+                const data = JSON.parse(event.match(/^data: (.*)$/m)?.[1] ?? '');
+                if (data.id === options.groupId && typeof data.name === 'string') {
+                  deleted(data.name);
+                  controller.abort();
+                  break;
+                }
+              } catch { /* Reconnect and check whether the group still exists. */ }
+            }
+            if (/^event: ready$/m.test(event)) seenReady = true;
             if (/^event: changed$/m.test(event)) options.invalidateRead?.();
             if (/^event: (ready|changed)$/m.test(event)) void refresh();
           }

@@ -749,6 +749,17 @@ h1 {
 .invitation-controls h3, .invitation-controls p { margin: 0; }
 .invitation-controls label { display: grid; gap: 8px; font-weight: 600; }
 .invitation-controls input { width: 100%; min-width: 0; box-sizing: border-box; border: 1px solid #c9c9bf; border-radius: 10px; padding: 12px; font: inherit; }
+.group-delete-controls { display: grid; gap: 12px; margin-top: 24px; border-top: 1px solid var(--line); padding-top: 20px; }
+.group-delete-controls h3, .group-delete-controls p { margin: 0; }
+.group-delete-controls > .button { justify-self: start; }
+.group-delete-form { margin-top: 20px; gap: 16px; }
+.group-delete-form label strong { overflow-wrap: anywhere; }
+.group-delete-form .dialog-actions { margin-top: 0; }
+.group-deletion-reasons { margin: 8px 0 0; padding-left: 22px; }
+.group-deletion-reasons > li + li { margin-top: 8px; }
+.group-deletion-reasons ul { margin: 4px 0 0; padding-left: 22px; }
+.button.primary.group-delete-submit { background: #963c31; color: white; border-color: #782d26; box-shadow: 0 3px 0 #782d26; }
+.button.primary.group-delete-submit:hover:not(:disabled) { background: #782d26; box-shadow: 0 4px 0 #66241f; }
 .dialog-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
 .regenerate-confirmation { padding: 14px; background: #fff5e8; border-radius: 12px; }
 .member-row > span { min-width: 0; overflow-wrap: anywhere; }

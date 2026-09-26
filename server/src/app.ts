@@ -13,7 +13,7 @@ import { BillError } from './bills.js';
 import express, { type ErrorRequestHandler, type Request, type RequestHandler } from 'express';
 import { clerkClient, clerkMiddleware, getAuth } from '@clerk/express';
 import { getOrCreateUser } from './users.js';
-import { GroupAccessError } from './groups.js';
+import { GroupAccessError, GroupDeletionError } from './groups.js';
 import { createGroupsRouter } from './group-routes.js';
 import { InvalidGroupIconError } from './group-icon.js';
 
@@ -30,6 +30,7 @@ type Authentication = {
   avatarUrl?: AvatarLookup
   receiptNames?: typeof interpretReceiptNames
   receiptExtractor?: ReceiptExtractor
+  receiptProcessingSettled?: () => void
   displayName?: (clerkUserId: string) => Promise<string>
 };
 
@@ -74,7 +75,7 @@ export function createApp(auth: Authentication = {
     const receipt = /^\/(receipt-drafts\/|groups\/[^/]+\/(receipt-drafts|receipt-preview)|bills\/[^/]+\/(items|claims))/.test(req.path);
     return express.json({ limit: receipt ? '12mb' : '16kb' })(req, res, next);
   });
-  app.use('/api', createReceiptRouter(displayName, auth.receiptExtractor, auth.receiptNames));
+  app.use('/api', createReceiptRouter(displayName, auth.receiptExtractor, auth.receiptNames, auth.receiptProcessingSettled));
   app.get('/api/groups/:groupId/events', async (req, res) => {
     if (!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(req.params.groupId)) {
       res.status(404).json({ error: 'Group not found.' }); return;
@@ -110,7 +111,8 @@ export function createApp(auth: Authentication = {
     }
 
     if (error instanceof GroupAccessError || error instanceof BillError) {
-      res.status(error.status).json({ error: error.message });
+      res.status(error.status).json({ error: error.message,
+        ...(error instanceof GroupDeletionError ? { reasons: error.reasons } : {}) });
       return;
     }
 

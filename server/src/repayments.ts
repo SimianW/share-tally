@@ -1,7 +1,8 @@
+import { requireMember, lockGroupForMember } from './group-access.js';
 import { notifyGroupChanged } from './group-events.js';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, isNull } from 'drizzle-orm';
 import { db } from './db/index.js';
-import { groupMembers, repayments } from './db/schema.js';
+import { groupMembers, groups, repayments } from './db/schema.js';
 import { BillError } from './bill-error.js';
 import { cents, isUuid } from './input-validation.js';
 
@@ -19,14 +20,10 @@ export function parseRepayment(value: unknown) {
   return { requestId: body.requestId.toLowerCase(), recipientId: body.recipientId.toLowerCase(), amountCents };
 }
 
-async function requireMember(tx: Tx, groupId: string, userId: string) {
-  const [member] = await tx.select().from(groupMembers)
-    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)));
-  if (!member) throw new BillError(404, 'Group not found.');
-}
-
 export async function readRepayments(tx: Tx, userId: string, groupId?: string) {
+  if (groupId) await requireMember(tx, groupId, userId);
   return tx.select({ repayment: repayments }).from(repayments)
+    .innerJoin(groups, and(eq(groups.id, repayments.groupId), isNull(groups.deletedAt)))
     .innerJoin(groupMembers, and(eq(groupMembers.groupId, repayments.groupId), eq(groupMembers.userId, userId)))
     .where(groupId ? eq(repayments.groupId, groupId) : undefined)
     .orderBy(desc(repayments.createdAt), repayments.id)
@@ -35,7 +32,7 @@ export async function readRepayments(tx: Tx, userId: string, groupId?: string) {
 
 export async function createRepayment(groupId: string, senderId: string, input: ReturnType<typeof parseRepayment>) {
   const repayment = await db.transaction(async tx => {
-    await requireMember(tx, groupId, senderId);
+    await lockGroupForMember(tx, groupId, senderId);
     if (senderId === input.recipientId) throw new BillError(400, 'Choose another group member.');
     const [recipient] = await tx.select().from(groupMembers).where(and(
       eq(groupMembers.groupId, groupId), eq(groupMembers.userId, input.recipientId),
@@ -58,9 +55,11 @@ export async function createRepayment(groupId: string, senderId: string, input: 
 
 export async function decideRepayment(id: string, userId: string, decision: 'confirmed' | 'rejected') {
   const repayment = await db.transaction(async tx => {
+    const [scope] = await tx.select({ groupId: repayments.groupId }).from(repayments).where(eq(repayments.id, id));
+    if (!scope) throw new BillError(404, 'Repayment not found.');
+    await lockGroupForMember(tx, scope.groupId, userId);
     const [record] = await tx.select().from(repayments).where(eq(repayments.id, id)).for('update');
     if (!record) throw new BillError(404, 'Repayment not found.');
-    await requireMember(tx, record.groupId, userId);
     if (record.recipientId !== userId) throw new BillError(403, 'Only the recipient can decide this repayment.');
     if (record.status === decision) return record;
     if (record.status !== 'pending') throw new BillError(409, `This repayment is already ${record.status}. Refresh to see its current status.`);

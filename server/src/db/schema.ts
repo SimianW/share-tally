@@ -45,6 +45,8 @@ export const groups = pgTable('groups', {
 
   name: text('name').notNull(),
 
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+
   // Null only until a creator first retrieves the invitation.
   invitationToken: text('invitation_token').unique(),
 
@@ -175,6 +177,7 @@ export const receiptDrafts = pgTable('receipt_drafts', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, table => [
   index('receipt_drafts_owner_idx').on(table.initiatorId, table.groupId),
+  index('receipt_drafts_group_idx').on(table.groupId),
   check('receipt_drafts_processing_state', sql`(${table.processingStatus} = 'processing' and ${table.processingStartedAt} is not null and ${table.billId} is null) or (${table.processingStatus} in ('ready', 'fallback') and ${table.processingStartedAt} is null)`),
 ]);
 

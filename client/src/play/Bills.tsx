@@ -69,7 +69,7 @@ function LoadingFinancials({ label }: { label: string }) {
     <div /><div /><div />
   </div>;
 }
-export function GroupBills({ id, selectedRepaymentId }: { id: string; selectedRepaymentId?: string }) {
+export function GroupBills({ id, selectedRepaymentId, onDeleted }: { id: string; selectedRepaymentId?: string; onDeleted: () => void }) {
   const [membersOpen, setMembersOpen] = useState(false);
   const repaymentHistory = useRef<HTMLDivElement>(null);
   const api = useBillApi();
@@ -172,7 +172,7 @@ export function GroupBills({ id, selectedRepaymentId }: { id: string; selectedRe
 
         </>
       )}
-      {membersOpen && <GroupDetails id={id} api={groups} close={closeMembers} />}
+      {membersOpen && <GroupDetails id={id} api={groups} close={closeMembers} onDeleted={onDeleted} />}
     </section>
   );
 }

@@ -11,7 +11,7 @@ export async function readAttention(userId: string) {
       .innerJoin(bills, eq(billShares.billId, bills.id))
       .innerJoin(groups, eq(bills.groupId, groups.id))
       .innerJoin(groupMembers, and(eq(groupMembers.groupId, groups.id), eq(groupMembers.userId, userId)))
-      .where(and(eq(billShares.userId, userId), isNull(billShares.confirmedAt), isNull(bills.completedAt), isNull(bills.canceledAt)))
+      .where(and(isNull(groups.deletedAt), eq(billShares.userId, userId), isNull(billShares.confirmedAt), isNull(bills.completedAt), isNull(bills.canceledAt)))
       .orderBy(asc(bills.createdAt), asc(bills.id));
     const incoming = await tx.select({
       repaymentId: repayments.id, groupId: groups.id, groupName: groups.name,
@@ -20,7 +20,7 @@ export async function readAttention(userId: string) {
       .innerJoin(groups, eq(repayments.groupId, groups.id))
       .innerJoin(users, eq(repayments.senderId, users.id))
       .innerJoin(groupMembers, and(eq(groupMembers.groupId, groups.id), eq(groupMembers.userId, userId)))
-      .where(and(eq(repayments.recipientId, userId), eq(repayments.status, 'pending')))
+      .where(and(isNull(groups.deletedAt), eq(repayments.recipientId, userId), eq(repayments.status, 'pending')))
       .orderBy(asc(repayments.createdAt), asc(repayments.id));
     return [...shares.map(share => ({
       kind: share.amountCents === null ? 'missing-share' as const : 'confirm-share' as const,

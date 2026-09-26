@@ -35,6 +35,7 @@ let holdExtraction = false;
 let releaseExtraction: (() => void) | undefined;
 let holdModel = false;
 let releaseModel: (() => void) | undefined;
+let waitForProcessingSettled = false;
 let modelMode: 'ok' | 'error' | 'invalid' | 'partial' = 'ok';
 process.on('message', message => {
   if (message === 'empty-receipt') { emptyReceipt = true; process.send?.('empty-receipt-ready'); }
@@ -45,6 +46,7 @@ process.on('message', message => {
   if (message === 'normal-confidence-receipt') { lowConfidenceReceipt = false; process.send?.('normal-confidence-receipt-ready'); }
   if (message === 'numeric-legend') { numericLegend = true; process.send?.('numeric-legend-ready'); }
   if (message === 'normal-legend') { numericLegend = false; process.send?.('normal-legend-ready'); }
+  if (message === 'track-processing-settled') { waitForProcessingSettled = true; process.send?.('tracking-processing-settled'); }
   if (message === 'hold-model') { holdModel = true; process.send?.('holding-model'); }
   if (message === 'release-model') { holdModel = false; releaseModel?.(); releaseModel = undefined; }
   if (typeof message === 'string' && message.startsWith('model-mode-')) {
@@ -64,6 +66,11 @@ const app = createApp({
     if (++scans === 1 && !emptyReceipt && !numericLegend && !allocationReceipt && !lowConfidenceReceipt) throw new BillError(502, 'Test extraction unavailable. Your draft is safe.');
     if (allocationReceipt) return { merchant: 'Test shop', currency: 'CAD', total: 3.15, pricesIncludeTax: false, items: ['APPLE', 'SOAP', 'CANDLE'].map(description => ({ description, plainEnglish: null, quantity: '1', amount: 1, discount: null, tax: null, taxable: null })), discountTotal: null, taxTotal: 0.15, otherCharges: null, warnings: [] };
     return { merchant: 'Test shop', currency: 'CAD', total: emptyReceipt ? 0 : 3, pricesIncludeTax: false, items: emptyReceipt ? [] : [{ description: 'APPLE', plainEnglish: null, quantity: '1', amount: 3, discount: null, tax: null, taxable: null, ...(lowConfidenceReceipt ? { evidence: { descriptionConfidence: 0.7 } } : {}) }], discountTotal: null, taxTotal: null, otherCharges: null, warnings: [], ...(numericLegend ? { text: 'A = 0%\nB: 13' } : {}) };
+  },
+  receiptProcessingSettled: () => {
+    if (!waitForProcessingSettled) return;
+    waitForProcessingSettled = false;
+    process.send?.('receipt-processing-settled');
   },
   receiptNames: async (evidence) => {
     if (numericLegend && (!evidence.taxCodeLines.includes('A = 0%') || !evidence.taxCodeLines.includes('B: 13')))
