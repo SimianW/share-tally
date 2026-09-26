@@ -1,7 +1,27 @@
 import { AccessError, cachedRead, useCachedRequest, refreshFinancialQueries } from './query-cache';
+import type { QueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useAuth } from '@clerk/react';
 import type { GroupIcon } from './group-icon';
+
+// Mark before the DELETE request: its SSE event can arrive before the HTTP reply.
+const locallyDeletedGroups = new Set<string>();
+export function deletedLocally(id: string) { return locallyDeletedGroups.has(id); }
+
+export async function evictDeletedGroup(cache: QueryClient, id: string) {
+  const groupPath = `/groups/${id}`;
+  const scoped = { predicate: (query: { queryKey: readonly unknown[] }) => {
+    const path = String(query.queryKey[0]);
+    return path === groupPath || path.startsWith(`${groupPath}/`);
+  } };
+  await cache.cancelQueries(scoped);
+  cache.removeQueries(scoped);
+  await cache.cancelQueries({ queryKey: ['/groups'], exact: true });
+  cache.setQueryData<{ groups: GroupView[] }>(['/groups'], current => current && {
+    groups: current.groups.filter(group => group.id !== id),
+  });
+  await cache.invalidateQueries({ queryKey: ['/summary'], exact: true });
+}
 
 export type GroupDraft = { name: string; icon: GroupIcon };
 export type GroupView = GroupDraft & {
@@ -94,21 +114,16 @@ export function useGroupApi() {
       deletion: (id: string, signal?: AbortSignal) => request<GroupDeletionEligibility>(`/${encodeURIComponent(id)}/deletion`, 'GET', undefined, signal),
       invitation: (id: string, regenerate = false) => request<{ path: string }>(`/${encodeURIComponent(id)}/invitation`, regenerate ? 'POST' : 'GET'),
       join: (token: string) => request<{ group: GroupDetail }>('/join', 'POST', { token }, undefined, rememberGroup),
-      delete: (id: string) => request<{ deleted: true }>(`/${encodeURIComponent(id)}`, 'DELETE', undefined, undefined, async () => {
-        // A successful deletion is authoritative; remove obsolete group data before refetching.
-        const groupPath = `/groups/${id}`;
-        const scoped = { predicate: (query: { queryKey: readonly unknown[] }) => {
-          const path = String(query.queryKey[0]);
-          return path === groupPath || path.startsWith(`${groupPath}/`);
-        } };
-        await cache.cancelQueries(scoped);
-        cache.removeQueries(scoped);
-        await cache.cancelQueries({ queryKey: ['/groups'], exact: true });
-        cache.setQueryData<{ groups: GroupView[] }>(['/groups'], current => current && {
-          groups: current.groups.filter(group => group.id !== id),
-        });
-        await refreshFinancialQueries(cache);
-      }),
+      delete: async (id: string) => {
+        locallyDeletedGroups.add(id);
+        try {
+          return await request<{ deleted: true }>(`/${encodeURIComponent(id)}`, 'DELETE', undefined, undefined,
+            async () => { await evictDeletedGroup(cache, id); });
+        } catch (error) {
+          locallyDeletedGroups.delete(id);
+          throw error;
+        }
+      },
     };
   }, [getToken, cache]);
 }

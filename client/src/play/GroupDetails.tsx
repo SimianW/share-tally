@@ -1,4 +1,6 @@
 import { Notification } from './Notification';
+import { useAuth } from '@clerk/react';
+import { startGroupSync } from './group-sync';
 import { ArrowRight, RefreshCw } from 'lucide-react';
 import { useCached } from './query-cache';
 import { useEffect, useRef, useState } from 'react';
@@ -10,12 +12,20 @@ import { errorMessage, GroupDeletionAccessError, type GroupApi, type GroupDetail
 export function GroupDetails({ id, api, close, onViewBills, onDeleted }: {
   id: string; api: GroupApi; close: () => void; onViewBills?: () => void; onDeleted: () => void;
 }) {
+  const { getToken } = useAuth();
   const query = useCached<{ group: GroupDetail }>(`/groups/${id}`);
   const group = query.data?.group;
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(true);
   const [confirmingDeletion, setConfirmingDeletion] = useState(false);
+  useEffect(() => {
+    // The group details dialog can be open without the group's workspace stream.
+    const sync = startGroupSync({ groupId: id, getToken,
+      read: signal => api.detail(id, signal), apply: () => {}, status: () => {},
+    });
+    return () => sync.stop();
+  }, [api, getToken, id]);
   useEffect(() => {
     const controller = new AbortController();
     api.detail(id, controller.signal).then(() => {

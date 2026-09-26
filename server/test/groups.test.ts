@@ -347,6 +347,55 @@ test('only a creator can delete a cleared group; deletion hides every entry poin
   }), 404);
 });
 
+test('deletion notifies every connected member with its name after commit, then ends their streams', async () => {
+  const group = await create();
+  await inviteMember(group.id);
+  const controllers = [new AbortController(), new AbortController()];
+  const responses = await Promise.all(['alice-token', 'bob-token'].map((token, i) =>
+    fetch(`${baseUrl}/api/groups/${group.id}/events`, {
+      headers: { Authorization: `Bearer ${token}` }, signal: controllers[i]!.signal,
+    })));
+  for (const response of responses) {
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get('content-type') ?? '', /text\/event-stream/);
+  }
+  // Fetch resolves when the ready frame flushes. Reading the whole body waits for EOF.
+  const bodies = responses.map(response => response.text());
+  const ended = bodies.map(() => false);
+  bodies.forEach((body, index) => { void body.then(() => { ended[index] = true; }, () => {}); });
+  try {
+    await pool.query(`CREATE FUNCTION reject_group_delete_event() RETURNS trigger LANGUAGE plpgsql AS $$
+      BEGIN RAISE EXCEPTION 'forced rollback'; END; $$;
+      CREATE TRIGGER reject_group_delete_event AFTER UPDATE OF deleted_at ON groups
+        FOR EACH ROW EXECUTE FUNCTION reject_group_delete_event();`);
+    try {
+      await json(await api(`/groups/${group.id}`, 'alice-token', 'DELETE'), 500);
+      assert.deepEqual(ended, [false, false]);
+      assert.equal((await pool.query('SELECT deleted_at FROM groups WHERE id = $1', [group.id])).rows[0].deleted_at, null);
+    } finally {
+      await pool.query('DROP TRIGGER reject_group_delete_event ON groups; DROP FUNCTION reject_group_delete_event()');
+    }
+
+    await json(await api(`/groups/${group.id}`, 'alice-token', 'DELETE'));
+    assert.ok((await pool.query('SELECT deleted_at FROM groups WHERE id = $1', [group.id])).rows[0].deleted_at);
+    const timeout = AbortSignal.timeout(5_000);
+    const streams = await Promise.race([
+      Promise.all(bodies),
+      new Promise<never>((_, reject) => timeout.addEventListener('abort', () => reject(new Error('Group streams did not end')), { once: true })),
+    ]);
+    for (const stream of streams) {
+      const frames = stream.trim().split('\n\n');
+      assert.deepEqual(frames, [
+        'event: ready\ndata: {}',
+        `event: group-deleted\ndata: ${JSON.stringify({ id: group.id, name: group.name })}`,
+      ]);
+    }
+  } finally {
+    for (const controller of controllers) controller.abort();
+    await Promise.allSettled(bodies);
+  }
+});
+
 test('completed bills and confirmed repayments remain stored after a cleared group is deleted', async () => {
   const group = await create();
   await inviteMember(group.id);

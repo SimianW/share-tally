@@ -15,6 +15,13 @@ export function replaceRoute(destination: string) {
   window.dispatchEvent(new HashChangeEvent('hashchange'));
 }
 
+// A deleted group's unsaved editor cannot be revisited or saved. Do not let its
+// navigation guard keep the user on a now-inaccessible route.
+export function leaveDeletedGroup() {
+  blocker = null;
+  window.location.hash = '';
+}
+
 function subscribe(onChange: () => void) {
   function changed() {
     const destination = window.location.hash;

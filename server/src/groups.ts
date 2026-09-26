@@ -1,5 +1,5 @@
 import { lockGroupForMember } from './group-access.js';
-import { notifyGroupChanged } from './group-events.js';
+import { notifyGroupChanged, notifyGroupDeleted } from './group-events.js';
 import { readBillsInSnapshot } from './bills.js';
 import { readRepayments } from './repayments.js';
 import { groupLedger } from './group-ledger.js';
@@ -205,6 +205,7 @@ async function lockGroupForCreator(tx: Tx, groupId: string, userId: string) {
   const group = await lockGroupForMember(tx, groupId, userId);
   if (group.createdBy !== userId)
     throw new GroupAccessError(403, 'Only the group creator can delete this group.');
+  return group;
 }
 
 export async function groupDeletionEligibility(groupId: string, userId: string) {
@@ -216,8 +217,8 @@ export async function groupDeletionEligibility(groupId: string, userId: string) 
 }
 
 export async function deleteGroup(groupId: string, userId: string) {
-  await db.transaction(async tx => {
-    await lockGroupForCreator(tx, groupId, userId);
+  const name = await db.transaction(async tx => {
+    const group = await lockGroupForCreator(tx, groupId, userId);
     const reasons = await deletionReasons(tx, groupId, userId);
     if (reasons.length) throw new GroupDeletionError(reasons);
 
@@ -233,5 +234,7 @@ export async function deleteGroup(groupId: string, userId: string) {
     }
     await tx.delete(receiptDrafts).where(and(eq(receiptDrafts.groupId, groupId), isNull(receiptDrafts.billId)));
     await tx.update(groups).set({ deletedAt: new Date() }).where(eq(groups.id, groupId));
+    return group.name;
   });
+  notifyGroupDeleted(groupId, name);
 }

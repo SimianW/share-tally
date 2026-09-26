@@ -629,6 +629,10 @@ try {
   await deleteMember.getByRole('button', { name: 'Join group', exact: true }).click();
   await expect(deleteMember.getByRole('dialog')).toContainText('Deletion smoke group');
   await expect(deleteMember.getByRole('button', { name: 'Delete group', exact: true })).toHaveCount(0);
+  // The populated workspace confirms Bob's group stream has delivered its ready snapshot.
+  // It may already be connected behind the members dialog before the click.
+  await deleteMember.getByRole('button', { name: 'View bills and balance' }).click();
+  await expect(deleteMember.locator('#main-content').getByRole('heading', { name: 'Deletion smoke group' })).toBeVisible();
   await deleteOwner.getByRole('button', { name: 'Delete group', exact: true }).click();
   const deleteDialog = deleteOwner.getByRole('dialog', { name: 'Delete Deletion smoke group?' });
   await expect(deleteDialog.getByRole('textbox')).toBeVisible();
@@ -669,7 +673,12 @@ try {
   await deleteButton.click();
   await expect(deleteOwner.getByRole('navigation', { name: 'Groups', exact: true })).toBeVisible();
   await expect(deleteOwner.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: /Deletion smoke group/ })).toHaveCount(0);
-  console.log('Delete group smoke passed: creator-only action, eligibility read, 409 race reasons, exact-name confirmation, deletion navigation, and group-list removal.');
+  await expect(deleteMember).toHaveURL(`${base}#`);
+  await expect(deleteMember.getByRole('heading', { name: 'My groups' })).toBeVisible();
+  await expect(deleteMember.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: /Deletion smoke group/ })).toHaveCount(0);
+  await expect(deleteMember.getByRole('status')).toContainText('Deletion smoke group was deleted by the group creator');
+  await expect(deleteOwner.getByText('Deletion smoke group was deleted by the group creator')).toHaveCount(0);
+  console.log('Delete group smoke passed: creator-only action, eligibility read, 409 race reasons, exact-name confirmation, and live member navigation with a deletion notice.');
   assert.deepEqual(errors, []);
   if (process.env.GROUP_DELETE_ONLY !== '1')
     console.log('Group and bill browser smoke passed: creation, Unicode icon, persistence, sign-in return, membership, invitation permissions, rotation, invalid links, repeat joining, mobile layout, sign-out, bill creation and confirmation, response-loss retries, initiator adjustment, balances, completed-bill finality, stale confirmation, correction, reconfirmation, removal, and cancellation.');
