@@ -619,3 +619,43 @@ test('bill and repayment creation waiting behind deletion cannot create records'
     await pool.query('DROP TRIGGER pause_group_delete ON groups; DROP FUNCTION pause_group_delete()');
   }
 });
+
+test('listed pending actions match the requester’s Home actions across groups and members', async () => {
+  const first = await create();
+  const second = await create();
+  const empty = await create();
+  const invitation = (await json(await api(`/groups/${first.id}/invitation`))).path.split('/').at(-1);
+  await json(await api('/groups/join', 'bob-token', 'POST', { token: invitation }));
+  const ids = await pool.query<{ id: string; display_name: string }>('SELECT id, display_name FROM users');
+  const alice = ids.rows.find(row => row.display_name === 'Alice')!.id;
+  const bob = ids.rows.find(row => row.display_name === 'Bob')!.id;
+  const addShare = async (groupId: string, userId: string, mode: string, amount: number | null) => {
+    const billId = crypto.randomUUID();
+    await pool.query(`INSERT INTO bills (id, group_id, initiator_id, request_id, request_payload, title, purchase_date, total_cents, mode)
+      VALUES ($1, $2, $3, $4, '{}', 'Groceries', '2026-09-01', 1000, $5)`,
+    [billId, groupId, alice, crypto.randomUUID(), mode]);
+    await pool.query('INSERT INTO bill_shares (bill_id, user_id, amount_cents) VALUES ($1, $2, $3)', [billId, userId, amount]);
+  };
+  await addShare(first.id, alice, 'manual', null);
+  await addShare(first.id, bob, 'items', 200);
+  await addShare(second.id, alice, 'items', null);
+  await pool.query(`INSERT INTO repayments (group_id, sender_id, recipient_id, request_id, amount_cents)
+    VALUES ($1, $2, $3, $4, 500), ($1, $3, $2, $5, 250)`,
+  [first.id, bob, alice, crypto.randomUUID(), crypto.randomUUID()]);
+  await pool.query(`INSERT INTO receipt_drafts (id, group_id, initiator_id, data, processing_status, processing_started_at)
+    VALUES ($1, $2, $3, '{"title":"Draft","totalCents":1000}', 'ready', null),
+      ($4, $7, $5, '{"title":"Other"}', 'fallback', null),
+      ($6, $2, $3, '{"title":"Processing"}', 'processing', now())`,
+  [crypto.randomUUID(), second.id, alice, crypto.randomUUID(), bob, crypto.randomUUID(), first.id]);
+  for (const [token, expected] of [
+    ['alice-token', [[first.id, 2], [second.id, 2], [empty.id, 0]]],
+    ['bob-token', [[first.id, 3]]],
+    ['carol-token', []],
+  ] as const) {
+    const listed = (await json(await api('/groups', token))).groups as { id: string; pendingActionCount: number }[];
+    const actions = (await json(await api('/attention', token))).actions as { groupId: string }[];
+    assert.deepEqual(listed.map(group => [group.id, group.pendingActionCount]).sort(), [...expected].sort());
+    for (const group of listed)
+      assert.equal(group.pendingActionCount, actions.filter(action => action.groupId === group.id).length);
+  }
+});

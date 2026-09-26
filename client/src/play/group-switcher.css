@@ -89,6 +89,7 @@
   color: #4d6a31;
 }
 .group-switcher-option-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.group-switcher-count { flex-shrink: 0; font-variant-numeric: tabular-nums; }
 .group-switcher-check { flex-shrink: 0; color: #5d7a3a; }
 .group-switcher [role="option"][aria-selected="true"] { background: #f4f8ec; font-weight: 700; }
 .group-switcher [role="option"][aria-selected="true"] .group-switcher-option-icon { background: #e3eecd; }

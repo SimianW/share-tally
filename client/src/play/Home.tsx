@@ -40,7 +40,7 @@ export function Home({ name, groups, loading, error, revision, retry, notice, on
     {groups?.length === 0 ? <NoGroups onCreate={onCreate} /> : (groups || loading) && <section className="home-groups" aria-labelledby="home-groups-heading">
       <SectionHeading id="home-groups-heading" title="Your groups" count={groups?.length} action="Refresh" onAction={retry} />
       {groups ? <ul className="home-group-list">
-        {groups.map(group => <li key={group.id}><GroupRow group={group} /></li>)}
+        {groups.map(group => <li key={group.id}><GroupRow group={group} count={attention.error ? null : attention.actions?.filter(action => action.groupId === group.id).length ?? group.pendingActionCount} /></li>)}
         <li>
           <button type="button" className="home-group-row home-new-group" onClick={onCreate}>
             <Plus size={18} strokeWidth={2.4} aria-hidden="true" />New group
@@ -53,6 +53,10 @@ export function Home({ name, groups, loading, error, revision, retry, notice, on
 
 function HomeHeading({ name, attention, onCreate }: { name: string; attention: Attention; onCreate: () => void }) {
   const count = attention.actions?.length;
+  // Announce the overall count once, not every group row. While unknown, the
+  // live region is empty and busy rather than repeating the loading skeleton.
+  const announcement = count === undefined ? '' : count === 0 ? "You're all caught up"
+    : `${count} ${count === 1 ? 'thing needs' : 'things need'} you`;
   // Until the actions arrive the state is unknown: never claim the member is caught up.
   // After a failed read, the greeting stands alone and the list explains the error.
   const state = count === undefined
@@ -68,6 +72,7 @@ function HomeHeading({ name, attention, onCreate }: { name: string; attention: A
     <div>
       <div className="eyebrow">YOUR SHARED PURCHASES</div>
       <h1>Hey {name}{state && ','} {state}</h1>
+      <span className="sr-only home-actions-announcement" aria-live="polite" aria-atomic="true" aria-busy={count === undefined}>{announcement}</span>
     </div>
     <Button onClick={onCreate}>
       <Plus size={20} strokeWidth={2} aria-hidden="true" />
@@ -76,7 +81,7 @@ function HomeHeading({ name, attention, onCreate }: { name: string; attention: A
   </header>;
 }
 
-function GroupRow({ group }: { group: ListedGroup }) {
+function GroupRow({ group, count }: { group: ListedGroup; count: number | null }) {
   return <a className="home-group-row" href={`#/group-bills/${group.id}`}>
     <span className="home-group-icon"><GroupIconView icon={group.icon} size={24} /></span>
     <span className="home-group-main">
@@ -91,7 +96,9 @@ function GroupRow({ group }: { group: ListedGroup }) {
     </span>
     <span className="home-group-status">
       <GroupBalance cents={group.netCents} />
-      {/* The group's pending-action count goes here, under the balance. */}
+      {count !== null && <span className={`home-group-pending${count === 0 ? " none" : ""}`}>
+        {count === 0 ? "Nothing to do" : `${count} to do`}
+      </span>}
     </span>
     <ChevronRight className="home-group-chevron" size={20} aria-hidden="true" />
   </a>;

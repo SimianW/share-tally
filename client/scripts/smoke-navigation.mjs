@@ -213,6 +213,7 @@ async function checkGroupSwitcher(page, label) {
   await expect(trigger).toHaveAttribute('aria-controls', await listbox.getAttribute('id'));
   await expect(options).toHaveCount(2);
   await expect(option('Costco friends')).toHaveAttribute('aria-selected', 'true');
+  await expect(options.locator('.group-switcher-count')).toHaveCount(0);
   await expect(option('Apartment')).toHaveAttribute('aria-selected', 'false');
   await expect(option('Costco friends')).toBeFocused();
   await assertNoHorizontalOverflow(page, `${label} group switcher`);

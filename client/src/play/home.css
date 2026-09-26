@@ -102,6 +102,8 @@
 .home-balance.owe { color: var(--warning); }
 .home-balance.settled { color: var(--muted); }
 .home-balance.settled b { font-weight: 800; }
+.home-group-pending { padding: 2px 9px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 12px; font-weight: 800; }
+.home-group-pending.none { padding: 0; background: none; color: var(--muted); font-weight: 600; }
 .home-group-chevron { flex-shrink: 0; color: #9aa18f; transition: transform 0.2s, color 0.2s; }
 
 .home-new-group {

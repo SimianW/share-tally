@@ -12,6 +12,7 @@ import { mkdir } from "node:fs/promises";
 import { chromium, expect } from "@playwright/test";
 import { createServer } from "vite";
 import react from "@vitejs/plugin-react";
+import { openGroupSwitcher, groupSwitcher } from "./smoke-navigation.mjs";
 
 const serverRequire = createRequire(
   new URL("../../server/package.json", import.meta.url),
@@ -221,9 +222,16 @@ try {
   await expect(alice.getByRole("heading", { name: "Check your items" })).toBeVisible();
   await alice.getByRole("button", { name: "Back to group" }).click();
   await expect(alice).toHaveURL(groupRoute);
+  const beforeDraftDelete = await openGroupSwitcher(alice);
+  await expect(beforeDraftDelete.getByRole("option", { name: /Receipt friends.*1 pending action/ })).toBeVisible();
+  await groupSwitcher(alice).click();
   await alice.getByRole("button", { name: `Delete ${retryDrafts[0].data.title || "untitled bill"}`, exact: true }).click();
   await alice.getByRole("button", { name: "Delete draft", exact: true }).click();
   await expect.poll(async () => (await api(`/groups/${group.id}/receipt-drafts`)).drafts.length).toBe(0);
+  const afterDraftDelete = await openGroupSwitcher(alice);
+  await expect(afterDraftDelete.getByRole("option", { name: "Receipt friends", exact: true })).toBeVisible();
+  await expect(afterDraftDelete.locator(".group-switcher-count")).toHaveCount(0);
+  await groupSwitcher(alice).click();
   // Pre-migration browser recovery must preserve an explicitly reduced item tax.
   const reducedTaxId = randomUUID();
   const reducedTaxDraft = (await api(`/groups/${group.id}/receipt-drafts/${reducedTaxId}`, "alice-token", "PUT", {
