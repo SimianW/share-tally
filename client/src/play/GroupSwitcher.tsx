@@ -7,6 +7,15 @@ import './group-switcher.css';
 
 type GroupName = Pick<GroupView, 'id' | 'name' | 'icon'>;
 
+function options(listbox: HTMLElement | null) {
+  return [...(listbox?.querySelectorAll<HTMLElement>('[role="option"]') ?? [])];
+}
+// The current group's option, else the first option, else the button while the list loads.
+function focusCurrent(listbox: HTMLElement | null, trigger: HTMLElement | null) {
+  const items = options(listbox);
+  (items.find(option => option.getAttribute('aria-selected') === 'true') ?? items[0] ?? trigger)?.focus();
+}
+
 // The group page heading. The group's name opens a listbox of the member's groups;
 // choosing one switches to it. Home is reached through the logo, not from here.
 export function GroupSwitcher({ groups, currentId, current, loading, error, retry, focusOnMount, onSelect }: {
@@ -31,14 +40,18 @@ export function GroupSwitcher({ groups, currentId, current, loading, error, retr
     if (focusOnMount) trigger.current?.focus();
   }, [focusOnMount, trigger]);
   useEffect(() => {
-    if (!open) return;
-    const items = options();
-    (items.find(option => option.getAttribute('aria-selected') === 'true') ?? items[0])?.focus();
-  }, [open]);
+    if (open) focusCurrent(listbox.current, trigger.current);
+  }, [open, trigger]);
+  // A successful retry removes the focused Retry button, which drops focus to the
+  // body while the list stays open. Only then, return focus to the list.
+  const retried = useRef(false);
+  useEffect(() => {
+    if (error || !retried.current) return;
+    retried.current = false;
+    const focused = document.activeElement;
+    if (open && (!focused || focused === document.body)) focusCurrent(listbox.current, trigger.current);
+  }, [error, open, trigger]);
 
-  function options() {
-    return [...(listbox.current?.querySelectorAll<HTMLElement>('[role="option"]') ?? [])];
-  }
   function choose(id: string) {
     if (id === currentId) {
       close();
@@ -55,7 +68,7 @@ export function GroupSwitcher({ groups, currentId, current, loading, error, retr
       close();
       return;
     }
-    const items = options();
+    const items = options(listbox.current);
     const focused = document.activeElement as HTMLElement;
     if ((event.key === 'Enter' || event.key === ' ') && items.includes(focused)) {
       event.preventDefault();
@@ -99,7 +112,7 @@ export function GroupSwitcher({ groups, currentId, current, loading, error, retr
       {error && <div className="group-switcher-error" role="alert">
         <CircleAlert size={18} aria-hidden="true" />
         <span>{error}</span>
-        <button type="button" onClick={retry}>Retry groups</button>
+        <button type="button" onClick={() => { retried.current = true; retry(); }}>Retry groups</button>
       </div>}
     </div>}
   </div>;

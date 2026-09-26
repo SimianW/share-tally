@@ -22,16 +22,23 @@ export async function checkGroupRefresh(pageFor, base) {
     await expect(owner).toHaveURL(/#\/group-bills\//);
     await expect(owner.locator('#main-content').getByRole('heading', { name })).toBeVisible();
     // The group list failure shows where it matters: in the group switcher.
-    let switcher = await openGroupSwitcher(owner);
+    const switcher = await openGroupSwitcher(owner);
     await expect(switcher.getByRole('option', { name, exact: true })).toHaveCount(1);
     await expect(owner.locator('.group-switcher').getByRole('alert')).toContainText('Group list temporarily unavailable.');
     await owner.screenshot({ path: new URL('../test-results/group-switcher-error-desktop.png', import.meta.url).pathname, animations: 'disabled' });
     await owner.unroute('**/api/groups');
     await owner.getByRole('button', { name: 'Retry groups', exact: true }).click();
     await expect(owner.locator('.group-switcher').getByRole('alert')).toHaveCount(0);
-    switcher = await openGroupSwitcher(owner);
+    // Removing the focused Retry button must not strand focus on the body: the list
+    // stays open with its current group focused, and its keys still work.
+    await expect(switcher).toBeVisible();
     await expect(switcher.getByRole('option', { name, exact: true })).toHaveCount(1);
+    await expect(switcher.getByRole('option', { name, exact: true })).toBeFocused();
+    await owner.keyboard.press('ArrowDown');
+    await expect(switcher.getByRole('option', { name, exact: true })).toBeFocused();
     await owner.keyboard.press('Escape');
+    await expect(switcher).toHaveCount(0);
+    await expect(owner.locator('#main-content').getByRole('heading', { level: 2 }).getByRole('button')).toBeFocused();
 
     await joiner.goto(base);
     await expect(joiner.getByText('Start with a group for your next shared purchase.')).toBeVisible();
