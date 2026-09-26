@@ -1,3 +1,4 @@
+import { readAttentionInSnapshot } from './attention.js';
 import { withoutEvidence } from './receipt-drafts.js';
 import { lockGroupForMember } from './group-access.js';
 import { notifyGroupChanged, notifyGroupDeleted } from './group-events.js';
@@ -71,6 +72,7 @@ export async function createGroup(
     return {
       ...toGroup({ ...group, joinedAt: membership!.joinedAt, creatorName, memberCount: 1 }, creatorId),
       netCents: 0,
+      pendingActionCount: 0,
       memberPreview: [{ id: creatorId, displayName: creatorName }],
     }
   })
@@ -111,6 +113,9 @@ export async function listGroupsForUser(userId: string) {
       .orderBy(groupMembers.joinedAt, groups.id);
     const ids = rows.map(row => row.id);
     const balances = await readMemberBalancesInSnapshot(tx, userId, ids);
+    const actions = ids.length ? await readAttentionInSnapshot(tx, userId) : [];
+    const pendingByGroup = new Map<string, number>();
+    for (const action of actions) pendingByGroup.set(action.groupId, (pendingByGroup.get(action.groupId) ?? 0) + 1);
     const members = ids.length ? await tx.select({
       groupId: groupMembers.groupId,
       id: users.id,
@@ -120,6 +125,7 @@ export async function listGroupsForUser(userId: string) {
     return rows.map(row => ({
       ...toGroup(row, userId),
       netCents: balances.get(row.id)!,
+      pendingActionCount: pendingByGroup.get(row.id) ?? 0,
       memberPreview: members.filter(member => member.groupId === row.id).slice(0, previewSize)
         .map(({ id, displayName }) => ({ id, displayName })),
     }));

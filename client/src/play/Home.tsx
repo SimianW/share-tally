@@ -40,7 +40,7 @@ export function Home({ name, groups, loading, error, revision, retry, notice, on
     {groups?.length === 0 ? <NoGroups onCreate={onCreate} /> : (groups || loading) && <section className="home-groups" aria-labelledby="home-groups-heading">
       <SectionHeading id="home-groups-heading" title="Your groups" count={groups?.length} action="Refresh" onAction={retry} />
       {groups ? <ul className="home-group-list">
-        {groups.map(group => <li key={group.id}><GroupRow group={group} /></li>)}
+        {groups.map(group => <li key={group.id}><GroupRow group={group} count={attention.actions?.filter(action => action.groupId === group.id).length ?? group.pendingActionCount} /></li>)}
         <li>
           <button type="button" className="home-group-row home-new-group" onClick={onCreate}>
             <Plus size={18} strokeWidth={2.4} aria-hidden="true" />New group
@@ -76,7 +76,7 @@ function HomeHeading({ name, attention, onCreate }: { name: string; attention: A
   </header>;
 }
 
-function GroupRow({ group }: { group: ListedGroup }) {
+function GroupRow({ group, count }: { group: ListedGroup; count: number | null }) {
   return <a className="home-group-row" href={`#/group-bills/${group.id}`}>
     <span className="home-group-icon"><GroupIconView icon={group.icon} size={24} /></span>
     <span className="home-group-main">
@@ -91,7 +91,9 @@ function GroupRow({ group }: { group: ListedGroup }) {
     </span>
     <span className="home-group-status">
       <GroupBalance cents={group.netCents} />
-      {/* The group's pending-action count goes here, under the balance. */}
+      {count !== null && <span className={`home-group-pending${count === 0 ? " none" : ""}`}>
+        {count === 0 ? "Nothing to do" : `${count} to do`}
+      </span>}
     </span>
     <ChevronRight className="home-group-chevron" size={20} aria-hidden="true" />
   </a>;

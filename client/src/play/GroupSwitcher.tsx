@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, type KeyboardEvent } from 'react';
 import { Check, ChevronDown, CircleAlert } from 'lucide-react';
-import type { GroupView } from './group-api';
+import type { GroupView, ListedGroup } from './group-api';
 import { GroupIconView } from './GroupIconView';
 import { keyTarget, usePopup } from './popup';
 import './group-switcher.css';
@@ -19,7 +19,7 @@ function focusCurrent(listbox: HTMLElement | null, trigger: HTMLElement | null) 
 // The group page heading. The group's name opens a listbox of the member's groups;
 // choosing one switches to it. Home is reached through the logo, not from here.
 export function GroupSwitcher({ groups, currentId, current, loading, error, retry, focusOnMount, onSelect }: {
-  groups: GroupName[];
+  groups: ListedGroup[];
   currentId: string;
   // The group page's own copy, which can arrive before or without the group list.
   current?: GroupName;
@@ -103,7 +103,7 @@ export function GroupSwitcher({ groups, currentId, current, loading, error, retr
             onClick={() => choose(group.id)}>
             <span className="group-switcher-option-icon"><GroupIconView icon={group.icon} size={20} /></span>
             <span className="group-switcher-option-name">{group.name}</span>
-            {/* Per-group status, such as a pending-action count, goes between the name and the check. */}
+            {!!group.pendingActionCount && <span className="group-switcher-count count" aria-label={`${group.pendingActionCount} pending ${group.pendingActionCount === 1 ? "action" : "actions"}`}>{group.pendingActionCount}</span>}
             {selected && <Check className="group-switcher-check" size={18} strokeWidth={2.5} aria-hidden="true" />}
           </li>;
         })}

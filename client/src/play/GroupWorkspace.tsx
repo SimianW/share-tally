@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import type { GroupView } from './group-api';
+import type { ListedGroup } from './group-api';
 import { GroupBills } from './Bills';
 import { GroupSwitcher } from './GroupSwitcher';
 import './group-workspace.css';
 
 // The group page takes the full width; other groups are one heading dropdown away.
 export default function GroupWorkspace({ groups, selectedId, selectedRepaymentId, loading, error, retry, onDeleted }: {
-  groups: GroupView[];
+  groups: ListedGroup[];
   selectedId: string;
   selectedRepaymentId?: string;
   loading: boolean;

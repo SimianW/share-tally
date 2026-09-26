@@ -39,7 +39,7 @@ export type MemberPreview = { id: string; displayName: string; imageUrl: string 
 // A group in the member's list, ordered by when they joined it. netCents is their
 // own balance there, the same number as the group page; it is null only for a
 // group joined here whose list entry has not been read back yet.
-export type ListedGroup = GroupView & { netCents: number | null; memberPreview: MemberPreview[] };
+export type ListedGroup = GroupView & { netCents: number | null; pendingActionCount: number | null; memberPreview: MemberPreview[] };
 export type GroupDetail = GroupView & {
   members: { id: string; displayName: string; imageUrl?: string | null; fallbackImageUrl?: string | null; joinedAt: string; isCreator: boolean; isCurrentUser: boolean }[];
 };
@@ -146,6 +146,7 @@ function asListed(group: ListedGroup | GroupDetail, listed?: ListedGroup): Liste
   return {
     ...view,
     netCents: listed?.netCents ?? null,
+    pendingActionCount: listed?.pendingActionCount ?? null,
     memberPreview: listed?.memberPreview ?? members.slice(0, 4).map(member => ({
       id: member.id, displayName: member.displayName,
       imageUrl: member.imageUrl ?? null, fallbackImageUrl: member.fallbackImageUrl ?? null,
