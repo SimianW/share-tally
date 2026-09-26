@@ -1,0 +1,80 @@
+/* PROTOTYPE ONLY (#94): palette switcher and specimen. Tokens only. */
+.prototype-switcher {
+  position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 1000;
+  display: flex; align-items: center; gap: 10px; max-width: calc(100vw - 16px);
+  padding: 8px 12px; border-radius: 999px; white-space: nowrap;
+  background: var(--ink); color: var(--ink-inverse);
+  font: 500 13px var(--font-body); box-shadow: 0 6px 24px color-mix(in srgb, var(--shadow-color) 40%, transparent);
+}
+.prototype-switcher span { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.prototype-switcher button { width: 28px; height: 28px; border: 0; border-radius: 999px; background: color-mix(in srgb, var(--ink-inverse) 18%, transparent); color: inherit; cursor: pointer; }
+.prototype-switcher a { color: inherit; font-weight: 700; }
+html[data-hide-switcher] .prototype-switcher { display: none; }
+
+.specimen { max-width: 1180px; margin: 0 auto; padding: 32px 24px 96px; }
+.specimen-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 24px; border-bottom: 1px solid var(--line); }
+.specimen-header > div { display: grid; justify-items: end; }
+.specimen-header strong { font: 800 22px var(--font-heading); }
+.specimen-header small, .specimen-muted { color: var(--ink-muted); }
+.specimen-hero { display: flex; align-items: end; justify-content: space-between; gap: 24px; padding: 32px 0; }
+.specimen-hero h1 { margin: 6px 0 8px; font-size: clamp(30px, 5vw, 44px); }
+.specimen-hero mark { background: linear-gradient(transparent 56%, var(--accent-mark) 56%, var(--accent-mark) 94%, transparent 94%); color: inherit; }
+.specimen-hero p { max-width: 560px; margin: 0; color: var(--ink-secondary); font-size: 15px; }
+.specimen-hero a, .specimen a { color: var(--accent-ink); font-weight: 600; }
+.specimen-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+.specimen-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; }
+.specimen-card { min-width: 0; padding: 24px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.specimen-card h2 { margin: 0 0 14px; font: 800 20px var(--font-heading); }
+
+.specimen-dashboard .specimen-balance { margin: 6px 0 14px; font: 700 18px var(--font-heading); }
+.specimen-balance b { display: block; font-size: 40px; line-height: 1.1; }
+.specimen-balance.owed b { color: var(--money-owed); }
+.specimen-dashboard ul, .specimen-bills { display: grid; gap: 0; margin: 0 0 12px; padding: 0; list-style: none; }
+.specimen-dashboard li { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.specimen-dashboard li .button { padding: 7px 12px; font-size: 13px; }
+.money.owed { color: var(--money-owed); }
+.money.owe { color: var(--money-owe); }
+.money.pending { color: var(--money-pending); font-weight: 600; }
+
+.specimen-bills li { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+.specimen-bills li > div:nth-child(2) { display: grid; min-width: 0; }
+.specimen-bills small { color: var(--ink-muted); }
+.specimen-bill-end { display: grid; justify-items: end; gap: 4px; }
+.specimen-badge { padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.specimen-badge.mine { background: var(--action); color: var(--ink-on-action); }
+.specimen-badge.waiting { background: var(--surface-sunken); color: var(--ink-secondary); border: 1px solid var(--line); }
+
+.specimen-highlight { background: var(--surface-highlight); border-color: color-mix(in srgb, var(--surface-highlight) 60%, var(--ink-secondary)); }
+.specimen-highlight p { margin: 12px 0 0; font: 700 18px var(--font-heading); }
+.specimen-highlight strong { display: block; font: 900 64px/1.05 var(--font-heading); letter-spacing: -2px; }
+
+.specimen-notices { display: grid; gap: 10px; align-content: start; }
+
+.specimen-chips, .specimen-avatars { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 16px; }
+.money-chip { padding: 5px 11px; border-radius: 999px; font-weight: 700; font-size: 13px; }
+.money-chip.owed { background: var(--money-owed-bg); color: var(--money-owed); }
+.money-chip.owe { background: var(--money-owe-bg); color: var(--money-owe); }
+.money-chip.pending { background: var(--surface-sunken); color: var(--money-pending); }
+.money-chip.settled { background: var(--surface-soft); color: var(--ink-secondary); }
+.specimen-avatars .avatar { background: var(--avatar-color); }
+.specimen-group-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--surface-selected); font-size: 20px; }
+.specimen-todo { padding: 3px 10px; border-radius: 999px; background: var(--action); color: var(--ink-on-action); font-size: 12px; font-weight: 700; }
+.specimen-field { display: grid; gap: 6px; margin-bottom: 16px; font-weight: 600; }
+.specimen-field input { padding: 11px 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); color: var(--ink); font: inherit; outline: 3px solid var(--focus); outline-offset: 2px; }
+.specimen-danger { padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--status-danger); font: 700 13px var(--font-body); }
+
+.specimen-type-lg { margin: 0 0 6px; font: 900 34px var(--font-heading); letter-spacing: -1px; }
+.specimen-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; margin-top: 14px; }
+.specimen-swatches span { display: grid; gap: 4px; font-size: 11px; color: var(--ink-secondary); }
+.specimen-swatches i { height: 38px; border: 1px solid var(--line); border-radius: 10px; }
+
+@media (max-width: 640px) {
+  .specimen { padding: 20px 16px 96px; }
+  .specimen-hero { flex-direction: column; align-items: start; }
+  .specimen-header > div { justify-items: start; }
+  .specimen-header { flex-direction: column; align-items: start; }
+  .specimen-grid { grid-template-columns: 1fr; }
+  .specimen-dashboard li { grid-template-columns: auto 1fr auto; }
+  .specimen-dashboard li > :last-child { grid-column: 2 / -1; justify-self: start; }
+}
