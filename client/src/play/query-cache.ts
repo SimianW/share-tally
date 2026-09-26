@@ -22,7 +22,7 @@ export async function refreshFinancialQueries(client: QueryClient) {
   // Cancel obsolete reads before allowing a new server snapshot to populate the cache.
   const filters = { predicate: (query: { queryKey: readonly unknown[] }) => {
     const path = String(query.queryKey[0]);
-    return path === '/summary' || path === '/groups' || path.startsWith('/groups/');
+    return path === '/groups' || path.startsWith('/groups/');
   } };
   await client.cancelQueries(filters);
   await client.invalidateQueries({ ...filters, refetchType: 'none' });
@@ -40,7 +40,7 @@ export function hideProtectedQueries(client: QueryClient, path: string, error: E
   if (!all && knownGroup) client.setQueryData(['/groups'], { groups: listing!.groups.filter(item => item.id !== group) });
   const affected = client.getQueryCache().findAll().filter(query => {
     const key = String(query.queryKey[0]);
-    return all || key === path || (knownGroup && key === '/summary') || (group && (key === `/groups/${group}` || key.startsWith(`/groups/${group}/`)));
+    return all || key === path || (group && (key === `/groups/${group}` || key.startsWith(`/groups/${group}/`)));
   });
   for (const query of affected) {
     void client.cancelQueries({ queryKey: query.queryKey, exact: true }, { revert: false });

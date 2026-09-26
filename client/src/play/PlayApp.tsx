@@ -1,8 +1,8 @@
 import { Notification } from './Notification';
 import { useCached, useCachedRequest } from './query-cache';
 import { groupDeletedEvent, type GroupDeleted } from './group-sync';
-import { AttentionList } from './AttentionList';
-import { BillDetails, OverviewBalance } from './Bills';
+import { BillDetails } from './Bills';
+import { Home } from './Home';
 import GroupWorkspace from './GroupWorkspace';
 import { NewBillPage } from './ReceiptDraft';
 import { useRoute, leaveDeletedGroup, routeBelongsToDeletedGroup } from './route';
@@ -10,17 +10,9 @@ import { useEffect, useRef, useState } from "react";
 import AccountCheck from "../AccountCheck";
 import { TopBar, type SignedInAccount } from './TopBar';
 import { GroupDetails, JoinGroup } from './GroupDetails';
-import { useGroupApi, errorMessage, evictDeletedGroup, deletedLocally, type GroupDetail, type GroupDraft, type GroupView } from './group-api';
-import {
-  CreateGroupDialog,
-  GroupList,
-} from "./Groups";
-import {
-  Button,
-  Icon,
-  Logo,
-  SectionHeading,
-} from "./ui";
+import { useGroupApi, errorMessage, evictDeletedGroup, deletedLocally, type GroupDetail, type GroupDraft, type GroupView, type ListedGroup } from './group-api';
+import { CreateGroupDialog } from "./Groups";
+import { Logo } from "./ui";
 import "./play.css";
 
 // Home is the only top-level page; every other route belongs to a group or the account.
@@ -46,7 +38,7 @@ export default function PlayApp({
       const { id, name } = (event as CustomEvent<GroupDeleted>).detail;
       if (handledDeletions.current.has(id) || deletedLocally(id)) return;
       const detail = cache.getQueryData<{ group: GroupDetail }>([`/groups/${id}`])?.group;
-      const listed = cache.getQueryData<{ groups: GroupView[] }>(['/groups'])?.groups.find(group => group.id === id)
+      const listed = cache.getQueryData<{ groups: ListedGroup[] }>(['/groups'])?.groups.find(group => group.id === id)
         ?? knownGroups.current.get(id);
       // A 404 for an unknown/unauthorized ID is not evidence of a deleted membership.
       if (!name && !detail && !listed) return;
@@ -73,7 +65,7 @@ export default function PlayApp({
   const billGroupId = route.startsWith('#/group-bills/') ? route.slice('#/group-bills/'.length).split('?')[0] : null;
   const invitationToken = route.startsWith('#/join/') ? route.slice('#/join/'.length) : null;
   const accountPage = route === '#/account';
-  const groupQuery = useCached<{ groups: GroupView[] }>('/groups');
+  const groupQuery = useCached<{ groups: ListedGroup[] }>('/groups');
   useEffect(() => {
     for (const group of groupQuery.data?.groups ?? []) knownGroups.current.set(group.id, group);
   }, [groupQuery.data]);
@@ -90,6 +82,9 @@ export default function PlayApp({
     void api.list().catch(() => {});
   }, [api, revision]);
 
+  const home = !billId && !newBill && !groupPageId && !accountPage;
+  const notice = deletionNotice && <Notification tone="info" onDismiss={() => setDeletionNotice('')}>{deletionNotice}</Notification>;
+
   async function createGroup(draft: GroupDraft) {
     const { group } = await api.create(draft);
     setCreating(false);
@@ -103,51 +98,22 @@ export default function PlayApp({
       </a>
       <TopBar account={account} openAccount={openAccount} />
       <main className="main-content" id="main-content" tabIndex={-1}>
-        {!billId && !newBill && !groupPageId && <header className="page-header">
+        {accountPage && <header className="page-header">
           <div>
             <div className="eyebrow">YOUR SHARED PURCHASES</div>
-            <h1>
-              {accountPage ? "Account" : (
-                <>
-                  Hey {displayName}, <span>all good?</span>
-                  <Icon name="spark" />
-                </>
-              )}
-            </h1>
-            <p>
-              {accountPage
-                ? "Your signed-in ShareTally account."
-                : "Good people. Shared plans. Everything in one place."}
-            </p>
+            <h1>Account</h1>
+            <p>Your signed-in ShareTally account.</p>
           </div>
-          {!accountPage && (
-            <Button onClick={() => setCreating(true)}>
-              <Icon name="plus" />
-              New group
-            </Button>
-          )}
         </header>}
-        {deletionNotice && <Notification tone="info" onDismiss={() => setDeletionNotice('')}>{deletionNotice}</Notification>}
+        {!home && notice}
         {billId ? <BillDetails key={billId} id={billId} /> : newBill ? <NewBillPage key={`${newBill[1]}:${newBill[2] ?? "new"}`} groupId={newBill[1]} draftId={newBill[2]} /> : groupPageId ? <GroupWorkspace groups={groups} selectedId={groupPageId} selectedRepaymentId={new URLSearchParams(route.split('?')[1]).get('repayment') ?? undefined} loading={loading} error={error} retry={() => setRevision(value => value + 1)} onDeleted={goHome} /> : accountPage ? (
           <section className="account-panel">
             <AccountCheck />
           </section>
         ) : (
-          <section>
-            <OverviewBalance revision={`${route}:${revision}`} />
-            <AttentionList revision={`${route}:${revision}`} />
-            {loading && <p role="status">Loading groups…</p>}
-            {error && <Notification>
-              <p>{error}</p>
-              <Button onClick={() => { setRevision(value => value + 1); }} disabled={loading}>Try again</Button>
-            </Notification>}
-            <SectionHeading title="Your people" count={groups.length} action="Refresh" onAction={() => { setRevision(value => value + 1); }} />
-            {!loading && groupQuery.data && <GroupList
-              groups={groups}
-              onCreate={() => setCreating(true)}
-              onOpen={group => openGroupPage(group.id)}
-            />}
-          </section>
+          <Home name={displayName} groups={groupQuery.data?.groups} loading={loading} error={error}
+            revision={revision} retry={() => setRevision(value => value + 1)} notice={notice}
+            onCreate={() => setCreating(true)} />
         )}
         <footer className="page-footer">
           <Logo compact />
