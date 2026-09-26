@@ -40,7 +40,7 @@ export function Home({ name, groups, loading, error, revision, retry, notice, on
     {groups?.length === 0 ? <NoGroups onCreate={onCreate} /> : (groups || loading) && <section className="home-groups" aria-labelledby="home-groups-heading">
       <SectionHeading id="home-groups-heading" title="Your groups" count={groups?.length} action="Refresh" onAction={retry} />
       {groups ? <ul className="home-group-list">
-        {groups.map(group => <li key={group.id}><GroupRow group={group} count={attention.actions?.filter(action => action.groupId === group.id).length ?? group.pendingActionCount} /></li>)}
+        {groups.map(group => <li key={group.id}><GroupRow group={group} count={attention.error ? null : attention.actions?.filter(action => action.groupId === group.id).length ?? group.pendingActionCount} /></li>)}
         <li>
           <button type="button" className="home-group-row home-new-group" onClick={onCreate}>
             <Plus size={18} strokeWidth={2.4} aria-hidden="true" />New group

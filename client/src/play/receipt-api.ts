@@ -164,7 +164,9 @@ export function useReceiptApi() {
         );
       }
       const result = await response.json();
-      if (method !== "GET" && /\/(initialize|claims|items)$/.test(path))
+      // Draft saves/deletes, photo processing and extraction change the Home
+      // attention set as well as bill mutations. Price previews are read-only POSTs.
+      if (method !== "GET" && !path.endsWith("/prices"))
         await refreshFinancialQueries(cache);
       return result;
     }

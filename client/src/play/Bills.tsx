@@ -76,7 +76,12 @@ export function GroupBills({ id, selectedRepaymentId, onDeleted, title }: {
         const [bills, group] = await Promise.all([api.list(id, signal), groups.detail(id, signal)]);
         return { ...bills, ...group };
       },
-      apply: () => {},
+      apply: () => {
+        // Ready/changed events also cover another member's actions and receipt
+        // processing finishing after the original upload response.
+        void cache.cancelQueries({ queryKey: ['/groups'], exact: true })
+          .then(() => groups.list()).catch(() => {});
+      },
       status: setError,
     });
     return () => sync.stop();

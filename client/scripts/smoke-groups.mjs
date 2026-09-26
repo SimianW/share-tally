@@ -646,6 +646,7 @@ try {
   await alice.route('**/api/attention', route => route.fulfill({ status: 503, json: { error: 'Temporarily unavailable' } }));
   await attention.getByRole('button', { name: 'Refresh actions' }).click();
   await expect(attention.getByRole('alert')).toContainText('Could not load your actions');
+  await expect(homeRow(alice, 'Costco friends').locator('.home-group-pending')).toHaveCount(0);
   await expect(incomingLink).toHaveCount(0);
   // Unknown actions never read as caught up.
   await expect(aliceHeading).toHaveText('Hey Alice');
