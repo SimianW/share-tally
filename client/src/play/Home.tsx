@@ -53,6 +53,10 @@ export function Home({ name, groups, loading, error, revision, retry, notice, on
 
 function HomeHeading({ name, attention, onCreate }: { name: string; attention: Attention; onCreate: () => void }) {
   const count = attention.actions?.length;
+  // Announce the overall count once, not every group row. While unknown, the
+  // live region is empty and busy rather than repeating the loading skeleton.
+  const announcement = count === undefined ? '' : count === 0 ? "You're all caught up"
+    : `${count} ${count === 1 ? 'thing needs' : 'things need'} you`;
   // Until the actions arrive the state is unknown: never claim the member is caught up.
   // After a failed read, the greeting stands alone and the list explains the error.
   const state = count === undefined
@@ -68,6 +72,7 @@ function HomeHeading({ name, attention, onCreate }: { name: string; attention: A
     <div>
       <div className="eyebrow">YOUR SHARED PURCHASES</div>
       <h1>Hey {name}{state && ','} {state}</h1>
+      <span className="sr-only home-actions-announcement" aria-live="polite" aria-atomic="true" aria-busy={count === undefined}>{announcement}</span>
     </div>
     <Button onClick={onCreate}>
       <Plus size={20} strokeWidth={2} aria-hidden="true" />

@@ -103,7 +103,9 @@ export function GroupSwitcher({ groups, currentId, current, loading, error, retr
             onClick={() => choose(group.id)}>
             <span className="group-switcher-option-icon"><GroupIconView icon={group.icon} size={20} /></span>
             <span className="group-switcher-option-name">{group.name}</span>
-            {!!group.pendingActionCount && <span className="group-switcher-count count" aria-label={`${group.pendingActionCount} pending ${group.pendingActionCount === 1 ? "action" : "actions"}`}>{group.pendingActionCount}</span>}
+            {!!group.pendingActionCount && <span className="group-switcher-count count">
+              {group.pendingActionCount}<span className="sr-only"> pending {group.pendingActionCount === 1 ? 'action' : 'actions'}</span>
+            </span>}
             {selected && <Check className="group-switcher-check" size={18} strokeWidth={2.5} aria-hidden="true" />}
           </li>;
         })}

@@ -251,7 +251,9 @@ try {
   await bob.setViewportSize({ width: 390, height: 844 });
   await homeRow(bob, 'Costco friends').click();
   const pendingOptions = await openGroupSwitcher(bob);
-  await expect(pendingOptions.getByRole('option', { name: /Costco friends.*1 pending action/ }).locator('.group-switcher-count')).toHaveText('1');
+  const singularBadge = pendingOptions.getByRole('option', { name: /Costco friends.*1 pending action/ }).locator('.group-switcher-count');
+  await expect(singularBadge).toHaveText('1 pending action');
+  await expect(singularBadge).not.toHaveAttribute('aria-label', /pending action/);
   assert.equal(await bob.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'Pending dropdown overflows at 390px');
   await bob.screenshot({ path: `${clientRoot}/test-results/group-switcher-pending-mobile.png`, animations: 'disabled' });
   await bob.setViewportSize({ width: 1280, height: 900 });
@@ -618,6 +620,7 @@ try {
   await expect(incomingLink).toContainText('$3.21');
   const aliceHeading = alice.getByRole('heading', { level: 1 });
   await expect(aliceHeading).toHaveText('Hey Alice, 1 thing needs you');
+  await expect(alice.locator('.home-actions-announcement')).toHaveText('1 thing needs you');
   await expect(attention.locator('.attention-list > li')).toHaveCount(1);
   await expect(homeRow(alice, 'Costco friends')).toContainText('1 to do');
   await checkHomeLayout(alice, 'busy');
@@ -627,13 +630,18 @@ try {
   await alice.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(attention.locator('.attention-list > li')).toHaveCount(2);
   await expect(homeRow(alice, 'Costco friends')).toContainText('2 to do');
+  await expect(alice.locator('.home-actions-announcement')).toHaveText('2 things need you');
   await homeRow(alice, 'Costco friends').click();
   const twoActions = await openGroupSwitcher(alice);
-  await expect(twoActions.getByRole('option', { name: /Costco friends.*2 pending actions/ }).locator('.group-switcher-count')).toHaveText('2');
+  const pluralBadge = twoActions.getByRole('option', { name: /Costco friends.*2 pending actions/ }).locator('.group-switcher-count');
+  await expect(pluralBadge).toHaveText('2 pending actions');
+  await expect(pluralBadge).not.toHaveAttribute('aria-label', /pending actions/);
+  await expect(alice.locator('.home-actions-announcement')).toHaveCount(0);
   await liveApi(`/repayments/${secondIncoming.id}/decision`, 'alice-token', 'POST', { decision: 'rejected' });
   await alice.goto(base);
   await expect(attention.locator('.attention-list > li')).toHaveCount(1);
   await expect(homeRow(alice, 'Costco friends')).toContainText('1 to do');
+  await expect(alice.locator('.home-actions-announcement')).toHaveText('1 thing needs you');
   const incomingHref = await incomingLink.getAttribute('href');
   await alice.route('**/api/attention', route => route.fulfill({ status: 503, json: { error: 'Temporarily unavailable' } }));
   await attention.getByRole('button', { name: 'Refresh actions' }).click();
@@ -654,6 +662,8 @@ try {
   await alice.getByRole('link', { name: 'ShareTally home', exact: true }).click();
   await expect(aliceHeading.getByRole('status')).toBeVisible();
   await expect(aliceHeading).toHaveText('Hey Alice, checking what needs you');
+  await expect(alice.locator('.home-actions-announcement')).toBeEmpty();
+  await expect(alice.locator('.home-actions-announcement')).toHaveAttribute('aria-busy', 'true');
   await expect(attention.getByRole('status', { name: 'Checking your actions' })).toBeVisible();
   releaseAttention();
   await alice.unroute('**/api/attention');
