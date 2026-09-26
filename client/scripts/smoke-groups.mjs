@@ -623,7 +623,11 @@ try {
   await alice.getByRole('button', { name: 'Account menu', exact: true }).click();
   await alice.getByRole('menuitem', { name: 'Sign out', exact: true }).click();
   await expect(alice.getByRole('region', { name: 'Needs your attention' })).toHaveCount(0);
+  const signedInBobAttention = alice.waitForResponse(response =>
+    new URL(response.url()).pathname === '/api/attention' && response.ok());
   await alice.getByRole('button', { name: 'Sign in', exact: true }).click(); // Bob in the test boundary.
+  await expect(alice.getByRole('heading', { name: /Hey Bob/ })).toBeVisible();
+  await signedInBobAttention;
   await expect(alice.getByRole('region', { name: 'Needs your attention' })).toHaveCount(0);
   console.log('Attention smoke passed: mobile missing shares, reconfirmation links, refresh recovery, receipt decisions, stale links, and account isolation.');
   }
