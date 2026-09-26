@@ -15,7 +15,7 @@ function balanceLabel(summary: Summary | null | undefined) {
   return `${summary.netCents < 0 ? 'You owe' : 'You are owed'} ${money(Math.abs(summary.netCents))}`;
 }
 
-export default function GroupWorkspace({ groups, selectedId, selectedRepaymentId, loading, error, retry, onCreate }: {
+export default function GroupWorkspace({ groups, selectedId, selectedRepaymentId, loading, error, retry, onCreate, onDeleted }: {
   groups: GroupView[];
   selectedId?: string;
   selectedRepaymentId?: string;
@@ -23,6 +23,7 @@ export default function GroupWorkspace({ groups, selectedId, selectedRepaymentId
   error: string;
   retry: () => void;
   onCreate: () => void;
+  onDeleted: () => void;
 }) {
   const activeId = selectedId ?? groups[0]?.id;
   if (!activeId && !loading && !error) {
@@ -40,7 +41,7 @@ export default function GroupWorkspace({ groups, selectedId, selectedRepaymentId
       {groups.map(group => <GroupLink key={group.id} group={group} active={group.id === activeId} />)}
     </nav>
     <div className="workspace-content">
-      {activeId && <GroupBills key={activeId} id={activeId} selectedRepaymentId={selectedRepaymentId} />}
+      {activeId && <GroupBills key={activeId} id={activeId} selectedRepaymentId={selectedRepaymentId} onDeleted={onDeleted} />}
     </div>
   </div>;
 }

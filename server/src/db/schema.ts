@@ -45,6 +45,8 @@ export const groups = pgTable('groups', {
 
   name: text('name').notNull(),
 
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+
   // Null only until a creator first retrieves the invitation.
   invitationToken: text('invitation_token').unique(),
 

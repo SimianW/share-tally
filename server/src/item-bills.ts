@@ -1,3 +1,4 @@
+import { lockGroupForMember } from './group-access.js';
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "./db/index.js";
@@ -6,7 +7,6 @@ import {
   billItems,
   itemClaims,
   billShares,
-  groupMembers,
 } from "./db/schema.js";
 import { BillError } from "./bill-error.js";
 import {
@@ -25,22 +25,15 @@ import { sumFractions } from "./fractions.js";
 import { notifyGroupChanged } from "./group-events.js";
 
 async function locked(tx: Tx, id: string, userId: string) {
+  const [scope] = await tx.select({ groupId: bills.groupId }).from(bills).where(eq(bills.id, id));
+  if (!scope) throw new BillError(404, "Bill not found.");
+  await lockGroupForMember(tx, scope.groupId, userId);
   const [bill] = await tx
     .select()
     .from(bills)
     .where(eq(bills.id, id))
     .for("update");
   if (!bill) throw new BillError(404, "Bill not found.");
-  const [member] = await tx
-    .select()
-    .from(groupMembers)
-    .where(
-      and(
-        eq(groupMembers.groupId, bill.groupId),
-        eq(groupMembers.userId, userId),
-      ),
-    );
-  if (!member) throw new BillError(404, "Bill not found.");
   if (bill.mode !== "items")
     throw new BillError(400, "This bill uses manual shares.");
   return bill;

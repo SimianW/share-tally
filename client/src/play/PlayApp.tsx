@@ -64,6 +64,11 @@ export default function PlayApp({
     void api.list().catch(() => {});
   }, [api, revision]);
 
+  function deletedGroup() {
+    setView('groups');
+    closeGroup();
+  }
+
   async function createGroup(draft: GroupDraft) {
     const { group } = await api.create(draft);
     setCreating(false);
@@ -144,7 +149,7 @@ export default function PlayApp({
               </Button>
             )}
           </header>}
-          {billId ? <BillDetails key={billId} id={billId} /> : newBill ? <NewBillPage key={`${newBill[1]}:${newBill[2] ?? "new"}`} groupId={newBill[1]} draftId={newBill[2]} /> : (billGroupId || view === "groups") ? <GroupWorkspace groups={groups} selectedId={billGroupId ?? undefined} selectedRepaymentId={new URLSearchParams(route.split('?')[1]).get('repayment') ?? undefined} loading={loading} error={error} retry={() => setRevision(value => value + 1)} onCreate={() => setCreating(true)} /> : view === "account" ? (
+          {billId ? <BillDetails key={billId} id={billId} /> : newBill ? <NewBillPage key={`${newBill[1]}:${newBill[2] ?? "new"}`} groupId={newBill[1]} draftId={newBill[2]} /> : (billGroupId || view === "groups") ? <GroupWorkspace groups={groups} selectedId={billGroupId ?? undefined} selectedRepaymentId={new URLSearchParams(route.split('?')[1]).get('repayment') ?? undefined} loading={loading} error={error} retry={() => setRevision(value => value + 1)} onCreate={() => setCreating(true)} onDeleted={deletedGroup} /> : view === "account" ? (
             <section className="account-panel">
               <AccountCheck />
             </section>
@@ -178,7 +183,7 @@ export default function PlayApp({
           onCreate={createGroup}
         />
       )}
-      {selectedId && <GroupDetails key={selectedId} id={selectedId} api={api} close={closeGroup} onViewBills={() => { window.location.hash = `/group-bills/${selectedId}`; }} />}
+      {selectedId && <GroupDetails key={selectedId} id={selectedId} api={api} close={closeGroup} onDeleted={deletedGroup} onViewBills={() => { window.location.hash = `/group-bills/${selectedId}`; }} />}
       {invitationToken !== null && <JoinGroup key={invitationToken} token={invitationToken} api={api} close={closeGroup} joined={group => {
         setView('groups');
         goToGroup(group);

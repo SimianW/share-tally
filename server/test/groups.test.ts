@@ -163,9 +163,8 @@ test('anonymous and forged identities cannot read groups or manage invitations',
   await json(forged, 404);
   await json(await api('/groups/not-a-uuid'), 404);
   await json(await api('/groups/00000000-0000-0000-0000-000000000000'), 404);
-  for (const method of ['DELETE', 'PATCH']) {
-    assert.equal((await api(path, 'alice-token', method, { userId: group.createdBy })).status, 404);
-  }
+  await json(await api(path, 'bob-token', 'DELETE', { userId: group.createdBy }), 404);
+  assert.equal((await api(path, 'alice-token', 'PATCH', { userId: group.createdBy })).status, 404);
 });
 
 test('invalid bodies and links grant no membership or group', async () => {
@@ -286,4 +285,153 @@ test('membership cap serializes competing joins and permits repeats at capacity'
   const detail = (await json(await api(`/groups/${group.id}`))).group;
   assert.equal(detail.members.length, 16);
   assert.equal(new Set(detail.members.map((m: { id: string }) => m.id)).size, 16);
+});
+
+async function inviteMember(groupId: string, token = 'bob-token') {
+  const invitation = await json(await api(`/groups/${groupId}/invitation`));
+  await json(await api('/groups/join', token, 'POST', { token: invitation.path.split('/').at(-1) }));
+  return invitation.path.split('/').at(-1) as string;
+}
+
+async function groupBill(groupId: string, aliceId: string, bobId: string) {
+  return (await json(await api(`/groups/${groupId}/bills`, 'alice-token', 'POST', {
+    requestId: crypto.randomUUID(), title: 'Shared lunch', purchaseDate: '2026-01-01',
+    timeZone: 'America/Toronto', notes: '', totalCents: 1000, ownShareCents: 400,
+    participantIds: [aliceId, bobId],
+  }), 201)).bill;
+}
+
+test('only a creator can delete a cleared group; deletion hides every entry point', async () => {
+  const group = await create();
+  const invitationToken = await inviteMember(group.id);
+  const other = await create('bob-token');
+  await json(await api(`/groups/${group.id}`, 'bob-token', 'DELETE'), 403);
+  await json(await api(`/groups/${group.id}`, 'carol-token', 'DELETE'), 404);
+  assert.equal((await pool.query('SELECT deleted_at FROM groups WHERE id = $1', [group.id])).rows[0].deleted_at, null);
+
+  const deleted = await json(await api(`/groups/${group.id}`, 'alice-token', 'DELETE'));
+  assert.deepEqual(deleted, { deleted: true });
+  assert.ok((await pool.query('SELECT deleted_at FROM groups WHERE id = $1', [group.id])).rows[0].deleted_at);
+  assert.deepEqual((await json(await api('/groups'))).groups, []);
+  assert.deepEqual((await json(await api('/groups', 'bob-token'))).groups.map((g: { id: string }) => g.id), [other.id]);
+  assert.deepEqual((await json(await api('/attention'))).actions, []);
+  assert.deepEqual((await json(await api('/attention', 'bob-token'))).actions, []);
+  for (const memberToken of ['alice-token', 'bob-token']) {
+    for (const path of [
+      `/groups/${group.id}`, `/groups/${group.id}/bills`, `/groups/${group.id}/receipt-drafts`, `/groups/${group.id}/invitation`,
+      `/groups/${group.id}/events`,
+    ]) await json(await api(path, memberToken), 404);
+    await json(await api(`/groups/${group.id}/invitation`, memberToken, 'POST'), 404);
+    await json(await api(`/groups/${group.id}/receipt-preview/prices`, memberToken, 'POST', {}), 404);
+    await json(await api(`/groups/${group.id}`, memberToken, 'DELETE'), 404);
+  }
+  await json(await api('/groups/join', 'carol-token', 'POST', { token: invitationToken }), 404);
+  await json(await api(`/groups/${group.id}/bills`, 'alice-token', 'POST', {
+    requestId: crypto.randomUUID(), title: 'No more bills', purchaseDate: '2026-01-01',
+    timeZone: 'America/Toronto', notes: '', totalCents: 100, ownShareCents: 100,
+    participantIds: [group.createdBy],
+  }), 404);
+  await json(await api(`/groups/${group.id}/repayments`, 'bob-token', 'POST', {
+    requestId: crypto.randomUUID(), recipientId: group.createdBy, amountCents: 100,
+  }), 404);
+});
+
+test('completed bills and confirmed repayments remain stored after a cleared group is deleted', async () => {
+  const group = await create();
+  await inviteMember(group.id);
+  const bobId = (await json(await api(`/groups/${group.id}`))).group.members
+    .find((m: { displayName: string }) => m.displayName === 'Bob').id;
+  const bill = await groupBill(group.id, group.createdBy, bobId);
+  const completed = (await json(await api(`/bills/${bill.id}/share`, 'bob-token', 'POST', {
+    amountCents: 600, revision: bill.revision, expectedAmountCents: null,
+  }))).bill;
+  assert.ok(completed.completedAt);
+  const nonzero = await json(await api(`/groups/${group.id}`, 'alice-token', 'DELETE'), 409);
+  assert.deepEqual(Object.keys(nonzero), ['error']);
+  assert.match(nonzero.error, /balance/i);
+  const repayment = (await json(await api(`/groups/${group.id}/repayments`, 'bob-token', 'POST', {
+    requestId: crypto.randomUUID(), recipientId: group.createdBy, amountCents: 600,
+  }), 201)).repayment;
+  await json(await api(`/groups/${group.id}`, 'alice-token', 'DELETE'), 409);
+  await json(await api(`/repayments/${repayment.id}/decision`, 'alice-token', 'POST', { decision: 'confirmed' }));
+  await json(await api(`/groups/${group.id}`, 'alice-token', 'DELETE'));
+  assert.equal((await pool.query('SELECT count(*)::int AS n FROM bills WHERE group_id = $1', [group.id])).rows[0].n, 1);
+  assert.equal((await pool.query('SELECT status FROM repayments WHERE id = $1', [repayment.id])).rows[0].status, 'confirmed');
+  await json(await api(`/bills/${bill.id}`), 404);
+  await json(await api(`/repayments/${repayment.id}/decision`, 'alice-token', 'POST', { decision: 'confirmed' }), 404);
+});
+
+test('incomplete bills and pending repayments each block deletion independently', async () => {
+  const group = await create();
+  await inviteMember(group.id);
+  const bill = await groupBill(group.id, group.createdBy,
+    (await json(await api(`/groups/${group.id}`))).group.members.find((m: { displayName: string }) => m.displayName === 'Bob').id);
+  const incomplete = await json(await api(`/groups/${group.id}`, 'alice-token', 'DELETE'), 409);
+  assert.match(incomplete.error, /incomplete/i);
+  await json(await api(`/bills/${bill.id}/cancel`, 'alice-token', 'POST', { revision: bill.revision }));
+  const repayment = (await json(await api(`/groups/${group.id}/repayments`, 'bob-token', 'POST', {
+    requestId: crypto.randomUUID(), recipientId: group.createdBy, amountCents: 100,
+  }), 201)).repayment;
+  const pending = await json(await api(`/groups/${group.id}`, 'alice-token', 'DELETE'), 409);
+  assert.match(pending.error, /pending/i);
+  await json(await api(`/repayments/${repayment.id}/decision`, 'alice-token', 'POST', { decision: 'rejected' }));
+  await json(await api(`/groups/${group.id}`, 'alice-token', 'DELETE'));
+});
+
+test('a receipt draft does not block deletion and becomes inaccessible afterward', async () => {
+  const group = await create();
+  const draftId = crypto.randomUUID();
+  await pool.query('INSERT INTO receipt_drafts (id, group_id, initiator_id, data) VALUES ($1, $2, $3, $4)',
+    [draftId, group.id, group.createdBy, JSON.stringify({ items: [], title: 'Unfinished' })]);
+  assert.equal((await json(await api(`/groups/${group.id}/receipt-drafts`))).drafts.length, 1);
+  await json(await api(`/groups/${group.id}`, 'alice-token', 'DELETE'));
+  assert.equal((await pool.query('SELECT count(*)::int AS n FROM receipt_drafts WHERE id = $1', [draftId])).rows[0].n, 1);
+  await json(await api(`/receipt-drafts/${draftId}`), 404);
+  await json(await api(`/groups/${group.id}/receipt-drafts`), 404);
+});
+
+test('bill and repayment creation waiting behind deletion cannot create records', async () => {
+  const group = await create();
+  await inviteMember(group.id);
+  await pool.query(`CREATE FUNCTION pause_group_delete() RETURNS trigger LANGUAGE plpgsql AS $$
+    BEGIN PERFORM pg_advisory_xact_lock(7643); RETURN NEW; END $$;
+    CREATE TRIGGER pause_group_delete AFTER UPDATE OF deleted_at ON groups
+      FOR EACH ROW EXECUTE FUNCTION pause_group_delete();`);
+  const blocker = await pool.connect();
+  let deletion: Promise<Response> | undefined;
+  let bill: Promise<Response> | undefined;
+  let repayment: Promise<Response> | undefined;
+  try {
+    await blocker.query('SELECT pg_advisory_lock(7643)');
+    deletion = api(`/groups/${group.id}`, 'alice-token', 'DELETE');
+    void deletion.catch(() => {});
+    const deadline = Date.now() + 5_000;
+    while (true) {
+      const result = await pool.query("SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND wait_event = 'advisory'");
+      if (result.rowCount) break;
+      assert.ok(Date.now() < deadline, 'Expected deletion to pause before committing');
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
+    bill = api(`/groups/${group.id}/bills`, 'alice-token', 'POST', {
+      requestId: crypto.randomUUID(), title: 'Late bill', purchaseDate: '2026-01-01',
+      timeZone: 'America/Toronto', notes: '', totalCents: 100, ownShareCents: 100,
+      participantIds: [group.createdBy],
+    });
+    repayment = api(`/groups/${group.id}/repayments`, 'bob-token', 'POST', {
+      requestId: crypto.randomUUID(), recipientId: group.createdBy, amountCents: 100,
+    });
+    void bill.catch(() => {});
+    void repayment.catch(() => {});
+    await blocker.query('SELECT pg_advisory_unlock(7643)');
+    await json(await deletion);
+    await json(await bill, 404);
+    await json(await repayment, 404);
+    assert.equal((await pool.query('SELECT count(*)::int AS n FROM bills WHERE group_id = $1', [group.id])).rows[0].n, 0);
+    assert.equal((await pool.query('SELECT count(*)::int AS n FROM repayments WHERE group_id = $1', [group.id])).rows[0].n, 0);
+  } finally {
+    await blocker.query('SELECT pg_advisory_unlock_all()');
+    blocker.release();
+    await Promise.allSettled([deletion, bill, repayment]);
+    await pool.query('DROP TRIGGER pause_group_delete ON groups; DROP FUNCTION pause_group_delete()');
+  }
 });

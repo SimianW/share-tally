@@ -6,12 +6,15 @@ import Dialog from './Dialog';
 import { Avatar, Button } from './ui';
 import { errorMessage, type GroupApi, type GroupDetail } from './group-api';
 
-export function GroupDetails({ id, api, close, onViewBills }: { id: string; api: GroupApi; close: () => void; onViewBills?: () => void }) {
+export function GroupDetails({ id, api, close, onViewBills, onDeleted }: {
+  id: string; api: GroupApi; close: () => void; onViewBills?: () => void; onDeleted: () => void;
+}) {
   const query = useCached<{ group: GroupDetail }>(`/groups/${id}`);
   const group = query.data?.group;
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [confirmingDeletion, setConfirmingDeletion] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
     api.detail(id, controller.signal).then(() => {
@@ -43,10 +46,60 @@ export function GroupDetails({ id, api, close, onViewBills }: { id: string; api:
           <span>{member.displayName}{member.isCurrentUser ? ' · You' : ''}</span>
           {member.isCreator && <strong>Creator</strong>}
         </div>)}
-        {group.isCreator && <InvitationControls id={id} api={api} />}
+        {group.isCreator && <>
+          <InvitationControls id={id} api={api} />
+          <section className="group-delete-controls">
+            <h3>Delete group</h3>
+            <p>Only the group creator can delete a group after all balances, bills and repayments are cleared.</p>
+            <Button variant="secondary" className="bill-danger" onClick={() => setConfirmingDeletion(true)}>Delete group</Button>
+          </section>
+        </>}
       </>}
+      {group?.isCreator && !error && confirmingDeletion &&
+        <DeleteGroupDialog group={group} api={api} close={() => setConfirmingDeletion(false)} onDeleted={onDeleted} />}
     </Dialog>
   );
+}
+
+function DeleteGroupDialog({ group, api, close, onDeleted }: {
+  group: GroupDetail; api: GroupApi; close: () => void; onDeleted: () => void;
+}) {
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const pending = useRef(false);
+  const [error, setError] = useState('');
+  async function remove() {
+    if (pending.current || name !== group.name) return;
+    pending.current = true;
+    setBusy(true);
+    setError('');
+    try {
+      await api.delete(group.id);
+      onDeleted();
+    } catch (error) {
+      setError(errorMessage(error));
+    } finally {
+      pending.current = false;
+      setBusy(false);
+    }
+  }
+  return <Dialog title={`Delete ${group.name}?`} kicker="DELETE GROUP"
+    close={() => { if (!pending.current) close(); }}>
+    <p>This removes the group for every member. Bills and repayment records are retained, but the group and its invitation link will no longer be accessible.</p>
+    <p>Deletion is allowed only when every balance is zero, all bills are complete or canceled, and no repayment is pending. If anything remains, we’ll tell you what needs clearing.</p>
+    <form className="group-form group-delete-form" onSubmit={event => { event.preventDefault(); void remove(); }}>
+      <label>Type <strong>{group.name}</strong> to confirm
+        <input value={name} onChange={event => setName(event.target.value)} autoComplete="off" data-autofocus />
+      </label>
+      {error && <Notification>{error}</Notification>}
+      <div className="dialog-actions">
+        <Button type="submit" className="group-delete-submit" disabled={busy || name !== group.name}>
+          {busy ? 'Deleting…' : 'Delete group'}
+        </Button>
+        <Button variant="secondary" onClick={close} disabled={busy}>Cancel</Button>
+      </div>
+    </form>
+  </Dialog>;
 }
 
 function InvitationControls({ id, api }: { id: string; api: GroupApi }) {

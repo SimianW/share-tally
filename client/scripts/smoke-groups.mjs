@@ -209,7 +209,7 @@ try {
   await expect(carol.locator('.bill-list-row')).toContainText('Weekend groceries', { timeout: 3000 });
   await alice.reload();
   await alice.getByRole('button', { name: 'New bill', exact: true }).click();
-  if (await alice.getByRole('button', { name: 'Split by amounts instead', exact: true }).count()) await alice.getByRole('button', { name: 'Split by amounts instead', exact: true }).click();
+  await alice.getByRole('button', { name: 'Split by amounts instead', exact: true }).click();
   await expect(alice.getByLabel('Bill title', { exact: true })).toHaveValue('Weekend groceries');
   await alice.getByRole('button', { name: 'Retry initiation' }).click();
   await expect(alice.getByRole('heading', { name: 'Weekend groceries' })).toBeVisible();
@@ -331,7 +331,7 @@ try {
   async function incompleteBill(title) {
     await alice.getByRole('link', { name: 'Group bills', exact: false }).click();
     await alice.getByRole('button', { name: 'New bill', exact: true }).click();
-  if (await alice.getByRole('button', { name: 'Split by amounts instead', exact: true }).count()) await alice.getByRole('button', { name: 'Split by amounts instead', exact: true }).click();
+  await alice.getByRole('button', { name: 'Split by amounts instead', exact: true }).click();
     await alice.getByLabel('Bill title', { exact: true }).fill(title);
     await alice.getByLabel('Actual paid total · CAD', { exact: true }).fill('100.00');
     await alice.getByLabel('My share · CAD', { exact: true }).fill('40.00');
@@ -473,7 +473,7 @@ try {
   await bobAgain.screenshot({ path: `${clientRoot}/test-results/repayments-mobile.png`, fullPage: true });
   // A new bill remains available after repayment decisions. It completes immediately.
   await alice.getByRole('button', { name: 'New bill', exact: true }).click();
-  if (await alice.getByRole('button', { name: 'Split by amounts instead', exact: true }).count()) await alice.getByRole('button', { name: 'Split by amounts instead', exact: true }).click();
+  await alice.getByRole('button', { name: 'Split by amounts instead', exact: true }).click();
   await alice.getByLabel('Bill title', { exact: true }).fill('After repayment');
   await alice.getByLabel('Actual paid total · CAD', { exact: true }).fill('10.00');
   await alice.getByLabel('My share · CAD', { exact: true }).fill('10.00');
@@ -612,6 +612,33 @@ try {
   await alice.getByRole('button', { name: 'Sign in', exact: true }).click(); // Bob in the test boundary.
   await expect(alice.getByRole('region', { name: 'Needs your attention' })).toContainText('No actions waiting for you.');
   console.log('Attention smoke passed: mobile missing shares, reconfirmation links, refresh recovery, receipt decisions, stale links, and account isolation.');
+  // Issue #76: creator-only deletion of a cleared group uses its own fixture.
+  const deleteOwner = await pageFor('alice-token', { width: 1280, height: 900 });
+  await deleteOwner.goto(base);
+  await deleteOwner.getByRole('button', { name: 'New group', exact: true }).first().click();
+  await deleteOwner.getByLabel('Group name').fill('Deletion smoke group');
+  await deleteOwner.getByRole('button', { name: 'Create group', exact: true }).click();
+  await expect(deleteOwner.getByRole('dialog')).toContainText('Deletion smoke group');
+  await deleteOwner.getByRole('button', { name: 'Get invitation link', exact: true }).click();
+  const deleteInvite = await deleteOwner.getByLabel('Invitation link', { exact: true }).inputValue();
+  const deleteMember = await pageFor('bob-token', { width: 1280, height: 900 });
+  await deleteMember.goto(deleteInvite);
+  await deleteMember.getByRole('button', { name: 'Join group', exact: true }).click();
+  await expect(deleteMember.getByRole('dialog')).toContainText('Deletion smoke group');
+  await expect(deleteMember.getByRole('button', { name: 'Delete group', exact: true })).toHaveCount(0);
+  await deleteOwner.getByRole('button', { name: 'Delete group', exact: true }).click();
+  const deleteDialog = deleteOwner.getByRole('dialog', { name: 'Delete Deletion smoke group?' });
+  const deleteInput = deleteDialog.getByRole('textbox');
+  const deleteButton = deleteDialog.getByRole('button', { name: 'Delete group', exact: true });
+  await expect(deleteButton).toBeDisabled();
+  await deleteInput.fill('Wrong group name');
+  await expect(deleteButton).toBeDisabled();
+  await deleteInput.fill('Deletion smoke group');
+  await expect(deleteButton).toBeEnabled();
+  await deleteButton.click();
+  await expect(deleteOwner.getByRole('navigation', { name: 'Groups', exact: true })).toBeVisible();
+  await expect(deleteOwner.getByRole('navigation', { name: 'Groups', exact: true }).getByRole('link', { name: /Deletion smoke group/ })).toHaveCount(0);
+  console.log('Delete group smoke passed: creator-only action, exact-name confirmation, deletion navigation, and group-list removal.');
   assert.deepEqual(errors, []);
   console.log('Group and bill browser smoke passed: creation, Unicode icon, persistence, sign-in return, membership, invitation permissions, rotation, invalid links, repeat joining, mobile layout, sign-out, bill creation and confirmation, response-loss retries, initiator adjustment, balances, completed-bill finality, stale confirmation, correction, reconfirmation, removal, and cancellation.');
 } catch (error) {

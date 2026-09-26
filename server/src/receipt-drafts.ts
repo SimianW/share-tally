@@ -1,3 +1,5 @@
+import { requireMember, lockGroupForMember } from './group-access.js';
+export { requireMember } from './group-access.js';
 import { RECEIPT_MODEL_TIMEOUT_MS } from "./receipt-names.js";
 import type { extractionDefaults, ExtractedReceipt } from "./receipt-extraction.js";
 import { applyReceiptModelResult } from "./receipt-processing.js";
@@ -11,7 +13,6 @@ import {
   receiptPhotos,
   receiptEvidence,
   groupMembers,
-  groups,
   bills,
   billShares,
   billItems,
@@ -29,21 +30,18 @@ import { notifyGroupChanged } from "./group-events.js";
 import { priceDraft, unassignedReceiptTaxMessage } from "./receipt-pricing.js";
 import { frozenBases, roundingOffset, printedTax, selectFrozenTaxRate } from "./frozen-receipt-pricing.js";
 import { itemWasEdited } from "./receipt-needs-check.js";
-export async function requireMember(tx: Tx, groupId: string, userId: string) {
-  const [m] = await tx
-    .select()
-    .from(groupMembers)
-    .where(
-      and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)),
-    );
-  if (!m) throw new BillError(404, "Group not found.");
-}
 export async function ownDraft(
   tx: Tx,
   id: string,
   userId: string,
   lock = false,
 ) {
+  if (lock) {
+    const [scope] = await tx.select({ groupId: receiptDrafts.groupId }).from(receiptDrafts)
+      .where(and(eq(receiptDrafts.id, id), eq(receiptDrafts.initiatorId, userId)));
+    if (!scope) throw new BillError(404, "Draft not found.");
+    await lockGroupForMember(tx, scope.groupId, userId);
+  }
   const query = tx
     .select()
     .from(receiptDrafts)
@@ -121,8 +119,7 @@ export async function saveDraft(
       ? undefined
       : await normalizeReceiptPhoto(input.photoBase64);
   return db.transaction(async (tx) => {
-    await tx.select().from(groups).where(eq(groups.id, groupId)).for("update");
-    await requireMember(tx, groupId, userId);
+    await lockGroupForMember(tx, groupId, userId);
     const [old] = await tx
       .select()
       .from(receiptDrafts)
@@ -233,6 +230,11 @@ export async function deleteDraft(id: string, userId: string, body: unknown) {
     body,
   );
   await db.transaction(async (tx) => {
+    const [scope] = await tx.select({ groupId: receiptDrafts.groupId }).from(receiptDrafts)
+      .innerJoin(groupMembers, and(eq(groupMembers.groupId, receiptDrafts.groupId), eq(groupMembers.userId, userId)))
+      .where(eq(receiptDrafts.id, id));
+    if (!scope) return;
+    await lockGroupForMember(tx, scope.groupId, userId);
     const [draft] = await tx
       .select()
       .from(receiptDrafts)

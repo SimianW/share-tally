@@ -43,7 +43,7 @@ export function useGroupApi() {
       }
       const result = await perform(signal);
       await committed?.(result);
-      if (method !== 'GET') await refreshFinancialQueries(cache);
+      if (method !== 'GET' && method !== 'DELETE') await refreshFinancialQueries(cache);
       return result;
     }
     async function rememberGroup({ group }: { group: GroupView }) {
@@ -63,6 +63,21 @@ export function useGroupApi() {
       detail: (id: string, signal?: AbortSignal) => request<{ group: GroupDetail }>(`/${encodeURIComponent(id)}`, 'GET', undefined, signal),
       invitation: (id: string, regenerate = false) => request<{ path: string }>(`/${encodeURIComponent(id)}/invitation`, regenerate ? 'POST' : 'GET'),
       join: (token: string) => request<{ group: GroupDetail }>('/join', 'POST', { token }, undefined, rememberGroup),
+      delete: (id: string) => request<{ deleted: true }>(`/${encodeURIComponent(id)}`, 'DELETE', undefined, undefined, async () => {
+        // A successful deletion is authoritative; remove obsolete group data before refetching.
+        const groupPath = `/groups/${id}`;
+        const scoped = { predicate: (query: { queryKey: readonly unknown[] }) => {
+          const path = String(query.queryKey[0]);
+          return path === groupPath || path.startsWith(`${groupPath}/`);
+        } };
+        await cache.cancelQueries(scoped);
+        cache.removeQueries(scoped);
+        await cache.cancelQueries({ queryKey: ['/groups'], exact: true });
+        cache.setQueryData<{ groups: GroupView[] }>(['/groups'], current => current && {
+          groups: current.groups.filter(group => group.id !== id),
+        });
+        await refreshFinancialQueries(cache);
+      }),
     };
   }, [getToken, cache]);
 }
