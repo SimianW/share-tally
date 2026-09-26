@@ -10,10 +10,11 @@ export function GroupBalances({ ledger }: { ledger: GroupLedger }) {
     previous.current = ledger.suggestions;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const animations: Animation[] = [];
+    const highlight = getComputedStyle(document.documentElement).getPropertyValue('--highlight').trim();
     ledger.suggestions.forEach((suggestion, index) => {
       if (!old.some(row => row.fromUserId === suggestion.fromUserId && row.toUserId === suggestion.toUserId && row.amountCents === suggestion.amountCents)) {
         const node = rows.current?.children[index];
-        if (node) animations.push(node.animate([{ backgroundColor: '#f5df9b' }, { backgroundColor: 'transparent' }], { duration: 450 }));
+        if (node) animations.push(node.animate([{ backgroundColor: highlight }, { backgroundColor: 'transparent' }], { duration: 450 }));
       }
     });
     return () => animations.forEach(animation => animation.cancel());

@@ -5,24 +5,24 @@
   padding: 0 3px;
   margin: 0 -1px;
   border-radius: 4px;
-  background: linear-gradient(transparent 56%, #dcf4ae 56%, #dcf4ae 94%, transparent 94%);
+  background: linear-gradient(transparent 56%, var(--accent-mark) 56%, var(--accent-mark) 94%, transparent 94%);
   color: inherit;
   font-weight: 850;
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
 }
-.home-state-clear { color: var(--success); }
+.home-state-clear { color: var(--money-owed); }
 .home-state-check {
   display: inline-grid;
   place-items: center;
   width: 30px;
   height: 30px;
   margin-left: 8px;
-  border: 1px solid #a6d45f;
+  border: 1px solid var(--action-line);
   border-radius: 50%;
-  background: var(--accent);
-  color: var(--accent-ink);
-  box-shadow: 0 2px 0 #a2c86a;
+  background: var(--action);
+  color: var(--ink-on-action);
+  box-shadow: 0 2px 0 var(--action-edge);
   vertical-align: 2px;
 }
 .home-state-loading {
@@ -30,7 +30,7 @@
   width: min(300px, 58vw);
   height: 0.78em;
   border-radius: 10px;
-  background: #e6ecdc;
+  background: var(--accent-quiet);
   vertical-align: -0.04em;
   animation: skeleton-pulse 1.4s ease-in-out infinite;
 }
@@ -54,7 +54,7 @@
   border: 1px solid var(--line);
   border-radius: 18px;
   background: var(--surface);
-  box-shadow: 0 2px 0 #0000000a;
+  box-shadow: 0 2px 0 var(--shadow-subtle);
   color: var(--ink);
   text-align: left;
   text-decoration: none;
@@ -68,12 +68,12 @@
   width: 48px;
   height: 48px;
   border-radius: 14px;
-  background: #eef4e2;
-  color: #4d6a31;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
 }
 .home-group-main { flex: 1; display: grid; gap: 6px; min-width: 0; }
 .home-group-name {
-  font: 800 19px/1.2 var(--heading);
+  font: 800 19px/1.2 var(--font-heading);
   letter-spacing: -0.4px;
   overflow-wrap: anywhere;
 }
@@ -81,7 +81,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--muted);
+  color: var(--ink-muted);
   font-size: 12.5px;
   line-height: 1.2;
 }
@@ -94,40 +94,40 @@
 .home-balance { display: grid; justify-items: end; gap: 2px; }
 .home-balance small { font-size: 11px; font-weight: 600; line-height: 1.2; }
 .home-balance b {
-  font: 900 22px/1.1 var(--heading);
+  font: 900 22px/1.1 var(--font-heading);
   letter-spacing: -0.5px;
   font-variant-numeric: tabular-nums;
 }
-.home-balance.owed { color: var(--success); }
-.home-balance.owe { color: var(--warning); }
-.home-balance.settled { color: var(--muted); }
+.home-balance.owed { color: var(--money-owed); }
+.home-balance.owe { color: var(--money-owe); }
+.home-balance.settled { color: var(--ink-muted); }
 .home-balance.settled b { font-weight: 800; }
-.home-group-pending { padding: 2px 9px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 12px; font-weight: 800; }
-.home-group-pending.none { padding: 0; background: none; color: var(--muted); font-weight: 600; }
-.home-group-chevron { flex-shrink: 0; color: #9aa18f; transition: transform 0.2s, color 0.2s; }
+.home-group-pending { padding: 2px 9px; border-radius: 999px; background: var(--action); color: var(--ink-on-action); font-size: 12px; font-weight: 800; }
+.home-group-pending.none { padding: 0; background: none; color: var(--ink-muted); font-weight: 600; }
+.home-group-chevron { flex-shrink: 0; color: var(--ink-subtle); transition: transform 0.2s, color 0.2s; }
 
 .home-new-group {
   justify-content: center;
   gap: 8px;
   min-height: 60px;
-  border: 1px dashed #d3dbc8;
+  border: 1px dashed var(--line-dashed);
   background: transparent;
   box-shadow: none;
-  color: var(--muted);
+  color: var(--ink-muted);
   font-size: var(--text-base);
   font-weight: 700;
 }
 /* Touch taps leave :hover behind; only devices that really hover get hover styles. */
 @media (hover: hover) {
-  a.home-group-row:hover { border-color: #d3e2ba; box-shadow: 0 6px 18px #25380e0f; }
+  a.home-group-row:hover { border-color: var(--accent-hover-line); box-shadow: 0 6px 18px var(--shadow-hover); }
   a.home-group-row:hover .home-group-chevron { color: var(--ink); transform: translateX(2px); }
-  .home-new-group:hover { border-color: #b7cf92; background: var(--surface-soft); color: var(--accent-ink); }
+  .home-new-group:hover { border-color: var(--accent-create-line); background: var(--surface-soft); color: var(--action-ink); }
 }
 
 .home-group-skeleton .home-group-row { box-shadow: none; }
 .home-group-skeleton .home-group-icon,
 .home-skeleton-lines > span,
-.home-skeleton-amount { background: #eef1e8; animation: skeleton-pulse 1.4s ease-in-out infinite; }
+.home-skeleton-amount { background: var(--surface-skeleton); animation: skeleton-pulse 1.4s ease-in-out infinite; }
 .home-skeleton-lines { flex: 1; display: grid; gap: 10px; }
 .home-skeleton-lines > span { width: min(220px, 60%); height: 15px; border-radius: 8px; }
 .home-skeleton-lines > span + span { width: min(130px, 40%); height: 11px; }
@@ -138,7 +138,7 @@
   justify-items: center;
   gap: 8px;
   padding: 48px 24px 40px;
-  border: 1px dashed #d3dbc8;
+  border: 1px dashed var(--line-dashed);
   border-radius: var(--radius);
   background: var(--surface);
   text-align: center;
@@ -150,11 +150,11 @@
   height: 64px;
   margin-bottom: 8px;
   border-radius: 20px;
-  background: #eef4e2;
-  color: #4d6a31;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
 }
-.home-empty h2 { font: 850 25px/1.2 var(--heading); letter-spacing: -0.6px; }
-.home-empty > p:not(.home-empty-hint) { max-width: 38ch; color: var(--muted); }
+.home-empty h2 { font: 850 25px/1.2 var(--font-heading); letter-spacing: -0.6px; }
+.home-empty > p:not(.home-empty-hint) { max-width: 38ch; color: var(--ink-muted); }
 .home-empty > .button { margin-top: 12px; }
 .home-empty-hint {
   display: inline-flex;
@@ -165,10 +165,10 @@
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--surface-soft);
-  color: var(--muted);
+  color: var(--ink-muted);
   font-size: var(--text-sm);
 }
-.home-empty-hint > svg { flex-shrink: 0; color: #6b8c4b; }
+.home-empty-hint > svg { flex-shrink: 0; color: var(--focus); }
 
 @media (max-width: 640px) {
   .home-state-check { width: 26px; height: 26px; margin-left: 6px; }

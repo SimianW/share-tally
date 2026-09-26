@@ -1,9 +1,10 @@
 @import "./play/fonts.css";
+@import "./play/palettes.css";
 @import "./play/tokens.css";
 :root {
   font-family: var(--font-body);
-  color: #263021;
-  background: #f9faf6;
+  color: var(--page-ink);
+  background: var(--page-bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -43,7 +44,7 @@ button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 select:focus-visible {
-  outline: 3px solid #6b8c4b;
+  outline: 3px solid var(--focus);
   outline-offset: 4px;
 }
 button svg {
@@ -62,8 +63,8 @@ button:active:not(:disabled) {
   transform: translateY(1px);
 }
 ::selection {
-  background: #d7f69a;
-  color: #203a1d;
+  background: var(--accent-selection);
+  color: var(--accent-selection-ink);
 }
 .sr-only {
   position: absolute;
