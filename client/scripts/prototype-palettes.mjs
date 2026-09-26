@@ -1,5 +1,5 @@
 // Throwaway palette screenshots against the real API, temporary PostgreSQL and
-// Vite's test-only Clerk boundary. Run: pnpm prototype:palettes [--palettes=classic,plum-butter]
+// Vite's test-only Clerk boundary. Run: pnpm prototype:palettes [--palettes=classic,plum-butter] [--layouts]
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { fork, spawn } from 'node:child_process';
@@ -13,8 +13,11 @@ import react from '@vitejs/plugin-react';
 
 const palettes = ['classic', 'marigold', 'raspberry', 'plum-butter', 'lagoon', 'blueberry'];
 const pages = ['specimen', 'home', 'group', 'bill-open', 'bill-complete', 'dialog', 'members'];
+const layouts = ['current', 'column', 'sidebar', 'hero', 'board', 'table'];
+const layoutsMode = process.argv.includes('--layouts');
 const requested = process.argv.find(arg => arg.startsWith('--palettes='));
 const selected = requested ? requested.slice('--palettes='.length).split(',') : palettes;
+if (layoutsMode && requested) throw new Error('Use --layouts without --palettes; layouts always use classic.');
 if (!selected.length || selected.some(name => !palettes.includes(name)) || new Set(selected).size !== selected.length) {
   throw new Error(`Choose distinct palette names from: ${palettes.join(', ')}`);
 }
@@ -53,6 +56,77 @@ async function montage(inputs, destination, width) {
     '-fill', '#242424', '-font', 'DejaVu-Sans', '-pointsize', '18',
     '-gravity', 'north', '-geometry', `${width}x+10+10`, '-tile', `${inputs.length}x1`, destination,
   ]));
+}
+async function captureLayouts(base, groupId) {
+  const output = '/tmp/st-layouts';
+  const findings = [];
+  const viewports = { desktop: { width: 1280, height: 900 }, mobile: { width: 390, height: 844 } };
+  async function screenshot(page, layout, name, device) {
+    await expect(page.getByRole('heading', { name: /Costco Crew/ }).first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText('Coffee beans & pastries', { exact: true }).first()).toBeVisible({ timeout: 20_000 });
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+      document.activeElement?.blur();
+    });
+    const diagnostics = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      viewportWidth: innerWidth,
+      overlay: Boolean(document.querySelector('vite-error-overlay')),
+    }));
+    if (diagnostics.overlay) findings.push(`${layout}/${name}-${device}: Vite error overlay`);
+    if (device === 'mobile' && diagnostics.scrollWidth > diagnostics.viewportWidth)
+      findings.push(`${layout}/${name}-${device}: horizontal overflow ${diagnostics.scrollWidth}px > ${diagnostics.viewportWidth}px`);
+    const path = `${output}/${layout}/${name}-${device}.png`;
+    await page.screenshot({ path, fullPage: true, animations: 'disabled' });
+    console.log(path);
+  }
+  for (const layout of layouts) {
+    await mkdir(`${output}/${layout}`, { recursive: true });
+    for (const [device, viewport] of Object.entries(viewports)) {
+      for (const [name, identity] of [['group-alice', 'alice-token'], ['group-carol', 'carol-token']]) {
+        const context = await browser.newContext({ viewport, reducedMotion: 'reduce' });
+        // Same Clerk stub as the palette captures, but each member has an
+        // isolated context. Select the layout before the app's entrypoint runs.
+        await context.addInitScript(({ layout, identity }) => {
+          localStorage.setItem('prototype-palette', 'classic');
+          localStorage.setItem('prototype-layout', layout);
+          localStorage.setItem('prototype-hide-switcher', '1');
+          localStorage.setItem('smoke-token', identity);
+        }, { layout, identity });
+        const page = await context.newPage();
+        page.setDefaultTimeout(15_000);
+        page.on('pageerror', error => {
+          const finding = `${layout}/${name}-${device}: ${error.message}`;
+          findings.push(finding);
+          console.error(`Browser error: ${finding}`);
+        });
+        try {
+          await page.goto(`${base}?shot=${name}-${device}#/group-bills/${groupId}`);
+          await screenshot(page, layout, name, device);
+          if (name === 'group-alice') {
+            const showAll = page.getByRole('button', { name: /Show all/i }).first();
+            if (await showAll.isVisible()) {
+              await showAll.click();
+              await screenshot(page, layout, 'group-alice-history', device);
+            }
+          }
+        } finally {
+          await context.close();
+        }
+      }
+    }
+  }
+  for (const [name, device, comparison] of [
+    ['group-alice', 'desktop', 'compare-alice-desktop'],
+    ['group-carol', 'desktop', 'compare-carol-desktop'],
+    ['group-alice', 'mobile', 'compare-alice-mobile'],
+  ]) {
+    await montage(layouts.map(layout => [`${output}/${layout}/${name}-${device}.png`, layout]),
+      `${output}/${comparison}.png`, device === 'desktop' ? 480 : 300);
+  }
+  console.log(`Completed ${layouts.length} layouts in ${((Date.now() - started) / 1000).toFixed(1)}s; output: ${output}`);
+  if (findings.length) console.warn(`Layout diagnostics (${findings.length}):\n${findings.join('\n')}`);
+  else console.log('No page errors, Vite overlays or mobile horizontal overflow detected.');
 }
 async function main() {
   container = await new PostgreSqlContainer('postgres:17.6-alpine').start();
@@ -133,6 +207,23 @@ async function main() {
   const waiting = await bill('Alice', 'Bakery & breakfast', 9200, 3000, ['Alice', 'Bob', 'Carol'], 'Croissants, oats and coffee');
   const canceled = await bill('Alice', 'Duplicate register slip', 2300, 800, ['Alice', 'Bob'], 'Accidentally entered twice');
   await api(`/bills/${canceled.id}/cancel`, 'alice-token', 'POST', { revision: canceled.revision });
+  if (layoutsMode) {
+    // Four older, mutually offsetting completed purchases reveal the layouts'
+    // "Show all" history state without changing anyone's net balance.
+    for (const [index, titles] of [
+      ['Pantry restock', 'Shared cleaning kit'],
+      ['Holiday snacks', 'Bulk toiletries'],
+    ].entries()) {
+      let paidByAlice = await bill('Alice', titles[0], 3000 + index * 200, 1000 + index * 100,
+        ['Alice', 'Bob'], 'Joint household shopping');
+      paidByAlice = await share(paidByAlice, 'Bob', 2000 + index * 100);
+      assert.ok(paidByAlice.completedAt);
+      let paidByBob = await bill('Bob', titles[1], 3000 + index * 200, 1000 + index * 100,
+        ['Alice', 'Bob'], 'Joint household shopping');
+      paidByBob = await share(paidByBob, 'Alice', 2000 + index * 100);
+      assert.ok(paidByBob.completedAt);
+    }
+  }
   // An own ready draft is an inexpensive real-API fixture; no image processing needed.
   const draftId = randomUUID();
   await api(`/groups/${costco.id}/receipt-drafts/${draftId}`, 'alice-token', 'PUT', {
@@ -150,18 +241,35 @@ async function main() {
     requestId: randomUUID(), recipientId: ids.Alice, amountCents: 1250,
   });
   assert.equal(repayment.status, 'pending');
+  if (layoutsMode) {
+    const { repayment: outgoing } = await api(`/groups/${costco.id}/repayments`, 'carol-token', 'POST', {
+      requestId: randomUUID(), recipientId: ids.Alice, amountCents: 850,
+    });
+    assert.equal(outgoing.status, 'pending');
+    console.log('Layout fixture: Carol recorded a pending $8.50 transfer to Alice.');
+  }
   const state = await api(`/groups/${costco.id}/bills`);
-  assert.equal(state.bills.filter(item => item.completedAt).length, 2);
+  assert.equal(state.bills.filter(item => item.completedAt).length, layoutsMode ? 6 : 2);
   assert.equal(state.bills.filter(item => item.canceledAt).length, 1);
   assert.equal(state.ledger.incompleteBillIds.length, 3);
   assert.ok(state.ledger.suggestions.some(item => item.fromUserId === ids.Dan && item.toUserId === ids.Alice));
   assert.ok(state.repayments.some(item => item.id === repayment.id && item.status === 'pending'));
   assert.equal((await api(`/groups/${costco.id}/receipt-drafts`)).drafts[0].processingStatus, 'ready');
-  console.log(`Seeded Costco Crew: 4 members, 3 open, 2 complete, 1 canceled, 1 ready draft, 1 incoming repayment; Apartment: 2 settled members.`);
+  if (layoutsMode) {
+    const carolView = await api(`/groups/${costco.id}/bills`, 'carol-token');
+    assert.ok(carolView.summary.netCents < 0, 'Carol must owe money');
+    assert.ok(carolView.ledger.suggestions.some(item => item.fromUserId === ids.Carol), 'Carol needs a pay suggestion');
+    assert.ok(carolView.repayments.some(item => item.senderId === ids.Carol && item.status === 'pending'), 'Carol needs a pending sent transfer');
+  }
+  console.log(`Seeded Costco Crew: 4 members, 3 open, ${layoutsMode ? 6 : 2} complete, 1 canceled, 1 ready draft, ${layoutsMode ? 2 : 1} incoming repayment(s); Apartment: 2 settled members.`);
 
   browser = await chromium.launch({
     ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}),
   });
+  if (layoutsMode) {
+    await captureLayouts(base, costco.id);
+    return;
+  }
   const routes = {
     specimen: '#/prototype/palette', home: '#', group: `#/group-bills/${costco.id}`,
     'bill-open': `#/bills/${missing.id}`, 'bill-complete': `#/bills/${complete.id}`,
