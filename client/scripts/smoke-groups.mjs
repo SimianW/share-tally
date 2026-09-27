@@ -204,24 +204,24 @@ try {
   await alice.getByRole('button', { name: 'View bills and balance' }).click();
   await alice.getByRole('button', { name: 'New bill', exact: true }).click();
   // The new-bill page reads its group before showing either the receipt step or the people step.
-  const splitByAmounts = alice.getByRole('button', { name: 'Split by amounts instead', exact: true });
-  const people = alice.getByRole('group', { name: 'Who shared this purchase?' });
+  const splitByAmounts = alice.getByRole('button', { name: 'Split by amount instead', exact: true });
+  const people = alice.getByRole('group', { name: "Who's in?" });
   await expect(splitByAmounts.or(people).first()).toBeVisible();
   if (await splitByAmounts.count()) await splitByAmounts.click();
   await expect(people).toBeVisible();
-  await expect(alice.getByRole('checkbox', { name: 'Alice · You, initiator' })).toBeDisabled();
-  await alice.getByRole('button', { name: 'Select everyone', exact: true }).click();
+  await expect(alice.getByRole('checkbox', { name: 'You', exact: true })).toBeDisabled();
+  await alice.getByRole('button', { name: 'Everyone', exact: true }).click();
   await expect(alice.getByRole('checkbox', { name: 'Carol', exact: true })).toBeChecked();
   await alice.getByRole('button', { name: 'Just me', exact: true }).click();
   await expect(alice.getByRole('checkbox', { name: 'Carol', exact: true })).not.toBeChecked();
   await alice.getByLabel('Bill title', { exact: true }).fill('Weekend groceries');
-  await alice.getByLabel('Actual paid total · CAD', { exact: true }).fill('100.00');
-  await alice.getByLabel('Actual paid total · CAD', { exact: true }).fill('100.001');
-  await alice.getByLabel('My share · CAD', { exact: true }).fill('40.00');
+  await alice.getByLabel('Total paid (CAD)', { exact: true }).fill('100.00');
+  await alice.getByLabel('Total paid (CAD)', { exact: true }).fill('100.001');
+  await alice.getByLabel('Your share (CAD)', { exact: true }).fill('40.00');
   await alice.getByRole('checkbox', { name: 'Bob', exact: true }).check();
-  await alice.getByRole('button', { name: 'Initiate bill' }).click();
-  assert.equal(await alice.getByLabel('Actual paid total · CAD', { exact: true }).evaluate(el => el.validity.valid), false);
-  await alice.getByLabel('Actual paid total · CAD', { exact: true }).fill('100.00');
+  await alice.getByRole('button', { name: 'Share bill' }).click();
+  assert.equal(await alice.getByLabel('Total paid (CAD)', { exact: true }).evaluate(el => el.validity.valid), false);
+  await alice.getByLabel('Total paid (CAD)', { exact: true }).fill('100.00');
   let creationAttempts = 0;
   await alice.route('**/api/receipt-drafts/*/initialize', async route => {
     if (route.request().method() !== 'POST') return route.continue();
@@ -230,14 +230,14 @@ try {
     if (creationAttempts === 1) return route.abort('failed');
     return route.fulfill({ response });
   });
-  await alice.getByRole('button', { name: 'Initiate bill' }).click();
-  await expect(alice.getByRole('button', { name: 'Retry initiation' })).toBeVisible();
+  await alice.getByRole('button', { name: 'Share bill' }).click();
+  await expect(alice.getByRole('button', { name: 'Retry sharing' })).toBeVisible();
   releaseSnapshot();
   await expect(carol.getByRole('region', { name: 'Open bills', exact: true }).getByRole('link')).toContainText('Weekend groceries', { timeout: 3000 });
   await alice.reload();
   // The new-bill page is its own route, so a reload restores the unsent bill in place.
   await expect(alice.getByLabel('Bill title', { exact: true })).toHaveValue('Weekend groceries');
-  await alice.getByRole('button', { name: 'Retry initiation' }).click();
+  await alice.getByRole('button', { name: 'Retry sharing' }).click();
   await expect(alice.getByRole('heading', { name: 'Weekend groceries' })).toBeVisible();
   assert.equal(creationAttempts, 2);
   await expect(alice.locator('.difference-number')).toHaveText('$60.00');
@@ -394,12 +394,12 @@ try {
   async function incompleteBill(title) {
     await alice.getByRole('link', { name: 'Group bills', exact: false }).click();
     await alice.getByRole('button', { name: 'New bill', exact: true }).click();
-  await alice.getByRole('button', { name: 'Split by amounts instead', exact: true }).click();
+  await alice.getByRole('button', { name: 'Split by amount instead', exact: true }).click();
     await alice.getByLabel('Bill title', { exact: true }).fill(title);
-    await alice.getByLabel('Actual paid total · CAD', { exact: true }).fill('100.00');
-    await alice.getByLabel('My share · CAD', { exact: true }).fill('40.00');
+    await alice.getByLabel('Total paid (CAD)', { exact: true }).fill('100.00');
+    await alice.getByLabel('Your share (CAD)', { exact: true }).fill('40.00');
     await alice.getByRole('checkbox', { name: 'Bob', exact: true }).check();
-    await alice.getByRole('button', { name: 'Initiate bill' }).click();
+    await alice.getByRole('button', { name: 'Share bill' }).click();
     await expect(alice.getByRole('heading', { name: title })).toBeVisible();
     await bobAgain.goto(alice.url());
     await bobAgain.getByLabel('My share · CAD', { exact: true }).fill('59.00');
@@ -445,7 +445,7 @@ try {
   await expect(alice.locator('.bill-controls')).toHaveCount(0);
   await incompleteBill('Canceled groceries');
   await alice.getByRole('button', { name: 'Edit details & participants' }).click();
-  await expect(alice.getByRole('dialog').getByRole('checkbox', { name: /Alice/ })).toBeDisabled();
+  await expect(alice.getByRole('dialog').getByRole('checkbox', { name: 'You', exact: true })).toBeDisabled();
   await alice.getByRole('dialog').getByRole('checkbox', { name: 'Bob', exact: true }).uncheck();
   await alice.getByRole('button', { name: 'Save & request confirmations' }).click();
   await expect(alice.locator('.difference-card')).toContainText('0/1 confirmed');
@@ -537,11 +537,11 @@ try {
   await bobAgain.screenshot({ path: `${clientRoot}/test-results/repayments-mobile.png`, fullPage: true });
   // A new bill remains available after repayment decisions. It completes immediately.
   await alice.getByRole('button', { name: 'New bill', exact: true }).click();
-  await alice.getByRole('button', { name: 'Split by amounts instead', exact: true }).click();
+  await alice.getByRole('button', { name: 'Split by amount instead', exact: true }).click();
   await alice.getByLabel('Bill title', { exact: true }).fill('After repayment');
-  await alice.getByLabel('Actual paid total · CAD', { exact: true }).fill('10.00');
-  await alice.getByLabel('My share · CAD', { exact: true }).fill('10.00');
-  await alice.getByRole('button', { name: 'Initiate bill' }).click();
+  await alice.getByLabel('Total paid (CAD)', { exact: true }).fill('10.00');
+  await alice.getByLabel('Your share (CAD)', { exact: true }).fill('10.00');
+  await alice.getByRole('button', { name: 'Share bill' }).click();
   await expect(alice.locator('.bill-status')).toContainText('COMPLETE');
   await alice.getByRole('link', { name: 'Group bills', exact: false }).click();
   await expect(groupNet(alice)).toContainText('$99.97');

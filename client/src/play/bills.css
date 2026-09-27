@@ -139,7 +139,7 @@
   font-weight: 700;
   margin: 16px 0;
 }
-.bill-form input:not([type="checkbox"]),
+.bill-form input:not([type="checkbox"]):not([type="radio"]),
 .bill-form textarea,
 .share-form input {
   width: 100%;
@@ -154,15 +154,17 @@
   min-height: 90px;
   resize: vertical;
 }
-.bill-form .participant-choice {
-  display: flex;
-  align-items: center;
-  font-weight: 500;
+/* iOS Safari sizes date inputs to their native control and ignores width;
+   dropping the native appearance lets them fit the column like other fields. */
+.bill-form input[type="date"] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  min-width: 0;
+  min-height: 48px;
 }
-.participant-choice input {
-  width: 20px;
-  height: 20px;
-  accent-color: var(--money-owed);
+.bill-form input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
 }
 .bill-form legend {
   font-weight: 800;
@@ -170,7 +172,7 @@
 }
 .bill-money-fields {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;
 }
 .share-form {
