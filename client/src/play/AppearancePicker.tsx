@@ -1,19 +1,20 @@
 import { useState } from 'react';
 import { palettes, type PaletteKey } from './palettes';
-import { paletteStorageKey, savePalette } from './appearance';
+import { readSavedPalette, savePalette } from './appearance';
 import './appearance.css';
 
-const initialPalette = (() => {
-  const saved = localStorage.getItem(paletteStorageKey);
-  return palettes.find(palette => palette.key === saved)?.key ?? 'classic';
-})();
-
 export function AppearancePicker() {
-  const [selected, setSelected] = useState<PaletteKey>(initialPalette);
+  const [initialPreference] = useState(readSavedPalette);
+  const [selected, setSelected] = useState<PaletteKey>(initialPreference.key);
+  const [note, setNote] = useState(initialPreference.storageAvailable
+    ? 'Saved on this device.'
+    : 'Could not read the saved palette. Your changes may not persist.');
 
   function choose(key: PaletteKey) {
     setSelected(key);
-    savePalette(key);
+    setNote(savePalette(key)
+      ? 'Saved on this device.'
+      : 'Palette applied for this session, but could not be saved on this device.');
   }
 
   return <section className="appearance-section" aria-labelledby="appearance-heading">
@@ -46,6 +47,6 @@ export function AppearancePicker() {
         </span>
       </label>)}
     </fieldset>
-    <p className="appearance-note">Saved on this device.</p>
+    <p className="appearance-note" role="status" aria-live="polite">{note}</p>
   </section>;
 }

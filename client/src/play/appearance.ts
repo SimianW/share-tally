@@ -6,12 +6,25 @@ export function isPaletteKey(value: string | null): value is PaletteKey {
   return palettes.some(palette => palette.key === value);
 }
 
+export function readSavedPalette() {
+  try {
+    const saved = localStorage.getItem(paletteStorageKey);
+    return { key: isPaletteKey(saved) ? saved : 'classic', storageAvailable: true } as const;
+  } catch {
+    return { key: 'classic', storageAvailable: false } as const;
+  }
+}
+
 export function applySavedPalette() {
-  const saved = localStorage.getItem(paletteStorageKey);
-  document.documentElement.dataset.palette = isPaletteKey(saved) ? saved : 'classic';
+  document.documentElement.dataset.palette = readSavedPalette().key;
 }
 
 export function savePalette(key: PaletteKey) {
   document.documentElement.dataset.palette = key;
-  localStorage.setItem(paletteStorageKey, key);
+  try {
+    localStorage.setItem(paletteStorageKey, key);
+    return true;
+  } catch {
+    return false;
+  }
 }

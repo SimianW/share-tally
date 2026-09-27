@@ -56,5 +56,24 @@ export async function checkAppearance(page, base, groupUrl) {
   await page.getByRole('menuitem', { name: 'Account', exact: true }).click();
   await expect(page.getByRole('radiogroup', { name: 'Appearance' }).getByRole('radio', { name: /Classic/ })).toBeChecked();
   assert.equal(await page.evaluate(() => document.documentElement.dataset.palette), 'classic', 'Invalid stored palette falls back to Classic');
-  console.log('Appearance smoke passed: picker, immediate application, pre-hydration reload, navigation persistence, and invalid-value fallback.');
+
+  await page.addInitScript(key => {
+    const getItem = Storage.prototype.getItem;
+    const setItem = Storage.prototype.setItem;
+    Storage.prototype.getItem = function (name) {
+      if (name === key) throw new Error('Storage access is blocked');
+      return getItem.call(this, name);
+    };
+    Storage.prototype.setItem = function (name, value) {
+      if (name === key) throw new Error('Storage access is blocked');
+      return setItem.call(this, name, value);
+    };
+  }, storageKey);
+  await page.reload();
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.palette), 'classic', 'Blocked palette reads fall back to Classic');
+  await expect(page.getByText('Could not read the saved palette. Your changes may not persist.', { exact: true })).toBeVisible();
+  await page.getByRole('radio', { name: /Marigold/ }).check();
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.palette), 'marigold', 'A selection still applies when writes are blocked');
+  await expect(page.getByText('Palette applied for this session, but could not be saved on this device.', { exact: true })).toBeVisible();
+  console.log('Appearance smoke passed: picker, immediate application, pre-hydration reload, navigation persistence, invalid-value fallback, and blocked-storage recovery.');
 }
