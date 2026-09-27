@@ -82,8 +82,10 @@ export async function checkAppearance(page, base, groupUrl) {
   await page.reload();
   assert.equal(await page.evaluate(() => window.__schemeBeforeModules), 'light', 'An invalid stored mode follows the device');
   await expect(page.getByRole('radiogroup', { name: 'Mode' }).getByRole('radio', { name: 'Match device' })).toBeChecked();
-  await page.getByRole('radiogroup', { name: 'Mode' }).getByRole('radio', { name: 'Match device' }).check();
   assert.equal(await scheme(), 'light');
+  // The radio is already checked, so clear the invalid value directly.
+  await page.evaluate(() => localStorage.removeItem('share-tally-scheme'));
+  assert.equal(await page.evaluate(() => localStorage.getItem('share-tally-scheme')), null);
 
   await page.goto(base);
   assert.equal(await page.evaluate(() => document.documentElement.dataset.palette), 'raspberry', 'Palette persists on Home');
