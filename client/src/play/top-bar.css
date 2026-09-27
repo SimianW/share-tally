@@ -87,13 +87,13 @@ html:has(.top-bar) { scroll-padding-top: var(--top-bar-height); }
   font-weight: 600;
 }
 .account-menu [role="menuitem"] > svg { color: var(--ink-secondary); }
-.account-menu [role="menuitem"]:focus-visible { background: var(--surface-accent); color: var(--ink-on-action); }
+.account-menu [role="menuitem"]:focus-visible { background: var(--surface-accent); color: var(--ink-on-soft-accent); }
 .account-menu [role="menuitem"]:focus-visible > svg { color: var(--accent-ink-muted); }
 /* Touch taps leave :hover behind; only devices that really hover get hover styles. */
 @media (hover: hover) {
   .top-bar-home:hover { background: var(--surface-soft); }
   .account-menu-trigger:hover { background: var(--surface-soft); border-color: var(--line-accent); color: var(--ink); }
-  .account-menu [role="menuitem"]:hover { background: var(--surface-accent); color: var(--ink-on-action); }
+  .account-menu [role="menuitem"]:hover { background: var(--surface-accent); color: var(--ink-on-soft-accent); }
   .account-menu [role="menuitem"]:hover > svg { color: var(--accent-ink-muted); }
 }
 .account-menu [role="menuitem"]:focus-visible { outline-offset: -3px; }

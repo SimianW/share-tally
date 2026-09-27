@@ -136,6 +136,8 @@
   --ink-secondary: var(--palette-secondary);
   --ink-subtle: var(--palette-subtle);
   --ink-on-action: var(--palette-action-ink);
+  /* Tint surfaces stay light even when the action itself has inverse text. */
+  --ink-on-soft-accent: var(--ink-on-action);
   --ink-inverse: var(--palette-white);
   /* Lines: neutral boundaries and tinted accent boundaries. */
   --line: var(--palette-line);
