@@ -80,7 +80,9 @@
 .receipt-sheet-content { display: grid; gap: var(--space-5); }
 .receipt-editor-photo { display: grid; gap: var(--space-2); min-width: 0; }
 .receipt-editor-photo svg { display: block; width: 100%; height: auto; max-height: 180px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-soft); }
-.receipt-editor-photo polygon { fill: var(--action); fill-opacity: .38; stroke: var(--money-owe); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.receipt-editor-photo .receipt-photo-open { width: 100%; }
+.receipt-editor-photo .receipt-photo-open svg { border: 0; border-radius: 0; max-height: 180px; }
+.receipt-editor-photo polygon, .receipt-photo-viewer polygon { fill: var(--action); fill-opacity: .38; stroke: var(--money-owe); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .receipt-original-text { padding: var(--space-4); border-radius: var(--radius-sm); background: var(--surface-soft); }
 .receipt-original-text p { margin-top: var(--space-2); overflow-wrap: anywhere; font-family: var(--font-code); }
 .receipt-editor-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-4); align-items: end; }
@@ -137,12 +139,13 @@
 .receipt-photo-open img { display: block; }
 .receipt-photo-open > span { position: absolute; bottom: var(--space-3); left: 50%; transform: translateX(-50%); display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); background: var(--surface); font-size: var(--text-xs); box-shadow: var(--shadow-floating); }
 .receipt-photo > small { display: block; color: var(--ink-secondary); font-size: var(--text-xs); margin-top: var(--space-2); }
-.play-dialog.receipt-photo-viewer { position: fixed; inset: 0; margin: 0; width: 100vw; max-width: none; height: 100dvh; max-height: 100dvh; border: 0; border-radius: 0; padding: var(--space-5); overflow: hidden; }
+.play-dialog.receipt-photo-viewer { position: fixed; inset: 0; margin: 0; width: 100vw; max-width: none; height: 100dvh; max-height: 100dvh; border: 0; border-radius: 0; padding: max(var(--space-5), env(safe-area-inset-top)) max(var(--space-5), env(safe-area-inset-right)) max(var(--space-5), env(safe-area-inset-bottom)) max(var(--space-5), env(safe-area-inset-left)); overflow: hidden; }
 .receipt-photo-viewer[open] { display: flex; flex-direction: column; gap: var(--space-3); }
 .receipt-photo-tools { display: flex; align-items: center; justify-content: center; gap: var(--space-3); }
 .receipt-photo-tools output { min-width: 4ch; text-align: center; }
-.receipt-photo-viewport { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; background: var(--surface-soft); border-radius: var(--radius-sm); touch-action: pan-x pan-y pinch-zoom; }
-.receipt-photo-viewport img { display: block; max-width: none; height: auto; object-fit: contain; }
+.receipt-photo-viewport { flex: 1; min-height: 0; overflow: hidden; overscroll-behavior: none; background: var(--surface-soft); border-radius: var(--radius-sm); touch-action: none; }
+.receipt-photo-transform { width: 100% !important; height: 100% !important; touch-action: none; }
+.receipt-photo-content svg { display: block; max-width: none; }
 
 @media (max-width: 700px) {
   .play-dialog.receipt-sheet { inset: auto 0 0; width: 100%; height: auto; max-height: 92dvh; border-radius: var(--radius) var(--radius) 0 0; padding: var(--space-5); padding-bottom: max(var(--space-5), env(safe-area-inset-bottom)); }
@@ -158,7 +161,8 @@
   .receipt-review-footer > div { grid-row: 3; gap: var(--space-2); justify-content: space-between; }
   .receipt-reconciliation { padding: var(--space-2) var(--space-3); }
   .receipt-reconciliation small { display: none; }
-  .play-dialog.receipt-photo-viewer { padding: var(--space-3); }
+  .play-dialog.receipt-photo-viewer { padding: max(var(--space-3), env(safe-area-inset-top)) max(var(--space-3), env(safe-area-inset-right)) max(var(--space-3), env(safe-area-inset-bottom)) max(var(--space-3), env(safe-area-inset-left)); }
+  .play-dialog.receipt-sheet .receipt-editor-controls input:not([type="checkbox"]) { font-size: 16px; }
 }
 
 @media (min-width: 701px) {
