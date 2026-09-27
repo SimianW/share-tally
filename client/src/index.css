@@ -23,6 +23,14 @@ input,
 select {
   font: inherit;
 }
+/* iOS Safari zooms into any focused field under 16px and does not zoom back out. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: max(16px, 1em) !important;
+  }
+}
 button,
 a,
 input,
