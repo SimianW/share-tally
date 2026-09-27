@@ -116,7 +116,7 @@ function DashboardPerson({ row, record, review }: {
         ? <p className="group-transfer-note">Suggested: {member.displayName} pays you {money(suggestion.amountCents)}</p>
         : <div className="group-transfer-line">
           <span>{suggestion.direction === 'pay' ? <>You pay <b>{member.displayName}</b></> : <><b>{member.displayName}</b> pays you</>}
-            {!outgoing.length && <small>Suggested transfer</small>}
+            <small>Suggested transfer</small>
           </span>
           <strong className={`group-tone-${suggestion.direction === 'pay' ? 'owe' : 'owed'}`}>{money(suggestion.amountCents)}</strong>
           {suggestion.direction === 'pay' && !outgoing.length && <Button className="small" variant="secondary" onClick={() => record({ recipientId: member.id, amountCents: suggestion.amountCents })}>I sent this</Button>}
