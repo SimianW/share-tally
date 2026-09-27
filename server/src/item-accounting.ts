@@ -29,11 +29,17 @@ export async function itemDetails(tx: Tx, billId: string) {
           ),
         )
     : [];
-  const [photo] = await tx
-    .select({ expiresAt: receiptPhotos.expiresAt, draftId: receiptDrafts.id })
+  const [source] = await tx
+    .select({ expiresAt: receiptPhotos.expiresAt, draftId: receiptDrafts.id, data: receiptDrafts.data })
     .from(receiptDrafts)
     .innerJoin(receiptPhotos, eq(receiptPhotos.draftId, receiptDrafts.id))
     .where(eq(receiptDrafts.billId, billId));
+  const expired = !source || source.expiresAt <= new Date();
+  // Bill items keep their draft item ids. Publish only where each item sits on
+  // the photo, never the rest of the scan evidence; both expire with the photo.
+  const regions = new Map(expired ? [] : source.data.items.map((item) =>
+    [item.id, item.evidence?.regions?.[0] ?? item.evidence?.descriptionRegions?.[0]] as const));
+  const pages = expired ? undefined : source.data.receipt?.evidence?.pages;
   return {
     items: items.map((item) => ({
       ...item,
@@ -42,8 +48,12 @@ export async function itemDetails(tx: Tx, billId: string) {
       // Legacy items predate receipt summaries: their stored tax and extra
       // are known, but the receipt discount share and manual provenance are not.
       claims: claims.filter((c) => c.itemId === item.id),
+      receiptRegion: regions.get(item.id) ?? null,
     })),
-    photo: photo ? { ...photo, expired: photo.expiresAt <= new Date() } : null,
+    photo: source ? {
+      draftId: source.draftId, expiresAt: source.expiresAt, expired,
+      ...(pages ? { pages } : {}),
+    } : null,
   };
 }
 export async function recalculateItemBill(

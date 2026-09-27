@@ -28,8 +28,9 @@ export type ItemEvidence = {
   unitPrice?: number;
   content?: string;
 };
+export type ReceiptPage = { pageNumber: number; width: number; height: number; unit: string };
 export type ReceiptEvidenceFields = {
-  pages?: { pageNumber: number; width: number; height: number; unit: string }[];
+  pages?: ReceiptPage[];
   countryRegion?: string;
   taxDetails?: { amount?: number; rate?: number; netAmount?: number; description?: string }[];
 };
@@ -67,6 +68,7 @@ export type BillItem = Omit<ReceiptItem, "taxCents" | "extraCents"> & {
   taxCents: number | null;
   extraCents: number | null;
   claims: ItemClaim[];
+  receiptRegion?: BoundingRegion | null;
   taxable?: boolean | null;
   manualFinal?: boolean | null;
   frozenDiscountWeightCents?: number | null;
