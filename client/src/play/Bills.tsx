@@ -2,42 +2,20 @@ import { ReceiptDrafts } from './ReceiptDraft';
 import { ItemClaims } from './ItemClaims';
 import { Notification } from './Notification';
 import { useCached, denied, useCachedRequest, hideProtectedQueries, AccessError } from './query-cache';
-import { AnimatedMoney } from './AnimatedMoney';
 import { useAuth } from '@clerk/react';
 import { startGroupSync } from './group-sync';
-import { Repayments } from './Repayments';
+import { GroupPage } from './GroupPage';
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   useBillApi,
   money,
   type Bill,
-  type Summary,
 } from "./bill-api";
 import { useGroupApi, errorMessage, type GroupDetail } from "./group-api";
-import { Avatar, Button, Icon } from "./ui";
+import { Avatar, Button } from "./ui";
 import { GroupDetails } from "./GroupDetails";
 import "./bills.css";
-import { GroupBalances } from "./GroupBalances";
 import { InitiatorActions, ShareActions } from "./BillActions";
-
-import { NextTransfer } from './NextTransfer';
-
-// The member's balance in this group. There is no cross-group balance: each
-// group settles on its own (ADR-0005).
-export function Balance({ summary }: { summary: Summary }) {
-  return (
-    <section className="balance-card">
-      <span className="eyebrow">IN THIS GROUP · CAD</span>
-      <h2>{summary.netCents < 0 ? "You owe, net" : "You are owed, net"}</h2>
-      <strong className="balance-number">
-        <AnimatedMoney cents={summary.netCents} />
-      </strong>
-      <p>
-        Completed bills and confirmed repayments.
-      </p>
-    </section>
-  );
-}
 
 function LoadingFinancials({ label }: { label: string }) {
   return <div className="financial-skeleton" role="status" aria-label={label}>
@@ -52,7 +30,6 @@ export function GroupBills({ id, selectedRepaymentId, onDeleted, title }: {
   title: (group: GroupDetail | undefined) => ReactNode;
 }) {
   const [membersOpen, setMembersOpen] = useState(false);
-  const repaymentHistory = useRef<HTMLDivElement>(null);
   const api = useBillApi();
   const groups = useGroupApi();
   const cache = useCachedRequest();
@@ -90,78 +67,19 @@ export function GroupBills({ id, selectedRepaymentId, onDeleted, title }: {
     setMembersOpen(false);
     setRevision(n => n + 1);
   }
-  return (
-    <section className="bills-page">
-      <div className="bill-heading group-heading">
-        <div><span className="eyebrow">YOUR SHOPPING CIRCLE</span>{title(data?.group)}
-        {data && <p className="group-member-count">{data.group.memberCount} {data.group.memberCount === 1 ? 'member' : 'members'} · CAD</p>}</div>
-        {data && <div className="group-actions">
-          <Button variant="secondary" onClick={() => setMembersOpen(true)}><Icon name="people" /> Members & invites</Button>
-          <Button onClick={() => { window.location.hash = `/new-bill/${id}`; }}><Icon name="plus" /> New bill</Button>
-        </div>}
-      </div>
-      {!data && (error || accessError) && <Notification><p>{accessError ? errorMessage(accessError) : "Couldn't load this group."}</p><Button onClick={() => setRevision(n => n + 1)}>Try again</Button></Notification>}
-      {!data ? (
+  return <>
+    {data ? <GroupPage data={data} title={title(data.group)} api={api} selectedRepaymentId={selectedRepaymentId}
+      openMembers={() => setMembersOpen(true)} refresh={() => setRevision(n => n + 1)}
+      drafts={<ReceiptDrafts key={`${id}:${revision}`} groupId={id} open={draftId => { window.location.hash = `/new-bill/${id}/${draftId}`; }} />} />
+      : <section className="group-page">
+        <header className="group-page-heading"><div className="group-page-title">{title(undefined)}</div></header>
+        {(error || accessError) && <Notification><p>{accessError ? errorMessage(accessError) : "Couldn't load this group."}</p><Button onClick={() => setRevision(n => n + 1)}>Try again</Button></Notification>}
         <LoadingFinancials label="Loading group" />
-      ) : (
-        <>
-          <div className="workspace-balance">
-            <div className="group-balance-overview"><Balance summary={data.summary} />
-              <div className="group-member-faces" aria-label={`${data.group.memberCount} group members`}>
-                {data.group.members.slice(0, 5).map(member => <Avatar key={member.id} name={member.displayName} imageUrl={member.imageUrl} fallbackImageUrl={member.fallbackImageUrl} small />)}
-                {data.group.memberCount > 5 && <span>+{data.group.memberCount - 5}</span>}
-                <small>All in it together.</small>
-              </div>
-            </div>
-            <NextTransfer ledger={data.ledger} group={data.group} viewRepayments={() => {
-              repaymentHistory.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
-              repaymentHistory.current?.focus({ preventScroll: true });
-            }} />
-          </div>
-          <ReceiptDrafts key={`${id}:${revision}`} groupId={id} open={draftId => { window.location.hash = `/new-bill/${id}/${draftId}`; }} />
-          <div className="bill-heading">
-            <h2>
-              Shared purchases <small>{data.bills.length}</small>
-            </h2>
-          </div>
-          {!data.bills.length && (
-            <p>No bills yet. Record a purchase you paid for to get started.</p>
-          )}
-          <div className="bill-list">
-            {data.bills.map((bill) => (
-              <a
-                key={bill.id}
-                href={`#/bills/${bill.id}`}
-                className="bill-list-row"
-              >
-                <span className="purchase-icon" aria-hidden="true"><Icon name="basket" /></span>
-                <div className="purchase-description">
-                  <strong>{bill.title}</strong>
-                  <span>
-                    {bill.purchaseDate} · {bill.confirmedCount}/
-                    {bill.participants.length} confirmed
-                  </span>
-                </div>
-                <div className="purchase-amount">
-                  <b>{money(bill.totalCents)}</b>
-                  <span>{bill.canceledAt ? "Canceled" : bill.completedAt ? "Complete" : "In progress"}</span>
-                </div>
-                <Icon name="diagonal" />
-              </a>
-            ))}
-          </div>
-          <p className="purchase-history-note"><Icon name="check" /> Completed purchases stay in your history.</p>
-          <GroupBalances ledger={data.ledger} />
-          <div ref={repaymentHistory} tabIndex={-1} className="repayment-history-anchor">
-            <Repayments key={`${id}:${selectedRepaymentId ?? ""}`} selectedId={selectedRepaymentId} group={data.group} records={data.repayments} api={api} refresh={() => setRevision(n => n + 1)} />
-          </div>
-
-        </>
-      )}
-      {membersOpen && <GroupDetails id={id} api={groups} close={closeMembers} onDeleted={onDeleted} />}
-    </section>
-  );
+      </section>}
+    {membersOpen && <GroupDetails id={id} api={groups} close={closeMembers} onDeleted={onDeleted} />}
+  </>;
 }
+
 export function BillDetails({ id }: { id: string }) {
   const api = useBillApi();
   const [bill, setBill] = useState<Bill | null>(null);
