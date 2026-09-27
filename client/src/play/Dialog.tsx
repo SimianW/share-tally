@@ -79,17 +79,6 @@ export default function Dialog({
         event.preventDefault();
         close();
       }}
-      onClick={(e) => {
-        const r = e.currentTarget.getBoundingClientRect();
-        if (
-          e.target === e.currentTarget &&
-          (e.clientX < r.left ||
-            e.clientX > r.right ||
-            e.clientY < r.top ||
-            e.clientY > r.bottom)
-        )
-          close();
-      }}
     >
       <div className="dialog-heading">
         <div>
