@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { AnimatedMoney } from './AnimatedMoney';
-import { money, type Bill, type BillApi } from './bill-api';
+import { money, type Bill, type BillApi, type RepaymentPrefill } from './bill-api';
 import { groupView, type DashboardRow, type GroupPageData, type GroupView, type OpenBill } from './group-view';
 import { RecordRepayment, Repayments } from './Repayments';
 import { Avatar, Button, Icon } from './ui';
@@ -16,7 +16,7 @@ export function GroupPage({ data, title, drafts, api, refresh, openMembers, sele
 }) {
   const view = groupView(data);
   const [showHistory, setShowHistory] = useState(false);
-  const [prefill, setPrefill] = useState<{ recipientId: string; amountCents: number } | null>(null);
+  const [prefill, setPrefill] = useState<RepaymentPrefill | null>(null);
   const review = (id: string) => { window.location.hash = `/group-bills/${data.group.id}?repayment=${encodeURIComponent(id)}`; };
   const tone = view.netCents > 0 ? 'owed' : view.netCents < 0 ? 'owe' : 'settled';
   return <section className="group-page">
@@ -98,7 +98,7 @@ export function GroupPage({ data, title, drafts, api, refresh, openMembers, sele
 
 function DashboardPerson({ row, record, review }: {
   row: DashboardRow;
-  record: (initial: { recipientId: string; amountCents: number }) => void;
+  record: (initial: RepaymentPrefill) => void;
   review: (id: string) => void;
 }) {
   const { member, suggestion, incoming, outgoing } = row;
