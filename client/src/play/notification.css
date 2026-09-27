@@ -8,7 +8,6 @@
   margin-block: 20px;
   padding: 22px;
   border: 1px solid var(--notice-line);
-  border-left: 4px solid var(--notice-tone);
   border-radius: 16px;
   background: var(--notice-wash);
   color: color-mix(in srgb, var(--ink) 90%, var(--ink-muted));
@@ -22,8 +21,13 @@
 .notification-title { display: block; font-size: 1rem; line-height: 1.4; }
 .notification-body { margin-top: 6px; font-size: .875rem; line-height: 1.6; }
 .notification-body p { margin: 6px 0; }
+.notification-body > :first-child { margin-top: 0; }
+.notification-body > :last-child { margin-bottom: 0; }
+.notification-body > .button { display: flex; width: fit-content; }
 .notification-body > .button:not(.text) { margin-top: 12px; background: var(--notice-tone); color: var(--ink-inverse); border-color: var(--notice-tone); }
 .notification-body > .button:not(.text):hover:not(:disabled) { background: color-mix(in srgb, var(--notice-tone) 84%, var(--ink)); }
+.notification-body > .button.text { gap: 4px; margin: 4px 0 -9px; color: var(--notice-tone); }
+.notification-body > .button.text:hover:not(:disabled) { text-decoration: underline; text-underline-offset: 3px; }
 .notification-dismiss { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 36px; height: 36px; margin: -8px; border: 0; border-radius: 8px; background: transparent; color: var(--notice-tone); cursor: pointer; }
 .notification-dismiss:hover { background: var(--notice-line); }
 @media (max-width: 600px) {

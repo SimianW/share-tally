@@ -112,7 +112,7 @@ export function BillDetails({ id }: { id: string }) {
     });
     return () => { controller.abort(); sync?.stop(); live.current = null; };
   }, [api, getToken, id, revision]);
-  if (!bill) return error ? <Notification title="Could not load this bill">{error}<Button onClick={() => setRevision(n => n + 1)}>Retry bill</Button></Notification> : <div role="status">Loading bill...</div>;
+  if (!bill) return error ? <Notification title="Could not load this bill"><p>{error}</p><Button onClick={() => setRevision(n => n + 1)}>Retry bill</Button></Notification> : <div role="status">Loading bill...</div>;
   const initiator = bill.participants.find(
     (p) => p.userId === bill.initiatorId,
   )!;
