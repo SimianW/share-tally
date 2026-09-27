@@ -77,6 +77,7 @@ export default function Dialog({
       aria-labelledby={id}
       onCancel={(event) => {
         event.preventDefault();
+        event.stopPropagation();
         close();
       }}
     >

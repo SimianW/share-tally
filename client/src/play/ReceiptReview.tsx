@@ -85,7 +85,7 @@ export function ReceiptReviewItems({ items, change, mode = "review", hasFrozenRa
       <div ref={fields} key={active.id} className="receipt-sheet-content">
         {processing && <p className="receipt-lock-note" role="status"><LockKeyhole size={18} aria-hidden="true" /> Checking the name and tax for this item. Editing unlocks when it finishes.</p>}
         {!processing && active.taxNotChecked && <p className="receipt-lock-note receipt-lock-warning">Tax wasn't checked automatically. This item is set to taxable; turn it off if it isn't taxed.</p>}
-        {photo && page && region && region.pageNumber === 1 && <ReceiptLinePhoto id={photo.id} version={photo.version} page={page} polygon={region.polygon} />}
+        {photo && page && region && region.pageNumber === 1 && <ReceiptLinePhoto id={photo.id} version={photo.version} page={page} polygon={region.polygon} subject={active.name} />}
         <div className="receipt-original-text"><span className="eyebrow">ON THE RECEIPT</span><p>{active.originalText || "Manually added item"}</p></div>
         <fieldset className="receipt-editor-controls" disabled={processing}>
         <div className="receipt-editor-fields">
