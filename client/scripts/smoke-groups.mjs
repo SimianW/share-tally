@@ -1,5 +1,5 @@
 import { checkGroupPage } from './smoke-group-page.mjs';
-import { checkAppearance } from './smoke-appearance.mjs';
+import { checkAppearance, checkBillCardPalettes } from './smoke-appearance.mjs';
 import { checkGroupRefresh } from './smoke-group-refresh.mjs';
 import { checkNavigation, groupNet, homeRow, homeGroupNames, openGroupSwitcher, switchGroup } from './smoke-navigation.mjs';
 // Run after installing both client and server dependencies and Chromium:
@@ -242,6 +242,7 @@ try {
   assert.equal(creationAttempts, 2);
   await expect(alice.locator('.difference-number')).toHaveText('$60.00');
   await expect(alice.locator('.difference-card')).toContainText('1/2 confirmed');
+  await checkBillCardPalettes(alice, `${clientRoot}test-results`);
   const billUrl = alice.url();
   await bob.goto(base);
   const bobAttention = bob.getByRole('region', { name: 'Needs your attention' });
