@@ -48,7 +48,7 @@
 .group-bill-end { display: grid; justify-items: end; gap: 4px; text-align: right; min-width: 0; max-width: 260px; }
 .group-bill-end > b { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .group-badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; overflow-wrap: anywhere; }
-.group-badge-todo { background: var(--action); color: var(--ink-on-action); }
+.group-badge-todo { background: var(--action); color: var(--ink-on-action); box-shadow: var(--glow-action); }
 .group-badge-waiting { background: var(--surface-sunken); color: var(--ink-secondary); border: 1px solid var(--line); }
 .group-empty { display: flex; align-items: center; gap: 8px; padding: 18px 0; margin: 0; color: var(--ink-muted); font-size: 13px; }
 .group-empty svg { flex-shrink: 0; }

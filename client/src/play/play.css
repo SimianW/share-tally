@@ -148,12 +148,13 @@ h1 {
   font-size: 13px;
 }
 .button.primary {
-  background: var(--ink);
-  color: var(--ink-inverse);
-  border: 1px solid var(--ink);
+  background: var(--button-primary);
+  color: var(--ink-on-button-primary);
+  border: 1px solid var(--button-primary);
+  box-shadow: var(--glow-action);
 }
 .button.primary:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--ink) 84%, var(--surface));
+  background: var(--button-primary-hover);
 }
 .button.secondary {
   background: var(--surface);
@@ -430,7 +431,7 @@ h1 {
 .group-deletion-reasons { margin: 8px 0 0; padding-left: 22px; }
 .group-deletion-reasons > li + li { margin-top: 8px; }
 .group-deletion-reasons ul { margin: 4px 0 0; padding-left: 22px; }
-.button.primary.group-delete-submit { background: var(--status-danger); color: var(--ink-inverse); border-color: var(--status-danger); }
+.button.primary.group-delete-submit { background: var(--status-danger); color: var(--ink-inverse); border-color: var(--status-danger); box-shadow: none; }
 .button.primary.group-delete-submit:hover:not(:disabled) { background: var(--status-danger-hover); border-color: var(--status-danger-hover); }
 .dialog-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
 .regenerate-confirmation { padding: 14px; background: var(--status-warning-bg); border-radius: 12px; }

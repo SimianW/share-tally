@@ -225,3 +225,136 @@
   font-variation-settings: "SOFT" 100, "WONK" 1;
   font-optical-sizing: auto;
 }
+
+/* Dark mode ("Glow"). Every palette shares one graphite ground with a whisper
+   of its own accent, and the accent becomes the light: filled glowing
+   buttons, a light-leak summary card, a neon heading underline. Dark blocks
+   must stay after every light block: they tie on specificity and win by
+   order. A root without data-palette is Classic, like the light default. */
+:root[data-scheme="dark"],
+[data-scheme="dark"][data-palette],
+[data-scheme="dark"] [data-palette] {
+  color-scheme: dark;
+  --palette-white: color-mix(in oklab, var(--palette-lime) 3%, #15161a);
+  --palette-canvas: color-mix(in oklab, var(--palette-lime) 2%, #0b0c0f);
+  --palette-page: var(--palette-canvas);
+  --palette-ink: #f4f5f7;
+  --palette-page-ink: #f4f5f7;
+  --palette-mist: color-mix(in oklab, var(--palette-lime) 2%, #101114);
+  --palette-muted: #9b9ea8;
+  --palette-secondary: #c2c4cc;
+  --palette-subtle: #878a94;
+  --palette-line: color-mix(in oklab, var(--palette-lime) 7%, #25272d);
+  --palette-deep: #000;
+  --palette-chartreuse: color-mix(in oklab, var(--palette-lime) 18%, #15161a);
+  --palette-lime-tint: color-mix(in oklab, var(--palette-lime) 13%, #15161a);
+  /* Money and status hues are shared by every dark palette: owed stays green,
+     owe stays amber, and both are lifted to read on a dark card. */
+  --palette-green: #7fcb8c;
+  --palette-ochre: #f0b061;
+  --palette-cream: #3a2c17;
+  --palette-red: #ff8a7a;
+  --palette-amber: #e9bd55;
+  /* Avatars become jewel tones that carry light initials. */
+  --palette-sage: #3d4c2f;
+  --palette-rose: #56334a;
+  --palette-sky: #2b4658;
+  --palette-peach: #5a3c28;
+  --palette-lilac: #41395f;
+  --money-owed-bg: color-mix(in srgb, var(--palette-green) 16%, var(--palette-white));
+  --status-success-bg: var(--money-owed-bg);
+  /* Mixing toward --palette-deep darkens; on a dark card, status text and
+     danger hovers read at full strength or lighten toward the ink instead. */
+  --status-success: var(--palette-green);
+  --status-warning: var(--palette-ochre);
+  --status-warning-bg: color-mix(in srgb, var(--palette-cream) 80%, var(--palette-white));
+  --status-danger-bg: color-mix(in srgb, var(--palette-red) 14%, var(--palette-white));
+  --status-danger-hover: color-mix(in srgb, var(--palette-red) 80%, var(--palette-ink));
+  --status-info-bg: color-mix(in srgb, var(--palette-blue) 10%, var(--palette-white));
+  --accent-ink-muted: color-mix(in srgb, var(--palette-leaf) 80%, var(--palette-muted));
+  /* Soft accent fills are dark, so text on them is the ordinary ink. */
+  --accent-mark: color-mix(in srgb, var(--palette-lime) 34%, var(--palette-white));
+  --ink-on-soft-accent: var(--ink);
+  --focus: var(--palette-leaf);
+  --overlay: color-mix(in srgb, var(--palette-deep) 72%, transparent);
+  /* The accent is the light source. */
+  --button-primary: var(--action);
+  --button-primary-hover: var(--action-hover);
+  --ink-on-button-primary: var(--ink-on-action);
+  --glow-action: 0 0 0 1px color-mix(in srgb, var(--action) 30%, transparent), 0 6px 22px -6px color-mix(in srgb, var(--action) 65%, transparent);
+  --line-top-bar: color-mix(in srgb, var(--action) 30%, transparent);
+  --mark-highlight: var(--action);
+  --mark-highlight-top: 86%;
+  --ink-mark: var(--accent-ink);
+  --surface-summary: var(--surface);
+  --surface-summary-glow:
+    radial-gradient(120% 100% at 0% 0%, color-mix(in srgb, var(--action) 30%, transparent), transparent 62%),
+    radial-gradient(90% 80% at 100% 100%, color-mix(in srgb, var(--accent-decoration) 14%, transparent), transparent 60%);
+  --line-summary: color-mix(in srgb, var(--action) 42%, var(--line));
+  --shadow-summary: 0 24px 70px -34px color-mix(in srgb, var(--action) 70%, transparent);
+  --ink-summary-number: var(--accent-ink);
+  --glow-summary-number: 0 0 32px color-mix(in srgb, var(--action) 50%, transparent);
+}
+
+/* Each dark palette only lifts its accents to glow on graphite. */
+:root[data-scheme="dark"],
+[data-scheme="dark"][data-palette="classic"],
+[data-scheme="dark"] [data-palette="classic"] {
+  --palette-lime: #c4f178;
+  --palette-lime-hover: #d3f792;
+  --palette-leaf-edge: #97c65a;
+  --palette-action-ink: #1d2c12;
+  --palette-leaf: #b6e27c;
+  --palette-leaf-bright: #9fd45c;
+  --palette-blue: #8fb3dc;
+}
+[data-scheme="dark"][data-palette="marigold"],
+[data-scheme="dark"] [data-palette="marigold"] {
+  --palette-lime: #ffc23a;
+  --palette-lime-hover: #ffd063;
+  --palette-leaf-edge: #dca11f;
+  --palette-action-ink: #2a2014;
+  --palette-leaf: #9fb3f7;
+  --palette-leaf-bright: #ffb000;
+  --palette-blue: #93b3ea;
+}
+[data-scheme="dark"][data-palette="raspberry"],
+[data-scheme="dark"] [data-palette="raspberry"] {
+  --palette-lime: #f2649a;
+  --palette-lime-hover: #ff7eab;
+  --palette-leaf-edge: #c8406f;
+  --palette-action-ink: #2a0b18;
+  --palette-leaf: #ff94ba;
+  --palette-leaf-bright: #ff6fa3;
+  --palette-blue: #95b2e6;
+}
+[data-scheme="dark"][data-palette="plum-butter"],
+[data-scheme="dark"] [data-palette="plum-butter"] {
+  --palette-lime: #b692ff;
+  --palette-lime-hover: #c6a9ff;
+  --palette-leaf-edge: #8e66e0;
+  --palette-action-ink: #1a0d33;
+  --palette-leaf: #c8adff;
+  --palette-leaf-bright: #ffc94a;
+  --palette-blue: #93b1e6;
+}
+[data-scheme="dark"][data-palette="lagoon"],
+[data-scheme="dark"] [data-palette="lagoon"] {
+  --palette-lime: #3fc6c0;
+  --palette-lime-hover: #5dd4ce;
+  --palette-leaf-edge: #24a29c;
+  --palette-action-ink: #062322;
+  --palette-leaf: #72d8d1;
+  --palette-leaf-bright: #2bb3b1;
+  --palette-blue: #8fb3e3;
+}
+[data-scheme="dark"][data-palette="blueberry"],
+[data-scheme="dark"] [data-palette="blueberry"] {
+  --palette-lime: #8591ff;
+  --palette-lime-hover: #9ca6ff;
+  --palette-leaf-edge: #5e6be3;
+  --palette-action-ink: #10143d;
+  --palette-leaf: #aab3ff;
+  --palette-leaf-bright: #ff7fae;
+  --palette-blue: #8fb0ea;
+}

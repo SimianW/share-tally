@@ -1,20 +1,32 @@
 import { useState } from 'react';
-import { palettes, type PaletteKey } from './palettes';
-import { getCurrentPalette, readSavedPalette, savePalette } from './appearance';
+import { Monitor, Moon, Sun } from 'lucide-react';
+import { palettes, schemes, type PaletteKey, type SchemeKey } from './palettes';
+import { getCurrentPalette, getCurrentScheme, readSavedPalette, readSavedScheme, savePalette, saveScheme } from './appearance';
 import './appearance.css';
 
 export function AppearancePicker() {
   const [initialPreference] = useState(readSavedPalette);
+  const [initialScheme] = useState(readSavedScheme);
   const [selected, setSelected] = useState<PaletteKey>(getCurrentPalette);
-  const [note, setNote] = useState(initialPreference.storageAvailable
-    ? 'Saved on this device.'
-    : 'Could not read the saved palette. Your changes may not persist.');
+  const [scheme, setScheme] = useState<SchemeKey>(getCurrentScheme);
+  const [note, setNote] = useState(!initialPreference.storageAvailable
+    ? 'Could not read the saved palette. Your changes may not persist.'
+    : !initialScheme.storageAvailable
+      ? 'Could not read the saved mode. Your changes may not persist.'
+      : 'Saved on this device.');
 
   function choose(key: PaletteKey) {
     setSelected(key);
     setNote(savePalette(key)
       ? 'Saved on this device.'
       : 'Palette applied for this session, but could not be saved on this device.');
+  }
+
+  function chooseScheme(key: SchemeKey) {
+    setScheme(key);
+    setNote(saveScheme(key)
+      ? 'Saved on this device.'
+      : 'Mode applied for this session, but could not be saved on this device.');
   }
 
   return <section className="appearance-section" aria-labelledby="appearance-heading">
@@ -24,6 +36,23 @@ export function AppearancePicker() {
         <p>Choose the colors and type style used in ShareTally.</p>
       </div>
     </div>
+    <fieldset className="appearance-modes" role="radiogroup" aria-label="Mode">
+      <legend className="visually-hidden">Mode</legend>
+      {schemes.map(option => {
+        const Icon = { system: Monitor, light: Sun, dark: Moon }[option.key];
+        return <label key={option.key} className="appearance-mode">
+          <input
+            type="radio"
+            name="appearance-scheme"
+            value={option.key}
+            checked={scheme === option.key}
+            onChange={() => chooseScheme(option.key)}
+          />
+          <Icon aria-hidden="true" />
+          <span>{option.name}</span>
+        </label>;
+      })}
+    </fieldset>
     <fieldset className="appearance-options" role="radiogroup" aria-label="Appearance">
       <legend className="visually-hidden">Appearance</legend>
       {palettes.map(palette => <label key={palette.key} className="appearance-option" data-palette={palette.key}>

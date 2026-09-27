@@ -9,3 +9,12 @@ export const palettes = [
 ] as const;
 
 export type PaletteKey = (typeof palettes)[number]['key'];
+
+/** Every palette has a light and a dark version; "system" follows the device. */
+export const schemes = [
+  { key: 'system', name: 'Match device' },
+  { key: 'light', name: 'Light' },
+  { key: 'dark', name: 'Dark' },
+] as const;
+
+export type SchemeKey = (typeof schemes)[number]['key'];
