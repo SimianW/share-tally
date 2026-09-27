@@ -1,3 +1,4 @@
+import { checkGroupPage } from './smoke-group-page.mjs';
 import { checkGroupRefresh } from './smoke-group-refresh.mjs';
 import { checkNavigation, groupNet, homeRow, homeGroupNames, openGroupSwitcher, switchGroup } from './smoke-navigation.mjs';
 // Run after installing both client and server dependencies and Chromium:
@@ -492,10 +493,10 @@ try {
   await expect(bobAgain.getByRole('dialog')).toHaveCount(0);
   assert.equal(repaymentAttempts, 2);
   await expect(bobAgain.locator('.repayment-list li')).toHaveCount(1);
-  await expect(bobAgain.getByRole('button', { name: 'Review repayment' })).toHaveCount(0);
+  await expect(bobAgain.getByRole('button', { name: 'Review repayment', exact: true })).toHaveCount(0);
   await expect(alice.locator('.repayment-list')).toContainText('Pending');
   await expect(groupNet(alice)).toContainText('$119.97');
-  await alice.getByRole('button', { name: 'Review repayment' }).click();
+  await alice.getByRole('button', { name: 'Review repayment', exact: true }).click();
   await expect(alice.getByRole('dialog')).toContainText('Bob');
   await expect(alice.getByRole('dialog')).toContainText('$20.00');
   let decisionAttempts = 0;
@@ -510,18 +511,20 @@ try {
   await expect(alice.getByRole('dialog')).toContainText('already confirmed');
   await alice.getByRole('button', { name: 'Close dialog' }).click();
   await expect(groupNet(alice)).toContainText('$99.97');
-  await expect(alice.locator('.repayment-list')).toContainText('Confirmed');
+  await alice.getByText('Older repayments (1)', { exact: true }).click();
+  await expect(alice.getByRole('region', { name: 'Repayment history' }).getByText('$20.00 · Confirmed', { exact: true })).toBeVisible();
   await expect(groupNet(bobAgain)).toContainText('$99.97');
-  await expect(bobAgain.locator('.repayment-list')).toContainText('Confirmed');
+  await bobAgain.getByText('Older repayments (1)', { exact: true }).click();
+  await expect(bobAgain.getByRole('region', { name: 'Repayment history' }).getByText('$20.00 · Confirmed', { exact: true })).toBeVisible();
   await expect(bobAgain.getByRole('region', { name: 'Group balances and repayments' })).toContainText('$99.97');
   await bobAgain.getByRole('button', { name: 'Record repayment', exact: true }).click();
   await bobAgain.getByLabel('Recipient', { exact: true }).selectOption({ label: 'Alice' });
   await bobAgain.getByLabel('Amount sent · CAD').fill('5.00');
   await bobAgain.getByRole('button', { name: 'Record transfer', exact: true }).click();
   await expect(bobAgain.getByRole('dialog')).toHaveCount(0);
-  await alice.getByRole('button', { name: 'Review repayment' }).click();
+  await alice.getByRole('button', { name: 'Review repayment', exact: true }).click();
   await alice.getByRole('button', { name: 'Reject record' }).click();
-  await expect(alice.locator('.repayment-list')).toContainText('Rejected');
+  await expect(alice.getByRole('region', { name: 'Repayment history' }).getByText('$5.00 · Rejected', { exact: true })).toBeVisible();
   await expect(groupNet(alice)).toContainText('$99.97');
   await bobAgain.reload();
   assert.equal(await bobAgain.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
@@ -549,10 +552,10 @@ try {
   await extra.goto(newLink);
   await extra.getByRole('button', { name: 'Join group', exact: true }).click();
   await expect(extra.getByRole('alert')).toContainText('This group is full. Groups can have up to 16 members.');
-  await expect(ledger.locator('.ledger-rows').first().locator('li')).toHaveCount(16);
+  await expect(ledger.getByRole('region', { name: "Everyone's balance" }).getByRole('listitem')).toHaveCount(16);
   // Live drafts remain mounted through progress updates and terminal changes.
   const liveGroupId = ledgerUrl.split('/').pop();
-  async function liveApi(path, token, method = 'GET', body) {
+  async function liveApi(path, token = 'alice-token', method = 'GET', body) {
     const response = await fetch(`http://127.0.0.1:${port}/api${path}`, {
       method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
@@ -714,6 +717,7 @@ try {
   await signedInBobAttention;
   await expect(alice.getByRole('region', { name: 'Needs your attention' })).toHaveCount(0);
   console.log('Attention smoke passed: mobile missing shares, reconfirmation links, refresh recovery, receipt decisions, stale links, and account isolation.');
+  await checkGroupPage(pageFor, base, liveApi);
   }
   // Issue #76: creator-only deletion of a cleared group uses its own fixture.
   const deleteOwner = await pageFor('alice-token', { width: 1280, height: 900 });
