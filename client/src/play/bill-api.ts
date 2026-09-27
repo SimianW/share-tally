@@ -38,7 +38,7 @@ export type Bill = {
   frozenTaxRate?: { taxCents: number; taxableBaseCents: number } | null;
   frozenDiscountBaseCents?: number | null;
   frozenExtraBaseCents?: number | null;
-  photo?: { draftId: string; expiresAt: string; expired?: boolean } | null;
+  photo?: { draftId: string; expiresAt: string; expired?: boolean; pages?: import('./receipt-api').ReceiptPage[] } | null;
   id: string;
   groupId: string;
   initiatorId: string;

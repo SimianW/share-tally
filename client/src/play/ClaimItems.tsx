@@ -5,6 +5,7 @@ import { fraction, one, sum, subtract, text, shortText, parse, lessOrEqual, cost
 import Dialog from "./Dialog";
 import { ReceiptItemRow } from "./ReceiptItemRow";
 import { ReceiptPhoto } from "./ReceiptPhoto";
+import { ReceiptLinePhoto } from "./ReceiptLinePhoto";
 import { Button, Avatar } from "./ui";
 
 export function ClaimItems({ bill, selection, change, busy, terminal, confirmAction, error }: {
@@ -22,6 +23,8 @@ export function ClaimItems({ bill, selection, change, busy, terminal, confirmAct
   const [customChoices, setCustomChoices] = useState<Record<string, string>>({});
   const [selectedCustom, setSelectedCustom] = useState<Record<string, boolean>>({});
   const active = items.find((i) => i.id === activeId);
+  const region = active?.receiptRegion;
+  const page = bill.photo && !bill.photo.expired ? bill.photo.pages?.find((entry) => entry.pageNumber === region?.pageNumber) : undefined;
   const others = (item: BillItem) => sum(item.claims.filter((c) => c.userId !== own?.userId));
   const room = (item: BillItem) => subtract(one, others(item));
   const left = (item: BillItem) => subtract(one, sum(item.claims));
@@ -74,6 +77,7 @@ export function ClaimItems({ bill, selection, change, busy, terminal, confirmAct
     </div>
     {active && <Dialog title={active.name} kicker="CLAIM AN ITEM" className="receipt-sheet claim-sheet" closeLabel="Close claim" close={() => setActiveId(null)}>
       <div className="receipt-sheet-content">
+        {bill.photo && page && region && region.pageNumber === 1 && <ReceiptLinePhoto id={bill.photo.draftId} version={0} page={page} polygon={region.polygon} />}
         <div className="receipt-original-text"><span className="eyebrow">ON THE RECEIPT</span><p>{active.originalText || "Manually added item"}</p></div>
         <div><span className="eyebrow">HOW THIS COST WAS CALCULATED</span>
           {active.manualFinal === true ? <p>Set manually by {bill.participants.find((p) => p.userId === bill.initiatorId)?.displayName ?? "the initiator"}</p>
@@ -87,7 +91,8 @@ export function ClaimItems({ bill, selection, change, busy, terminal, confirmAct
                 <div className="receipt-final-cost"><dt>Final cost</dt><dd>{money(active.finalCents)}</dd></div>
               </dl>}
         </div>
-        {bill.photo && <ReceiptPhoto id={bill.photo.draftId} expired={bill.photo.expired} />}
+        {/* Like the draft editor, a located item shows its highlighted line instead of the whole receipt. */}
+        {bill.photo && !(page && region?.pageNumber === 1) && <ReceiptPhoto id={bill.photo.draftId} expired={bill.photo.expired} />}
         <p className="receipt-field-help">{text(room(active))} available to you. Other claims and reservations hold the rest. Your choices are not submitted until you confirm.</p>
         {!terminal && own && <div className="claim-options">
           {([ ["1", "All of it"], ["1/2", "1/2"], ["1/3", "1/3"], ["1/4", "1/4"], ["1/5", "1/5"], ["1/6", "1/6"] ] as const).map(([value, label], index) => {

@@ -18,9 +18,10 @@
   position: sticky;
   top: var(--top-bar-height);
 }
-/* Sheets scroll on their own, below the page's top bar. */
+/* Sheets scroll on their own: a pinned photo there would let the content
+   below scroll over its caption. */
 .receipt-sheet .receipt-photo {
-  top: 0;
+  position: static;
 }
 .receipt-photo-panel .receipt-photo {
   position: static;

@@ -380,15 +380,15 @@ try {
   const itemOption = (page, label, name = "Apples") => claimSheet(page, name).getByRole("button", { name: label, exact: true });
   await alice.getByRole("button", { name: "View Apples · $3.00", exact: true }).click();
   await expect(claimSheet(alice)).toBeVisible();
-  // The sheet scrolls on its own, so a receipt photo in it must not keep the page top bar's sticky offset.
+  // The sheet scrolls on its own; a pinned receipt photo there lets later content scroll over its caption.
   // This bill has no photo; probe the rule with a stand-in element in the open sheet.
   assert.equal(await claimSheet(alice).locator(".receipt-sheet-content").evaluate(content => {
     const probe = content.appendChild(document.createElement("div"));
     probe.className = "receipt-photo";
-    const { position, top } = getComputedStyle(probe);
+    const { position } = getComputedStyle(probe);
     probe.remove();
-    return `${position} ${top}`;
-  }), "sticky 0px");
+    return position;
+  }), "static");
   await expect(claimSheet(alice)).toContainText("Printed price");
   await expect(claimSheet(alice)).toContainText("Receipt discount share");
   await expect(claimSheet(alice)).toContainText("Tax share");
@@ -1026,6 +1026,49 @@ try {
     assert.equal(persisted.items[0].name, "Reviewed apples");
     assert.equal(persisted.receipt.taxCents, 600);
     assert.equal(persisted.totalCents, 3150);
+  }
+  // An initialized bill's claim sheet highlights the item's receipt line, as the draft editor does.
+  {
+    const draftId = randomUUID();
+    const item = (name) => ({
+      id: randomUUID(), name, originalText: `${name.toUpperCase()} RECEIPT LINE`,
+      quantity: "1", amountCents: 1000, discountCents: 0, taxable: false,
+      finalCents: 1000, manualFinal: false,
+    });
+    const data = {
+      mode: "items", title: "Located claim lines", purchaseDate: "2026-09-24",
+      timeZone: "America/Toronto", notes: "", totalCents: 2000, ownShareCents: 0,
+      participantIds: [memberIds.Alice],
+      receipt: { subtotalCents: 2000, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
+      items: [item("Apples"), item("Milk")],
+    };
+    const { draft: photoDraft } = await api(`/groups/${group.id}/receipt-drafts/${draftId}`, "alice-token", "PUT", {
+      revision: 0, data, photoBase64: image.toString("base64"),
+    });
+    const { draft } = await api(`/groups/${group.id}/receipt-drafts/${draftId}`, "alice-token", "PUT", {
+      revision: photoDraft.revision,
+      data: { ...data,
+        receipt: { ...data.receipt, evidence: { pages: [{ pageNumber: 1, width: 300, height: 500, unit: "pixel" }], taxDetails: [{ rate: 0.13 }] } },
+        items: [{ ...data.items[0], evidence: { regions: [{ pageNumber: 1, polygon: [30, 100, 180, 100, 180, 140, 30, 140] }], productCode: "1234567" } }, data.items[1]],
+      },
+    });
+    const located = (await api(`/receipt-drafts/${draftId}/initialize`, "alice-token", "POST", { revision: draft.revision })).bill;
+    // Only the line position is published; the rest of the scan evidence stays with the draft.
+    assert.deepEqual(located.items.map(i => i.receiptRegion), [{ pageNumber: 1, polygon: [30, 100, 180, 100, 180, 140, 30, 140] }, null]);
+    assert.deepEqual(located.photo.pages, [{ pageNumber: 1, width: 300, height: 500, unit: "pixel" }]);
+    assert.equal(JSON.stringify(located).includes("1234567"), false);
+    await alice.setViewportSize({ width: 390, height: 844 });
+    await alice.goto(`${base}#/bills/${located.id}`);
+    await alice.getByRole("button", { name: "View Apples · $10.00", exact: true }).click();
+    const sheet = claimSheet(alice);
+    await expect(sheet.getByRole("img", { name: "Highlighted receipt line", exact: true })).toHaveAttribute("points", "30,100 180,100 180,140 30,140");
+    await expect(sheet.getByRole("button", { name: "View receipt photo", exact: true })).toHaveCount(0);
+    await alice.getByRole("button", { name: "Close claim", exact: true }).click();
+    // Without a located line, the sheet keeps the whole photo.
+    await alice.getByRole("button", { name: "View Milk · $10.00", exact: true }).click();
+    await expect(claimSheet(alice, "Milk").getByRole("button", { name: "View receipt photo", exact: true })).toBeVisible();
+    await expect(claimSheet(alice, "Milk").getByRole("img", { name: "Highlighted receipt line", exact: true })).toHaveCount(0);
+    await alice.getByRole("button", { name: "Close claim", exact: true }).click();
   }
   // Unassigned receipt tax blocks sharing and initiation at desktop and mobile widths.
   for (const viewport of [{ width: 1280, height: 1000 }, { width: 390, height: 844 }]) {
