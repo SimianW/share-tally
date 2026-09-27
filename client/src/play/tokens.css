@@ -180,9 +180,8 @@
   /* Shadow geometry/opacity is chosen at the use site; hue is shared. */
   --shadow-color: var(--palette-deep);
   --overlay: color-mix(in srgb, var(--palette-deep) 40%, transparent);
-  /* Typography and layout */
-  --font-body: "DM Sans", sans-serif;
-  --font-heading: "Nunito", sans-serif;
+  /* Typography and layout. Font families belong to each palette (palettes.css),
+     so a nested palette preview is not reset to Classic's fonts here. */
   --font-code: monospace;
   --text-xs: 0.75rem;
   --text-sm: 0.8125rem;

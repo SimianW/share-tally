@@ -24,6 +24,13 @@ export async function checkAppearance(page, base, groupUrl) {
   });
   assert.notEqual(scopedActions[0], scopedActions[1], 'Each palette card resolves its own action token');
   assert.equal(scopedActions[1], scopedActions[2], 'The selected card matches the app palette token');
+  // Each card previews its own body font, even when the app palette differs.
+  const cardFonts = await page.evaluate(() => Object.fromEntries(['classic', 'raspberry', 'lagoon', 'blueberry'].map(key =>
+    [key, getComputedStyle(document.querySelector(`.appearance-option[data-palette="${key}"] small`)).fontFamily])));
+  assert.match(cardFonts.classic, /DM Sans/, 'Classic card keeps its own body font under Raspberry');
+  assert.match(cardFonts.raspberry, /Figtree/, 'Raspberry card previews Figtree');
+  assert.match(cardFonts.lagoon, /Instrument Sans/, 'Lagoon card previews Instrument Sans');
+  assert.match(cardFonts.blueberry, /Figtree/, 'Blueberry card previews Figtree');
 
   const screenshots = '/tmp/st-pr-100';
   await mkdir(screenshots, { recursive: true });
@@ -34,12 +41,18 @@ export async function checkAppearance(page, base, groupUrl) {
   await page.screenshot({ path: `${screenshots}/account-mobile.png`, fullPage: true, animations: 'disabled' });
 
   await page.addInitScript(() => {
+    // "interactive" fires before deferred module scripts run, so the palette
+    // must already be set by the parser-blocking bootstrap in index.html.
+    document.addEventListener('readystatechange', () => {
+      if (document.readyState === 'interactive') window.__paletteBeforeModules = document.documentElement.dataset.palette ?? null;
+    });
     document.addEventListener('DOMContentLoaded', () => {
       window.__paletteAtDOMContentLoaded = document.documentElement.dataset.palette ?? null;
     }, { once: true });
   });
   await page.reload();
   await expect(page.getByRole('radiogroup', { name: 'Appearance' }).getByRole('radio', { name: /Raspberry/ })).toBeChecked();
+  assert.equal(await page.evaluate(() => window.__paletteBeforeModules), 'raspberry', 'Palette must apply before any module script, so styles never paint Classic first');
   assert.equal(await page.evaluate(() => window.__paletteAtDOMContentLoaded), 'raspberry', 'Palette must apply by DOMContentLoaded before hydration');
   assert.equal(await page.evaluate(() => document.documentElement.dataset.palette), 'raspberry', 'Palette remains applied after hydration');
 
