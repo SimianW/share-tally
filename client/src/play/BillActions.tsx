@@ -9,6 +9,7 @@ import {
 } from "./bill-api";
 import { errorMessage, useGroupApi, type GroupDetail } from "./group-api";
 import { Button } from "./ui";
+import { ParticipantPicker } from "./ParticipantPicker";
 import Dialog from "./Dialog";
 
 type Props = {
@@ -417,33 +418,16 @@ function EditBill({
               onChange={(e) => setNotes(e.target.value)}
             />
           </label>
-          <fieldset>
-            <legend>Who shared this purchase?</legend>
-            {group?.members.map((p) => (
-              <label className="participant-choice" key={p.id}>
-                <input
-                  type="checkbox"
-                  checked={selected.includes(p.id)}
-                  disabled={mutation.locked || review.terminal || p.id === bill.initiatorId}
-                  onChange={(e) =>
-                    setSelected((current) =>
-                      e.target.checked
-                        ? [...current, p.id]
-                        : current.filter((id) => id !== p.id),
-                    )
-                  }
-                />
-                {p.displayName}
-                {p.id === bill.initiatorId
-                  ? " · Initiator, always included"
-                  : ""}
-              </label>
-            ))}
-          </fieldset>
-          <p>
-            Removing someone affects only this bill. They stay in the group. You
-            can only edit your own share.
-          </p>
+          {group && (
+            <ParticipantPicker
+              members={group.members}
+              selected={selected}
+              lockedId={bill.initiatorId}
+              readOnly={mutation.locked || review.terminal}
+              change={setSelected}
+            />
+          )}
+          <p>Removing someone only affects this bill.</p>
         </fieldset>
         {loadError ? (
           <Notification>

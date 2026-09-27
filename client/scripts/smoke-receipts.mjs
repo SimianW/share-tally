@@ -266,7 +266,7 @@ try {
   await expect(alice.locator(".draft-list-row")).toHaveCount(0);
   // Explicit save, edit/discard, overwrite and delete on the production list.
   await alice.getByRole("button", { name: "New bill", exact: true }).click();
-  await alice.getByRole("button", { name: "Split by amounts instead" }).click();
+  await alice.getByRole("button", { name: "Split by amount instead" }).click();
   await expect(alice.getByRole("heading", { name: "Who’s sharing this bill?" })).toBeVisible();
   await alice.reload();
   await expectNewBillRoute();
@@ -359,7 +359,7 @@ try {
   await alice.getByLabel("Bob", { exact: true }).check();
   await alice.getByLabel("Carol", { exact: true }).check();
   await alice
-    .getByLabel("Actual paid total · CAD", { exact: true })
+    .getByLabel("Total paid (CAD)", { exact: true })
     .fill("3.10");
   await alice.getByRole("button", { name: "Save draft & close" }).click();
   await alice.locator(".draft-list-row").filter({ hasText: "Shared apples" }).getByRole("button", { name: "Continue", exact: true }).click();
@@ -370,7 +370,7 @@ try {
   await expect(alice.getByRole("button", { name: "Edit Apples", exact: true })).toContainText("3.00");
   await alice.getByRole("button", { name: "Continue to sharing" }).click();
   await alice
-    .getByRole("button", { name: "Initiate bill", exact: true })
+    .getByRole("button", { name: "Share bill", exact: true })
     .click();
   await expect(
     alice.getByRole("heading", { name: "Items & claims" }),
@@ -867,10 +867,10 @@ try {
     await route.abort("failed");
   });
   await alice
-    .getByRole("button", { name: "Initiate bill", exact: true })
+    .getByRole("button", { name: "Share bill", exact: true })
     .click();
   await alice
-    .getByRole("button", { name: "Retry initiation", exact: true })
+    .getByRole("button", { name: "Retry sharing", exact: true })
     .click();
   await expect(
     alice.getByRole("heading", { name: "Items & claims" }),
@@ -1056,9 +1056,9 @@ try {
     await alice.getByRole("button", { name: "Close editor", exact: true }).click();
     await expect(alice.getByText(/Receipt tax \$3\.00 isn't assigned to any item/)).toHaveCount(0);
     await stepButton("People").click();
-    await alice.getByRole("button", { name: "Select everyone", exact: true }).click();
-    await expect(alice.getByRole("button", { name: "Initiate bill", exact: true })).toBeEnabled();
-    await alice.getByRole("button", { name: "Initiate bill", exact: true }).click();
+    await alice.getByRole("button", { name: "Everyone", exact: true }).click();
+    await expect(alice.getByRole("button", { name: "Share bill", exact: true })).toBeEnabled();
+    await alice.getByRole("button", { name: "Share bill", exact: true }).click();
     await expect(alice.getByRole("heading", { name: "Items & claims" })).toBeVisible();
   }
   // Reloading the saved draft after a conflict re-checks the step: a price removed
@@ -1406,7 +1406,7 @@ try {
     await expect(alice.getByRole("button", { name: "Confirm item", exact: true })).toHaveCount(0);
     await expect(alice.getByRole("button", { name: "Continue to sharing" })).toBeEnabled();
     await alice.getByRole("button", { name: "Continue to sharing" }).click();
-    await expect(alice.getByRole("button", { name: "Initiate bill", exact: true })).toBeEnabled();
+    await expect(alice.getByRole("button", { name: "Share bill", exact: true })).toBeEnabled();
     await stepButton("Items").click();
     await expect(alice.locator(".receipt-row-open").first()).toBeEnabled();
     const lowConfidenceId = (await api(`/groups/${group.id}/receipt-drafts`)).drafts.find(d => d.data.items.some(i => i.evidence?.descriptionConfidence === 0.7))?.id;
@@ -1464,20 +1464,20 @@ try {
   ).toBeVisible();
   await alice.getByRole("button", { name: "Continue to sharing" }).click();
   await expect(
-    alice.getByRole("button", { name: "Initiate bill", exact: true }),
+    alice.getByRole("button", { name: "Share bill", exact: true }),
   ).toBeDisabled();
   await alice.getByLabel("Bill title", { exact: true }).fill("Manual fallback");
   await alice
-    .getByLabel("Actual paid total · CAD", { exact: true })
+    .getByLabel("Total paid (CAD)", { exact: true })
     .fill("1.00");
   // Zero-cost items are valid; a difference does not impose a new approval gate.
   await expect(
-    alice.getByRole("button", { name: "Initiate bill", exact: true }),
+    alice.getByRole("button", { name: "Share bill", exact: true }),
   ).toBeEnabled();
-  await alice.getByLabel("Allocation mode").selectOption("manual");
-  await alice.getByLabel("My share · CAD", { exact: true }).fill("1.00");
+  await alice.getByRole("radio", { name: "By amount" }).check();
+  await alice.getByLabel("Your share (CAD)", { exact: true }).fill("1.00");
   await alice
-    .getByRole("button", { name: "Initiate bill", exact: true })
+    .getByRole("button", { name: "Share bill", exact: true })
     .click();
   await expect(
     alice.getByText("Completed bills are final.", { exact: false }),

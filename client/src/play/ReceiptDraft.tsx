@@ -16,6 +16,7 @@ import { ReceiptCrop, ReceiptPhoto } from "./ReceiptPhoto";
 import Dialog from "./Dialog";
 import { Notification } from "./Notification";
 import { Button } from "./ui";
+import { ParticipantPicker } from "./ParticipantPicker";
 import {
   ArrowLeft,
   ArrowRight,
@@ -27,6 +28,8 @@ import {
   Trash2,
   FilePenLine,
   LockKeyhole,
+  ListChecks,
+  CircleDollarSign,
 } from "lucide-react";
 import "./receipts.css";
 import "./receipt-review.css";
@@ -337,6 +340,7 @@ export function ReceiptDraftForm({
   const [notice, setNotice] = useState("");
   const [warnings, setWarnings] = useState<string[]>([]);
   const [file, setFile] = useState<File | null>(null);
+  const [notesOpen, setNotesOpen] = useState(false);
   const [replace, setReplace] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [syncError, setSyncError] = useState("");
@@ -522,6 +526,12 @@ export function ReceiptDraftForm({
     (data.mode === "manual"
       ? data.ownShareCents <= data.totalCents
       : itemsComplete(data));
+  const canSplitByItem = itemsReady({ ...data, mode: "items" });
+  const missing = [
+    !data.title.trim() && "a bill title",
+    !(data.totalCents !== null && data.totalCents > 0) && "the total paid",
+    data.mode === "items" && !itemsComplete(data) && "item names and prices",
+  ].filter(Boolean);
   const stepOpen = (index: number) =>
     !(index === 1 && data.mode === "manual") &&
     (index <= step || canOpenStep(data, index));
@@ -543,7 +553,7 @@ export function ReceiptDraftForm({
             e.preventDefault();
             if (processing || step !== 2 || unassignedTaxMessage || !e.currentTarget.reportValidity()) return;
             if (valid)
-              void run("Initiating…", async () => {
+              void run("Sharing…", async () => {
                 const saved = draft.initializationRevision
                   ? draft
                   : await save();
@@ -603,7 +613,7 @@ export function ReceiptDraftForm({
               [
                 "Use a receipt to fill in the items, or enter them yourself.",
                 "Check names and final costs. You can correct anything before sharing.",
-                "Choose the participants and check the amount you paid.",
+                "Pick who's in and check what you paid.",
               ][step]
             }
           </p>
@@ -738,7 +748,7 @@ export function ReceiptDraftForm({
                       setStep(2);
                     }}
                   >
-                    Split by amounts instead
+                    Split by amount instead
                   </Button>
                 </div>
               </>
@@ -841,128 +851,122 @@ export function ReceiptDraftForm({
             )}
             {step === 2 && (
               <div className="receipt-sharing">
-                <label>
-                  Allocation mode
-                  <select
-                    value={data.mode}
-                    onChange={(e) =>
-                      update({
-                        mode: e.target.value as ReceiptData["mode"],
-                        ownShareCents: 0,
-                      })
-                    }
-                  >
-                    <option value="items">Claim items</option>
-                    <option value="manual">Manual shares</option>
-                  </select>
-                </label>
-                <label>
-                  Bill title
-                  <input
-                    required
-                    maxLength={120}
-                    value={data.title}
-                    onChange={(e) => update({ title: e.target.value })}
-                  />
-                </label>
-                <label>
-                  Purchase date
-                  <input
-                    required
-                    type="date"
-                    max={localToday()}
-                    value={data.purchaseDate}
-                    onChange={(e) => update({ purchaseDate: e.target.value })}
-                  />
-                </label>
-                <fieldset>
-                  <legend>Who shared this purchase?</legend>
-                  <div className="participant-shortcuts">
-                    <Button
-                      variant="text"
-                      onClick={() =>
-                        update({
-                          participantIds: group.members.map((m) => m.id),
-                        })
-                      }
-                    >
-                      Select everyone
-                    </Button>
-                    <Button
-                      variant="text"
-                      onClick={() => update({ participantIds: [me.id] })}
-                    >
-                      Just me
-                    </Button>
-                  </div>
-                  {group.members.map((m) => (
-                    <label className="participant-choice" key={m.id}>
-                      <input
-                        type="checkbox"
-                        checked={data.participantIds.includes(m.id)}
-                        disabled={m.isCurrentUser}
-                        onChange={(e) =>
-                          update({
-                            participantIds: e.target.checked
-                              ? [...data.participantIds, m.id]
-                              : data.participantIds.filter((id) => id !== m.id),
-                          })
-                        }
-                      />
-                      {m.displayName}
-                      {m.isCurrentUser ? " · You, initiator" : ""}
-                    </label>
-                  ))}
-                </fieldset>
-                <ReceiptAmount
-                  label="Actual paid total · CAD"
-                  value={data.totalCents}
-                  change={(totalCents) => update({ totalCents })}
+                <div className="sharing-details">
+                  <label>
+                    Bill title
+                    <input
+                      required
+                      maxLength={120}
+                      value={data.title}
+                      onChange={(e) => update({ title: e.target.value })}
+                    />
+                  </label>
+                  <label>
+                    Purchase date
+                    <input
+                      required
+                      type="date"
+                      max={localToday()}
+                      value={data.purchaseDate}
+                      onChange={(e) => update({ purchaseDate: e.target.value })}
+                    />
+                  </label>
+                </div>
+                <ParticipantPicker
+                  members={group.members}
+                  selected={data.participantIds}
+                  lockedId={me.id}
+                  change={(participantIds) => update({ participantIds })}
+                  shortcuts
                 />
-                {data.mode === "manual" &&
-                  data.totalCents !== null &&
-                  data.ownShareCents > data.totalCents && (
-                    <p role="alert" className="field-error">
-                      Your share cannot exceed the paid total.
-                    </p>
-                  )}
-                {data.mode === "manual" ? (
-                  <ReceiptAmount
-                    label="My share · CAD"
-                    emptyAsZero
-                    value={data.ownShareCents}
-                    change={(ownShareCents) => {
-                      if (ownShareCents !== null) update({ ownShareCents });
-                    }}
-                  />
-                ) : (
-                  <p>
-                    Item costs {money(itemTotal)} · Difference{" "}
-                    {data.totalCents === null
-                      ? "Enter the paid total"
-                      : money(data.totalCents - itemTotal)}
-                    . The final difference after participants confirm is
-                    assigned to you. Your effective cost must stay nonnegative.
+                <fieldset className="sharing-split">
+                  <legend className="sharing-section-title">Split</legend>
+                  <div className="split-toggle">
+                    <label>
+                      <input
+                        type="radio"
+                        name="split"
+                        checked={data.mode === "items"}
+                        disabled={data.mode !== "items" && !canSplitByItem}
+                        onChange={() => update({ mode: "items", ownShareCents: 0 })}
+                      />
+                      <ListChecks size={17} aria-hidden="true" /> By item
+                    </label>
+                    <label>
+                      <input
+                        type="radio"
+                        name="split"
+                        checked={data.mode === "manual"}
+                        onChange={() => update({ mode: "manual", ownShareCents: 0 })}
+                      />
+                      <CircleDollarSign size={17} aria-hidden="true" /> By amount
+                    </label>
+                  </div>
+                  <p className="split-hint">
+                    {data.mode === "items"
+                      ? "Everyone picks the items they're in on."
+                      : "Everyone enters their own share."}
+                    {data.mode !== "items" && !canSplitByItem && (
+                      <span> Add items first to split by item.</span>
+                    )}
                   </p>
-                )}
-                <label>
-                  Notes
-                  <textarea
-                    maxLength={2000}
-                    value={data.notes}
-                    onChange={(e) => update({ notes: e.target.value })}
-                  />
-                </label>
-
-                {data.mode === "items" && (
-                  <Button variant="text" onClick={() => setStep(1)}>
-                    Edit {data.items.length} items · {money(itemTotal)}
+                  <div className="split-amounts">
+                    <ReceiptAmount
+                      label="Total paid (CAD)"
+                      value={data.totalCents}
+                      change={(totalCents) => update({ totalCents })}
+                    />
+                    {data.mode === "manual" && (
+                      <ReceiptAmount
+                        label="Your share (CAD)"
+                        emptyAsZero
+                        value={data.ownShareCents}
+                        change={(ownShareCents) => {
+                          if (ownShareCents !== null) update({ ownShareCents });
+                        }}
+                      />
+                    )}
+                  </div>
+                  {data.mode === "manual" &&
+                    data.totalCents !== null &&
+                    data.ownShareCents > data.totalCents && (
+                      <p role="alert" className="field-error">
+                        Your share can't be more than the total paid.
+                      </p>
+                    )}
+                  {data.mode === "items" && (
+                    <div className="split-items">
+                      <p>
+                        Items add up to {money(itemTotal)}.
+                        {data.totalCents !== null && data.totalCents > itemTotal &&
+                          ` The extra ${money(data.totalCents - itemTotal)} is added to your share.`}
+                        {data.totalCents !== null && data.totalCents < itemTotal &&
+                          ` The ${money(itemTotal - data.totalCents)} difference comes off your share.`}
+                      </p>
+                      <Button variant="text" onClick={() => setStep(1)}>
+                        Edit {data.items.length} items <ArrowRight size={16} aria-hidden="true" />
+                      </Button>
+                    </div>
+                  )}
+                </fieldset>
+                {notesOpen || data.notes ? (
+                  <label>
+                    Notes
+                    <textarea
+                      maxLength={2000}
+                      autoFocus={notesOpen && !data.notes}
+                      value={data.notes}
+                      onChange={(e) => update({ notes: e.target.value })}
+                    />
+                  </label>
+                ) : (
+                  <Button variant="text" className="sharing-add-note" onClick={() => setNotesOpen(true)}>
+                    <PencilLine size={16} aria-hidden="true" /> Add a note
                   </Button>
                 )}
-                {!valid && (
+                {missing.length > 0 && (
                   <p className="field-error">
-                    Enter a bill title, a positive paid total, and all required
-                    item names and prices before initiating.
+                    Add {missing.length > 1 ? `${missing.slice(0, -1).join(", ")} and ${missing.at(-1)}` : missing[0]}.
                   </p>
                 )}
               </div>
@@ -1002,10 +1006,7 @@ export function ReceiptDraftForm({
           )}
           <p role="status">{busy || notice}</p>
           {draft.initializationRevision && (
-            <p>
-              Initiation response was not received. Retry sends the same saved
-              bill.
-            </p>
+            <p>We didn't hear back. Retrying sends the same bill.</p>
           )}
 
           <div className={`receipt-wizard-actions${step === 1 ? " receipt-review-footer" : ""}`}>
@@ -1053,9 +1054,7 @@ export function ReceiptDraftForm({
             )}
             {step === 2 && (
               <Button type="submit" disabled={!!busy || !valid || processing || !!unassignedTaxMessage}>
-                {draft.initializationRevision
-                  ? "Retry initiation"
-                  : "Initiate bill"}
+                {draft.initializationRevision ? "Retry sharing" : "Share bill"}
                 <ArrowRight size={16} aria-hidden="true" />
               </Button>
             )}
@@ -1067,13 +1066,6 @@ export function ReceiptDraftForm({
                 : !itemsComplete(data)
                   ? "Give every item a name and a price to continue."
                   : "Assign the receipt tax to an item to continue."}
-            </p>
-          )}
-          {step === 2 && (
-            <p className="receipt-step-description">
-              {data.mode === "items"
-                ? "Initiating opens claiming. Everyone, including you, confirms their own items afterward."
-                : "Initiating confirms only your manual share. Other participants enter their own amounts."}
             </p>
           )}
         </form>
