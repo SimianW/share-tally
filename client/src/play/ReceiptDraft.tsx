@@ -991,6 +991,7 @@ export function ReceiptDraftForm({
                     const result = await api.get(draft.id);
                     setDraft(result.draft);
                     baseline.current = result.draft;
+                    setStep(openingStep(result.draft, sessionStorage.getItem(stepKey)));
                     setFile(null);
                   })
                 }

@@ -1061,6 +1061,35 @@ try {
     await alice.getByRole("button", { name: "Initiate bill", exact: true }).click();
     await expect(alice.getByRole("heading", { name: "Items & claims" })).toBeVisible();
   }
+  // Reloading the saved draft after a conflict re-checks the step: a price removed
+  // elsewhere sends the initiator from People back to Items.
+  {
+    const draftId = randomUUID();
+    const pears = {
+      id: randomUUID(), name: "Pears", originalText: "PEARS RECEIPT LINE", quantity: "1",
+      amountCents: 400, discountCents: 0, taxable: false, finalCents: 400, manualFinal: false,
+    };
+    const data = (items) => ({
+      mode: "items", title: "Reload check", purchaseDate: "2026-09-24", timeZone: "America/Toronto",
+      notes: "", totalCents: 400, ownShareCents: 0, participantIds: [memberIds.Alice], items,
+      receipt: { subtotalCents: 400, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
+    });
+    const opened = (await api(`/groups/${group.id}/receipt-drafts/${draftId}`, "alice-token", "PUT", { revision: 0, data: data([pears]) })).draft;
+    await alice.setViewportSize({ width: 1280, height: 1000 });
+    await alice.goto(`${newBillRoute}/${draftId}`);
+    await stepButton("People").click();
+    await expect(alice.getByRole("heading", { name: "Who’s sharing this bill?" })).toBeVisible();
+    const changed = (await api(`/groups/${group.id}/receipt-drafts/${draftId}`, "alice-token", "PUT", {
+      revision: opened.revision, data: data([{ ...pears, amountCents: null, finalCents: null }]),
+    })).draft;
+    await alice.getByLabel("Bill title", { exact: true }).fill("Reload check edited");
+    await alice.getByRole("button", { name: "Save draft & close" }).click();
+    await alice.getByRole("button", { name: "Reload saved draft, discarding local edits" }).click();
+    await expect(alice.getByRole("heading", { name: "Check your items" })).toBeVisible();
+    await expect(stepButton("People")).toBeDisabled();
+    await expect(alice.getByText("Give every item a name and a price to continue.", { exact: true })).toBeVisible();
+    await api(`/receipt-drafts/${draftId}`, "alice-token", "DELETE", { revision: changed.revision });
+  }
   // Legacy initiated bills keep editable per-item components and add/delete controls.
   // Only fixture setup uses SQL: these bills predate stored receipt summaries.
   for (const viewport of [{ width: 1280, height: 1000 }, { width: 390, height: 844 }]) {
