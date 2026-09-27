@@ -1,7 +1,7 @@
 .difference-card {
-  background: var(--surface-highlight);
+  background: var(--surface-summary);
   color: var(--ink);
-  border: 1px solid color-mix(in srgb, var(--surface-highlight) 60%, var(--ink-secondary));
+  border: 1px solid color-mix(in srgb, var(--surface-summary) 60%, var(--ink-secondary));
   border-radius: 28px;
   padding: 30px;
 }
@@ -47,7 +47,7 @@
   font-size: 0.875rem;
 }
 .difference-card dl {
-  border-top: 1px solid color-mix(in srgb, var(--surface-highlight) 60%, var(--ink-secondary));
+  border-top: 1px solid color-mix(in srgb, var(--surface-summary) 60%, var(--ink-secondary));
   padding-top: 18px;
   margin-top: 30px;
 }

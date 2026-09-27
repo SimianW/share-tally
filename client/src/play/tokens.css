@@ -115,7 +115,7 @@
   src: url(/fonts/nunito-900-normal.ttf) format("truetype");
 }
 
-/* Fifty semantic color roles are the component-facing API. Derived colors
+/* Fifty-one semantic color roles are the component-facing API. Derived colors
    always read palette swatches (or other roles), so changing data-palette
    recolors interaction states as well as the resting page. */
 :root,
@@ -130,6 +130,8 @@
   --surface-accent: color-mix(in srgb, var(--palette-lime-tint) 70%, var(--palette-mist));
   --surface-selected: var(--palette-lime-tint);
   --surface-highlight: var(--palette-chartreuse);
+  /* The bill summary card; added palettes tint it with their own accent. */
+  --surface-summary: var(--surface-highlight);
   /* Ink: secondary labels are darker than muted metadata. */
   --ink: var(--palette-ink);
   --page-ink: var(--palette-page-ink);

@@ -96,3 +96,30 @@ export async function checkAppearance(page, base, groupUrl) {
   await expect(page.getByRole('radio', { name: /Marigold/ })).toBeChecked();
   console.log('Appearance smoke passed: picker, immediate application, pre-hydration reload, navigation persistence, invalid-value fallback, and blocked-storage recovery.');
 }
+
+// The bill summary card takes each palette's own accent tint (#107); Classic
+// keeps its highlight fill. Screenshots of every palette go to test-results.
+export async function checkBillCardPalettes(page, screenshots) {
+  const palettes = ['classic', 'marigold', 'raspberry', 'plum-butter', 'lagoon', 'blueberry'];
+  const fills = {};
+  for (const palette of palettes) {
+    const card = await page.evaluate(key => {
+      document.documentElement.dataset.palette = key;
+      const probe = document.createElement('div');
+      probe.style.background = 'var(--surface-highlight)';
+      document.body.append(probe);
+      const highlight = getComputedStyle(probe).backgroundColor;
+      probe.style.background = 'var(--palette-lime-tint)';
+      const tint = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      return { fill: getComputedStyle(document.querySelector('.difference-card')).backgroundColor, highlight, tint };
+    }, palette);
+    if (palette === 'classic') assert.equal(card.fill, card.highlight, 'Classic keeps its highlight fill on the bill card');
+    else assert.equal(card.fill, card.tint, `${palette} fills the bill card with its accent tint`);
+    fills[palette] = card.fill;
+    await page.locator('.difference-card').screenshot({ path: `${screenshots}/bill-card-${palette}.png`, animations: 'disabled' });
+    await page.screenshot({ path: `${screenshots}/bill-page-${palette}.png`, fullPage: true, animations: 'disabled' });
+  }
+  assert.equal(new Set(Object.values(fills)).size, palettes.length, 'Every palette has its own bill card fill');
+  await page.evaluate(() => { document.documentElement.dataset.palette = 'classic'; });
+}
