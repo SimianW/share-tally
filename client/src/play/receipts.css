@@ -205,11 +205,6 @@
 .receipt-dialog .button {
   max-width: 100%;
 }
-@media (max-width: 700px) {
-  .play-dialog.receipt-dialog .bill-form :is(input, select, textarea) {
-    font-size: 16px;
-  }
-}
 
 /* A guided form; all steps edit the same private receipt draft. */
 .receipt-wizard .receipt-steps {
@@ -514,6 +509,5 @@
 .receipt-wizard .button { max-width: 100%; }
 .receipt-wizard input[type="file"] { max-width: 100%; }
 @media (max-width: 700px) {
-  .receipt-page .receipt-wizard .bill-form :is(input:not([type="checkbox"]), select, textarea) { font-size: 16px; }
   .receipt-page-heading h1 span { display: block; }
 }
