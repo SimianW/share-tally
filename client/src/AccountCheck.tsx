@@ -42,6 +42,7 @@ export default function AccountCheck() {
     <section>
       <button
         type="button"
+        className="button primary"
         onClick={checkAccount}
         disabled={isChecking}
       >

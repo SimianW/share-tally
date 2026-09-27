@@ -323,6 +323,10 @@ try {
   assert.equal((await api(`/groups/${group.id}/receipt-drafts`)).drafts.length, 1);
   await alice.setViewportSize({ width: 390, height: 844 });
   assert.equal(await alice.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  const compactAction = lifecycleRow().getByRole("button", { name: "Continue", exact: true });
+  await expect(compactAction).toHaveCSS("min-height", "32px");
+  await expect(compactAction).toHaveCSS("font-size", "13px");
+  await expect(compactAction).toHaveCSS("font-weight", "600");
   await mkdir("/tmp/share-tally-receipt-smoke", { recursive: true });
   await alice.screenshot({ path: "/tmp/share-tally-receipt-smoke/draft-list-a-mobile.png", fullPage: true });
   await alice.getByRole("button", { name: "Delete Draft lifecycle updated", exact: true }).click();

@@ -451,10 +451,14 @@
   opacity: 0.45;
   cursor: default;
 }
-.button.draft-danger {
+.button.primary.draft-danger {
   background: var(--status-danger);
-  color: var(--surface);
-  box-shadow: 0 3px 0 color-mix(in srgb, var(--status-danger) 40%, var(--status-danger-hover));
+  color: var(--ink-inverse);
+  border-color: var(--status-danger);
+}
+.button.primary.draft-danger:hover:not(:disabled) {
+  background: var(--status-danger-hover);
+  border-color: var(--status-danger-hover);
 }
 .button.draft-delete-text {
   color: var(--status-danger);
@@ -466,10 +470,6 @@
   .draft-list-icon,
   .draft-list-total {
     display: none;
-  }
-  .draft-list-row .button {
-    font-size: 12px;
-    padding: 10px;
   }
   .draft-list-row .button svg {
     display: none;
@@ -495,7 +495,6 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding-left: 0;
   margin-bottom: 18px;
 }
 .receipt-page-heading h1 span {

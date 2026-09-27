@@ -88,7 +88,7 @@ export default function GroupIconPicker({ value, onApply, onCancel }: {
     <footer className="picker-selection">
       <span className="picker-selected-art"><GroupIconView icon={draft} size={28} /></span>
       <div aria-live="polite"><small>SELECTED</small><strong>{label}</strong></div>
-      <button type="button" disabled={invalidCustom} onClick={() => onApply(draft)}>Use icon <Check size={17} /></button>
+      <button type="button" className="button primary" disabled={invalidCustom} onClick={() => onApply(draft)}>Use icon <Check size={17} /></button>
     </footer>
   </section>;
 }

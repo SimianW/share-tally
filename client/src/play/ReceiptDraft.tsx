@@ -153,7 +153,7 @@ export function ReceiptDrafts({
               ? "Total not entered"
               : money(d.data.totalCents)}
           </span>
-          <Button variant="secondary" onClick={() => open(d.id)}>
+          <Button variant="secondary" className="small" onClick={() => open(d.id)}>
             Continue <ArrowRight size={16} />
           </Button>
           <button

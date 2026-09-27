@@ -128,35 +128,41 @@ h1 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 9px;
+  gap: 8px;
+  min-height: 40px;
+  padding: 9px 16px;
+  border-radius: 10px;
+  font: 600 14px/1.2 var(--font-body);
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+.button:not(.text):active:not(:disabled) {
+  transform: scale(0.98);
+}
+.button:not(.text) svg {
+  width: 17px;
+  height: 17px;
+}
+.button.small {
+  min-height: 32px;
+  padding: 5px 12px;
   font-size: 13px;
-  font-weight: 700;
-  border-radius: 12px;
-  padding: 13px 19px;
-  min-height: 44px;
-  transition:
-    background 0.2s,
-    box-shadow 0.2s,
-    transform 0.2s;
 }
 .button.primary {
-  background: var(--action);
-  color: var(--ink-on-action);
-  border: 1px solid var(--action-edge);
-  box-shadow: 0 3px 0 var(--action-edge);
+  background: var(--ink);
+  color: var(--ink-inverse);
+  border: 1px solid var(--ink);
 }
-.button.primary:hover {
-  background: var(--action-hover);
-  box-shadow: 0 4px 0 var(--action-edge);
-  transform: translateY(-1px);
+.button.primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 84%, var(--surface));
 }
 .button.secondary {
   background: var(--surface);
-  border: 1px solid var(--line);
-  box-shadow: 0 2px 0 color-mix(in srgb, var(--shadow-color) 4%, transparent);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
 }
-.button.secondary:hover {
-  background: var(--surface-sunken);
+.button.secondary:hover:not(:disabled) {
+  background: var(--surface-soft);
+  border-color: var(--ink-subtle);
 }
 .button.text {
   background: transparent;
@@ -305,7 +311,6 @@ h1 {
 .group-form > .button {
   margin-top: 5px;
   width: 100%;
-  font-size: 14px;
 }
 
 
@@ -356,11 +361,6 @@ h1 {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 24px;
-}
-.account-panel button {
-  padding: 12px 18px;
-  border-radius: 12px;
-  background: var(--action);
 }
 .account-panel pre {
   overflow-wrap: anywhere;
@@ -433,8 +433,8 @@ h1 {
 .group-deletion-reasons { margin: 8px 0 0; padding-left: 22px; }
 .group-deletion-reasons > li + li { margin-top: 8px; }
 .group-deletion-reasons ul { margin: 4px 0 0; padding-left: 22px; }
-.button.primary.group-delete-submit { background: var(--status-danger); color: var(--ink-inverse); border-color: var(--status-danger-hover); box-shadow: 0 3px 0 var(--status-danger-hover); }
-.button.primary.group-delete-submit:hover:not(:disabled) { background: var(--status-danger-hover); box-shadow: 0 4px 0 var(--status-danger-hover); }
+.button.primary.group-delete-submit { background: var(--status-danger); color: var(--ink-inverse); border-color: var(--status-danger); }
+.button.primary.group-delete-submit:hover:not(:disabled) { background: var(--status-danger-hover); border-color: var(--status-danger-hover); }
 .dialog-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
 .regenerate-confirmation { padding: 14px; background: var(--status-warning-bg); border-radius: 12px; }
 .member-row > span { min-width: 0; overflow-wrap: anywhere; }
@@ -464,12 +464,7 @@ h1 {
   margin: 0;
 }
 .group-members-toolbar > .button {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 8px 0;
-  font-size: 13px;
+  padding-inline: 0;
 }
 .group-members-toolbar svg,
 .group-bills-action svg {
