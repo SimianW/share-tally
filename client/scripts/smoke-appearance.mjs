@@ -45,7 +45,10 @@ export async function checkAppearance(page, base, groupUrl) {
     // "interactive" fires before deferred module scripts run, so the palette
     // must already be set by the parser-blocking bootstrap in index.html.
     document.addEventListener('readystatechange', () => {
-      if (document.readyState === 'interactive') window.__paletteBeforeModules = document.documentElement.dataset.palette ?? null;
+      if (document.readyState === 'interactive') {
+        window.__paletteBeforeModules = document.documentElement.dataset.palette ?? null;
+        window.__schemeBeforeModules = document.documentElement.dataset.scheme ?? null;
+      }
     });
     document.addEventListener('DOMContentLoaded', () => {
       window.__paletteAtDOMContentLoaded = document.documentElement.dataset.palette ?? null;
@@ -56,6 +59,31 @@ export async function checkAppearance(page, base, groupUrl) {
   assert.equal(await page.evaluate(() => window.__paletteBeforeModules), 'raspberry', 'Palette must apply before any module script, so styles never paint Classic first');
   assert.equal(await page.evaluate(() => window.__paletteAtDOMContentLoaded), 'raspberry', 'Palette must apply by DOMContentLoaded before hydration');
   assert.equal(await page.evaluate(() => document.documentElement.dataset.palette), 'raspberry', 'Palette remains applied after hydration');
+
+  // Mode is independent of palette: "Match device" follows the OS live, and
+  // an explicit choice is applied before any module script on reload.
+  const mode = page.getByRole('radiogroup', { name: 'Mode' });
+  const scheme = () => page.evaluate(() => document.documentElement.dataset.scheme);
+  await expect(mode.getByRole('radio', { name: 'Match device' })).toBeChecked();
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect.poll(scheme).toBe('dark');
+  await page.emulateMedia({ colorScheme: 'light' });
+  await expect.poll(scheme).toBe('light');
+  await mode.getByRole('radio', { name: 'Dark' }).check();
+  assert.equal(await scheme(), 'dark');
+  assert.equal(await page.evaluate(() => localStorage.getItem('share-tally-scheme')), 'dark');
+  assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme), 'dark', 'The dark palette block applies');
+  await page.reload();
+  assert.equal(await page.evaluate(() => window.__paletteBeforeModules), 'raspberry');
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.palette), 'raspberry', 'Changing mode keeps the palette');
+  assert.equal(await page.evaluate(() => window.__schemeBeforeModules), 'dark', 'Saved dark mode must apply before any module script, even on a light device');
+  assert.equal(await scheme(), 'dark', 'Dark mode survives a reload while the device is light');
+  await page.evaluate(() => localStorage.setItem('share-tally-scheme', 'not-a-mode'));
+  await page.reload();
+  assert.equal(await page.evaluate(() => window.__schemeBeforeModules), 'light', 'An invalid stored mode follows the device');
+  await expect(page.getByRole('radiogroup', { name: 'Mode' }).getByRole('radio', { name: 'Match device' })).toBeChecked();
+  await page.getByRole('radiogroup', { name: 'Mode' }).getByRole('radio', { name: 'Match device' }).check();
+  assert.equal(await scheme(), 'light');
 
   await page.goto(base);
   assert.equal(await page.evaluate(() => document.documentElement.dataset.palette), 'raspberry', 'Palette persists on Home');

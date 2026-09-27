@@ -5,8 +5,8 @@
   padding: 0 3px;
   margin: 0 -1px;
   border-radius: 4px;
-  background: linear-gradient(transparent 56%, var(--accent-mark) 56%, var(--accent-mark) 94%, transparent 94%);
-  color: inherit;
+  background: linear-gradient(transparent var(--mark-highlight-top), var(--mark-highlight) var(--mark-highlight-top), var(--mark-highlight) 94%, transparent 94%);
+  color: var(--ink-mark);
   font-weight: 850;
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
@@ -102,8 +102,8 @@
 .home-balance.owe { color: var(--money-owe); }
 .home-balance.settled { color: var(--ink-secondary); }
 .home-balance.settled b { font-weight: 800; }
-.home-group-pending { padding: 2px 9px; border-radius: 999px; background: var(--action); color: var(--ink-on-action); font-size: 12px; font-weight: 800; }
-.home-group-pending.none { padding: 0; background: none; color: var(--ink-secondary); font-weight: 600; }
+.home-group-pending { padding: 2px 9px; border-radius: 999px; background: var(--action); color: var(--ink-on-action); box-shadow: var(--glow-action); font-size: 12px; font-weight: 800; }
+.home-group-pending.none { padding: 0; background: none; color: var(--ink-secondary); box-shadow: none; font-weight: 600; }
 .home-group-chevron { flex-shrink: 0; color: var(--ink-subtle); transition: transform 0.2s, color 0.2s; }
 
 .home-new-group {

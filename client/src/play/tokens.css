@@ -179,6 +179,21 @@
   --avatar-4: var(--palette-peach);
   --avatar-5: var(--palette-lilac);
   --avatar-default: color-mix(in srgb, var(--palette-line) 88%, var(--palette-secondary));
+  /* Emphasis that dark mode turns into light. In light mode the primary
+     button is ink and nothing glows. */
+  --button-primary: var(--ink);
+  --button-primary-hover: color-mix(in srgb, var(--ink) 84%, var(--surface));
+  --ink-on-button-primary: var(--ink-inverse);
+  --glow-action: none;
+  --line-top-bar: var(--line);
+  --mark-highlight: var(--accent-mark);
+  --mark-highlight-top: 56%;
+  --ink-mark: currentColor;
+  --surface-summary-glow: none;
+  --line-summary: color-mix(in srgb, var(--surface-summary) 60%, var(--ink-secondary));
+  --shadow-summary: none;
+  --ink-summary-number: currentColor;
+  --glow-summary-number: none;
   /* Shadow geometry/opacity is chosen at the use site; hue is shared. */
   --shadow-color: var(--palette-deep);
   --overlay: color-mix(in srgb, var(--palette-deep) 40%, transparent);

@@ -16,6 +16,13 @@
       } catch (error) {
         // Blocked storage renders Classic; the Account picker explains it.
       }
+      // Resolve light or dark the same way, before paint. Keep in step with
+      // applySavedScheme in src/play/appearance.ts.
+      var scheme = null;
+      try { scheme = localStorage.getItem('share-tally-scheme'); } catch (error) {}
+      if (scheme !== 'light' && scheme !== 'dark')
+        scheme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.dataset.scheme = scheme;
     </script>
   </head>
   <body>

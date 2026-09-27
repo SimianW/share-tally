@@ -1,4 +1,4 @@
-import { applySavedPalette } from './play/appearance';
+import { applySavedPalette, applySavedScheme } from './play/appearance';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ClerkProvider } from '@clerk/react';
@@ -6,6 +6,7 @@ import './index.css';
 import App from './App.tsx';
 
 applySavedPalette();
+applySavedScheme();
 
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 

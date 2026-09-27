@@ -1,7 +1,8 @@
 .difference-card {
-  background: var(--surface-summary);
+  background: var(--surface-summary-glow), var(--surface-summary);
   color: var(--ink);
-  border: 1px solid color-mix(in srgb, var(--surface-summary) 60%, var(--ink-secondary));
+  border: 1px solid var(--line-summary);
+  box-shadow: var(--shadow-summary);
   border-radius: 28px;
   padding: 30px;
 }
@@ -16,6 +17,8 @@
   font-weight: 900;
   line-height: 1.12;
   letter-spacing: -0.04em;
+  color: var(--ink-summary-number);
+  text-shadow: var(--glow-summary-number);
   overflow-wrap: anywhere;
   font-variant-numeric: tabular-nums;
 }
@@ -47,7 +50,7 @@
   font-size: 0.875rem;
 }
 .difference-card dl {
-  border-top: 1px solid color-mix(in srgb, var(--surface-summary) 60%, var(--ink-secondary));
+  border-top: 1px solid var(--line-summary);
   padding-top: 18px;
   margin-top: 30px;
 }
@@ -242,8 +245,11 @@
   color: var(--status-danger);
 }
 .difference-card.canceled-bill {
+  --ink-summary-number: currentColor;
+  --glow-summary-number: none;
   background: var(--line);
   border-color: var(--line-strong);
+  box-shadow: none;
 }
 .bill-action-layout .share-form {
   width: 100%;
