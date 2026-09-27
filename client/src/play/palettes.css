@@ -35,3 +35,183 @@
   --palette-peach: #f2d0ae;
   --palette-lilac: #d7d0ec;
 }
+
+/* Palette choices (#99). Money colors are the
+   same in every added palette: owed is a muted green, owe is amber. Each brand
+   accent avoids green and orange, so actions never read as money. */
+:root[data-palette]:not([data-palette="classic"]) {
+  --palette-white: #fff;
+  --palette-green: #37703f;
+  --palette-ochre: #9a5b13;
+  --palette-cream: #fcefd9;
+  --palette-red: #c0392b;
+  --palette-amber: #ffd86b;
+  --money-owed-bg: #e8f3e6;
+  --status-success-bg: #e8f3e6;
+  --accent-mark: color-mix(in srgb, var(--palette-chartreuse) 70%, var(--palette-white));
+  --focus: var(--palette-leaf);
+}
+
+/* Marigold: sunflower buttons, cobalt links, cream paper. Sunny and bold. */
+:root[data-palette="marigold"] {
+  --palette-canvas: #fbf6ec;
+  --palette-page: #faf4e8;
+  --palette-ink: #2a2420;
+  --palette-page-ink: #2a2420;
+  --palette-mist: #f6efe2;
+  --palette-muted: #7a6f62;
+  --palette-secondary: #655b50;
+  --palette-subtle: #a89c8c;
+  --palette-line: #ede3d3;
+  --palette-deep: #2a1d10;
+  --palette-lime: #ffc23a;
+  --palette-lime-hover: #f7b320;
+  --palette-leaf-edge: #d99a0f;
+  --palette-action-ink: #2a2014;
+  --palette-leaf: #2f4a9e;
+  --palette-leaf-bright: #ffb000;
+  --palette-chartreuse: #ffe08a;
+  --palette-lime-tint: #fff2cc;
+  --palette-blue: #2f5e9e;
+  --palette-sage: #dde8c8;
+  --palette-rose: #f6d2dc;
+  --palette-sky: #cfe2f3;
+  --palette-peach: #f8d9bd;
+  --palette-lilac: #e0d6f2;
+  --font-heading: "Bricolage Grotesque", sans-serif;
+  --font-body: "DM Sans", sans-serif;
+}
+
+/* Raspberry: berry-pink buttons on blush cream, plum-charcoal ink. Playful. */
+:root[data-palette="raspberry"] {
+  --palette-canvas: #fdf7f4;
+  --palette-page: #fcf4f1;
+  --palette-ink: #2d2230;
+  --palette-page-ink: #2d2230;
+  --palette-mist: #f8efec;
+  --palette-muted: #7c6d73;
+  --palette-secondary: #66575e;
+  --palette-subtle: #b0a1a7;
+  --palette-line: #f0e3e1;
+  --palette-deep: #2a1420;
+  --palette-lime: #c92a64;
+  --palette-lime-hover: #b32257;
+  --palette-leaf-edge: #8f1a45;
+  --palette-action-ink: #fff;
+  --palette-leaf: #b8255f;
+  --palette-leaf-bright: #ff6fa3;
+  --palette-chartreuse: #ffd6e5;
+  --palette-lime-tint: #fde4ee;
+  --palette-blue: #3b5f99;
+  --palette-sage: #dde8c8;
+  --palette-rose: #f9d0e0;
+  --palette-sky: #cfe2f3;
+  --palette-peach: #f8d9bd;
+  --palette-lilac: #e3d6f2;
+  --font-heading: "Fraunces", serif;
+  --font-body: "Figtree", sans-serif;
+}
+
+/* Plum: violet buttons with butter-yellow highlights on oat paper. Rich. */
+:root[data-palette="plum-butter"] {
+  --palette-canvas: #faf7f1;
+  --palette-page: #f8f4ec;
+  --palette-ink: #2b2433;
+  --palette-page-ink: #2b2433;
+  --palette-mist: #f4efe6;
+  --palette-muted: #766e79;
+  --palette-secondary: #625a67;
+  --palette-subtle: #a79fa9;
+  --palette-line: #eae3d8;
+  --palette-deep: #1e1428;
+  --palette-lime: #6d3fb5;
+  --palette-lime-hover: #5b31a0;
+  --palette-leaf-edge: #45237f;
+  --palette-action-ink: #fff;
+  --palette-leaf: #5b2fa3;
+  --palette-leaf-bright: #ffc94a;
+  --palette-chartreuse: #ffe9a8;
+  --palette-lime-tint: #ede4fa;
+  --palette-blue: #33609b;
+  --palette-sage: #dde8c8;
+  --palette-rose: #f6d2dc;
+  --palette-sky: #cfe2f3;
+  --palette-peach: #f8d9bd;
+  --palette-lilac: #e3d8f6;
+  --font-heading: "Nunito", sans-serif;
+  --font-body: "DM Sans", sans-serif;
+}
+
+/* Lagoon: deep teal buttons and aqua cards on linen. Fresh but warm. */
+:root[data-palette="lagoon"] {
+  --palette-canvas: #fbf6f0;
+  --palette-page: #faf3ec;
+  --palette-ink: #262a2b;
+  --palette-page-ink: #262a2b;
+  --palette-mist: #f5eee6;
+  --palette-muted: #736f68;
+  --palette-secondary: #5e5a53;
+  --palette-subtle: #a5a097;
+  --palette-line: #ece3d8;
+  --palette-deep: #10201f;
+  --palette-lime: #0a7577;
+  --palette-lime-hover: #086466;
+  --palette-leaf-edge: #054a4b;
+  --palette-action-ink: #fff;
+  --palette-leaf: #0a6e70;
+  --palette-leaf-bright: #2bb3b1;
+  --palette-chartreuse: #c9eee9;
+  --palette-lime-tint: #ddf3f0;
+  --palette-blue: #33609b;
+  --palette-sage: #dde8c8;
+  --palette-rose: #f6d2dc;
+  --palette-sky: #cfe8ee;
+  --palette-peach: #f8d9bd;
+  --palette-lilac: #e0d6f2;
+  --font-heading: "Manrope", sans-serif;
+  --font-body: "Instrument Sans", sans-serif;
+}
+
+/* Blueberry: blueberry buttons with jam-pink cards on warm cream. Candy-bright. */
+:root[data-palette="blueberry"] {
+  --palette-canvas: #fbf7f2;
+  --palette-page: #f9f4ee;
+  --palette-ink: #232640;
+  --palette-page-ink: #232640;
+  --palette-mist: #f4efe8;
+  --palette-muted: #74718a;
+  --palette-secondary: #5d5a70;
+  --palette-subtle: #a4a1b2;
+  --palette-line: #eae4dc;
+  --palette-deep: #151733;
+  --palette-lime: #3b4cca;
+  --palette-lime-hover: #3140b0;
+  --palette-leaf-edge: #25318a;
+  --palette-action-ink: #fff;
+  --palette-leaf: #3444b8;
+  --palette-leaf-bright: #ff6fa3;
+  --palette-chartreuse: #ffd9e6;
+  --palette-lime-tint: #e4e7ff;
+  --palette-blue: #2d6a9f;
+  --palette-sage: #dde8c8;
+  --palette-rose: #f9d3e1;
+  --palette-sky: #d3dcf6;
+  --palette-peach: #f8d9bd;
+  --palette-lilac: #e0d6f2;
+  --font-heading: "Outfit", sans-serif;
+  --font-body: "Figtree", sans-serif;
+}
+
+/* The raspberry heading face uses Fraunces' soft, wonky cut from the
+   prototype; keep those axes on heading roles, not on the Figtree body. */
+:root[data-palette="raspberry"] :is(
+  .brand, .avatar, h1, .attention-header h2, .section-heading h2,
+  .dialog-heading h2, .group-page-title h2, .group-section-heading,
+  .group-audit > h2, .group-audit .repayment-heading h3,
+  .home-empty h2, .home-group-name, .home-balance b,
+  .group-net, .group-net > strong, .difference-number,
+  .receipt-bill-summary h3, .receipt-final-cost output
+) {
+  font-variation-settings: "SOFT" 100, "WONK" 1;
+  font-optical-sizing: auto;
+}
