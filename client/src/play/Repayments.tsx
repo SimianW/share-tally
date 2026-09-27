@@ -1,7 +1,7 @@
 import { requestId } from "./request-id";
 import { Notification } from './Notification';
 import { useRef, useState } from 'react';
-import { BillApiError, money, parseMoney, type BillApi, type Repayment, type RepaymentDraft } from './bill-api';
+import { BillApiError, money, parseMoney, type BillApi, type Repayment, type RepaymentDraft, type RepaymentPrefill } from './bill-api';
 import { errorMessage, type GroupDetail } from './group-api';
 import Dialog from './Dialog';
 import { Button } from './ui';
@@ -79,7 +79,7 @@ export function Repayments({ group, records, api, refresh, selectedId }: {
 
 export function RecordRepayment({ group, api, close, saved, initial }: {
   group: GroupDetail; api: BillApi; close: () => void; saved: () => void;
-  initial?: { recipientId: string; amountCents: number };
+  initial?: RepaymentPrefill;
 }) {
   const me = group.members.find(member => member.isCurrentUser)!;
   const storageKey = `repayment-creation:${me.id}:${group.id}`;
