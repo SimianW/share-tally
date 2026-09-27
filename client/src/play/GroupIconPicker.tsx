@@ -61,7 +61,7 @@ export default function GroupIconPicker({ value, onApply, onCancel }: {
     </div>
     <div className="picker-results" ref={resultsRef}>
       <div className="picker-results-heading"><span>{query ? `Results for “${query}”` : 'Explore the library'}</span><span role="status">{source === 'unicode' && !emojis ? '' : `${results.length} found`}</span></div>
-      {source === 'unicode' && !emojis ? loadError ? <Notification title="Could not load emoji">Could not load the emoji library. You can still paste one below.<button type="button" onClick={() => { setLoadError(false); setRetry(value => value + 1); }}>Try again</button></Notification> : <p role="status">Loading emoji…</p> : <>
+      {source === 'unicode' && !emojis ? loadError ? <Notification title="Could not load emoji"><p>Could not load the emoji library. You can still paste one below.</p><button type="button" className="button primary" onClick={() => { setLoadError(false); setRetry(value => value + 1); }}>Try again</button></Notification> : <p role="status">Loading emoji…</p> : <>
         <div className="picker-grid" role="group" aria-label="Search results">
           {results.slice(0, limit).map(item => <button type="button" key={`${item.icon.type}:${item.icon.value}`}
             aria-label={`Select ${item.label}`} title={item.label}

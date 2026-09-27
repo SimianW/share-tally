@@ -63,9 +63,9 @@ export function ReceiptReviewItems({ items, change, mode = "review", hasFrozenRa
     <div className="receipt-list-heading"><strong>{items.length} {items.length === 1 ? "item" : "items"}</strong><span>{processing ? "Editing paused" : "Tap an item to edit"}</span></div>
     {mode === "review" && <>
       {processing && <Notification tone="info" title="Naming items and checking tax…">You can review the printed items now. Editing unlocks when the check finishes.</Notification>}
-      {!processing && processingStatus === "ready" && scanned && !readyDismissed && <Notification tone="success" title="Names and tax filled in" onDismiss={() => setReadyDismissed(true)}>Everything is editable now. Fix anything that looks wrong.</Notification>}
+      {!processing && processingStatus === "ready" && scanned && !readyDismissed && taxNotCheckedCount === 0 && <Notification tone="success" title="Names and tax filled in" onDismiss={() => setReadyDismissed(true)}>Everything is editable now. Fix anything that looks wrong.</Notification>}
       {!processing && taxNotCheckedCount > 0 && <Notification tone="warning" title={taxNotCheckedCount === items.length ? "AI tax check timed out, so please confirm which items are taxable" : `Tax wasn't checked for ${taxNotCheckedCount} ${taxNotCheckedCount === 1 ? "item" : "items"}`}>
-        Affected items kept their receipt names and are set to taxable. Turn tax off if it isn't charged, or confirm the setting.
+        <p>Affected items kept their receipt names and are set to taxable. Turn tax off if it isn't charged, or confirm the setting.</p>
         {taxNotCheckedCount > 0 && <Button variant="text" onClick={() => setFilter("tax-not-checked")}>Show them ({taxNotCheckedCount}) <ArrowRight size={14} aria-hidden="true" /></Button>}
       </Notification>}
       <ReceiptFilterChips options={[{ id: "all", label: "All" }, { id: "needs-check", label: "Needs check", count: needsCheckCount }, ...(taxNotCheckedCount ? [{ id: "tax-not-checked" as const, label: "Tax not checked", count: taxNotCheckedCount }] : [])]} value={filter} onChange={setFilter} />

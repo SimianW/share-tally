@@ -954,7 +954,7 @@ export function ReceiptDraftForm({
           </fieldset>
           {step === 2 && unassignedTaxMessage && (
             <Notification tone="error" title="Receipt tax needs an item">
-              {unassignedTaxMessage}
+              <p>{unassignedTaxMessage}</p>
               <Button variant="text" onClick={() => setStep(1)} disabled={!!busy || processing}>
                 Edit items <ArrowRight size={16} aria-hidden="true" />
               </Button>
