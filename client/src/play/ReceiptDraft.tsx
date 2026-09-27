@@ -937,11 +937,16 @@ export function ReceiptDraftForm({
                   {data.mode === "items" && (
                     <div className="split-items">
                       <p>
-                        Items add up to {money(itemTotal)}.
+                        {/* Claims round per person, so the final initiator adjustment
+                            can differ from this draft-time difference by a few cents. */}
+                        Items add up to {money(itemTotal)}
                         {data.totalCents !== null && data.totalCents > itemTotal &&
-                          ` The extra ${money(data.totalCents - itemTotal)} is added to your share.`}
+                          ` (${money(data.totalCents - itemTotal)} under the total paid)`}
                         {data.totalCents !== null && data.totalCents < itemTotal &&
-                          ` The ${money(itemTotal - data.totalCents)} difference comes off your share.`}
+                          ` (${money(itemTotal - data.totalCents)} over the total paid)`}
+                        .
+                        {data.totalCents !== null && data.totalCents !== itemTotal &&
+                          " Any difference left after everyone claims goes to you."}
                       </p>
                       <Button variant="text" onClick={() => setStep(1)}>
                         Edit {data.items.length} items <ArrowRight size={16} aria-hidden="true" />
