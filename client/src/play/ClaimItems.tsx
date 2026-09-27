@@ -7,6 +7,8 @@ import { ReceiptItemRow } from "./ReceiptItemRow";
 import { ReceiptPhoto } from "./ReceiptPhoto";
 import { ReceiptLinePhoto } from "./ReceiptLinePhoto";
 import { Button, Avatar } from "./ui";
+import { ClaimOptionsPrototype, claimOptionVariants } from "./ClaimOptionsPrototype";
+import { PrototypeSwitcher, usePrototypeVariant } from "./PrototypeSwitcher";
 
 export function ClaimItems({ bill, selection, change, busy, terminal, confirmAction, error }: {
   bill: Bill; selection: Record<string, string>; change: (id: string, fraction: string) => void;
@@ -23,6 +25,7 @@ export function ClaimItems({ bill, selection, change, busy, terminal, confirmAct
   const [customChoices, setCustomChoices] = useState<Record<string, string>>({});
   const [selectedCustom, setSelectedCustom] = useState<Record<string, boolean>>({});
   const active = items.find((i) => i.id === activeId);
+  const variant = usePrototypeVariant(claimOptionVariants.map((v) => v.key));
   const region = active?.receiptRegion;
   const page = bill.photo && !bill.photo.expired ? bill.photo.pages?.find((entry) => entry.pageNumber === region?.pageNumber) : undefined;
   const others = (item: BillItem) => sum(item.claims.filter((c) => c.userId !== own?.userId));
@@ -95,7 +98,7 @@ export function ClaimItems({ bill, selection, change, busy, terminal, confirmAct
         {/* Like the draft editor, a located item shows its highlighted line instead of the whole receipt. */}
         {bill.photo && !(page && region?.pageNumber === 1) && <ReceiptPhoto id={bill.photo.draftId} expired={bill.photo.expired} subject={active.name} />}
         <p className="receipt-field-help">{text(room(active))} available to you. Other claims and reservations hold the rest. Your choices are not submitted until you confirm.</p>
-        {!terminal && own && <div className="claim-options">
+        {!terminal && own && variant === "A" && <div className="claim-options">
           {([ ["1", "All of it"], ["1/2", "1/2"], ["1/3", "1/3"], ["1/4", "1/4"], ["1/5", "1/5"], ["1/6", "1/6"] ] as const).map(([value, label], index) => {
             const f = parse(value)!;
             return <button type="button" key={value} className={`claim-option${index === 0 ? " claim-option-all" : ""}`}
@@ -110,6 +113,13 @@ export function ClaimItems({ bill, selection, change, busy, terminal, confirmAct
             <Button onClick={() => saveCustom(active)}>Use custom fraction</Button>{customError && <p role="alert">{customError}</p>}</div>}
           {!!selection[active.id] && <Button variant="text" className="claim-remove" onClick={() => choose(active, "")}>Remove my claim</Button>}
         </div>}
+        {!terminal && own && variant !== "A" && <ClaimOptionsPrototype variant={variant} finalCents={active.finalCents} room={room(active)} selected={parse(selection[active.id] ?? "")}
+          customSelected={!!selectedCustom[active.id]} customValue={customChoices[active.id]} customOpen={customOpen} busy={busy} choose={(value) => choose(active, value)}
+          openCustom={() => { setCustomOpen(true); setCustomText(customChoices[active.id] || selection[active.id] || ""); setCustomError(""); }}
+          customEditor={<div className="claim-custom"><label>Custom fraction<input autoFocus aria-label="Custom fraction" placeholder="4/5" value={customText} onChange={(event) => setCustomText(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") saveCustom(active); }} /></label>
+            <Button onClick={() => saveCustom(active)}>Use custom fraction</Button>{customError && <p role="alert">{customError}</p>}</div>}
+          removeButton={!!selection[active.id] && <Button variant="text" className="claim-remove" onClick={() => choose(active, "")}>Remove my claim</Button>} />}
+        <PrototypeSwitcher variants={claimOptionVariants} current={variant} />
       </div>
     </Dialog>}
     {summary && <Dialog title="Receipt summary" kicker="PRINTED TOTALS · CAD" className="receipt-sheet" closeLabel="Close summary" close={() => setSummary(false)}>
