@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { palettes, type PaletteKey } from './palettes';
-import { readSavedPalette, savePalette } from './appearance';
+import { getCurrentPalette, readSavedPalette, savePalette } from './appearance';
 import './appearance.css';
 
 export function AppearancePicker() {
   const [initialPreference] = useState(readSavedPalette);
-  const [selected, setSelected] = useState<PaletteKey>(initialPreference.key);
+  const [selected, setSelected] = useState<PaletteKey>(getCurrentPalette);
   const [note, setNote] = useState(initialPreference.storageAvailable
     ? 'Saved on this device.'
     : 'Could not read the saved palette. Your changes may not persist.');

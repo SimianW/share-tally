@@ -75,5 +75,10 @@ export async function checkAppearance(page, base, groupUrl) {
   await page.getByRole('radio', { name: /Marigold/ }).check();
   assert.equal(await page.evaluate(() => document.documentElement.dataset.palette), 'marigold', 'A selection still applies when writes are blocked');
   await expect(page.getByText('Palette applied for this session, but could not be saved on this device.', { exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'ShareTally home', exact: true }).click();
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.palette), 'marigold', 'A session-only choice stays applied after navigation');
+  await page.getByRole('button', { name: 'Account menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Account', exact: true }).click();
+  await expect(page.getByRole('radio', { name: /Marigold/ })).toBeChecked();
   console.log('Appearance smoke passed: picker, immediate application, pre-hydration reload, navigation persistence, invalid-value fallback, and blocked-storage recovery.');
 }

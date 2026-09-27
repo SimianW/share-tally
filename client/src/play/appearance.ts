@@ -1,7 +1,6 @@
 import { palettes, type PaletteKey } from './palettes';
 
 export const paletteStorageKey = 'share-tally-palette';
-
 export function isPaletteKey(value: string | null): value is PaletteKey {
   return palettes.some(palette => palette.key === value);
 }
@@ -13,6 +12,11 @@ export function readSavedPalette() {
   } catch {
     return { key: 'classic', storageAvailable: false } as const;
   }
+}
+
+export function getCurrentPalette() {
+  const applied = document.documentElement.dataset.palette ?? null;
+  return isPaletteKey(applied) ? applied : readSavedPalette().key;
 }
 
 export function applySavedPalette() {
