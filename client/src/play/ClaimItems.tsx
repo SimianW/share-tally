@@ -77,7 +77,8 @@ export function ClaimItems({ bill, selection, change, busy, terminal, confirmAct
     </div>
     {active && <Dialog title={active.name} kicker="CLAIM AN ITEM" className="receipt-sheet claim-sheet" closeLabel="Close claim" close={() => setActiveId(null)}>
       <div className="receipt-sheet-content">
-        {bill.photo && page && region && region.pageNumber === 1 && <ReceiptLinePhoto id={bill.photo.draftId} version={0} page={page} polygon={region.polygon} />}
+        {bill.photo && page && region && region.pageNumber === 1 && <ReceiptLinePhoto id={bill.photo.draftId} version={0} page={page} polygon={region.polygon}
+          fallback={<ReceiptPhoto id={bill.photo.draftId} />} />}
         <div className="receipt-original-text"><span className="eyebrow">ON THE RECEIPT</span><p>{active.originalText || "Manually added item"}</p></div>
         <div><span className="eyebrow">HOW THIS COST WAS CALCULATED</span>
           {active.manualFinal === true ? <p>Set manually by {bill.participants.find((p) => p.userId === bill.initiatorId)?.displayName ?? "the initiator"}</p>

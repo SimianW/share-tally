@@ -1037,10 +1037,10 @@ try {
     });
     const data = {
       mode: "items", title: "Located claim lines", purchaseDate: "2026-09-24",
-      timeZone: "America/Toronto", notes: "", totalCents: 2000, ownShareCents: 0,
+      timeZone: "America/Toronto", notes: "", totalCents: 3000, ownShareCents: 0,
       participantIds: [memberIds.Alice],
-      receipt: { subtotalCents: 2000, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
-      items: [item("Apples"), item("Milk")],
+      receipt: { subtotalCents: 3000, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
+      items: [item("Apples"), item("Milk"), item("Bread")],
     };
     const { draft: photoDraft } = await api(`/groups/${group.id}/receipt-drafts/${draftId}`, "alice-token", "PUT", {
       revision: 0, data, photoBase64: image.toString("base64"),
@@ -1049,12 +1049,14 @@ try {
       revision: photoDraft.revision,
       data: { ...data,
         receipt: { ...data.receipt, evidence: { pages: [{ pageNumber: 1, width: 300, height: 500, unit: "pixel" }], taxDetails: [{ rate: 0.13 }] } },
-        items: [{ ...data.items[0], evidence: { regions: [{ pageNumber: 1, polygon: [30, 100, 180, 100, 180, 140, 30, 140] }], productCode: "1234567" } }, data.items[1]],
+        items: [{ ...data.items[0], evidence: { regions: [{ pageNumber: 1, polygon: [30, 100, 180, 100, 180, 140, 30, 140] }], productCode: "1234567" } }, data.items[1],
+          // A region outside the photo cannot be drawn.
+          { ...data.items[2], evidence: { regions: [{ pageNumber: 1, polygon: [400, 100, 500, 100, 500, 140, 400, 140] }] } }],
       },
     });
     const located = (await api(`/receipt-drafts/${draftId}/initialize`, "alice-token", "POST", { revision: draft.revision })).bill;
     // Only the line position is published; the rest of the scan evidence stays with the draft.
-    assert.deepEqual(located.items.map(i => i.receiptRegion), [{ pageNumber: 1, polygon: [30, 100, 180, 100, 180, 140, 30, 140] }, null]);
+    assert.deepEqual(located.items.map(i => i.receiptRegion), [{ pageNumber: 1, polygon: [30, 100, 180, 100, 180, 140, 30, 140] }, null, { pageNumber: 1, polygon: [400, 100, 500, 100, 500, 140, 400, 140] }]);
     assert.deepEqual(located.photo.pages, [{ pageNumber: 1, width: 300, height: 500, unit: "pixel" }]);
     assert.equal(JSON.stringify(located).includes("1234567"), false);
     await alice.setViewportSize({ width: 390, height: 844 });
@@ -1068,6 +1070,11 @@ try {
     await alice.getByRole("button", { name: "View Milk · $10.00", exact: true }).click();
     await expect(claimSheet(alice, "Milk").getByRole("button", { name: "View receipt photo", exact: true })).toBeVisible();
     await expect(claimSheet(alice, "Milk").getByRole("img", { name: "Highlighted receipt line", exact: true })).toHaveCount(0);
+    await alice.getByRole("button", { name: "Close claim", exact: true }).click();
+    // Nor when its line cannot be drawn on the photo.
+    await alice.getByRole("button", { name: "View Bread · $10.00", exact: true }).click();
+    await expect(claimSheet(alice, "Bread").getByRole("button", { name: "View receipt photo", exact: true })).toBeVisible();
+    await expect(claimSheet(alice, "Bread").getByRole("img", { name: "Highlighted receipt line", exact: true })).toHaveCount(0);
     await alice.getByRole("button", { name: "Close claim", exact: true }).click();
   }
   // Unassigned receipt tax blocks sharing and initiation at desktop and mobile widths.
