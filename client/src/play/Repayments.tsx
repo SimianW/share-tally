@@ -1,10 +1,11 @@
 import { requestId } from "./request-id";
 import { Notification } from './Notification';
 import { useRef, useState } from 'react';
-import { BillApiError, money, parseMoney, type BillApi, type Repayment, type RepaymentDraft } from './bill-api';
+import { BillApiError, money, parseMoney, type BillApi, type Repayment, type RepaymentDraft, type RepaymentPrefill } from './bill-api';
 import { errorMessage, type GroupDetail } from './group-api';
 import Dialog from './Dialog';
 import { Button } from './ui';
+import { replaceRoute } from './route';
 
 const statusLabel = { pending: 'Pending', confirmed: 'Confirmed', rejected: 'Rejected' };
 
@@ -20,6 +21,21 @@ export function Repayments({ group, records, api, refresh, selectedId }: {
   const name = (id: string) => group.members.find(member => member.id === id)?.displayName ?? 'Member';
   // Refreshes may reveal a decision made in another tab while this dialog is open.
   const current = selected ? records.find(record => record.id === selected.id) ?? selected : null;
+  const pendingRecords = records.filter(record => record.status === 'pending');
+  const olderRecords = records.filter(record => record.status !== 'pending');
+  function closeReview() {
+    setSelected(null);
+    // Remove the consumed deep link so Review can open the same record again.
+    if (selectedId) replaceRoute(`#/group-bills/${group.id}`);
+  }
+  function recordList(items: Repayment[]) {
+    return <ul className="repayment-list">
+      {items.map(record => <li key={record.id}>
+        <div><strong>{name(record.senderId)} → {name(record.recipientId)}</strong><span>{money(record.amountCents)} · {statusLabel[record.status]}</span><small>Recorded {new Date(record.createdAt).toLocaleString()}</small></div>
+        {record.status === 'pending' && record.recipientId === me.id && <Button className="small" onClick={() => { setSelected(record); setError(''); }}>Review repayment</Button>}
+      </li>)}
+    </ul>;
+  }
   async function decide(decision: 'confirmed' | 'rejected') {
     if (!current || pending.current) return;
     pending.current = true;
@@ -27,7 +43,7 @@ export function Repayments({ group, records, api, refresh, selectedId }: {
     setError('');
     try {
       await api.decideRepayment(current.id, decision);
-      setSelected(null);
+      closeReview();
       refresh();
     } catch (error) {
       setError(errorMessage(error));
@@ -38,16 +54,16 @@ export function Repayments({ group, records, api, refresh, selectedId }: {
     }
   }
   return <section className="repayments" aria-label="Repayment history">
-    <div className="bill-heading"><h2>Repayments</h2><Button onClick={() => setCreating(true)} disabled={group.members.length < 2}>Record repayment</Button></div>
+    <div className="repayment-heading"><h3>Repayments</h3><Button onClick={() => setCreating(true)} disabled={group.members.length < 2}>Record repayment</Button></div>
     <p>Record money you have already sent outside ShareTally. Only the recipient can confirm receipt. Pending and rejected records do not change balances.</p>
-    {records.length === 0 ? <p>No repayments recorded.</p> : <ul className="repayment-list">
-      {records.map(record => <li key={record.id}>
-        <div><strong>{name(record.senderId)} → {name(record.recipientId)}</strong><span>{money(record.amountCents)} · {statusLabel[record.status]}</span><small>Recorded {new Date(record.createdAt).toLocaleString()}</small></div>
-        {record.status === 'pending' && record.recipientId === me.id && <Button onClick={() => { setSelected(record); setError(''); }}>Review repayment</Button>}
-      </li>)}
-    </ul>}
+    {records.length === 0 && <p>No repayments recorded.</p>}
+    {pendingRecords.length > 0 && recordList(pendingRecords)}
+    {olderRecords.length > 0 && <details className="repayment-older">
+      <summary>Older repayments ({olderRecords.length})</summary>
+      {recordList(olderRecords)}
+    </details>}
     {creating && <RecordRepayment group={group} api={api} close={() => setCreating(false)} saved={() => { setCreating(false); refresh(); }} />}
-    {current && <Dialog title="Review repayment" kicker={group.name} close={() => { if (!pending.current) setSelected(null); }}>
+    {current && <Dialog title="Review repayment" kicker={group.name} close={() => { if (!pending.current) closeReview(); }}>
       <div className="bill-form">
         <p><strong>{name(current.senderId)}</strong> recorded sending <strong>{money(current.amountCents)}</strong> to <strong>{name(current.recipientId)}</strong>.</p>
         <p>Confirm only if you received this amount. Confirmation cannot be undone. Reject if this record is incorrect.</p>
@@ -61,8 +77,9 @@ export function Repayments({ group, records, api, refresh, selectedId }: {
   </section>;
 }
 
-function RecordRepayment({ group, api, close, saved }: {
+export function RecordRepayment({ group, api, close, saved, initial }: {
   group: GroupDetail; api: BillApi; close: () => void; saved: () => void;
+  initial?: RepaymentPrefill;
 }) {
   const me = group.members.find(member => member.isCurrentUser)!;
   const storageKey = `repayment-creation:${me.id}:${group.id}`;
@@ -70,8 +87,10 @@ function RecordRepayment({ group, api, close, saved }: {
     try { const stored = sessionStorage.getItem(storageKey); return stored ? JSON.parse(stored) : null; }
     catch { return null; }
   });
-  const [recipientId, setRecipientId] = useState(request?.recipientId ?? '');
-  const [amount, setAmount] = useState(request ? (request.amountCents / 100).toFixed(2) : '');
+  // A retry describes a transfer already attempted, so it must win over a new
+  // suggestion. Otherwise the prefill is only an editable starting value.
+  const [recipientId, setRecipientId] = useState(request?.recipientId ?? initial?.recipientId ?? '');
+  const [amount, setAmount] = useState(request ? (request.amountCents / 100).toFixed(2) : initial ? (initial.amountCents / 100).toFixed(2) : '');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
