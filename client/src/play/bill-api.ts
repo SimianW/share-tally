@@ -19,6 +19,8 @@ export type Repayment = {
   createdAt: string; decidedAt: string | null;
 };
 export type RepaymentDraft = { requestId: string; recipientId: string; amountCents: number };
+// Starting values for Record repayment, e.g. from a suggested transfer.
+export type RepaymentPrefill = Omit<RepaymentDraft, 'requestId'>;
 export type Summary = {
   receivableCents: number;
   payableCents: number;
