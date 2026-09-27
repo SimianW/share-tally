@@ -1,4 +1,5 @@
 import { checkGroupPage } from './smoke-group-page.mjs';
+import { checkAppearance } from './smoke-appearance.mjs';
 import { checkGroupRefresh } from './smoke-group-refresh.mjs';
 import { checkNavigation, groupNet, homeRow, homeGroupNames, openGroupSwitcher, switchGroup } from './smoke-navigation.mjs';
 // Run after installing both client and server dependencies and Chromium:
@@ -135,6 +136,10 @@ try {
   await alice.getByRole('button', { name: 'Copy invitation link' }).click();
   await expect(copiedNotice).toBeVisible();
   const groupUrl = alice.url();
+  const appearancePage = await pageFor('alice-token', { width: 1280, height: 900 });
+  await appearancePage.goto(base);
+  await checkAppearance(appearancePage, base, groupUrl.replace('#/groups/', '#/group-bills/'));
+  await appearancePage.context().close();
 
   // A signed-out mobile visitor keeps the invitation across the sign-in boundary.
   const bob = await pageFor(null, { width: 390, height: 844 });
