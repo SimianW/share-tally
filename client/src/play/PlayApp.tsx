@@ -1,4 +1,5 @@
 import { Notification } from './Notification';
+import { AppearancePicker } from './AppearancePicker';
 import { useCached, useCachedRequest } from './query-cache';
 import { groupDeletedEvent, type GroupDeleted } from './group-sync';
 import { BillDetails } from './Bills';
@@ -108,6 +109,7 @@ export default function PlayApp({
         {!home && notice}
         {billId ? <BillDetails key={billId} id={billId} /> : newBill ? <NewBillPage key={`${newBill[1]}:${newBill[2] ?? "new"}`} groupId={newBill[1]} draftId={newBill[2]} /> : groupPageId ? <GroupWorkspace groups={groups} selectedId={groupPageId} selectedRepaymentId={new URLSearchParams(route.split('?')[1]).get('repayment') ?? undefined} loading={loading} error={error} retry={() => setRevision(value => value + 1)} onDeleted={goHome} /> : accountPage ? (
           <section className="account-panel">
+            <AppearancePicker />
             <AccountCheck />
           </section>
         ) : (

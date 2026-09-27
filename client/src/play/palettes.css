@@ -3,7 +3,10 @@
    block with the same swatch names; semantic roles then update together.
    A palette may also override a role for a different foreground pairing. */
 :root,
-:root[data-palette="classic"] {
+:root[data-palette="classic"],
+[data-palette="classic"] {
+  --font-heading: "Nunito", sans-serif;
+  --font-body: "DM Sans", sans-serif;
   --palette-white: #fff;
   --palette-canvas: #fafbf8;
   --palette-page: #f9faf6;
@@ -39,7 +42,7 @@
 /* Palette choices (#99). Money colors are the
    same in every added palette: owed is a muted green, owe is amber. Each brand
    accent avoids green and orange, so actions never read as money. */
-:root[data-palette]:not([data-palette="classic"]) {
+[data-palette]:not([data-palette="classic"]) {
   --palette-white: #fff;
   --palette-green: #37703f;
   --palette-ochre: #9a5b13;
@@ -54,7 +57,8 @@
 }
 
 /* Marigold: sunflower buttons, cobalt links, cream paper. Sunny and bold. */
-:root[data-palette="marigold"] {
+:root[data-palette="marigold"],
+[data-palette="marigold"] {
   --palette-canvas: #fbf6ec;
   --palette-page: #faf4e8;
   --palette-ink: #2a2420;
@@ -84,7 +88,8 @@
 }
 
 /* Raspberry: berry-pink buttons on blush cream, plum-charcoal ink. Playful. */
-:root[data-palette="raspberry"] {
+:root[data-palette="raspberry"],
+[data-palette="raspberry"] {
   --palette-canvas: #fdf7f4;
   --palette-page: #fcf4f1;
   --palette-ink: #2d2230;
@@ -114,7 +119,8 @@
 }
 
 /* Plum: violet buttons with butter-yellow highlights on oat paper. Rich. */
-:root[data-palette="plum-butter"] {
+:root[data-palette="plum-butter"],
+[data-palette="plum-butter"] {
   --palette-canvas: #faf7f1;
   --palette-page: #f8f4ec;
   --palette-ink: #2b2433;
@@ -144,7 +150,8 @@
 }
 
 /* Lagoon: deep teal buttons and aqua cards on linen. Fresh but warm. */
-:root[data-palette="lagoon"] {
+:root[data-palette="lagoon"],
+[data-palette="lagoon"] {
   --palette-canvas: #fbf6f0;
   --palette-page: #faf3ec;
   --palette-ink: #262a2b;
@@ -174,7 +181,8 @@
 }
 
 /* Blueberry: blueberry buttons with jam-pink cards on warm cream. Candy-bright. */
-:root[data-palette="blueberry"] {
+:root[data-palette="blueberry"],
+[data-palette="blueberry"] {
   --palette-canvas: #fbf7f2;
   --palette-page: #f9f4ee;
   --palette-ink: #232640;

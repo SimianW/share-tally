@@ -5,6 +5,18 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ShareTally</title>
+    <script>
+      // Apply the saved palette before any stylesheet paints, so a reload never
+      // flashes Classic. Keep this list in step with src/play/palettes.ts;
+      // main.tsx re-applies the same choice through play/appearance.ts.
+      try {
+        var palette = localStorage.getItem('share-tally-palette');
+        if (['classic', 'marigold', 'raspberry', 'plum-butter', 'lagoon', 'blueberry'].indexOf(palette) >= 0)
+          document.documentElement.dataset.palette = palette;
+      } catch (error) {
+        // Blocked storage renders Classic; the Account picker explains it.
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
