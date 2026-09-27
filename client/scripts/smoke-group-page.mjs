@@ -135,7 +135,9 @@ export async function checkGroupPage(pageFor, base, api) {
   let state = await api(`/groups/${groupId}/bills`);
   const carolSuggestion = state.ledger.suggestions.find(s => s.fromUserId === ids.Carol);
   assert.ok(carolSuggestion, 'owing Carol needs a server suggestion for I sent this');
-  const alternateRecipient = [ids.Bob, ids.Alice, ids.Member].find(id => id !== carolSuggestion.toUserId);
+  // Tied balances make the server's suggestion target depend on random user IDs,
+  // so never send this record to Alice: her view must keep exactly two pending incoming records.
+  const alternateRecipient = [ids.Bob, ids.Member].find(id => id !== carolSuggestion.toUserId);
   const alternateName = group.members.find(member => member.id === alternateRecipient).displayName;
   const carolOutgoing = await repayment('Carol', alternateName, 850);
   state = await api(`/groups/${groupId}/bills`);
