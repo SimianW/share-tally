@@ -36,6 +36,8 @@ export async function checkGroupRefresh(pageFor, base) {
     // Closing the new group's details leaves its creator on that group's page.
     await expect(owner).toHaveURL(/#\/group-bills\//);
     await expect(owner.locator('#main-content').getByRole('heading', { name })).toBeVisible();
+    await expect(owner.getByRole('region', { name: 'Where you stand' })).toContainText("You're settled up");
+    await expect(owner.getByRole('region', { name: 'Open bills', exact: true })).toContainText('No open bills');
     // The group list failure shows where it matters: in the group switcher.
     const switcher = await openGroupSwitcher(owner);
     await expect(switcher.getByRole('option', { name, exact: true })).toHaveCount(1);

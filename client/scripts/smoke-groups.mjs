@@ -1,5 +1,5 @@
 import { checkGroupRefresh } from './smoke-group-refresh.mjs';
-import { checkNavigation, homeRow, homeGroupNames, openGroupSwitcher, switchGroup } from './smoke-navigation.mjs';
+import { checkNavigation, groupNet, homeRow, homeGroupNames, openGroupSwitcher, switchGroup } from './smoke-navigation.mjs';
 // Run after installing both client and server dependencies and Chromium:
 // cd client && pnpm exec playwright install chromium && pnpm test:groups
 // Real UI + Express + temporary PostgreSQL. Only Clerk is replaced; this does
@@ -177,8 +177,8 @@ try {
   await expect(carol).toHaveURL(/#\/group-bills\//);
   await expect(carol.locator('.group-member-count')).toContainText('3 members');
   // Wait for an actual subscribed snapshot; an empty selector also matches the loading screen.
-  await expect(carol.locator('.workspace-content .balance-number')).toHaveText('$0.00');
-  await expect(carol.locator('.bill-list-row')).toHaveCount(0);
+  await expect(groupNet(carol)).toContainText("You're settled up");
+  await expect(carol.getByRole('region', { name: 'Open bills', exact: true }).getByRole('link')).toHaveCount(0);
   // Hold an obsolete empty snapshot while another user commits a bill.
   // The notification during that read must cause a second authoritative read.
   let releaseSnapshot;
@@ -227,7 +227,7 @@ try {
   await alice.getByRole('button', { name: 'Initiate bill' }).click();
   await expect(alice.getByRole('button', { name: 'Retry initiation' })).toBeVisible();
   releaseSnapshot();
-  await expect(carol.locator('.bill-list-row')).toContainText('Weekend groceries', { timeout: 3000 });
+  await expect(carol.getByRole('region', { name: 'Open bills', exact: true }).getByRole('link')).toContainText('Weekend groceries', { timeout: 3000 });
   await alice.reload();
   // The new-bill page is its own route, so a reload restores the unsent bill in place.
   await expect(alice.getByLabel('Bill title', { exact: true })).toHaveValue('Weekend groceries');
@@ -286,8 +286,8 @@ try {
   });
   const liveStarted = Date.now();
   await bob.getByRole('button', { name: 'Submit and confirm my share' }).click();
-  await expect(carol.locator('.bill-list-row')).toContainText('Complete', { timeout: 3000 });
-  await expect(carol.getByRole('region', { name: 'Group balances and repayment suggestions' })).toContainText('$59.97');
+  await expect(carol.getByRole('region', { name: 'History', exact: true }).getByRole('link')).toContainText('Complete', { timeout: 3000 });
+  await expect(carol.getByRole('region', { name: 'Group balances and repayments' })).toContainText('$59.97');
   console.log(`Live completion observed within ${Date.now() - liveStarted} ms of the submit click`);
   await expect(bob.getByRole('button', { name: 'Retry confirmation' })).toBeVisible();
   // The committed stream snapshot resolves the uncertain response without replaying the write.
@@ -304,14 +304,14 @@ try {
   await bob.screenshot({ path: `${clientRoot}/test-results/bills-mobile.png`, fullPage: true });
   assert.equal(await bob.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await alice.getByRole('link', { name: 'Group bills', exact: false }).click();
-  await expect(alice.locator('.bill-list-row')).toHaveCount(1);
-  await expect(alice.locator('.balance-number')).toHaveText('$59.97');
-  const aliceGroupBalance = await alice.locator('.balance-number').innerText();
+  await expect(alice.getByRole('region', { name: 'History', exact: true }).getByRole('link')).toHaveCount(1);
+  await expect(groupNet(alice)).toContainText('$59.97');
+  const aliceGroupBalance = await groupNet(alice).innerText().then(text => text.match(/\$[\d,.]+/)[0]);
   await alice.getByRole('link', { name: 'ShareTally home', exact: true }).click();
   // Home's row shows the group page's number; there is no cross-group balance.
   await expect(homeRow(alice, 'Costco friends')).toContainText(`You're owed ${aliceGroupBalance}`);
   await expect(homeRow(alice, 'Costco friends')).toContainText('Nothing to do');
-  await expect(alice.locator('.balance-card')).toHaveCount(0);
+  await expect(alice.getByRole('region', { name: 'Where you stand' })).toHaveCount(0);
   await expect(alice.getByText(/ACROSS YOUR GROUPS|, net/)).toHaveCount(0);
   await bob.goto(base);
   await expect(homeRow(bob, 'Costco friends')).toContainText(`You owe ${aliceGroupBalance}`);
@@ -323,24 +323,24 @@ try {
   await expect(alice.getByRole('dialog')).toContainText('Apartment');
   await alice.getByRole('button', { name: 'Close dialog' }).click();
   await expect(alice.locator('#main-content').getByRole('heading', { name: 'Apartment' })).toBeVisible();
-  await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$0.00');
+  await expect(groupNet(alice)).toContainText("You're settled up");
   await switchGroup(alice, 'Costco friends');
-  await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$59.97');
+  await expect(groupNet(alice)).toContainText('$59.97');
   await expect(alice.getByRole('dialog')).toHaveCount(0);
   await checkNavigation(alice, pageFor);
   await alice.reload();
-  await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$59.97');
+  await expect(groupNet(alice)).toContainText('$59.97');
   const selectedBillsPattern = '**/api/groups/' + alice.url().split('/').pop() + '/bills';
   await alice.route(selectedBillsPattern, route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Temporarily unavailable' }) }));
   await expect(alice.getByRole('button', { name: 'Refresh bills', exact: true })).toHaveCount(0);
   await alice.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect(alice.getByRole('alert')).toHaveCount(0);
-  await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$59.97');
+  await expect(groupNet(alice)).toContainText('$59.97');
   await alice.unroute(selectedBillsPattern);
   // The visible group recovers through automatic reconnection without a manual retry.
   await expect(alice.getByRole('alert')).toHaveCount(0, { timeout: 20_000 });
-  await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$59.97', { timeout: 20_000 });
-  await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$59.97');
+  await expect(groupNet(alice)).toContainText('$59.97', { timeout: 20_000 });
+  await expect(groupNet(alice)).toContainText('$59.97');
   const newBillButton = alice.getByRole('button', { name: 'New bill', exact: true });
   const membersButton = alice.getByRole('button', { name: 'Members & invites', exact: true });
   await expect(newBillButton).toHaveCSS('min-height', '40px');
@@ -453,11 +453,11 @@ try {
   assert.equal(await bobAgain.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await bobAgain.screenshot({ path: `${clientRoot}/test-results/bill-canceled-mobile.png`, fullPage: true });
   await alice.getByRole('link', { name: 'Group bills', exact: false }).click();
-  await expect(alice.locator('.bill-list-row').filter({ hasText: 'Canceled groceries' })).toContainText('Canceled');
-  await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$119.97');
+  await expect(alice.getByRole('region', { name: 'History', exact: true }).getByRole('link').filter({ hasText: 'Canceled groceries' })).toContainText('Canceled');
+  await expect(groupNet(alice)).toContainText('$119.97');
   // Issue #6: balances, minimum suggestions, live membership updates, and capacity errors.
-  const ledger = alice.getByRole('region', { name: 'Group balances and repayment suggestions' });
-  await expect(ledger).toContainText('Bob → Alice');
+  const ledger = alice.getByRole('region', { name: 'Group balances and repayments' });
+  await expect(ledger).toContainText('Bob → You');
   await expect(ledger).toContainText('$119.97');
   await expect(ledger).toContainText('Carol');
   await expect(ledger).toContainText('$0.00');
@@ -494,7 +494,7 @@ try {
   await expect(bobAgain.locator('.repayment-list li')).toHaveCount(1);
   await expect(bobAgain.getByRole('button', { name: 'Review repayment' })).toHaveCount(0);
   await expect(alice.locator('.repayment-list')).toContainText('Pending');
-  await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$119.97');
+  await expect(groupNet(alice)).toContainText('$119.97');
   await alice.getByRole('button', { name: 'Review repayment' }).click();
   await expect(alice.getByRole('dialog')).toContainText('Bob');
   await expect(alice.getByRole('dialog')).toContainText('$20.00');
@@ -509,11 +509,11 @@ try {
   await expect(alice.getByRole('dialog').getByRole('alert')).toBeVisible();
   await expect(alice.getByRole('dialog')).toContainText('already confirmed');
   await alice.getByRole('button', { name: 'Close dialog' }).click();
-  await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$99.97');
+  await expect(groupNet(alice)).toContainText('$99.97');
   await expect(alice.locator('.repayment-list')).toContainText('Confirmed');
-  await expect(bobAgain.locator('.workspace-content .balance-number')).toHaveText('$99.97');
+  await expect(groupNet(bobAgain)).toContainText('$99.97');
   await expect(bobAgain.locator('.repayment-list')).toContainText('Confirmed');
-  await expect(bobAgain.getByRole('region', { name: 'Group balances and repayment suggestions' })).toContainText('$99.97');
+  await expect(bobAgain.getByRole('region', { name: 'Group balances and repayments' })).toContainText('$99.97');
   await bobAgain.getByRole('button', { name: 'Record repayment', exact: true }).click();
   await bobAgain.getByLabel('Recipient', { exact: true }).selectOption({ label: 'Alice' });
   await bobAgain.getByLabel('Amount sent · CAD').fill('5.00');
@@ -522,7 +522,7 @@ try {
   await alice.getByRole('button', { name: 'Review repayment' }).click();
   await alice.getByRole('button', { name: 'Reject record' }).click();
   await expect(alice.locator('.repayment-list')).toContainText('Rejected');
-  await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$99.97');
+  await expect(groupNet(alice)).toContainText('$99.97');
   await bobAgain.reload();
   assert.equal(await bobAgain.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await bobAgain.screenshot({ path: `${clientRoot}/test-results/repayments-mobile.png`, fullPage: true });
@@ -535,8 +535,8 @@ try {
   await alice.getByRole('button', { name: 'Initiate bill' }).click();
   await expect(alice.locator('.bill-status')).toContainText('COMPLETE');
   await alice.getByRole('link', { name: 'Group bills', exact: false }).click();
-  await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$99.97');
-  await expect(alice.locator('.bill-list-row').filter({ hasText: 'Weekend groceries' })).toContainText('Complete');
+  await expect(groupNet(alice)).toContainText('$99.97');
+  await expect(alice.getByRole('region', { name: 'History', exact: true }).getByRole('link').filter({ hasText: 'Weekend groceries' })).toContainText('Complete');
   const invitationToken = newLink.split('/').pop();
   for (let i = 1; i <= 13; i++) {
     const response = await fetch(`http://127.0.0.1:${port}/api/groups/join`, {
@@ -601,23 +601,23 @@ try {
   await alice.getByRole('button', { name: 'Close dialog' }).click();
   await alice.goto(ledgerUrl);
   const liveView = await liveApi(`/groups/${liveGroupId}/bills`, 'alice-token');
-  await expect(alice.locator('.workspace-content .balance-number')).toHaveText(`$${(liveView.summary.netCents / 100).toFixed(2)}`);
+  await expect(groupNet(alice)).toContainText(`$${(liveView.summary.netCents / 100).toFixed(2)}`);
   assert.equal(await alice.locator('[data-animating]').count(), 0, 'First load displays real amounts');
   await alice.emulateMedia({ reducedMotion: 'reduce' });
   const { repayment: reverse } = await liveApi(`/groups/${liveGroupId}/repayments`, 'bob-token', 'POST', {
     requestId: crypto.randomUUID(), recipientId: liveIds.Alice, amountCents: liveView.summary.netCents + 1000,
   });
   await liveApi(`/repayments/${reverse.id}/decision`, 'alice-token', 'POST', { decision: 'confirmed' });
-  await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$10.00');
-  await expect(alice.locator('.balance-card h2')).toHaveText('You owe, net');
+  await expect(groupNet(alice)).toContainText('$10.00');
+  await expect(groupNet(alice)).toContainText('You owe');
   assert.equal(await alice.locator('[data-animating]').count(), 0, 'Reduced motion skips rolling amounts');
   await alice.emulateMedia({ reducedMotion: 'no-preference' });
   const { repayment: zero } = await liveApi(`/groups/${liveGroupId}/repayments`, 'alice-token', 'POST', {
     requestId: crypto.randomUUID(), recipientId: liveIds.Bob, amountCents: 1000,
   });
   await liveApi(`/repayments/${zero.id}/decision`, 'bob-token', 'POST', { decision: 'confirmed' });
-  await expect(alice.locator('.workspace-content .balance-number')).toHaveText('$0.00');
-  await expect(alice.getByRole('region', { name: 'Group balances and repayment suggestions' })).toContainText('No repayments needed.');
+  await expect(groupNet(alice)).toContainText("You're settled up");
+  await expect(alice.getByRole('region', { name: 'Group balances and repayments' })).toContainText('No transfers needed.');
   await expect(alice.locator('[data-animating]')).toHaveCount(0);
   // Attention refresh, direct repayment review, stale links, and account isolation.
   await alice.goto(base);

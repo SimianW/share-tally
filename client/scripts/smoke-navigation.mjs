@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { expect } from '@playwright/test';
 
+// The headline stays available during background reads, but never after access loss.
+export const groupNet = page => page.getByRole('region', { name: 'Where you stand' }).getByRole('heading');
+
 // Hold responses until assertions complete: loading flashes cannot hide behind timing.
 export async function checkNavigation(page, pageFor) {
   const groupUrl = page.url();
@@ -16,7 +19,7 @@ export async function checkNavigation(page, pageFor) {
     window.uxTopBar = document.querySelector('.top-bar');
   });
   await switchGroup(page, 'Apartment');
-  await expect(page.locator('.workspace-content .balance-number')).toHaveText('$0.00');
+  await expect(groupNet(page)).toContainText("You're settled up");
   let release;
   let reads = 0;
   let active = 0;
@@ -29,7 +32,7 @@ export async function checkNavigation(page, pageFor) {
   });
   await switchGroup(page, 'Costco friends');
   await expect.poll(() => reads).toBeGreaterThan(0);
-  await expect(page.locator('.workspace-content .balance-number')).toHaveText('$59.97');
+  await expect(groupNet(page)).toContainText('$59.97');
   await expect(page.getByRole('status', { name: 'Loading group', exact: true })).toHaveCount(0);
   assert.equal(await page.evaluate(() => window.uxTopBar === document.querySelector('.top-bar')), true);
   release();
@@ -40,7 +43,7 @@ export async function checkNavigation(page, pageFor) {
     await page.evaluate(event => (event === 'visibilitychange' ? document : window).dispatchEvent(new Event(event)), event);
     await expect.poll(() => reads).toBeGreaterThan(0);
     await expect(page.getByRole('alert')).toHaveCount(0);
-    await expect(page.locator('.workspace-content .balance-number')).toHaveText('$59.97');
+    await expect(groupNet(page)).toContainText('$59.97');
     release();
     await expect.poll(() => active).toBe(0);
   }
@@ -50,13 +53,13 @@ export async function checkNavigation(page, pageFor) {
   await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect.poll(() => reads).toBeGreaterThan(0);
   await switchGroup(page, 'Apartment');
-  await expect(page.locator('.workspace-content .balance-number')).toHaveText('$0.00');
+  await expect(groupNet(page)).toContainText("You're settled up");
   release();
   await expect.poll(() => active).toBe(0);
-  await expect(page.locator('.workspace-content .balance-number')).toHaveText('$0.00');
+  await expect(groupNet(page)).toContainText("You're settled up");
   await expect(page.locator('#main-content').getByRole('heading', { level: 2 }).first()).toHaveText('Apartment');
   await switchGroup(page, 'Costco friends');
-  await expect(page.locator('.workspace-content .balance-number')).toHaveText('$59.97');
+  await expect(groupNet(page)).toContainText('$59.97');
   assert.equal(maxActive, 1, 'Group page reads are deduplicated');
   await page.unroute(pattern);
   await checkGroupSwitcher(page, 'desktop');
@@ -70,7 +73,7 @@ export async function checkNavigation(page, pageFor) {
   await expect(homeRow(page, 'Costco friends')).toContainText("You're owed $59.97");
   await expect(homeRow(page, 'Apartment')).toContainText('All square Settled');
   await homeRow(page, 'Costco friends').click();
-  await expect(page.locator('.workspace-content .balance-number')).toHaveText('$59.97');
+  await expect(groupNet(page)).toContainText('$59.97');
   // Returning Home rereads the balances without replacing the known rows with a loading state.
   let listRead = false;
   gate = new Promise(resolve => { release = resolve; });
@@ -84,7 +87,7 @@ export async function checkNavigation(page, pageFor) {
   assert.deepEqual(await page.evaluate(() => window.uxFlashes), []);
   await page.evaluate(() => window.uxObserver.disconnect());
   await page.goto(groupUrl);
-  await expect(page.locator('.workspace-content .balance-number')).toHaveText('$59.97');
+  await expect(groupNet(page)).toContainText('$59.97');
 
   await page.evaluate(() => {
     window.recoveryFlashes = [];
@@ -97,7 +100,7 @@ export async function checkNavigation(page, pageFor) {
   await page.route(pattern, route => { failures++; return route.fulfill({ status: 503, json: { error: 'Temporarily unavailable' } }); });
   await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect.poll(() => failures).toBeGreaterThan(0);
-  await expect(page.locator('.workspace-content .balance-number')).toHaveText('$59.97');
+  await expect(groupNet(page)).toContainText('$59.97');
   await expect(page.getByRole('alert')).toHaveCount(0);
   await page.unroute(pattern);
   let recovered = false;
@@ -114,21 +117,21 @@ export async function checkNavigation(page, pageFor) {
   await fresh.goto(groupUrl);
   await expect(fresh.getByRole('status', { name: 'Loading group', exact: true })).toBeVisible();
   assert.ok((await fresh.locator('.financial-skeleton').boundingBox()).height >= 300);
-  await expect(fresh.locator('.workspace-content .balance-number')).toHaveCount(0);
+  await expect(groupNet(fresh)).toHaveCount(0);
   release();
-  await expect(fresh.locator('.workspace-content .balance-number')).toHaveText('$59.97');
+  await expect(groupNet(fresh)).toContainText('$59.97');
   await fresh.unroute(pattern);
   await fresh.route(pattern, route => route.fulfill({ status: 503, json: { error: 'Temporarily unavailable' } }));
   await fresh.reload();
   await expect(fresh.getByRole('alert')).toContainText("Couldn't load this group.");
-  await expect(fresh.locator('.workspace-content .balance-number')).toHaveCount(0);
+  await expect(groupNet(fresh)).toHaveCount(0);
   await fresh.unroute(pattern);
   await fresh.getByRole('button', { name: 'Try again', exact: true }).click();
-  await expect(fresh.locator('.workspace-content .balance-number')).toHaveText('$59.97');
+  await expect(groupNet(fresh)).toContainText('$59.97');
   await fresh.route(pattern, route => route.fulfill({ status: 403, json: { error: 'Access revoked.' } }));
   await fresh.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect(fresh.getByRole('alert').first()).toContainText('Access revoked.');
-  await expect(fresh.locator('.workspace-content .balance-number')).toHaveCount(0);
+  await expect(groupNet(fresh)).toHaveCount(0);
   await fresh.unroute(pattern);
   // Switch identity without a reload. New-account requests are held while checking
   // that the previous account's cache disappears immediately.
@@ -140,7 +143,7 @@ export async function checkNavigation(page, pageFor) {
     window.dispatchEvent(new Event('storage'));
   });
   await expect.poll(() => accountRead).toBe(true);
-  await expect(fresh.locator('.workspace-content .balance-number')).toHaveCount(0);
+  await expect(groupNet(fresh)).toHaveCount(0);
   await expect(fresh.locator('#main-content')).not.toContainText('Costco friends');
   release();
   await fresh.unrouteAll({ behavior: 'wait' });
@@ -148,8 +151,8 @@ export async function checkNavigation(page, pageFor) {
   await fresh.getByRole('menuitem', { name: 'Sign out', exact: true }).click();
   await expect(fresh.getByText('Costco friends', { exact: true })).toHaveCount(0);
   await fresh.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(fresh.locator('.workspace-content .balance-number')).toHaveText('$59.97');
-  await expect(fresh.locator('.balance-card h2')).toHaveText('You owe, net');
+  await expect(groupNet(fresh)).toContainText('$59.97');
+  await expect(groupNet(fresh)).toContainText('You owe');
   await checkTopBar(fresh, 'mobile');
   await fresh.context().close();
   console.log('Navigation UX passed: top bar with Home and account menu, delayed cached navigation, group switcher, deduplication, no warning flashes, background recovery, initial failure, revoked access and account isolation.');
@@ -191,7 +194,7 @@ async function checkGroupSwitcher(page, label) {
   const listbox = page.getByRole('listbox', { name: 'Switch group', exact: true });
   const option = name => listbox.getByRole('option', { name, exact: true });
   const options = listbox.getByRole('option');
-  await expect(page.locator('.workspace-content .balance-number')).toHaveText('$59.97');
+  await expect(groupNet(page)).toContainText('$59.97');
   await expect(page.getByRole('navigation', { name: 'Groups', exact: true })).toHaveCount(0);
   assert.equal(await page.evaluate(() => {
     const main = document.querySelector('#main-content');
@@ -224,7 +227,7 @@ async function checkGroupSwitcher(page, label) {
   assert.notEqual(page.url(), costcoUrl);
   const apartmentUrl = page.url();
   await expect(trigger).toHaveAccessibleName('Apartment');
-  await expect(page.locator('.workspace-content .balance-number')).toHaveText('$0.00');
+  await expect(groupNet(page)).toContainText("You're settled up");
   await trigger.click();
   await expect(option('Apartment')).toHaveAttribute('aria-selected', 'true');
   await expect(option('Costco friends')).toHaveAttribute('aria-selected', 'false');
@@ -272,7 +275,7 @@ async function checkGroupSwitcher(page, label) {
   await expect(page).toHaveURL(costcoUrl);
   await expect(trigger).toHaveAccessibleName('Costco friends');
   await expect(trigger).toBeFocused();
-  await expect(page.locator('.workspace-content .balance-number')).toHaveText('$59.97');
+  await expect(groupNet(page)).toContainText('$59.97');
 
   // A press outside closes the list, including a touch press that does not move focus.
   await trigger.click();
