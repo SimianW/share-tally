@@ -31,7 +31,10 @@ const { drizzle } = serverRequire('drizzle-orm/node-postgres');
 const { migrate } = serverRequire('drizzle-orm/node-postgres/migrator');
 const clientRoot = fileURLToPath(new URL('../', import.meta.url));
 const serverRoot = fileURLToPath(new URL('../../server/', import.meta.url));
-const output = '/tmp/st-palettes';
+// PROTO_LAYOUT / PROTO_BUTTONS pin the group layout and button style for palette captures.
+const chosenLayout = process.env.PROTO_LAYOUT ?? 'current';
+const chosenButtons = process.env.PROTO_BUTTONS ?? 'current';
+const output = process.env.PROTO_OUT ?? '/tmp/st-palettes';
 const started = Date.now();
 let container, pool, child, vite, browser;
 
@@ -297,11 +300,13 @@ async function main() {
     await mkdir(`${output}/${palette}`, { recursive: true });
     for (const [device, viewport] of Object.entries({ desktop: { width: 1280, height: 900 }, mobile: { width: 390, height: 844 } })) {
       const context = await browser.newContext({ viewport, reducedMotion: 'reduce' });
-      await context.addInitScript(name => {
+      await context.addInitScript(({ name, chosenLayout, chosenButtons }) => {
+        localStorage.setItem('prototype-layout', chosenLayout);
+        localStorage.setItem('prototype-buttons', chosenButtons);
         localStorage.setItem('prototype-palette', name);
         localStorage.setItem('prototype-hide-switcher', '1');
         localStorage.setItem('smoke-token', 'alice-token');
-      }, palette);
+      }, { name: palette, chosenLayout, chosenButtons });
       const page = await context.newPage();
       page.setDefaultTimeout(15_000);
       page.on('pageerror', error => console.error(`Browser error (${palette}/${device}): ${error.message}`));
