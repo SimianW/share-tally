@@ -244,11 +244,12 @@
   font-size: 11px;
 }
 .receipt-steps button[aria-current="step"] {
-  color: var(--ink-on-action);
+  color: var(--ink-on-soft-accent);
   font-weight: 700;
 }
 .receipt-steps button[aria-current="step"] > span {
   background: var(--action);
+  color: var(--ink-on-action);
 }
 .receipt-steps button:disabled {
   opacity: 0.5;

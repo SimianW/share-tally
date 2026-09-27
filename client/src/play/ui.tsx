@@ -137,14 +137,10 @@ export function Avatar({
 }) {
   const [failedUrls, setFailedUrls] = useState<string[]>([]);
   const source = [imageUrl, fallbackImageUrl].find(url => url && !failedUrls.includes(url));
-  const colorIndex: Record<string, number> = {
-    Simon: 1,
-    Emma: 2,
-    Alex: 3,
-    Jamie: 4,
-    Riley: 5,
-  };
-  const color = colorIndex[name] ? `var(--avatar-${colorIndex[name]})` : "var(--avatar-default)";
+  // A stable tint for real member names, not just the five prototype names.
+  const tint = [...name.trim().toLowerCase()].reduce((hash, character) =>
+    (hash * 31 + character.codePointAt(0)!) % 5, 0) + 1;
+  const color = name.trim() ? `var(--avatar-${tint})` : "var(--avatar-default)";
   return (
     <span
       className={`avatar ${small ? "small" : ""}`}

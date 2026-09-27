@@ -93,12 +93,12 @@
 .group-switcher-check { flex-shrink: 0; color: var(--accent-ink-muted); }
 .group-switcher [role="option"][aria-selected="true"] { background: var(--surface-soft); font-weight: 700; }
 .group-switcher [role="option"][aria-selected="true"] .group-switcher-option-icon { background: var(--surface-selected); }
-.group-switcher [role="option"]:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; background: var(--surface-accent); color: var(--ink-on-action); }
+.group-switcher [role="option"]:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; background: var(--surface-accent); color: var(--ink-on-soft-accent); }
 /* Touch taps leave :hover behind; only devices that really hover get hover styles. */
 @media (hover: hover) {
   .group-switcher-trigger:hover { background: var(--surface-soft); border-color: var(--line-accent); }
   .group-switcher-trigger:hover .group-switcher-chevron { color: var(--ink); }
-  .group-switcher [role="option"]:hover { background: var(--surface-accent); color: var(--ink-on-action); }
+  .group-switcher [role="option"]:hover { background: var(--surface-accent); color: var(--ink-on-soft-accent); }
 }
 
 .group-switcher-note { padding: 8px 10px 10px; color: var(--ink-secondary); font-size: var(--text-sm); }
