@@ -18,8 +18,9 @@ export async function checkAppearance(page, base, groupUrl) {
   assert.equal(await page.evaluate(() => document.documentElement.dataset.palette), 'raspberry');
   assert.equal(await page.evaluate(key => localStorage.getItem(key), storageKey), 'raspberry');
   const scopedActions = await page.evaluate(() => {
-    const marigold = document.querySelector('[data-palette="marigold"]');
-    const raspberry = document.querySelector('[data-palette="raspberry"]');
+    // Query the cards, not [data-palette], which also matches <html> once a palette is applied.
+    const marigold = document.querySelector('.appearance-option[data-palette="marigold"]');
+    const raspberry = document.querySelector('.appearance-option[data-palette="raspberry"]');
     return [getComputedStyle(marigold).getPropertyValue('--action').trim(), getComputedStyle(raspberry).getPropertyValue('--action').trim(), getComputedStyle(document.documentElement).getPropertyValue('--action').trim()];
   });
   assert.notEqual(scopedActions[0], scopedActions[1], 'Each palette card resolves its own action token');
