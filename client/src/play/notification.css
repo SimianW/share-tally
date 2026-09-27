@@ -22,7 +22,8 @@
 .notification-title { display: block; font-size: 1rem; line-height: 1.4; }
 .notification-body { margin-top: 6px; font-size: .875rem; line-height: 1.6; }
 .notification-body p { margin: 6px 0; }
-.notification-body > .button { margin-top: 12px; background: var(--notice-tone); color: var(--ink-inverse); border-color: var(--notice-tone); box-shadow: none; }
+.notification-body > .button.primary { margin-top: 12px; background: var(--notice-tone); color: var(--ink-inverse); border-color: var(--notice-tone); }
+.notification-body > .button.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--notice-tone) 84%, var(--ink)); }
 .notification-dismiss { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 36px; height: 36px; margin: -8px; border: 0; border-radius: 8px; background: transparent; color: var(--notice-tone); cursor: pointer; }
 .notification-dismiss:hover { background: var(--notice-line); }
 @media (max-width: 600px) {

@@ -45,8 +45,7 @@
 .picker-selection>div { min-width:0; flex:1; display:grid; gap:3px; }
 .picker-selection small { font-size:8px; letter-spacing:1px; color:var(--ink-secondary); }
 .picker-selection strong { font-size:11px; overflow-wrap:anywhere; }
-.picker-selection>button { border:0; background:var(--action); border-radius:10px; padding:12px; display:flex; align-items:center; gap:8px; color:var(--ink); font-size:12px; font-weight:700; flex-shrink:0; }
-.picker-selection>button:disabled { opacity:.5; cursor:not-allowed; }
+.picker-selection>button { flex-shrink:0; }
 @media(max-width:700px) {
  .create-group-dialog.with-icon-picker[open] { display:block; max-width:440px; }
  .with-icon-picker>.dialog-heading,.with-icon-picker>.create-group-summary { display:none; }
@@ -54,4 +53,4 @@
  .picker-grid { grid-template-columns:repeat(5,minmax(0,1fr)); }
  .picker-heading h2 { font-size:23px; }
 }
-@media(max-width:360px) { .group-icon-picker { padding:20px 15px 0; }.picker-grid{gap:4px}.picker-selection{gap:6px}.picker-selection>button{padding:10px}.picker-heading .icon-button{width:34px;height:34px} }
+@media(max-width:360px) { .group-icon-picker { padding:20px 15px 0; }.picker-grid{gap:4px}.picker-selection{gap:6px}.picker-heading .icon-button{width:34px;height:34px} }
