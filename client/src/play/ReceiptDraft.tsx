@@ -52,6 +52,38 @@ function hasUnsavedChanges(draft: ReceiptDraft, baseline: ReceiptDraft | null, f
   );
 }
 
+function itemsComplete(data: ReceiptData) {
+  return data.items.length > 0 && data.items.every(
+    (i) =>
+      i.amountCents !== null &&
+      i.finalCents !== null &&
+      i.finalCents >= 0 &&
+      i.name.trim(),
+  );
+}
+
+// Items are ready for sharing when initiation would accept them: every item is
+// complete and the receipt tax is assigned to at least one of them.
+function itemsReady(data: ReceiptData) {
+  return data.mode === "items" && itemsComplete(data) && !unassignedReceiptTaxMessage(data);
+}
+
+// Later steps open only once the steps before them are done; Items needs a
+// scanned or entered item, People needs manual shares or ready items.
+function canOpenStep(data: ReceiptData, index: number) {
+  if (index === 0) return true;
+  if (index === 1) return data.mode === "items" && data.items.length > 0;
+  return data.mode === "manual" || itemsReady(data);
+}
+
+function openingStep(draft: ReceiptDraft, stored: string | null) {
+  if (draft.initializationRevision) return 2;
+  if (draft.processingStatus === "processing" && draft.data.mode === "items") return 1;
+  if (stored !== null && [0, 1, 2].includes(Number(stored)) && canOpenStep(draft.data, Number(stored)))
+    return Number(stored);
+  return draft.data.mode === "manual" ? 2 : draft.data.items.length ? 1 : 0;
+}
+
 function clearDeletedDraft(id: string) {
   for (const key of Object.keys(sessionStorage)) {
     if (key.startsWith("receipt-step:") && key.endsWith(`:${id}`))
@@ -288,13 +320,7 @@ export function ReceiptDraftForm({
   const recoveredDraft = useRef(draft.revision > 0 ? draft : null);
   const [loading, setLoading] = useState(!!id);
   const stepKey = `receipt-step:${me.id}:${draft.id}`;
-  const [step, setStep] = useState(() => {
-    const stored = sessionStorage.getItem(stepKey);
-    if (draft.initializationRevision) return 2;
-    if (stored !== null && [0, 1, 2].includes(Number(stored)))
-      return Number(stored);
-    return draft.data.mode === "manual" ? 2 : draft.data.items.length ? 1 : 0;
-  });
+  const [step, setStep] = useState(() => openingStep(draft, sessionStorage.getItem(stepKey)));
   const stepHeading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     if (loading) return;
@@ -348,6 +374,7 @@ export function ReceiptDraftForm({
           } else {
             baseline.current = r.draft;
             const local = recoveredDraft.current;
+            let opened = r.draft;
             if (
               local?.id === r.draft.id &&
               r.draft.processingStatus !== "processing" &&
@@ -358,26 +385,18 @@ export function ReceiptDraftForm({
                 local.pendingPhoto)
             ) {
               // Keep the base revision so a newer server edit still triggers the save conflict check.
-              setDraft({
+              opened = {
                 ...local,
                 photo: local.pendingPhoto ? local.photo : r.draft.photo,
-              });
+              };
               setNotice(
                 local.revision === r.draft.revision
                   ? "Recovered your unsaved changes."
                   : "Recovered your local changes. The saved draft has changed elsewhere; saving will check for a conflict.",
               );
-            } else setDraft(r.draft);
-            if (r.draft.processingStatus === "processing" && r.draft.data.mode === "items")
-              setStep(1);
-            else if (sessionStorage.getItem(stepKey) === null)
-              setStep(
-                r.draft.data.mode === "manual"
-                  ? 2
-                  : r.draft.data.items.length
-                    ? 1
-                    : 0,
-              );
+            }
+            setDraft(opened);
+            setStep(openingStep(opened, sessionStorage.getItem(stepKey)));
           }
           setLoading(false);
         }
@@ -502,14 +521,11 @@ export function ReceiptDraftForm({
     data.title.trim() &&
     (data.mode === "manual"
       ? data.ownShareCents <= data.totalCents
-      : data.items.length > 0 &&
-        data.items.every(
-          (i) =>
-            i.amountCents !== null &&
-            i.finalCents !== null &&
-            i.finalCents >= 0 &&
-            i.name.trim(),
-        ));
+      : itemsComplete(data));
+  const stepOpen = (index: number) =>
+    !(index === 1 && data.mode === "manual") &&
+    (index <= step || canOpenStep(data, index));
+  const stepDone = [step > 0, step > 1 && itemsReady(data), false];
   const editor = (
     <div className="receipt-wizard">
       <header className="receipt-page-heading">
@@ -557,12 +573,12 @@ export function ReceiptDraftForm({
                     !!busy ||
                     !!draft.initializationRevision ||
                     processing ||
-                    (index === 1 && data.mode === "manual")
+                    !stepOpen(index)
                   }
                   onClick={() => setStep(index)}
                 >
                   <span>
-                    {step > index && !(index === 1 && data.mode === "manual") ? (
+                    {stepDone[index] ? (
                       <Check size={16} aria-hidden="true" />
                     ) : (
                       `0${index + 1}`
@@ -975,6 +991,7 @@ export function ReceiptDraftForm({
                     const result = await api.get(draft.id);
                     setDraft(result.draft);
                     baseline.current = result.draft;
+                    setStep(openingStep(result.draft, sessionStorage.getItem(stepKey)));
                     setFile(null);
                   })
                 }
@@ -1030,7 +1047,7 @@ export function ReceiptDraftForm({
               )}
             </div>
             {step === 1 && (
-              <Button onClick={() => setStep(2)} disabled={!!busy || processing}>
+              <Button onClick={() => setStep(2)} disabled={!!busy || processing || !canOpenStep(data, 2)}>
                 Continue to sharing <ArrowRight size={16} aria-hidden="true" />
               </Button>
             )}
@@ -1043,6 +1060,15 @@ export function ReceiptDraftForm({
               </Button>
             )}
           </div>
+          {step === 1 && !processing && !canOpenStep(data, 2) && (
+            <p className="receipt-step-description">
+              {!data.items.length
+                ? "Add at least one item to continue."
+                : !itemsComplete(data)
+                  ? "Give every item a name and a price to continue."
+                  : "Assign the receipt tax to an item to continue."}
+            </p>
+          )}
           {step === 2 && (
             <p className="receipt-step-description">
               {data.mode === "items"

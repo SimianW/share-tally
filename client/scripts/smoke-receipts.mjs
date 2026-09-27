@@ -473,6 +473,19 @@ try {
   // Exercise portion controls, disabled overclaims, and a concurrent last-fraction conflict.
   const members = (await api(`/groups/${group.id}`)).group.members;
   const memberIds = Object.fromEntries(members.map((member) => [member.displayName, member.id]));
+  // A saved, titled draft with no items, so a scan starts from the receipt step.
+  const titledDraft = async (title) => {
+    const draftId = randomUUID();
+    await api(`/groups/${group.id}/receipt-drafts/${draftId}`, "alice-token", "PUT", {
+      revision: 0,
+      data: {
+        mode: "items", title, purchaseDate: "2026-09-24", timeZone: "America/Toronto",
+        notes: "", totalCents: null, ownShareCents: 0, participantIds: [memberIds.Alice], items: [],
+        receipt: { subtotalCents: null, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
+      },
+    });
+    return draftId;
+  };
   const controlDraftId = randomUUID();
   const controlItems = [
     { id: randomUUID(), name: "Apples", originalText: "APPLES RECEIPT LINE", quantity: "1", amountCents: 300, discountCents: 0, taxable: false, finalCents: 300, manualFinal: false },
@@ -572,11 +585,18 @@ try {
     path: "/tmp/share-tally-receipt-smoke/desktop.png",
     fullPage: true,
   });
+  // Later steps stay locked until the receipt step produces items or a manual split.
   await alice.goto(`${base}#/group-bills/${group.id}`);
   await alice.getByRole("button", { name: "New bill", exact: true }).click();
-  await stepButton("People").click();
-  await alice.getByLabel("Bill title", { exact: true }).fill("Scanned receipt");
+  await expect(stepButton("Items")).toBeDisabled();
+  await expect(stepButton("People")).toBeDisabled();
+  await alice.getByRole("button", { name: "Enter items myself", exact: true }).click();
+  await expect(alice.getByRole("button", { name: "Continue to sharing" })).toBeDisabled();
+  await expect(stepButton("People")).toBeDisabled();
   await stepButton("Receipt").click();
+  await expect(stepButton("Items")).toBeDisabled();
+  await alice.getByRole("button", { name: "Back to group" }).click();
+  await alice.goto(`${newBillRoute}/${await titledDraft("Scanned receipt")}`);
   const sharp = serverRequire("sharp");
   const image = await sharp({
     create: { width: 300, height: 500, channels: 3, background: "#f8f8f2" },
@@ -701,10 +721,9 @@ try {
   await alice.getByLabel("Receipt tax", { exact: true }).fill("0.30");
   await alice.getByRole("button", { name: "Close summary", exact: true }).click();
   await expect(alice.getByText(/Receipt tax \$0\.30 isn't assigned to any item/)).toBeVisible();
-  await expect(alice.getByRole("button", { name: "Continue to sharing" })).toBeEnabled();
-  await alice.getByRole("button", { name: "Continue to sharing" }).click();
-  await expect(alice.getByRole("button", { name: "Initiate bill", exact: true })).toBeDisabled();
-  await stepButton("Items").click();
+  await expect(alice.getByRole("button", { name: "Continue to sharing" })).toBeDisabled();
+  await expect(stepButton("People")).toBeDisabled();
+  await expect(alice.getByText("Assign the receipt tax to an item to continue.", { exact: true })).toBeVisible();
   await applesRow().click();
   await alice.getByRole("checkbox", { name: "Taxable", exact: true }).check();
   await alice.getByRole("button", { name: "Close editor", exact: true }).click();
@@ -1008,7 +1027,7 @@ try {
     assert.equal(persisted.receipt.taxCents, 600);
     assert.equal(persisted.totalCents, 3150);
   }
-  // Unassigned receipt tax blocks initiation at desktop and mobile widths.
+  // Unassigned receipt tax blocks sharing and initiation at desktop and mobile widths.
   for (const viewport of [{ width: 1280, height: 1000 }, { width: 390, height: 844 }]) {
     const draftId = randomUUID();
     const item = (name, amountCents) => ({
@@ -1029,19 +1048,47 @@ try {
     await alice.setViewportSize(viewport);
     await alice.goto(`${newBillRoute}/${draftId}`);
     const row = name => alice.getByRole("button", { name: `Edit ${name}`, exact: true, includeHidden: true });
-    await stepButton("People").click();
-    await alice.getByRole("button", { name: "Select everyone", exact: true }).click();
     await expect(alice.getByText(/Receipt tax \$3\.00 isn't assigned to any item/)).toBeVisible();
-    await expect(alice.getByRole("button", { name: "Initiate bill", exact: true })).toBeDisabled();
-    await stepButton("Items").click();
+    await expect(stepButton("People")).toBeDisabled();
+    await expect(alice.getByRole("button", { name: "Continue to sharing" })).toBeDisabled();
     await row("Apples").click();
     await alice.getByRole("checkbox", { name: "Taxable", exact: true }).check();
     await alice.getByRole("button", { name: "Close editor", exact: true }).click();
-    await stepButton("People").click();
     await expect(alice.getByText(/Receipt tax \$3\.00 isn't assigned to any item/)).toHaveCount(0);
+    await stepButton("People").click();
+    await alice.getByRole("button", { name: "Select everyone", exact: true }).click();
     await expect(alice.getByRole("button", { name: "Initiate bill", exact: true })).toBeEnabled();
     await alice.getByRole("button", { name: "Initiate bill", exact: true }).click();
     await expect(alice.getByRole("heading", { name: "Items & claims" })).toBeVisible();
+  }
+  // Reloading the saved draft after a conflict re-checks the step: a price removed
+  // elsewhere sends the initiator from People back to Items.
+  {
+    const draftId = randomUUID();
+    const pears = {
+      id: randomUUID(), name: "Pears", originalText: "PEARS RECEIPT LINE", quantity: "1",
+      amountCents: 400, discountCents: 0, taxable: false, finalCents: 400, manualFinal: false,
+    };
+    const data = (items) => ({
+      mode: "items", title: "Reload check", purchaseDate: "2026-09-24", timeZone: "America/Toronto",
+      notes: "", totalCents: 400, ownShareCents: 0, participantIds: [memberIds.Alice], items,
+      receipt: { subtotalCents: 400, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
+    });
+    const opened = (await api(`/groups/${group.id}/receipt-drafts/${draftId}`, "alice-token", "PUT", { revision: 0, data: data([pears]) })).draft;
+    await alice.setViewportSize({ width: 1280, height: 1000 });
+    await alice.goto(`${newBillRoute}/${draftId}`);
+    await stepButton("People").click();
+    await expect(alice.getByRole("heading", { name: "Who’s sharing this bill?" })).toBeVisible();
+    const changed = (await api(`/groups/${group.id}/receipt-drafts/${draftId}`, "alice-token", "PUT", {
+      revision: opened.revision, data: data([{ ...pears, amountCents: null, finalCents: null }]),
+    })).draft;
+    await alice.getByLabel("Bill title", { exact: true }).fill("Reload check edited");
+    await alice.getByRole("button", { name: "Save draft & close" }).click();
+    await alice.getByRole("button", { name: "Reload saved draft, discarding local edits" }).click();
+    await expect(alice.getByRole("heading", { name: "Check your items" })).toBeVisible();
+    await expect(stepButton("People")).toBeDisabled();
+    await expect(alice.getByText("Give every item a name and a price to continue.", { exact: true })).toBeVisible();
+    await api(`/receipt-drafts/${draftId}`, "alice-token", "DELETE", { revision: changed.revision });
   }
   // Legacy initiated bills keep editable per-item components and add/delete controls.
   // Only fixture setup uses SQL: these bills predate stored receipt summaries.
@@ -1285,11 +1332,7 @@ try {
   await waitForServer("allocation-receipt-ready", "allocation-receipt");
   for (const viewport of [{ width: 1280, height: 1000 }, { width: 390, height: 844 }]) {
     await alice.setViewportSize(viewport);
-    await alice.goto(groupRoute);
-    await alice.getByRole("button", { name: "New bill", exact: true }).click();
-    await stepButton("People").click();
-    await alice.getByLabel("Bill title", { exact: true }).fill(`Fallback review ${viewport.width}`);
-    await stepButton("Receipt").click();
+    await alice.goto(`${newBillRoute}/${await titledDraft(`Fallback review ${viewport.width}`)}`);
     await waitForServer("holding-model", "hold-model");
     await waitForServer("model-mode-error-ready", "model-mode-error");
     const fallbackModelHeld = waitForServer("model-held");
