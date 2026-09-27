@@ -78,7 +78,7 @@ export function ClaimItems({ bill, selection, change, busy, terminal, confirmAct
     {active && <Dialog title={active.name} kicker="CLAIM AN ITEM" className="receipt-sheet claim-sheet" closeLabel="Close claim" close={() => setActiveId(null)}>
       <div className="receipt-sheet-content">
         {bill.photo && page && region && region.pageNumber === 1 && <ReceiptLinePhoto id={bill.photo.draftId} version={0} page={page} polygon={region.polygon} subject={active.name}
-          fallback={<ReceiptPhoto id={bill.photo.draftId} />} />}
+          fallback={<ReceiptPhoto id={bill.photo.draftId} subject={active.name} />} />}
         <div className="receipt-original-text"><span className="eyebrow">ON THE RECEIPT</span><p>{active.originalText || "Manually added item"}</p></div>
         <div><span className="eyebrow">HOW THIS COST WAS CALCULATED</span>
           {active.manualFinal === true ? <p>Set manually by {bill.participants.find((p) => p.userId === bill.initiatorId)?.displayName ?? "the initiator"}</p>
@@ -93,7 +93,7 @@ export function ClaimItems({ bill, selection, change, busy, terminal, confirmAct
               </dl>}
         </div>
         {/* Like the draft editor, a located item shows its highlighted line instead of the whole receipt. */}
-        {bill.photo && !(page && region?.pageNumber === 1) && <ReceiptPhoto id={bill.photo.draftId} expired={bill.photo.expired} />}
+        {bill.photo && !(page && region?.pageNumber === 1) && <ReceiptPhoto id={bill.photo.draftId} expired={bill.photo.expired} subject={active.name} />}
         <p className="receipt-field-help">{text(room(active))} available to you. Other claims and reservations hold the rest. Your choices are not submitted until you confirm.</p>
         {!terminal && own && <div className="claim-options">
           {([ ["1", "All of it"], ["1/2", "1/2"], ["1/3", "1/3"], ["1/4", "1/4"], ["1/5", "1/5"], ["1/6", "1/6"] ] as const).map(([value, label], index) => {

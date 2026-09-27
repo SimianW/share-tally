@@ -9,12 +9,14 @@ export function ReceiptPhoto({
   expired = false,
   localPhoto,
   review = false,
+  subject,
 }: {
   id: string;
   version?: number;
   expired?: boolean;
   localPhoto?: string;
   review?: boolean;
+  subject?: string;
 }) {
   const api = useReceiptApi();
   const [image, setImage] = useState("");
@@ -73,7 +75,7 @@ export function ReceiptPhoto({
         ) : <p>Loading photo…</p>}
         <small>Photos are kept for six months.</small>
       </div>
-      {open && dimensions && <ReceiptPhotoViewer image={{ url: source, ...dimensions }} close={() => setOpen(false)} />}
+      {open && dimensions && <ReceiptPhotoViewer image={{ url: source, ...dimensions }} subject={subject} close={() => setOpen(false)} />}
     </>
   );
 }

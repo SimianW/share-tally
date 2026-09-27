@@ -36,8 +36,11 @@ export function ReceiptPhotoViewer({ image, points, subject, close }: {
     if (cleanupTimer.current) clearTimeout(cleanupTimer.current);
     if (entry.current === null) entry.current = ++viewerHistoryId;
     const id = entry.current;
-    if (window.history.state?.receiptViewer !== id)
-      window.history.pushState({ receiptViewer: id }, "", window.location.href);
+    // An earlier viewer's entry may not have been retired yet; reuse it instead
+    // of stacking a second one behind this viewer.
+    const current = window.history.state?.receiptViewer;
+    if (current === undefined) window.history.pushState({ receiptViewer: id }, "", window.location.href);
+    else if (current !== id) window.history.replaceState({ receiptViewer: id }, "", window.location.href);
     let active = true;
     const onBack = () => {
       if (!active || window.history.state?.receiptViewer === id) return;
@@ -47,7 +50,8 @@ export function ReceiptPhotoViewer({ image, points, subject, close }: {
     window.addEventListener("popstate", onBack);
     return () => {
       window.removeEventListener("popstate", onBack);
-      if (active) cleanupTimer.current = setTimeout(() => {
+      // requestClose may already be going back; a second back would leave the bill.
+      if (active && !closing.current) cleanupTimer.current = setTimeout(() => {
         if (window.history.state?.receiptViewer === id) window.history.back();
       }, 0);
     };
@@ -73,11 +77,13 @@ export function ReceiptPhotoViewer({ image, points, subject, close }: {
       <Button variant="text" onClick={() => void zoom.current?.setTransform((size.width - image.width * fit) / 2, (size.height - image.height * fit) / 2, 1, 0)}>Fit photo</Button>
     </div>
     <div ref={viewport} className="receipt-photo-viewport" aria-label="Zoomed receipt photo">
-      {fit > 0 && Number.isFinite(fit) && <TransformWrapper key={`${size.width}:${size.height}`} ref={zoom} initialScale={1} minScale={1} maxScale={maxScale} centerOnInit limitToBounds onTransform={(_, state) => setScale(state.scale)} wheel={{ step: 0.12 }} doubleClick={{ mode: "toggle", step: 1 }}>
-        <TransformComponent wrapperClass="receipt-photo-transform" contentClass="receipt-photo-content">
+      {fit > 0 && Number.isFinite(fit) && <TransformWrapper key={`${size.width}:${size.height}`} ref={zoom} initialScale={1} minScale={1} maxScale={maxScale} centerOnInit limitToBounds onInit={() => setScale(1)} onTransform={(_, state) => setScale(state.scale)} wheel={{ step: 0.12 }} doubleClick={{ mode: "zoomIn", step: 1 }} keyboard={{ disabled: false, panStep: 60 }}>
+        <TransformComponent wrapperClass="receipt-photo-transform" contentClass="receipt-photo-content"
+          wrapperProps={{ role: "group", "aria-label": "Receipt photo. Arrow keys pan; plus and minus zoom." }}>
           <svg role="img" aria-label="Full-size original receipt" width={image.width * fit} height={image.height * fit} viewBox={`0 0 ${image.width} ${image.height}`}>
             <image href={image.url} width={image.width} height={image.height} />
-            {points && <polygon role="img" aria-label="Highlighted receipt line" points={points} />}
+            {/* The zoom is a CSS transform outside the SVG, which non-scaling-stroke does not undo. */}
+            {points && <polygon role="img" aria-label="Highlighted receipt line" points={points} style={{ strokeWidth: 2 / scale }} />}
           </svg>
         </TransformComponent>
       </TransformWrapper>}

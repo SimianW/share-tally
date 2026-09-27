@@ -145,6 +145,7 @@
 .receipt-photo-tools output { min-width: 4ch; text-align: center; }
 .receipt-photo-viewport { flex: 1; min-height: 0; overflow: hidden; overscroll-behavior: none; background: var(--surface-soft); border-radius: var(--radius-sm); touch-action: none; }
 .receipt-photo-transform { width: 100% !important; height: 100% !important; touch-action: none; }
+.receipt-photo-transform:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
 .receipt-photo-content svg { display: block; max-width: none; }
 
 @media (max-width: 700px) {

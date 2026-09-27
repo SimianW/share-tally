@@ -944,6 +944,11 @@ try {
         && photoBox.x + photoBox.width <= viewportBox.x + viewportBox.width + 2
         && photoBox.y + photoBox.height <= viewportBox.y + viewportBox.height + 2,
       "Review photo fits within the viewer viewport");
+      assert.ok(Math.abs(photoBox.x + photoBox.width / 2 - viewportBox.x - viewportBox.width / 2) <= 2
+        && Math.abs(photoBox.y + photoBox.height / 2 - viewportBox.y - viewportBox.height / 2) <= 2,
+      "Review photo is centered in the viewport");
+      assert.ok(Math.abs(photoBox.width - viewportBox.width) <= 2 || Math.abs(photoBox.height - viewportBox.height) <= 2,
+        "Review photo fills one viewport dimension");
     };
     await assertPhotoFitted();
     const initialPhotoWidth = (await photo.boundingBox()).width;
@@ -989,6 +994,17 @@ try {
     await alice.getByRole("button", { name: "Next item", exact: true }).click();
     await expect(alice.getByLabel("Item name", { exact: true })).toHaveValue("Milk");
     await alice.getByRole("button", { name: "Previous item", exact: true }).click();
+    await expect(alice.getByLabel("Item name", { exact: true })).toHaveValue("Reviewed apples");
+    // Back closes only the viewer; the draft's navigation guard never sees it.
+    const draftUrl = alice.url();
+    await editorCropButton.click();
+    const editedPhotoDialog = alice.getByRole("dialog", { name: /Receipt photo.*Reviewed apples/ });
+    await expect(editedPhotoDialog).toBeVisible();
+    await alice.goBack();
+    await expect(editedPhotoDialog).toHaveCount(0);
+    await expect(alice).toHaveURL(draftUrl);
+    await expect(editor).toBeVisible();
+    await expect(alice.getByRole("dialog", { name: /Discard/ })).toHaveCount(0);
     await expect(alice.getByLabel("Item name", { exact: true })).toHaveValue("Reviewed apples");
     await alice.getByRole("button", { name: "Close editor", exact: true }).click();
     await row("Milk").click();
@@ -1084,6 +1100,8 @@ try {
     assert.deepEqual(located.photo.pages, [{ pageNumber: 1, width: 300, height: 5000, unit: "pixel" }]);
     assert.equal(JSON.stringify(located).includes("1234567"), false);
     await alice.setViewportSize({ width: 390, height: 844 });
+    const beforeBillUrl = alice.url();
+    assert.notEqual(beforeBillUrl, `${base}#/bills/${located.id}`);
     await alice.goto(`${base}#/bills/${located.id}`);
     await alice.getByRole("button", { name: "View Apples · $10.00", exact: true }).click();
     const sheet = claimSheet(alice);
@@ -1118,34 +1136,69 @@ try {
         "Fitted receipt width stays within the viewer viewport");
       assert.ok(photoBox.y + photoBox.height <= viewportBox.y + viewportBox.height + 2,
         "Fitted receipt height stays within the viewer viewport");
+      assert.ok(Math.abs(photoBox.x + photoBox.width / 2 - viewportBox.x - viewportBox.width / 2) <= 2
+        && Math.abs(photoBox.y + photoBox.height / 2 - viewportBox.y - viewportBox.height / 2) <= 2,
+        "Fitted receipt is centered in the viewer viewport");
+      assert.ok(Math.abs(photoBox.width - viewportBox.width) <= 2 || Math.abs(photoBox.height - viewportBox.height) <= 2,
+        "Fitted receipt fills one viewport dimension");
     };
     await expectPhotoFitted();
     const zoomReadout = viewer.getByLabel("Photo zoom", { exact: true });
-    const initialZoom = await zoomReadout.textContent();
+    const zoomLevel = async () => parseFloat(await zoomReadout.textContent());
+    await expect(zoomReadout).toHaveText("100%");
     await viewer.getByRole("button", { name: "Zoom in", exact: true }).click();
-    await expect(zoomReadout).not.toHaveText(initialZoom);
+    await expect(zoomReadout).toHaveText("150%");
     await viewer.getByRole("button", { name: "Zoom out", exact: true }).click();
+    await expect.poll(zoomLevel).toBe(100);
     await viewer.getByRole("button", { name: /Fit/ }).click();
+    await expect(zoomReadout).toHaveText("100%");
     await expectPhotoFitted();
-    const zoomAfterFit = await zoomReadout.textContent();
+    const fittedViewport = await viewerViewport.boundingBox();
+    const fittedImage = await viewerPhoto.boundingBox();
+    assert.ok(fittedImage.x - fittedViewport.x > 8, "Tall receipt leaves an empty margin beside the photo");
+    await alice.mouse.click((fittedViewport.x + fittedImage.x) / 2, fittedViewport.y + fittedViewport.height / 2);
+    await expect(viewer).toBeVisible();
+    const beforeDoubleClick = await zoomLevel();
     await viewerPhoto.dblclick();
-    await expect(zoomReadout).not.toHaveText(zoomAfterFit);
+    await expect.poll(zoomLevel).toBeGreaterThan(beforeDoubleClick + 95);
+    const afterFirstDoubleClick = await zoomLevel();
+    await viewerPhoto.dblclick();
+    await expect.poll(zoomLevel).toBeGreaterThan(afterFirstDoubleClick + 95);
     await viewer.getByRole("button", { name: /Fit/ }).click();
-    const zoomBeforeWheel = await zoomReadout.textContent();
+    await expect(zoomReadout).toHaveText("100%");
     await viewerViewport.hover();
     await alice.mouse.wheel(0, -300);
-    await expect(zoomReadout).not.toHaveText(zoomBeforeWheel);
-    for (let step = 0; step < 50; step++) {
-      const zoomIn = viewer.getByRole("button", { name: "Zoom in", exact: true });
+    await expect.poll(zoomLevel).toBeGreaterThan(100);
+    await viewer.getByRole("button", { name: /Fit/ }).click();
+    await expect(zoomReadout).toHaveText("100%");
+    const zoomIn = viewer.getByRole("button", { name: "Zoom in", exact: true });
+    const maxZoom = Math.max(400, 2 * naturalResolutionZoom);
+    let buttonClicks = 0;
+    for (; buttonClicks < 50; buttonClicks++) {
       if (await zoomIn.isDisabled()) break;
       await zoomIn.click();
+      await expect(zoomReadout).toHaveText(`${Math.round(Math.min(100 + (buttonClicks + 1) * 50, maxZoom))}%`);
     }
-    assert.ok(parseFloat(await zoomReadout.textContent()) > 400,
-      "Long receipt can zoom beyond the former 400% cap");
-    assert.ok(parseFloat(await zoomReadout.textContent()) >= naturalResolutionZoom - 1,
+    assert.ok(buttonClicks > 1, "Zoom limit exercises multiple button clicks");
+    assert.ok(await zoomIn.isDisabled(), "Zoom in stops at the maximum");
+    assert.ok(await zoomLevel() > 400, "Long receipt can zoom beyond the former 400% cap");
+    assert.ok(await zoomLevel() >= naturalResolutionZoom - 1,
       "Long receipt can reach at least its natural pixel resolution");
-    await alice.mouse.click(1, 1);
-    await expect(viewer).toBeVisible();
+    assert.ok((await viewerPhoto.boundingBox()).width >= 300 - 1,
+      "Long receipt renders at least 300 pixels wide at natural resolution");
+    const stroke = await highlight.evaluate((polygon) => parseFloat(getComputedStyle(polygon).strokeWidth));
+    assert.ok(Math.abs(stroke * await zoomLevel() / 100 - 2) < 0.2,
+      "Highlighted line keeps a thin outline at high zoom");
+    await viewer.getByRole("button", { name: /Fit/ }).click();
+    await expect(zoomReadout).toHaveText("100%");
+    const panArea = viewer.getByRole("group", { name: "Receipt photo. Arrow keys pan; plus and minus zoom." });
+    await panArea.focus();
+    await expect(panArea).toBeFocused();
+    await alice.keyboard.press("+");
+    await expect(zoomReadout).toHaveText("125%");
+    const beforePanY = (await viewerPhoto.boundingBox()).y;
+    await alice.keyboard.press("ArrowDown");
+    await expect.poll(async () => (await viewerPhoto.boundingBox()).y).toBeLessThan(beforePanY - 1);
     await alice.keyboard.press("Escape");
     await expect(viewer).toHaveCount(0);
     await expect(sheet).toBeVisible();
@@ -1154,10 +1207,8 @@ try {
     await expect(lineButton).toBeFocused();
     await lineButton.click();
     await expect(viewer).toBeVisible();
+    // Reopen before the closed viewer's history entry is retired; the new viewer must reuse it.
     await viewer.getByRole("button", { name: "Close photo", exact: true }).click();
-    await expect(viewer).toHaveCount(0);
-    await expect(sheet).toBeVisible();
-    await expect(selectedFraction).toHaveAttribute("aria-pressed", "true");
     await lineButton.click();
     await expect(viewer).toBeVisible();
     await alice.goBack();
@@ -1166,6 +1217,10 @@ try {
     await expect(sheet).toBeVisible();
     await expect(selectedFraction).toHaveAttribute("aria-pressed", "true");
     await alice.getByRole("button", { name: "Close claim", exact: true }).click();
+    // The viewer left no history entries behind: the next back leaves the bill as before.
+    await alice.goBack();
+    await expect(alice).toHaveURL(beforeBillUrl);
+    await alice.goto(`${base}#/bills/${located.id}`);
     // Without a located line, the sheet keeps the whole photo.
     await alice.getByRole("button", { name: "View Milk · $10.00", exact: true }).click();
     const milkSheet = claimSheet(alice, "Milk");
@@ -1173,7 +1228,7 @@ try {
     await expect(fallbackPhoto).toBeVisible();
     await expect(claimSheet(alice, "Milk").getByRole("img", { name: "Highlighted receipt line", exact: true })).toHaveCount(0);
     await fallbackPhoto.click();
-    const fallbackViewer = alice.getByRole("dialog", { name: "Receipt photo", exact: true });
+    const fallbackViewer = alice.getByRole("dialog", { name: "Receipt photo · Milk", exact: true });
     await expect(fallbackViewer).toBeVisible();
     await expect(fallbackViewer.getByRole("img", { name: "Highlighted receipt line", exact: true })).toHaveCount(0);
     await alice.getByRole("button", { name: "Close photo", exact: true }).click();
@@ -1184,7 +1239,7 @@ try {
     await expect(claimSheet(alice, "Bread").getByRole("button", { name: "View receipt photo", exact: true })).toBeVisible();
     await expect(claimSheet(alice, "Bread").getByRole("img", { name: "Highlighted receipt line", exact: true })).toHaveCount(0);
     await claimSheet(alice, "Bread").getByRole("button", { name: "View receipt photo", exact: true }).click();
-    const undrawableViewer = alice.getByRole("dialog", { name: "Receipt photo", exact: true });
+    const undrawableViewer = alice.getByRole("dialog", { name: "Receipt photo · Bread", exact: true });
     await expect(undrawableViewer).toBeVisible();
     await expect(undrawableViewer.getByRole("img", { name: "Highlighted receipt line", exact: true })).toHaveCount(0);
     await alice.getByRole("button", { name: "Close photo", exact: true }).click();
