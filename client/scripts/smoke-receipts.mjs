@@ -279,8 +279,14 @@ try {
   // Both ways of closing the crop return to the receipt step without saving a photo.
   for (const close of ["Escape", "Close crop"]) {
     await openCrop();
-    if (close === "Escape") await alice.keyboard.press("Escape");
-    else await cropDialog().getByRole("button", { name: close }).click();
+    if (close === "Escape") {
+      // A very short landscape screen must still show both crop actions.
+      await alice.setViewportSize({ width: 600, height: 240 });
+      for (const name of ["Choose another", "Use this photo"])
+        await expect(cropDialog().getByRole("button", { name, exact: true })).toBeInViewport({ ratio: 1 });
+      await alice.setViewportSize({ width: 1280, height: 1000 });
+      await alice.keyboard.press("Escape");
+    } else await cropDialog().getByRole("button", { name: close }).click();
     await expect(cropDialog()).toBeHidden();
     await expect(alice.getByRole("heading", { name: "Start with your receipt" })).toBeVisible();
     await expect(croppedReceipt()).toHaveCount(0);
