@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { money } from "./bill-api";
 import type { LegacyCorrectionItem } from "./receipt-api";
 import { requestId } from "./request-id";
@@ -15,11 +15,12 @@ export function LegacyItemEditor({ items, change }: {
   change: (items: LegacyCorrectionItem[]) => void;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
+  // Same focus rule as the receipt item editor: an opened item's heading takes focus,
+  // a just-added blank item's name does (#132).
+  const [added, setAdded] = useState<string | null>(null);
   const fields = useRef<HTMLDivElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
   const active = items.find(item => item.id === selected);
-  useEffect(() => {
-    fields.current?.querySelector<HTMLInputElement>("[data-autofocus]")?.focus({ preventScroll: true });
-  }, [selected]);
   function close() {
     const invalid = fields.current?.querySelector<HTMLInputElement>("input:invalid");
     if (invalid) {
@@ -45,18 +46,19 @@ export function LegacyItemEditor({ items, change }: {
     <p>This older bill has no stored receipt summary or frozen tax rate. Edit its per-item tax and adjustments directly. Existing amounts stay unchanged until you edit a price component or set a final cost manually.</p>
     <div className="receipt-list-heading"><strong>{items.length} {items.length === 1 ? "item" : "items"}</strong><span>Tap an item to edit</span></div>
     <div className="receipt-item-list">
-      {items.map(item => <ReceiptItemRow key={item.id} item={{ ...item, manualFinal: !!item.manualFinal }} mode="correction" selected={item.id === selected} onOpen={() => setSelected(item.id)} />)}
+      {items.map(item => <ReceiptItemRow key={item.id} item={{ ...item, manualFinal: !!item.manualFinal }} mode="correction" selected={item.id === selected} onOpen={() => { setAdded(null); setSelected(item.id); }} />)}
     </div>
     <Button variant="secondary" disabled={items.length >= 200} onClick={() => {
       const id = requestId();
       change([...items, { id, name: "", originalText: "", quantity: "1", amountCents: null, discountCents: 0, taxCents: 0, extraCents: 0, finalCents: null, manualFinal: false }]);
+      setAdded(id);
       setSelected(id);
     }}>Add an item</Button>
-    {active && <Dialog title="Correct legacy item" className="receipt-sheet" closeLabel="Close editor" close={close}>
+    {active && <Dialog title="Correct legacy item" className="receipt-sheet" closeLabel="Close editor" close={close} headingRef={heading}>
       <div ref={fields} key={active.id} className="receipt-sheet-content">
         <div className="receipt-original-text"><span className="eyebrow">ON THE RECEIPT</span><p>{active.originalText || "Manually added item"}</p></div>
         <div className="receipt-editor-fields">
-          <label className="receipt-field-wide">Item name<input data-autofocus required maxLength={160} value={active.name} onChange={event => update({ name: event.target.value })} /></label>
+          <label className="receipt-field-wide">Item name<input data-autofocus={active.id === added || undefined} required maxLength={160} value={active.name} onChange={event => update({ name: event.target.value })} /></label>
           <label>Quantity<input maxLength={40} value={active.quantity} onChange={event => update({ quantity: event.target.value })} /></label>
           <ReceiptAmount label="Printed price" value={active.amountCents} change={amountCents => update({ amountCents }, true)} />
           <ReceiptAmount label="Item discount" emptyAsZero value={active.discountCents} change={discountCents => update({ discountCents: discountCents ?? 0 }, true)} />

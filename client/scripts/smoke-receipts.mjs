@@ -1117,6 +1117,9 @@ try {
     await row("Apples").click();
     const editor = alice.getByRole("dialog", { name: "Edit receipt item", exact: true });
     await expect(editor).toBeVisible();
+    // Opening an item lets the user read it first: focus lands on the heading, not a field.
+    const editorHeading = editor.getByRole("heading", { name: "Edit receipt item", exact: true });
+    await expect(editorHeading).toBeFocused();
     await expect(editor).toContainText("APPLES RECEIPT LINE");
     await expect(editor.getByRole("img", { name: "Receipt line", exact: true })).toBeVisible();
     await expect(editor.getByRole("img", { name: "Highlighted receipt line", exact: true })).toBeVisible();
@@ -1149,10 +1152,16 @@ try {
     await alice.getByLabel("Item discount", { exact: true }).fill("2.00");
     await expect(row("Reviewed apples")).toContainText("×2");
     await expect(row("Reviewed apples")).toContainText("10.00");
+    // Moving to another item starts it from the top, like opening it.
+    const scrolled = await editor.evaluate(dialog => { dialog.scrollTop = dialog.scrollHeight; return dialog.scrollTop; });
+    if (viewport.width < 700) assert.ok(scrolled > 0, "Mobile editor overflows before moving to the next item");
     await alice.getByRole("button", { name: "Next item", exact: true }).click();
     await expect(alice.getByLabel("Item name", { exact: true })).toHaveValue("Milk");
+    await expect(editorHeading).toBeFocused();
+    assert.equal(await editor.evaluate(dialog => dialog.scrollTop), 0, "Next item starts at the top of the sheet");
     await alice.getByRole("button", { name: "Previous item", exact: true }).click();
     await expect(alice.getByLabel("Item name", { exact: true })).toHaveValue("Reviewed apples");
+    await expect(editorHeading).toBeFocused();
     // Back closes only the viewer; the draft's navigation guard never sees it.
     const draftUrl = alice.url();
     await editorCropButton.click();
@@ -1502,6 +1511,7 @@ try {
     await expect(row("Historical cost")).toContainText("2.75");
     await row("Historical cost").click();
     const sheet = alice.getByRole("dialog", { name: /^Correct (legacy item|item price)$/ });
+    await expect(sheet.getByRole("heading", { name: "Correct legacy item", exact: true })).toBeFocused();
     await expect(sheet.getByRole("checkbox", { name: "Taxable", exact: true })).toHaveCount(0);
     await expect(sheet).toContainText("Taxability is unavailable");
     await alice.getByRole("button", { name: "Close editor", exact: true }).click();
@@ -1524,9 +1534,13 @@ try {
     await sheet.getByLabel("Final cost · CAD", { exact: true }).fill("0.90");
     await alice.getByRole("button", { name: "Close editor", exact: true }).click();
     await alice.getByRole("button", { name: "Add an item", exact: true }).click();
+    await expect(sheet.getByLabel("Item name", { exact: true })).toBeFocused();
     await sheet.getByLabel("Item name", { exact: true }).fill("Added legacy item");
     await sheet.getByLabel("Printed price", { exact: true }).fill("4.00");
     await expect(sheet.getByLabel("Final cost", { exact: true })).toHaveText("$4.00");
+    await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+    await row("Added legacy item").click();
+    await expect(sheet.getByRole("heading", { name: "Correct legacy item", exact: true })).toBeFocused();
     await alice.getByRole("button", { name: "Close editor", exact: true }).click();
     await save();
     current = (await api(`/bills/${legacy.id}`)).bill;
@@ -1805,12 +1819,18 @@ try {
     await expect(alice.getByText("All checked — no items need checking.", { exact: true })).toBeVisible();
     await alice.getByRole("button", { name: "All", exact: true }).click();
     await alice.getByRole("button", { name: "Add an item", exact: true }).click();
+    // A new blank item has nothing to read, so its name is ready to type.
+    await expect(alice.getByLabel("Item name", { exact: true })).toBeFocused();
     await expect(alice.getByText("Missing price", { exact: true })).toBeVisible();
     await expect(alice.getByRole("button", { name: "Needs check (1)" })).toBeVisible();
     await alice.getByLabel("Item name", { exact: true }).fill("Manual orange");
     await alice.getByLabel("Printed price", { exact: true }).fill("1.00");
     await alice.getByRole("button", { name: "Done", exact: true }).click();
     await expect(alice.getByRole("button", { name: "Needs check (0)" })).toBeVisible();
+    // Reopening the added item is opening an existing one, so it starts on the heading.
+    await alice.getByRole("button", { name: "Edit Manual orange", exact: true }).click();
+    await expect(alice.getByRole("heading", { name: "Edit receipt item", exact: true })).toBeFocused();
+    await alice.getByRole("button", { name: "Close editor", exact: true }).click();
     await alice.getByRole("button", { name: "Save draft & close" }).click();
     await expect(alice).toHaveURL(groupRoute);
     const saved = (await api(`/receipt-drafts/${lowConfidenceId}`)).draft;
