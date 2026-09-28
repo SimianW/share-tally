@@ -405,6 +405,7 @@ try {
   await itemOption(alice, "1/3 · $1.00").click();
   await expect(itemOption(alice, "1/3 · $1.00")).toHaveAttribute("aria-pressed", "true");
   await expect(itemOption(alice, "Custom · 4/5 · $2.40")).toHaveAttribute("aria-pressed", "false");
+  await expect(claimSheet(alice).locator(".claim-portion")).toContainText("$1.001/3 of $3.00");
   await expect(alice.locator(".claim-sticky-footer")).toContainText("Your share $1.00");
   await expect.poll(async () => (await api(`/bills/${billId}`)).bill.items[0].claims.length).toBe(0);
   await claimSheet(alice).getByRole("button", { name: "Close claim", exact: true }).click();
@@ -520,6 +521,10 @@ try {
   await expect(controlSheet).toContainText("1/3 available to you");
   await expect(itemOption(alice, "All of it · $3.00")).toBeDisabled();
   await expect(itemOption(alice, "1/2 · $1.50")).toBeDisabled();
+  // Bob's 2/3 appears as held by others; nothing is chosen yet.
+  await expect(controlSheet.locator(".claim-portion")).toContainText("Pick a portion of $3.00");
+  await expect(controlSheet.locator(".claim-portion-legend")).toContainText("Others · 2/3");
+  await expect(controlSheet.locator(".claim-portion-legend")).toContainText("Free · 1/3");
   for (const option of ["1/3 · $1.00", "1/4 · $0.75", "1/5 · $0.60", "1/6 · $0.50"])
     await expect(itemOption(alice, option)).toBeEnabled();
   await itemOption(alice, "Custom").click();
@@ -971,13 +976,13 @@ try {
     assert.equal(await editor.getByRole("img", { name: "Highlighted receipt line", exact: true }).getAttribute("points"), "30,100 180,100 180,140 30,140");
     const editorCropButton = editor.getByRole("button", { name: /View whole receipt/ });
     await expect(editorCropButton).toBeVisible();
+    const zoomIcon = await editorCropButton.locator(".receipt-zoom-hint svg").boundingBox();
+    assert.ok(zoomIcon && zoomIcon.width <= 24 && zoomIcon.height <= 24, "Zoom badge icon keeps its icon size inside the line crop");
     await editorCropButton.click();
     const editorPhotoDialog = alice.getByRole("dialog", { name: /Receipt photo.*Apples/ });
     await expect(editorPhotoDialog).toBeVisible();
     await expect(editorPhotoDialog.getByRole("img", { name: "Highlighted receipt line", exact: true })).toBeVisible();
     await alice.getByRole("button", { name: "Close photo", exact: true }).click();
-    const zoomIcon = await editorCropButton.locator(".receipt-zoom-hint svg").boundingBox();
-    assert.ok(zoomIcon && zoomIcon.width <= 24 && zoomIcon.height <= 24, "Zoom badge icon keeps its icon size inside the line crop");
     await expect(editorPhotoDialog).toHaveCount(0);
     await expect(editor).toBeVisible();
     const editorBox = await editor.boundingBox();

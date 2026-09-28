@@ -96,16 +96,24 @@ export function ClaimItems({ bill, selection, change, busy, terminal, confirmAct
         {bill.photo && !(page && region?.pageNumber === 1) && <ReceiptPhoto id={bill.photo.draftId} expired={bill.photo.expired} subject={active.name} />}
         <p className="receipt-field-help">{text(room(active))} available to you. Other claims and reservations hold the rest. Your choices are not submitted until you confirm.</p>
         {!terminal && own && <div className="claim-options">
-          {([ ["1", "All of it"], ["1/2", "1/2"], ["1/3", "1/3"], ["1/4", "1/4"], ["1/5", "1/5"], ["1/6", "1/6"] ] as const).map(([value, label], index) => {
-            const f = parse(value)!;
-            return <button type="button" key={value} className={`claim-option${index === 0 ? " claim-option-all" : ""}`}
-              aria-pressed={!customOpen && !selectedCustom[active.id] && (parse(selection[active.id] ?? "")?.n === f.n && parse(selection[active.id] ?? "")?.d === f.d)}
-              disabled={busy || !lessOrEqual(f, room(active))} onClick={() => choose(active, value)}>{label} · {money(cost(active.finalCents, f))}</button>;
-          })}
-          <button type="button" className="claim-option" aria-label={customChoices[active.id] && parse(customChoices[active.id]) ? `Custom · ${customChoices[active.id]} · ${money(cost(active.finalCents, parse(customChoices[active.id])!))}` : "Custom"} aria-pressed={!customOpen && !!selectedCustom[active.id]} disabled={busy || room(active).n <= 0n}
-            onClick={() => { setCustomOpen(true); setCustomText(customChoices[active.id] || selection[active.id] || ""); setCustomError(""); }}>
-            {customChoices[active.id] && parse(customChoices[active.id]) ? `${customChoices[active.id]} · ${money(cost(active.finalCents, parse(customChoices[active.id])!))}` : "Custom"}
-          </button>
+          <ClaimPortion finalCents={active.finalCents} room={room(active)} mine={parse(selection[active.id] ?? "")} />
+          <div className="claim-portion-choices" role="group" aria-label="Your portion">
+            {([ ["1", "All of it"], ["1/2", "1/2"], ["1/3", "1/3"], ["1/4", "1/4"], ["1/5", "1/5"], ["1/6", "1/6"] ] as const).map(([value, label]) => {
+              const f = parse(value)!;
+              return <button type="button" key={value} aria-label={`${label} · ${money(cost(active.finalCents, f))}`}
+                aria-pressed={!customOpen && !selectedCustom[active.id] && (parse(selection[active.id] ?? "")?.n === f.n && parse(selection[active.id] ?? "")?.d === f.d)}
+                disabled={busy || !lessOrEqual(f, room(active))} onClick={() => choose(active, value)}>
+                <b>{value === "1" ? "All" : <FractionText value={f} />}</b><small>{money(cost(active.finalCents, f))}</small>
+              </button>;
+            })}
+            {(() => {
+              const custom = customChoices[active.id] ? parse(customChoices[active.id]) : null;
+              return <button type="button" aria-label={custom ? `Custom · ${customChoices[active.id]} · ${money(cost(active.finalCents, custom))}` : "Custom"} aria-pressed={!customOpen && !!selectedCustom[active.id]} disabled={busy || room(active).n <= 0n}
+                onClick={() => { setCustomOpen(true); setCustomText(customChoices[active.id] || selection[active.id] || ""); setCustomError(""); }}>
+                <b>{custom ? <FractionText value={custom} /> : "…"}</b><small>{custom ? money(cost(active.finalCents, custom)) : "Custom"}</small>
+              </button>;
+            })()}
+          </div>
           {customOpen && <div className="claim-custom"><label>Custom fraction<input autoFocus aria-label="Custom fraction" placeholder="4/5" value={customText} onChange={(event) => setCustomText(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") saveCustom(active); }} /></label>
             <Button onClick={() => saveCustom(active)}>Use custom fraction</Button>{customError && <p role="alert">{customError}</p>}</div>}
           {!!selection[active.id] && <Button variant="text" className="claim-remove" onClick={() => choose(active, "")}>Remove my claim</Button>}
@@ -132,4 +140,32 @@ export function ClaimItems({ bill, selection, change, busy, terminal, confirmAct
       {confirmAction}
     </div>
   </>;
+}
+
+type Fraction = NonNullable<ReturnType<typeof parse>>;
+
+// Stacked numerals render alike in every palette font; Unicode ⅕ and ⅙ fall back to another font.
+function FractionText({ value }: { value: Fraction }) {
+  return <span className="claim-fraction"><sup>{String(value.n)}</sup><span>/</span><sub>{String(value.d)}</sub></span>;
+}
+
+// The chosen portion's price, and a bar of what others hold, what is chosen, and what is still free.
+function ClaimPortion({ finalCents, room, mine }: { finalCents: number; room: Fraction; mine: Fraction | null }) {
+  const others = subtract(one, room);
+  const free = mine && lessOrEqual(mine, room) ? subtract(room, mine) : mine ? { n: 0n, d: 1n } : room;
+  const width = (f: Fraction) => `${Number((f.n * 10000n) / f.d) / 100}%`;
+  return <div className="claim-portion">
+    <span className="eyebrow">YOUR PORTION</span>
+    <strong className={mine ? "" : "claim-portion-empty"}>{money(mine ? cost(finalCents, mine) : 0)}</strong>
+    <span className="claim-portion-caption">{mine ? `${text(mine)} of ${money(finalCents)}` : `Pick a portion of ${money(finalCents)}`}</span>
+    <div className="claim-portion-bar" aria-hidden="true">
+      {others.n > 0n && <span className="claim-portion-others" style={{ width: width(others) }} />}
+      {mine && <span className="claim-portion-mine" style={{ width: width(mine) }} />}
+    </div>
+    <div className="claim-portion-legend">
+      <span><i className="claim-portion-mine" />You</span>
+      {others.n > 0n && <span><i className="claim-portion-others" />Others · {text(others)}</span>}
+      {free.n > 0n && <span><i />Free · {text(free)}</span>}
+    </div>
+  </div>;
 }

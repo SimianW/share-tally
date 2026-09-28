@@ -183,16 +183,41 @@
 .claim-meter > span { display: block; height: 100%; background: var(--money-owed); border-radius: inherit; }
 .claim-mine { color: var(--ink); }
 .claim-sheet .receipt-cost-breakdown { margin-top: var(--space-3); }
-.claim-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
-.claim-option { min-height: 64px; padding: var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); font: inherit; font-size: var(--text-sm); font-weight: 650; }
-.claim-option[aria-pressed="true"] { border-color: var(--money-owed); background: var(--surface-soft); box-shadow: inset 0 0 0 1px var(--money-owed); }
-.claim-option:disabled { opacity: .45; cursor: not-allowed; }
-.claim-option-all { grid-column: 1 / -1; background: var(--surface-soft); font-size: var(--text-base); }
-.claim-custom { grid-column: 1 / -1; display: grid; gap: var(--space-2); }
+.claim-options { display: grid; gap: var(--space-3); }
+.claim-portion { display: grid; gap: var(--space-3); padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-soft); }
+.claim-portion > strong { margin-top: calc(var(--space-2) * -1); font: 800 2rem / 1.1 var(--font-heading); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.claim-portion > .claim-portion-empty { color: var(--ink-subtle); }
+.claim-portion-caption { margin-top: calc(var(--space-3) * -1); color: var(--ink-secondary); font-size: var(--text-sm); }
+.claim-portion-bar { display: flex; height: 14px; border-radius: 999px; overflow: hidden; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.claim-portion-bar span { transition: width .25s ease; }
+.claim-portion-others { background: repeating-linear-gradient(135deg, var(--line-strong) 0 4px, var(--surface-raised) 4px 8px); }
+.claim-portion-mine { background: var(--action); box-shadow: inset 0 0 0 1px var(--action-edge); }
+.claim-portion-bar .claim-portion-mine { border-radius: 0 999px 999px 0; }
+.claim-portion-legend { display: flex; flex-wrap: wrap; gap: var(--space-3); color: var(--ink-secondary); font-size: var(--text-xs); }
+.claim-portion-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.claim-portion-legend i { width: 10px; height: 10px; border-radius: 3px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.claim-portion-legend .claim-portion-mine { background: var(--action); box-shadow: inset 0 0 0 1px var(--action-edge); }
+.claim-portion-legend .claim-portion-others { background: repeating-linear-gradient(135deg, var(--line-strong) 0 2px, var(--surface-raised) 2px 4px); }
+/* Segments grow to fit their price and wrap only when a large amount needs the room. */
+.claim-portion-choices { display: flex; flex-wrap: wrap; gap: 2px; padding: 4px; border-radius: 14px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.claim-portion-choices button { flex: 1 0 auto; display: grid; justify-items: center; gap: 2px; min-width: 44px; padding: var(--space-2) 2px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--ink); font: inherit; cursor: pointer; }
+.claim-portion-choices b { font: 800 var(--text-lg) / 1.1 var(--font-heading); }
+.claim-portion-choices small { color: var(--ink-secondary); font-size: 0.6875rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.claim-portion-choices button:hover:not(:disabled) { background: var(--surface-soft); }
+.claim-portion-choices button:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
+.claim-portion-choices button[aria-pressed="true"] { background: var(--action); color: var(--ink-on-action); box-shadow: 0 1px 0 var(--action-edge), var(--glow-action); }
+.claim-portion-choices button[aria-pressed="true"] small { color: var(--ink-on-action); }
+.claim-portion-choices button:disabled { opacity: .35; cursor: not-allowed; }
+.claim-fraction { display: inline-flex; align-items: center; gap: 1px; line-height: 1; font-variant-numeric: lining-nums; }
+.claim-fraction sup, .claim-fraction sub { font-size: .72em; vertical-align: 0; }
+.claim-fraction sup { transform: translateY(-.28em); }
+.claim-fraction sub { transform: translateY(.28em); }
+.claim-fraction > span { font-weight: 400; opacity: .55; }
+.claim-custom { display: grid; gap: var(--space-2); }
 .claim-custom label { display: grid; gap: var(--space-2); }
 .claim-custom .button { justify-self: start; }
 .claim-custom [role="alert"] { color: var(--money-owe); }
-.claim-remove { grid-column: 1 / -1; justify-self: start; }
+.claim-remove { justify-self: start; }
 .claim-sticky-footer { position: sticky; bottom: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-4); background: var(--bg); border-top: 1px solid var(--line); box-shadow: 0 -5px 16px color-mix(in srgb, var(--shadow-color) 5%, transparent); }
 .claim-summary-trigger { padding: var(--space-2); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); font: inherit; font-size: var(--text-sm); }
 .claim-share { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; }
