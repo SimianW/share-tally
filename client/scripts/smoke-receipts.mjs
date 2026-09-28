@@ -294,6 +294,12 @@ try {
     await alice.getByRole("button", { name: "Back to group" }).click();
     await expect(alice).toHaveURL(groupRoute);
   }
+  // An untouched crop uploads the whole photo.
+  await openCrop();
+  const untouchedCrop = await uploadCropAndMeasure();
+  assert.ok(Math.abs(untouchedCrop.width - 400) <= 2 && Math.abs(untouchedCrop.height - 800) <= 2, `Untouched crop should keep the full photo: ${untouchedCrop.width}×${untouchedCrop.height}px`);
+  await deleteCropDraft();
+
   await openCrop();
   await dragCropRightEdge();
   const draggedCrop = await uploadCropAndMeasure();
