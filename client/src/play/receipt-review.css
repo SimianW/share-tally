@@ -79,9 +79,8 @@
 .receipt-sheet .dialog-heading h2 { font-family: var(--font-heading); font-size: var(--text-xl); }
 .receipt-sheet-content { display: grid; gap: var(--space-5); }
 .receipt-editor-photo { display: grid; gap: var(--space-2); min-width: 0; }
-.receipt-editor-photo svg { display: block; width: 100%; height: auto; max-height: 180px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-soft); }
 .receipt-editor-photo .receipt-photo-open { width: 100%; }
-.receipt-editor-photo .receipt-photo-open svg { border: 0; border-radius: 0; max-height: 180px; }
+.receipt-editor-photo .receipt-photo-open > svg { display: block; width: 100%; height: auto; max-height: 180px; }
 .receipt-editor-photo polygon, .receipt-photo-viewer polygon { fill: var(--action); fill-opacity: .38; stroke: var(--money-owe); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .receipt-original-text { padding: var(--space-4); border-radius: var(--radius-sm); background: var(--surface-soft); }
 .receipt-original-text p { margin-top: var(--space-2); overflow-wrap: anywhere; font-family: var(--font-code); }
@@ -137,7 +136,8 @@
 .receipt-photo-label { margin-bottom: var(--space-3); }
 .receipt-photo-open { display: block; position: relative; padding: 0; width: 100%; background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius-md); overflow: hidden; }
 .receipt-photo-open img { display: block; }
-.receipt-photo-open > span { position: absolute; bottom: var(--space-3); left: 50%; transform: translateX(-50%); display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); background: var(--surface); font-size: var(--text-xs); box-shadow: var(--shadow-floating); }
+/* A quiet corner hint; the button's label names the action. */
+.receipt-zoom-hint { position: absolute; right: var(--space-2); bottom: var(--space-2); display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: color-mix(in srgb, var(--surface) 55%, transparent); color: var(--ink); opacity: .7; backdrop-filter: blur(4px); pointer-events: none; }
 .receipt-photo > small { display: block; color: var(--ink-secondary); font-size: var(--text-xs); margin-top: var(--space-2); }
 .play-dialog.receipt-photo-viewer { position: fixed; inset: 0; margin: 0; width: 100vw; max-width: none; height: 100dvh; max-height: 100dvh; border: 0; border-radius: 0; padding: max(var(--space-5), env(safe-area-inset-top)) max(var(--space-5), env(safe-area-inset-right)) max(var(--space-5), env(safe-area-inset-bottom)) max(var(--space-5), env(safe-area-inset-left)); overflow: hidden; }
 .receipt-photo-viewer[open] { display: flex; flex-direction: column; gap: var(--space-3); }
@@ -156,7 +156,6 @@
   .receipt-photo-review > small { display: none; }
   .receipt-photo-review .receipt-photo-open { height: 88px; }
   .receipt-photo-review .receipt-photo-open img { height: 100%; max-height: none; width: 100%; object-fit: cover; object-position: top; }
-  .receipt-photo-review .receipt-photo-open > span { left: auto; right: var(--space-3); bottom: var(--space-3); transform: none; }
   .receipt-wizard-actions.receipt-review-footer { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
   .receipt-review-footer > .button { grid-row: 2; grid-column: 1; width: 100%; }
   .receipt-review-footer > div { grid-row: 3; gap: var(--space-2); justify-content: space-between; }

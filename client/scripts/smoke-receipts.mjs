@@ -976,6 +976,8 @@ try {
     await expect(editorPhotoDialog).toBeVisible();
     await expect(editorPhotoDialog.getByRole("img", { name: "Highlighted receipt line", exact: true })).toBeVisible();
     await alice.getByRole("button", { name: "Close photo", exact: true }).click();
+    const zoomIcon = await editorCropButton.locator(".receipt-zoom-hint svg").boundingBox();
+    assert.ok(zoomIcon && zoomIcon.width <= 24 && zoomIcon.height <= 24, "Zoom badge icon keeps its icon size inside the line crop");
     await expect(editorPhotoDialog).toHaveCount(0);
     await expect(editor).toBeVisible();
     const editorBox = await editor.boundingBox();
@@ -1109,7 +1111,10 @@ try {
     await expect(sheet.getByRole("button", { name: "View receipt photo", exact: true })).toHaveCount(0);
     const lineButton = sheet.getByRole("button", { name: /View whole receipt/ });
     await expect(lineButton).toBeVisible();
-    await expect(lineButton).toContainText("Tap to zoom");
+    // The zoom hint is an unlabeled icon in the crop's bottom-right corner.
+    const [hint, crop] = await Promise.all([lineButton.locator(".receipt-zoom-hint").boundingBox(), lineButton.boundingBox()]);
+    assert.ok(crop.x + crop.width - (hint.x + hint.width) < 16 && crop.y + crop.height - (hint.y + hint.height) < 16, "Zoom hint sits in the bottom-right corner");
+    assert.equal((await lineButton.textContent()).trim(), "");
     const selectedFraction = itemOption(alice, "1/2 · $5.00");
     await selectedFraction.click();
     await expect(selectedFraction).toHaveAttribute("aria-pressed", "true");

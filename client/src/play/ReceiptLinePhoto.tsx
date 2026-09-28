@@ -57,7 +57,7 @@ export function ReceiptLinePhoto({ id, version, page, polygon, subject, fallback
           <image href={loaded.url} width={loaded.width} height={loaded.height} />
           <polygon role="img" aria-label="Highlighted receipt line" points={geometry.points} />
         </svg>
-        <span><Scan size={16} aria-hidden="true" /> Tap to zoom</span>
+        <span className="receipt-zoom-hint"><Scan size={16} aria-hidden="true" /></span>
       </button>
     </div>
     {open && <ReceiptPhotoViewer image={loaded} points={geometry.points} subject={subject} close={() => setOpen(false)} />}
