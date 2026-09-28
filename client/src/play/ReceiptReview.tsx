@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, ChevronRight, LoaderCircle, LockKeyhole, Plus, ReceiptText } from "lucide-react";
 import { money } from "./bill-api";
 import type { ReceiptData, ReceiptDraftItem, ReceiptPricing } from "./receipt-api";
@@ -28,6 +28,10 @@ export function ReceiptReviewItems({ items, change, mode = "review", hasFrozenRa
   const [filter, setFilter] = useState<"all" | "needs-check" | "tax-not-checked">("all");
   const [readyDismissed, setReadyDismissed] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  // An opened item is read before it is edited, so its heading takes focus (#132);
+  // only a just-added blank item goes straight to its name.
+  const [added, setAdded] = useState<string | null>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
   const originallyFlagged = useRef(false);
   const index = items.findIndex((item) => item.id === selected);
   const active = items[index];
@@ -37,10 +41,7 @@ export function ReceiptReviewItems({ items, change, mode = "review", hasFrozenRa
   const needsCheckCount = items.filter(itemNeedsCheck).length;
   const taxNotCheckedCount = items.filter((item) => item.taxNotChecked).length;
   const visible = mode !== "review" || filter === "all" ? items : items.filter((item) => filter === "needs-check" ? itemNeedsCheck(item) : item.taxNotChecked);
-  useEffect(() => {
-    fields.current?.querySelector<HTMLInputElement>("[data-autofocus]")?.focus({ preventScroll: true });
-  }, [selected]);
-  const open = (item: ReceiptDraftItem) => { originallyFlagged.current = itemNeedsCheck(item); setSelected(item.id); };
+  const open = (item: ReceiptDraftItem) => { originallyFlagged.current = itemNeedsCheck(item); setAdded(null); setSelected(item.id); };
   const close = () => { if (fieldsValid(fields.current) && !confirming) setSelected(null); };
   const finish = async () => {
     if (!active || !fieldsValid(fields.current) || confirming || processing) return;
@@ -58,7 +59,13 @@ export function ReceiptReviewItems({ items, change, mode = "review", hasFrozenRa
     finally { setConfirming(false); }
   };
   const update = (patch: Partial<ReceiptDraftItem>) => change(items.map((item) => item.id === selected ? { ...item, ...patch, needsCheck: false, ...("taxable" in patch ? { taxNotChecked: false } : {}), ...("discountCents" in patch ? { discountSource: undefined } : {}) } : item));
-  const move = (offset: number) => { if (fieldsValid(fields.current)) open(items[index + offset]); };
+  const move = (offset: number) => {
+    if (!fieldsValid(fields.current)) return;
+    open(items[index + offset]);
+    // The sheet stays open, so start the next item from the top as if it were just opened.
+    heading.current!.closest("dialog")!.scrollTop = 0;
+    heading.current!.focus({ preventScroll: true });
+  };
   return <section className="receipt-review-items" aria-label="Receipt items">
     <div className="receipt-list-heading"><strong>{items.length} {items.length === 1 ? "item" : "items"}</strong><span>{processing ? "Editing paused" : "Tap an item to edit"}</span></div>
     {mode === "review" && <>
@@ -79,9 +86,10 @@ export function ReceiptReviewItems({ items, change, mode = "review", hasFrozenRa
       const id = requestId();
       change([...items, { id, name: "", originalText: "", quantity: "1", taxable: true, amountCents: null, discountCents: 0, finalCents: null, manualFinal: false }]);
       originallyFlagged.current = true;
+      setAdded(id);
       setSelected(id);
     }}><Plus size={16} aria-hidden="true" /> Add an item</Button>}
-    {active && <Dialog title={mode === "correction" ? "Correct item price" : "Edit receipt item"} kicker={`ITEM ${index + 1} OF ${items.length}`} className="receipt-sheet" closeLabel="Close editor" close={close}>
+    {active && <Dialog title={mode === "correction" ? "Correct item price" : "Edit receipt item"} kicker={`ITEM ${index + 1} OF ${items.length}`} className="receipt-sheet" closeLabel="Close editor" close={close} headingRef={heading}>
       <div ref={fields} key={active.id} className="receipt-sheet-content">
         {processing && <p className="receipt-lock-note" role="status"><LockKeyhole size={18} aria-hidden="true" /> Checking the name and tax for this item. Editing unlocks when it finishes.</p>}
         {!processing && active.taxNotChecked && <p className="receipt-lock-note receipt-lock-warning">Tax wasn't checked automatically. This item is set to taxable; turn it off if it isn't taxed.</p>}
@@ -89,7 +97,7 @@ export function ReceiptReviewItems({ items, change, mode = "review", hasFrozenRa
         <div className="receipt-original-text"><span className="eyebrow">ON THE RECEIPT</span><p>{active.originalText || "Manually added item"}</p></div>
         <fieldset className="receipt-editor-controls" disabled={processing}>
         <div className="receipt-editor-fields">
-          <label className="receipt-field-wide">Item name<input data-autofocus required={mode === "correction"} maxLength={160} value={active.name} onChange={(event) => update({ name: event.target.value })} /></label>
+          <label className="receipt-field-wide">Item name<input data-autofocus={active.id === added || undefined} required={mode === "correction"} maxLength={160} value={active.name} onChange={(event) => update({ name: event.target.value })} /></label>
           <label>Quantity<input maxLength={40} value={active.quantity} onChange={(event) => update({ quantity: event.target.value })} /></label>
           <ReceiptAmount label="Printed price" required={mode === "correction"} value={active.amountCents} change={(amountCents) => update({ amountCents })} />
           <ReceiptAmount label={active.discountSource === "receipt" ? "Item discount (from receipt)" : "Item discount"} emptyAsZero value={active.discountCents} change={(discountCents) => update({ discountCents: discountCents ?? 0 })} />

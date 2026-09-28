@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode, type RefObject } from "react";
 import { Icon } from "./ui";
 
 let openDialogs = 0;
@@ -46,6 +46,7 @@ export default function Dialog({
   kicker = "A LITTLE LESS MATH",
   className = "",
   closeLabel = "Close dialog",
+  headingRef,
 }: {
   title: string;
   children: ReactNode;
@@ -53,6 +54,8 @@ export default function Dialog({
   kicker?: string;
   className?: string;
   closeLabel?: string;
+  // Makes the heading focusable, so it can take focus instead of a field.
+  headingRef?: RefObject<HTMLHeadingElement | null>;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const id = useId();
@@ -60,7 +63,8 @@ export default function Dialog({
     const dialog = ref.current!;
     const previous = document.activeElement;
     dialog.showModal();
-    dialog.querySelector<HTMLElement>("[data-autofocus]")?.focus();
+    // A heading made focusable by headingRef is the fallback when no field has data-autofocus.
+    (dialog.querySelector<HTMLElement>("[data-autofocus]") ?? dialog.querySelector<HTMLElement>("h2[tabindex]"))?.focus();
     // Nested discard/delete confirmations share one page scroll lock.
     const unlock = lockPageScroll();
     return () => {
@@ -84,7 +88,7 @@ export default function Dialog({
       <div className="dialog-heading">
         <div>
           <div className="eyebrow">{kicker}</div>
-          <h2 id={id}>{title}</h2>
+          <h2 id={id} ref={headingRef} tabIndex={headingRef ? -1 : undefined}>{title}</h2>
         </div>
         <button
           type="button"
