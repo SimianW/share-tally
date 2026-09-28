@@ -529,6 +529,8 @@ try {
     await expect(itemOption(alice, option)).toBeEnabled();
   const quarterOption = itemOption(alice, "1/4 · $0.75");
   await quarterOption.click();
+  await expect(quarterOption).toHaveAttribute("aria-pressed", "true");
+  assert.ok(await quarterOption.evaluate((option) => option.matches(":hover")), "selected portion is still hovered");
   const actionColor = await controlSheet.evaluate((sheet) => {
     const probe = document.createElement("span");
     probe.style.background = "var(--action)";
