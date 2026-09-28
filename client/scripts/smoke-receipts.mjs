@@ -527,6 +527,20 @@ try {
   await expect(controlSheet.locator(".claim-portion-legend")).toContainText("Free · 1/3");
   for (const option of ["1/3 · $1.00", "1/4 · $0.75", "1/5 · $0.60", "1/6 · $0.50"])
     await expect(itemOption(alice, option)).toBeEnabled();
+  const quarterOption = itemOption(alice, "1/4 · $0.75");
+  await quarterOption.click();
+  await expect(quarterOption).toHaveAttribute("aria-pressed", "true");
+  assert.ok(await quarterOption.evaluate((option) => option.matches(":hover")), "selected portion is still hovered");
+  const actionColor = await controlSheet.evaluate((sheet) => {
+    const probe = document.createElement("span");
+    probe.style.background = "var(--action)";
+    sheet.append(probe);
+    const color = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return color;
+  });
+  const selectedColor = await quarterOption.evaluate((option) => getComputedStyle(option).backgroundColor);
+  assert.equal(selectedColor, actionColor, "selected portion keeps its action fill while hovered");
   await itemOption(alice, "Custom").click();
   await alice.getByLabel("Custom fraction", { exact: true }).fill("1/4");
   await itemOption(alice, "Use custom fraction").click();
