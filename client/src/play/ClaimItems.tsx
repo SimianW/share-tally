@@ -108,7 +108,7 @@ export function ClaimItems({ bill, selection, change, busy, terminal, confirmAct
             })}
             {(() => {
               const custom = customChoices[active.id] ? parse(customChoices[active.id]) : null;
-              return <button type="button" aria-label={custom ? `Custom · ${customChoices[active.id]} · ${money(cost(active.finalCents, custom))}` : "Custom"} aria-pressed={!customOpen && !!selectedCustom[active.id]} disabled={busy || room(active).n <= 0n}
+              return <button type="button" className="claim-portion-custom" aria-label={custom ? `Custom · ${customChoices[active.id]} · ${money(cost(active.finalCents, custom))}` : "Custom"} aria-pressed={!customOpen && !!selectedCustom[active.id]} disabled={busy || room(active).n <= 0n}
                 onClick={() => { setCustomOpen(true); setCustomText(customChoices[active.id] || selection[active.id] || ""); setCustomError(""); }}>
                 <b>{custom ? <FractionText value={custom} /> : "…"}</b><small>{custom ? money(cost(active.finalCents, custom)) : "Custom"}</small>
               </button>;

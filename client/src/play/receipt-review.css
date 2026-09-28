@@ -200,12 +200,19 @@
 .claim-portion-choices button[aria-pressed="true"] { background: var(--action); color: var(--ink-on-action); box-shadow: 0 1px 0 var(--action-edge), var(--glow-action); }
 .claim-portion-choices button[aria-pressed="true"] small { color: var(--ink-on-action); }
 .claim-portion-choices button:disabled { opacity: .35; cursor: not-allowed; }
+/* Custom keeps a tinted, dashed look even after it holds a fraction, so it never passes for a preset. */
+.claim-portion-choices .claim-portion-custom { margin-left: 2px; padding: calc(var(--space-2) - 1px) 1px; border: 1px dashed color-mix(in srgb, var(--accent-ink) 55%, transparent); background: color-mix(in srgb, var(--action) 12%, transparent); }
+.claim-portion-choices .claim-portion-custom:not([aria-pressed="true"]) small { color: var(--accent-ink); font-weight: 700; }
+@media (hover: hover) {
+  .claim-portion-choices .claim-portion-custom:hover:not(:disabled):not([aria-pressed="true"]) { background: color-mix(in srgb, var(--action) 16%, transparent); }
+}
+.claim-portion-choices .claim-portion-custom[aria-pressed="true"] { border-color: var(--action-edge); }
 .claim-fraction { display: inline-flex; align-items: center; gap: 1px; line-height: 1; font-variant-numeric: lining-nums; }
 .claim-fraction sup, .claim-fraction sub { font-size: .72em; vertical-align: 0; }
 .claim-fraction sup { transform: translateY(-.28em); }
 .claim-fraction sub { transform: translateY(.28em); }
 .claim-fraction > span { font-weight: 400; opacity: .55; }
-.claim-custom { display: grid; gap: var(--space-2); }
+.claim-custom { display: grid; gap: var(--space-4); }
 .claim-custom label { display: grid; gap: var(--space-2); }
 .claim-custom .button { justify-self: start; }
 .claim-custom [role="alert"] { color: var(--money-owe); }
