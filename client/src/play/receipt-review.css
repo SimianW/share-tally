@@ -171,6 +171,7 @@
 .claim-avatars { display: inline-flex; padding-left: var(--space-2); }
 .claim-meter { width: min(115px, 30%); height: 6px; background: var(--line); border-radius: 100px; overflow: hidden; }
 .claim-meter > span { display: block; height: 100%; background: var(--money-owed); border-radius: inherit; }
+.claim-left { font-variant-numeric: tabular-nums; }
 .claim-mine { color: var(--ink); }
 .claim-sheet .receipt-cost-breakdown { margin-top: var(--space-3); }
 .claim-options { display: grid; gap: var(--space-3); }

@@ -69,7 +69,7 @@ export function ClaimItems({ bill, selection, change, busy, terminal, confirmAct
               return participant && <span key={claim.userId} className={claim.confirmedAt ? "" : "claim-reserved-avatar"} title={`${participant.displayName}: ${text(fraction(BigInt(claim.numerator), BigInt(claim.denominator)))} · ${claim.confirmedAt ? "confirmed" : "reserved, needs reconfirmation"}`}><Avatar name={participant.displayName} imageUrl={participant.imageUrl} fallbackImageUrl={participant.fallbackImageUrl} small /></span>;
             })}</span>
             <span className="claim-meter" role="img" aria-label={`${text(held)} claimed; ${text(left(item))} left`}><span style={{ width: `${Number(held.n * 100n / held.d)}%` }} /></span>
-            <span>{shortText(left(item))} left</span>
+            <span className="claim-left">{shortText(left(item))} left</span>
             {selected && <strong className="claim-mine">Your portion {text(selected)}{myClaim && !myClaim.confirmedAt ? " · reserved" : myClaim && text(selected) !== `${myClaim.numerator}/${myClaim.denominator}` ? " · not submitted" : !myClaim ? " · not submitted" : ""}</strong>}
           </span>} />;
       })}
