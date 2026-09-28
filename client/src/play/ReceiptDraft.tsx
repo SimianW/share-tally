@@ -867,7 +867,6 @@ export function ReceiptDraftForm({
                   <legend id={splitLegendId} className="sharing-section-title">Split</legend>
                   <SegmentedControl
                     labelledBy={splitLegendId}
-                    className="split-toggle"
                     value={data.mode}
                     onChange={(mode) => update({ mode, ownShareCents: 0 })}
                     options={[

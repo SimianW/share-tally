@@ -1861,6 +1861,9 @@ try {
   await expect(alice.getByLabel("Your share (CAD)", { exact: true })).toHaveCount(0);
   await alice.keyboard.press("ArrowRight");
   await expect(split.getByRole("radio", { name: "By amount" })).toBeChecked();
+  await alice.getByLabel("Total paid (CAD)", { exact: true }).focus();
+  await alice.keyboard.press("Shift+Tab");
+  await expect(split.getByRole("radio", { name: "By amount" })).toBeFocused();
   await alice.getByLabel("Your share (CAD)", { exact: true }).fill("1.00");
   await alice
     .getByRole("button", { name: "Share bill", exact: true })

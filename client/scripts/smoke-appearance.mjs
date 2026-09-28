@@ -81,6 +81,10 @@ export async function checkAppearance(page, base, groupUrl) {
   await page.keyboard.press('ArrowLeft');
   await expect(mode.getByRole('radio', { name: 'Light' })).toBeChecked();
   assert.equal(await scheme(), 'light');
+  // Tab stops once on a radio group, at its checked radio.
+  await appearance.getByRole('radio', { name: /Raspberry/ }).focus();
+  await page.keyboard.press('Shift+Tab');
+  await expect(mode.getByRole('radio', { name: 'Light' })).toBeFocused();
   await mode.getByRole('radio', { name: 'Dark' }).check();
   assert.equal(await scheme(), 'dark');
   assert.equal(await page.evaluate(() => localStorage.getItem('share-tally-scheme')), 'dark');
