@@ -1532,6 +1532,9 @@ try {
     await sheet.getByLabel("Printed price", { exact: true }).fill("4.00");
     await expect(sheet.getByLabel("Final cost", { exact: true })).toHaveText("$4.00");
     await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+    await row("Added legacy item").click();
+    await expect(sheet.getByRole("heading", { name: "Correct legacy item", exact: true })).toBeFocused();
+    await alice.getByRole("button", { name: "Close editor", exact: true }).click();
     await save();
     current = (await api(`/bills/${legacy.id}`)).bill;
     assert.deepEqual(current.items.map(item => [item.finalCents, item.manualFinal]), [[2025, false], [275, null], [90, true], [400, false]]);
@@ -1817,6 +1820,10 @@ try {
     await alice.getByLabel("Printed price", { exact: true }).fill("1.00");
     await alice.getByRole("button", { name: "Done", exact: true }).click();
     await expect(alice.getByRole("button", { name: "Needs check (0)" })).toBeVisible();
+    // Reopening the added item is opening an existing one, so it starts on the heading.
+    await alice.getByRole("button", { name: "Edit Manual orange", exact: true }).click();
+    await expect(alice.getByRole("heading", { name: "Edit receipt item", exact: true })).toBeFocused();
+    await alice.getByRole("button", { name: "Close editor", exact: true }).click();
     await alice.getByRole("button", { name: "Save draft & close" }).click();
     await expect(alice).toHaveURL(groupRoute);
     const saved = (await api(`/receipt-drafts/${lowConfidenceId}`)).draft;
