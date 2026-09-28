@@ -201,10 +201,10 @@
 .claim-portion-choices button[aria-pressed="true"] small { color: var(--ink-on-action); }
 .claim-portion-choices button:disabled { opacity: .35; cursor: not-allowed; }
 /* Custom keeps a tinted, dashed look even after it holds a fraction, so it never passes for a preset. */
-.claim-portion-choices .claim-portion-custom { margin-left: 4px; padding: calc(var(--space-2) - 1px) 1px; border: 1px dashed color-mix(in srgb, var(--accent-ink) 55%, transparent); background: color-mix(in srgb, var(--action) 12%, transparent); }
+.claim-portion-choices .claim-portion-custom { margin-left: 2px; padding: calc(var(--space-2) - 1px) 1px; border: 1px dashed color-mix(in srgb, var(--accent-ink) 55%, transparent); background: color-mix(in srgb, var(--action) 12%, transparent); }
 .claim-portion-choices .claim-portion-custom:not([aria-pressed="true"]) small { color: var(--accent-ink); font-weight: 700; }
 @media (hover: hover) {
-  .claim-portion-choices .claim-portion-custom:hover:not(:disabled):not([aria-pressed="true"]) { background: color-mix(in srgb, var(--action) 20%, transparent); }
+  .claim-portion-choices .claim-portion-custom:hover:not(:disabled):not([aria-pressed="true"]) { background: color-mix(in srgb, var(--action) 16%, transparent); }
 }
 .claim-portion-choices .claim-portion-custom[aria-pressed="true"] { border-color: var(--action-edge); }
 .claim-fraction { display: inline-flex; align-items: center; gap: 1px; line-height: 1; font-variant-numeric: lining-nums; }
