@@ -70,7 +70,7 @@ export function ReceiptPhoto({
         {error && !localPhoto ? <p>{error}</p> : source ? (
           <button type="button" className="receipt-photo-open" aria-label="View receipt photo" onClick={() => setOpen(true)}>
             <img src={source} alt="Original cropped receipt" onLoad={(event) => setDimensions({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })} />
-            <span><Scan size={16} aria-hidden="true" /> Tap to zoom</span>
+            <span className="receipt-zoom-hint"><Scan size={16} aria-hidden="true" /></span>
           </button>
         ) : <p>Loading photo…</p>}
         <small>Photos are kept for six months.</small>
