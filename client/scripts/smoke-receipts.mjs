@@ -315,6 +315,27 @@ try {
   assert.ok(Math.abs(resetCrop.width - 400) <= 2, `Reset should restore the full width: ${resetCrop.width}px`);
   assert.ok(Math.abs(resetCrop.height - 800) <= 2, `Reset should restore the full height: ${resetCrop.height}px`);
   await deleteCropDraft();
+
+  // Shrinking the view raises the on-screen minimum crop; a narrow crop must widen to stay valid.
+  await openCrop();
+  const rightEdge = cropDialog().getByRole("slider", { name: "Crop right edge" });
+  await rightEdge.focus();
+  for (let press = 0; press < 10; press++) await rightEdge.press("Shift+ArrowLeft");
+  const narrowRight = Number(await rightEdge.getAttribute("aria-valuenow"));
+  assert.ok(narrowRight > 0 && narrowRight < 20, `The right edge should reach its minimum crop: ${narrowRight}%`);
+  await alice.setViewportSize({ width: 390, height: 500 });
+  await expect.poll(async () => Number(await rightEdge.getAttribute("aria-valuenow"))).toBeGreaterThan(narrowRight);
+  for (const edge of ["top", "bottom", "left", "right"]) {
+    const slider = cropDialog().getByRole("slider", { name: `Crop ${edge} edge` });
+    const [min, now, max] = await Promise.all(["aria-valuemin", "aria-valuenow", "aria-valuemax"].map(async (name) => Number(await slider.getAttribute(name))));
+    assert.ok(min <= now && now <= max, `Crop ${edge} edge must stay within its bounds after a resize: ${min} ≤ ${now} ≤ ${max}`);
+  }
+  const resizedRight = Number(await rightEdge.getAttribute("aria-valuenow"));
+  const resizedCrop = await uploadCropAndMeasure();
+  assert.ok(Math.abs(resizedCrop.width - resizedRight * 4) <= 8, `The upload should match the widened crop (${resizedRight}%): ${resizedCrop.width}px`);
+  assert.ok(Math.abs(resizedCrop.height - 800) <= 2, `The resized crop should keep the full height: ${resizedCrop.height}px`);
+  await alice.setViewportSize({ width: 1280, height: 1000 });
+  await deleteCropDraft();
   // Pre-migration browser recovery must preserve an explicitly reduced item tax.
   const reducedTaxId = randomUUID();
   const reducedTaxDraft = (await api(`/groups/${group.id}/receipt-drafts/${reducedTaxId}`, "alice-token", "PUT", {

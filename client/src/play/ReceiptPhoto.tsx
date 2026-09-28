@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import { Button } from "./ui";
 import { useReceiptApi } from "./receipt-api";
 import { RotateCcw, Scan } from "lucide-react";
@@ -87,10 +87,15 @@ type Handle = {
   label: string;
   className: string;
 };
+type Gap = { x: number; y: number };
 const FULL_CROP: Crop = { left: 0, top: 0, right: 100, bottom: 100 };
-// Opposite handles stay at least one hit area plus a little air apart.
+// The one source for the handle hit area; the stylesheet reads it as --crop-hit.
+// Opposite edges stay one hit area plus a little air apart on screen, so
+// opposing targets never overlap.
 const HANDLE_HIT = 44;
 const MIN_HANDLE_GAP = HANDLE_HIT + 4;
+// A midpoint target needs a full hit area of edge between the two corner targets.
+const MIDPOINT_ROOM = HANDLE_HIT * 2;
 const HANDLES: readonly Handle[] = [
   { edges: ["top"], label: "Crop top edge", className: "edge top" },
   { edges: ["bottom"], label: "Crop bottom edge", className: "edge bottom" },
@@ -104,8 +109,27 @@ const HANDLES: readonly Handle[] = [
 const horizontal = (edge: Edge) => edge === "left" || edge === "right";
 const capitalized = (edge: Edge) => edge[0].toUpperCase() + edge.slice(1);
 
+/** Minimum crop size per axis, in percent of the photo as currently displayed. */
+function minimumGap(shown: { width: number; height: number }): Gap {
+  // A photo displayed thinner than the gap can't be trimmed on that axis
+  // without opposite targets overlapping, so that axis stays full (100%).
+  const axis = (size: number) =>
+    size >= MIN_HANDLE_GAP ? Math.max(5, (MIN_HANDLE_GAP / size) * 100) : 100;
+  return { x: axis(shown.width), y: axis(shown.height) };
+}
+/** Widens any axis narrower than the gap around its centre, staying on the photo. */
+function reconcile(crop: Crop, gap: Gap): Crop {
+  const axis = (start: number, end: number, size: number) => {
+    if (end - start >= size) return [start, end];
+    const from = Math.min(Math.max((start + end) / 2 - size / 2, 0), 100 - size);
+    return [from, from + size];
+  };
+  const [left, right] = axis(crop.left, crop.right, gap.x);
+  const [top, bottom] = axis(crop.top, crop.bottom, gap.y);
+  return { left, top, right, bottom };
+}
 /** Moves the given edges, keeping them on the photo and apart from their opposite edge. */
-function moveEdges(crop: Crop, next: Partial<Crop>, gap: { x: number; y: number }): Crop {
+function moveEdges(crop: Crop, next: Partial<Crop>, gap: Gap): Crop {
   const result = { ...crop };
   for (const edge of Object.keys(next) as Edge[]) {
     const [min, max] = edgeRange(crop, edge, gap);
@@ -113,7 +137,7 @@ function moveEdges(crop: Crop, next: Partial<Crop>, gap: { x: number; y: number 
   }
   return result;
 }
-function edgeRange(crop: Crop, edge: Edge, gap: { x: number; y: number }) {
+function edgeRange(crop: Crop, edge: Edge, gap: Gap) {
   if (edge === "left") return [0, Math.max(0, crop.right - gap.x)];
   if (edge === "right") return [Math.min(100, crop.left + gap.x), 100];
   if (edge === "top") return [0, Math.max(0, crop.bottom - gap.y)];
@@ -132,7 +156,10 @@ export function ReceiptCrop({
   const image = useRef<HTMLImageElement>(null);
   const frame = useRef<HTMLDivElement>(null);
   const drag = useRef<{ pointer: number; edges: readonly Edge[]; offset: Partial<Crop> } | null>(null);
-  const [crop, setCrop] = useState<Crop>(FULL_CROP);
+  // The stored crop is reconciled with the current minimum on every render, so
+  // a resize that raises the minimum never leaves an invalid crop on screen,
+  // in the ARIA values or in the upload.
+  const [storedCrop, setCrop] = useState<Crop>(FULL_CROP);
   const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
   const [space, setSpace] = useState({ width: 0, height: 0 });
   const [dragging, setDragging] = useState<string | null>(null);
@@ -168,15 +195,15 @@ export function ReceiptCrop({
     ? Math.min(space.width / natural.width, space.height / natural.height)
     : 0;
   const shown = { width: (natural?.width ?? 0) * fit, height: (natural?.height ?? 0) * fit };
-  const gap = {
-    x: shown.width ? Math.min(90, Math.max(5, (MIN_HANDLE_GAP / shown.width) * 100)) : 5,
-    y: shown.height ? Math.min(90, Math.max(5, (MIN_HANDLE_GAP / shown.height) * 100)) : 5,
-  };
+  const gap = fit ? minimumGap(shown) : { x: 5, y: 5 };
+  const crop = reconcile(storedCrop, gap);
   const changed = (Object.keys(FULL_CROP) as Edge[]).some((edge) => crop[edge] !== FULL_CROP[edge]);
   const box = {
     width: (shown.width * (crop.right - crop.left)) / 100,
     height: (shown.height * (crop.bottom - crop.top)) / 100,
   };
+
+  const cornersActive = gap.x < 100 && gap.y < 100;
 
   function pointerPercent(event: PointerEvent) {
     const rect = image.current!.getBoundingClientRect();
@@ -204,7 +231,7 @@ export function ReceiptCrop({
     const next: Partial<Crop> = {};
     for (const edge of current.edges)
       next[edge] = (horizontal(edge) ? point.x : point.y) - current.offset[edge]!;
-    setCrop((crop) => moveEdges(crop, next, gap));
+    setCrop((stored) => moveEdges(reconcile(stored, gap), next, gap));
   }
   function endDrag(event: PointerEvent<HTMLDivElement>) {
     if (drag.current?.pointer !== event.pointerId) return;
@@ -271,7 +298,10 @@ export function ReceiptCrop({
       <div ref={frame} className="receipt-crop-frame">
         <div
           className={`receipt-crop-stage${fit ? "" : " is-loading"}${busy ? " is-busy" : ""}`}
-          style={fit ? { width: shown.width, height: shown.height } : undefined}
+          style={{
+            "--crop-hit": `${HANDLE_HIT}px`,
+            ...(fit ? { width: shown.width, height: shown.height } : {}),
+          } as CSSProperties}
         >
           <img
             ref={image}
@@ -305,28 +335,40 @@ export function ReceiptCrop({
               {HANDLES.map((handle) => {
                 const [edge, second] = handle.edges;
                 const [min, max] = edgeRange(crop, edge, gap);
+                // Rounding can put a value half a percent past its bound; clamp so min ≤ now ≤ max.
+                const low = Math.round(min);
+                const high = Math.max(low, Math.round(max));
+                const now = Math.min(Math.max(Math.round(crop[edge]), low), high);
                 const x = horizontal(edge) ? crop[edge] : (crop.left + crop.right) / 2;
                 const y = second ? crop[second] : horizontal(edge) ? (crop.top + crop.bottom) / 2 : crop[edge];
                 // Edge handles span the edge between the corners, so any part of it can be grabbed.
                 const edgeLength = horizontal(edge) ? box.height : box.width;
                 const length = Math.max(HANDLE_HIT, edgeLength - HANDLE_HIT);
+                // Pointer targets never overlap; a handle that can't have its own
+                // target leaves pointer hit-testing but stays focusable. Corners do
+                // so when either axis is too thin to trim, since they would then
+                // cover each other. A midpoint does so when its own axis can't be
+                // trimmed, or when its edge is too short to fit between the corners.
+                const passive = second
+                  ? !cornersActive
+                  : (horizontal(edge) ? gap.x : gap.y) >= 100 || (cornersActive && edgeLength < MIDPOINT_ROOM);
                 return (
                   <div
                     key={handle.label}
                     role="slider"
                     tabIndex={0}
                     aria-label={handle.label}
-                    aria-valuemin={Math.round(min)}
-                    aria-valuemax={Math.round(max)}
-                    aria-valuenow={Math.round(crop[edge])}
+                    aria-valuemin={low}
+                    aria-valuemax={high}
+                    aria-valuenow={now}
                     aria-valuetext={
                       second
-                        ? `${capitalized(edge)} ${Math.round(crop[edge])}%, ${second} ${Math.round(crop[second])}%`
-                        : `${Math.round(crop[edge])}%`
+                        ? `${capitalized(edge)} ${now}%, ${second} ${Math.round(crop[second])}%`
+                        : `${now}%`
                     }
                     aria-orientation={second ? undefined : horizontal(edge) ? "horizontal" : "vertical"}
                     aria-disabled={busy || undefined}
-                    className={`receipt-crop-handle ${handle.className}${dragging === handle.label ? " is-dragging" : ""}${!second && edgeLength < HANDLE_HIT * 3 ? " is-cramped" : ""}`}
+                    className={`receipt-crop-handle ${handle.className}${dragging === handle.label ? " is-dragging" : ""}${passive ? " is-passive" : ""}`}
                     style={{
                       left: `${x}%`,
                       top: `${y}%`,

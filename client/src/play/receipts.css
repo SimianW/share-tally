@@ -689,8 +689,9 @@
 }
 .receipt-crop-handle {
   position: absolute;
-  width: 44px;
-  height: 44px;
+  /* --crop-hit comes from HANDLE_HIT in ReceiptPhoto.tsx, which also clamps the crop. */
+  width: var(--crop-hit);
+  height: var(--crop-hit);
   translate: -50% -50%;
   border-radius: var(--radius-sm);
   touch-action: none;
@@ -733,8 +734,10 @@
 .receipt-crop-handle.bottom-left::before { border-width: 0 0 5px 5px; translate: -4px -18px; }
 .receipt-crop-handle.bottom-right::before { border-width: 0 5px 5px 0; translate: -18px -18px; }
 .receipt-crop-handle.is-dragging::before { scale: 1.15; }
-/* On a small box the corners carry the edge; its midpoint pill would crowd them. */
-.receipt-crop-handle.is-cramped::before { visibility: hidden; }
+/* Too little room for a separate target: the other handles carry this edge,
+   and the handle stays reachable from the keyboard. */
+.receipt-crop-handle.is-passive { pointer-events: none; }
+.receipt-crop-handle.is-passive:not(:focus-visible)::before { visibility: hidden; }
 .receipt-crop-handle:focus-visible {
   box-shadow: 0 0 0 2px var(--focus), 0 0 0 4px var(--crop-edge);
 }
