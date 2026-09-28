@@ -1,6 +1,7 @@
 /* Shared single-choice segmented control. Segments size to their content and
-   share the spare width, so the row fills its container and never wraps. A
-   segment never shrinks below its content, so labels cannot overlap. */
+   share the spare width, so the row fills its container and never wraps onto
+   a second row. When enlarged text leaves too little room, a label wraps
+   inside its segment instead of pushing the row past its container. */
 .segmented {
   display: flex;
   width: 100%;
@@ -25,7 +26,7 @@
   border-radius: 999px;
   color: var(--ink-secondary);
   font-weight: 700;
-  white-space: nowrap;
+  text-align: center;
   cursor: pointer;
   transition: color 0.15s;
   -webkit-tap-highlight-color: transparent;
@@ -50,8 +51,12 @@
   position: relative;
   z-index: 1;
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
+  justify-content: center;
+  gap: var(--space-1) var(--space-2);
+  min-width: 0;
+  overflow-wrap: break-word;
 }
 .segmented-content svg {
   width: 16px;
