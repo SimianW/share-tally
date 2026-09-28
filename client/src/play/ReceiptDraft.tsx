@@ -1,5 +1,5 @@
 import { requestId } from "./request-id";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useReceiptDraftSync } from "./receipt-draft-sync";
 import { BillApiError, localToday, money, type Bill } from "./bill-api";
 import { errorMessage, useGroupApi, type GroupDetail } from "./group-api";
@@ -17,6 +17,7 @@ import Dialog from "./Dialog";
 import { Notification } from "./Notification";
 import { Button } from "./ui";
 import { ParticipantPicker } from "./ParticipantPicker";
+import { SegmentedControl } from "./SegmentedControl";
 import {
   ArrowLeft,
   ArrowRight,
@@ -527,6 +528,7 @@ export function ReceiptDraftForm({
       ? data.ownShareCents <= data.totalCents
       : itemsComplete(data));
   const canSplitByItem = itemsReady({ ...data, mode: "items" });
+  const splitLegendId = useId();
   const missing = [
     !data.title.trim() && "a bill title",
     !(data.totalCents !== null && data.totalCents > 0) && "the total paid",
@@ -862,28 +864,23 @@ export function ReceiptDraftForm({
                   shortcuts
                 />
                 <fieldset className="sharing-split">
-                  <legend className="sharing-section-title">Split</legend>
-                  <div className="split-toggle">
-                    <label>
-                      <input
-                        type="radio"
-                        name="split"
-                        checked={data.mode === "items"}
-                        disabled={data.mode !== "items" && !canSplitByItem}
-                        onChange={() => update({ mode: "items", ownShareCents: 0 })}
-                      />
-                      <ListChecks size={17} aria-hidden="true" /> By item
-                    </label>
-                    <label>
-                      <input
-                        type="radio"
-                        name="split"
-                        checked={data.mode === "manual"}
-                        onChange={() => update({ mode: "manual", ownShareCents: 0 })}
-                      />
-                      <CircleDollarSign size={17} aria-hidden="true" /> By amount
-                    </label>
-                  </div>
+                  <legend id={splitLegendId} className="sharing-section-title">Split</legend>
+                  <SegmentedControl
+                    labelledBy={splitLegendId}
+                    value={data.mode}
+                    onChange={(mode) => update({ mode, ownShareCents: 0 })}
+                    options={[
+                      {
+                        value: "items",
+                        content: <><ListChecks aria-hidden="true" /> By item</>,
+                        disabled: data.mode !== "items" && !canSplitByItem,
+                      },
+                      {
+                        value: "manual",
+                        content: <><CircleDollarSign aria-hidden="true" /> By amount</>,
+                      },
+                    ]}
+                  />
                   <p className="split-hint">
                     {data.mode === "items"
                       ? "Everyone picks the items they're in on."

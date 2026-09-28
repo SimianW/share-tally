@@ -1,0 +1,80 @@
+/* Shared single-choice segmented control. Segments size to their content and
+   share the spare width, so the row fills its container and never wraps onto
+   a second row. When enlarged text leaves too little room, a label wraps
+   inside its segment instead of pushing the row past its container. */
+.segmented {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-sunken);
+}
+/* Two classes so generic form label rules (margins, grid) never reach a segment. */
+.segmented .segmented-option {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  margin: 0;
+  padding: 0 var(--space-4);
+  border-radius: 999px;
+  color: var(--ink-secondary);
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  transition: color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.segmented .segmented-option input {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+.segmented-indicator {
+  position: absolute;
+  inset: 0;
+  background: var(--surface);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--shadow-color) 14%, transparent), inset 0 0 0 1px var(--line);
+}
+.segmented-content {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1) var(--space-2);
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+.segmented-content svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+.segmented .segmented-option:hover:not(:has(input:disabled)),
+.segmented .segmented-option:has(input:checked) {
+  color: var(--ink);
+}
+.segmented .segmented-option:has(input:checked) svg {
+  color: var(--accent-ink);
+}
+.segmented .segmented-option:has(input:disabled) {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.segmented .segmented-option:has(input:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}

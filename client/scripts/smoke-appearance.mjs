@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { expect } from '@playwright/test';
+import { expectSegmentSlide } from './smoke-segmented.mjs';
 
 const storageKey = 'share-tally-palette';
 
@@ -69,6 +70,21 @@ export async function checkAppearance(page, base, groupUrl) {
   await expect.poll(scheme).toBe('dark');
   await page.emulateMedia({ colorScheme: 'light' });
   await expect.poll(scheme).toBe('light');
+  // Mode is the shared segmented control: its indicator slides, jumps under
+  // reduced motion, and the arrow keys choose as they do for any radio group.
+  await expectSegmentSlide(mode, 'Light');
+  assert.equal(await scheme(), 'light');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expectSegmentSlide(mode, 'Dark', { reduced: true });
+  assert.equal(await scheme(), 'dark');
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.keyboard.press('ArrowLeft');
+  await expect(mode.getByRole('radio', { name: 'Light' })).toBeChecked();
+  assert.equal(await scheme(), 'light');
+  // Tab stops once on a radio group, at its checked radio.
+  await appearance.getByRole('radio', { name: /Raspberry/ }).focus();
+  await page.keyboard.press('Shift+Tab');
+  await expect(mode.getByRole('radio', { name: 'Light' })).toBeFocused();
   await mode.getByRole('radio', { name: 'Dark' }).check();
   assert.equal(await scheme(), 'dark');
   assert.equal(await page.evaluate(() => localStorage.getItem('share-tally-scheme')), 'dark');

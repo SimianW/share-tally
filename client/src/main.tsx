@@ -2,6 +2,7 @@ import { applySavedPalette, applySavedScheme } from './play/appearance';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ClerkProvider } from '@clerk/react';
+import { MotionConfig } from 'motion/react';
 import './index.css';
 import App from './App.tsx';
 
@@ -17,7 +18,10 @@ if (!publishableKey) {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ClerkProvider publishableKey={publishableKey}>
-      <App />
+      {/* Motion runs in JavaScript, so the global reduced-motion CSS rule cannot stop it. */}
+      <MotionConfig reducedMotion="user">
+        <App />
+      </MotionConfig>
     </ClerkProvider>
   </StrictMode>,
 );

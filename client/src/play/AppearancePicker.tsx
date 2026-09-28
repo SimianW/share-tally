@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Monitor, Moon, Sun } from 'lucide-react';
 import { palettes, schemes, type PaletteKey, type SchemeKey } from './palettes';
 import { getCurrentPalette, getCurrentScheme, readSavedPalette, readSavedScheme, savePalette, saveScheme } from './appearance';
+import { SegmentedControl } from './SegmentedControl';
 import './appearance.css';
 
 export function AppearancePicker() {
@@ -36,23 +37,16 @@ export function AppearancePicker() {
         <p>Choose the colors and type style used in ShareTally.</p>
       </div>
     </div>
-    <fieldset className="appearance-modes" role="radiogroup" aria-label="Mode">
-      <legend className="visually-hidden">Mode</legend>
-      {schemes.map(option => {
+    <SegmentedControl
+      label="Mode"
+      className="appearance-modes"
+      value={scheme}
+      onChange={chooseScheme}
+      options={schemes.map(option => {
         const Icon = { system: Monitor, light: Sun, dark: Moon }[option.key];
-        return <label key={option.key} className="appearance-mode">
-          <input
-            type="radio"
-            name="appearance-scheme"
-            value={option.key}
-            checked={scheme === option.key}
-            onChange={() => chooseScheme(option.key)}
-          />
-          <Icon aria-hidden="true" />
-          <span>{option.name}</span>
-        </label>;
+        return { value: option.key, content: <><Icon aria-hidden="true" />{option.name}</> };
       })}
-    </fieldset>
+    />
     <fieldset className="appearance-options" role="radiogroup" aria-label="Appearance">
       <legend className="visually-hidden">Appearance</legend>
       {palettes.map(palette => <label key={palette.key} className="appearance-option" data-palette={palette.key}>
