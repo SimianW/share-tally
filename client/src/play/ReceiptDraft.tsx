@@ -673,24 +673,6 @@ export function ReceiptDraftForm({
                       Choose file
                     </Button>
                   </div>
-                  {file && (
-                    <ReceiptCrop
-                      key={`${file.name}:${file.lastModified}`}
-                      file={file}
-                      cancel={() => setFile(null)}
-                      save={async (base64) => {
-                        const next = {
-                          ...draft,
-                          pendingPhoto: base64,
-                          photo: { expiresAt: "", expired: false },
-                        };
-                        setDraft(next);
-                        setNotice("Unsaved changes");
-                        setFile(null);
-                        void run("Reading receipt…", () => scan(next));
-                      }}
-                    />
-                  )}
                   {draft.photo && (
                     <ReceiptPhoto
                       id={draft.id}
@@ -977,6 +959,26 @@ export function ReceiptDraftForm({
               </div>
             )}
           </fieldset>
+          {/* The crop is a modal dialog; outside the fieldset its controls stay
+              enabled whatever state disables the step form behind it. */}
+          {file && (
+            <ReceiptCrop
+              key={`${file.name}:${file.lastModified}`}
+              file={file}
+              cancel={() => setFile(null)}
+              save={async (base64) => {
+                const next = {
+                  ...draft,
+                  pendingPhoto: base64,
+                  photo: { expiresAt: "", expired: false },
+                };
+                setDraft(next);
+                setNotice("Unsaved changes");
+                setFile(null);
+                void run("Reading receipt…", () => scan(next));
+              }}
+            />
+          )}
           {step === 2 && unassignedTaxMessage && (
             <Notification tone="error" title="Receipt tax needs an item">
               <p>{unassignedTaxMessage}</p>

@@ -232,6 +232,122 @@ try {
   await expect(afterDraftDelete.getByRole("option", { name: "Receipt friends", exact: true })).toBeVisible();
   await expect(afterDraftDelete.locator(".group-switcher-count")).toHaveCount(0);
   await groupSwitcher(alice).click();
+  // The first scan and retry above consume the test provider's intentional failure.
+  // These separate bills can now scan successfully without changing that failure/retry check.
+  const cropPhoto = await serverRequire("sharp")({
+    create: { width: 400, height: 800, channels: 3, background: "#f8f8f2" },
+  }).png().toBuffer();
+  const cropDialog = () => alice.getByRole("dialog", { name: "Just the receipt" });
+  const croppedReceipt = () => alice.getByRole("img", { name: "Original cropped receipt" });
+  async function openCrop() {
+    await alice.getByRole("button", { name: "New bill", exact: true }).click();
+    await expect(alice.getByRole("heading", { name: "Start with your receipt" })).toBeVisible();
+    await alice.getByLabel("Choose a receipt image").setInputFiles({
+      name: "crop-smoke.png", mimeType: "image/png", buffer: cropPhoto,
+    });
+    await expect(cropDialog()).toBeVisible();
+    await expect(cropDialog().getByRole("img", { name: "Receipt to crop" })).toBeVisible();
+  }
+  async function dragCropRightEdge() {
+    const handle = await cropDialog().getByRole("slider", { name: "Crop right edge" }).boundingBox();
+    assert.ok(handle, "The crop right edge must be draggable");
+    const x = handle.x + handle.width / 2;
+    const y = handle.y + handle.height / 2;
+    await alice.mouse.move(x, y);
+    await alice.mouse.down();
+    await alice.mouse.move(x - 90, y, { steps: 8 });
+    await alice.mouse.up();
+  }
+  async function uploadCropAndMeasure() {
+    await cropDialog().getByRole("button", { name: "Use this photo", exact: true }).click();
+    await expect(cropDialog()).toBeHidden();
+    await expect(alice.getByRole("heading", { name: "Check your items" })).toBeVisible();
+    await expect(croppedReceipt()).toBeVisible();
+    await expect.poll(() => croppedReceipt().evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
+    return croppedReceipt().evaluate(image => ({ width: image.naturalWidth, height: image.naturalHeight }));
+  }
+  async function deleteCropDraft() {
+    const drafts = (await api(`/groups/${group.id}/receipt-drafts`)).drafts;
+    assert.equal(drafts.length, 1, "Each crop upload should leave one saved draft");
+    await expect.poll(async () => (await api(`/receipt-drafts/${drafts[0].id}`)).draft.processingStatus).toBe("ready");
+    await alice.getByRole("button", { name: "Back to group" }).click();
+    await expect(alice).toHaveURL(groupRoute);
+    await alice.getByRole("button", { name: `Delete ${drafts[0].data.title || "untitled bill"}`, exact: true }).click();
+    await alice.getByRole("button", { name: "Delete draft", exact: true }).click();
+    await expect.poll(async () => (await api(`/groups/${group.id}/receipt-drafts`)).drafts.length).toBe(0);
+  }
+  // Both ways of closing the crop return to the receipt step without saving a photo.
+  for (const close of ["Escape", "Close crop"]) {
+    await openCrop();
+    if (close === "Escape") {
+      // A very short landscape screen must still show both crop actions.
+      await alice.setViewportSize({ width: 600, height: 240 });
+      for (const name of ["Choose another", "Use this photo"])
+        await expect(cropDialog().getByRole("button", { name, exact: true })).toBeInViewport({ ratio: 1 });
+      await alice.setViewportSize({ width: 1280, height: 1000 });
+      await alice.keyboard.press("Escape");
+    } else await cropDialog().getByRole("button", { name: close }).click();
+    await expect(cropDialog()).toBeHidden();
+    await expect(alice.getByRole("heading", { name: "Start with your receipt" })).toBeVisible();
+    await expect(croppedReceipt()).toHaveCount(0);
+    assert.equal((await api(`/groups/${group.id}/receipt-drafts`)).drafts.length, 0);
+    await alice.getByRole("button", { name: "Back to group" }).click();
+    await expect(alice).toHaveURL(groupRoute);
+  }
+  // An untouched crop uploads the whole photo.
+  await openCrop();
+  const untouchedCrop = await uploadCropAndMeasure();
+  assert.ok(Math.abs(untouchedCrop.width - 400) <= 2 && Math.abs(untouchedCrop.height - 800) <= 2, `Untouched crop should keep the full photo: ${untouchedCrop.width}×${untouchedCrop.height}px`);
+  await deleteCropDraft();
+
+  await openCrop();
+  await dragCropRightEdge();
+  const draggedCrop = await uploadCropAndMeasure();
+  assert.ok(draggedCrop.width < 350, `Dragged crop should narrow the upload: ${draggedCrop.width}px`);
+  assert.ok(Math.abs(draggedCrop.height - 800) <= 2, `Dragged crop should keep the full height: ${draggedCrop.height}px`);
+  await deleteCropDraft();
+
+  await openCrop();
+  const topEdge = cropDialog().getByRole("slider", { name: "Crop top edge" });
+  await topEdge.focus();
+  await topEdge.press("Shift+ArrowDown");
+  await topEdge.press("Shift+ArrowDown");
+  const keyboardCrop = await uploadCropAndMeasure();
+  assert.ok(Math.abs(keyboardCrop.width - 400) <= 2, `Keyboard crop should keep the full width: ${keyboardCrop.width}px`);
+  assert.ok(keyboardCrop.height >= 630 && keyboardCrop.height <= 650, `Two coarse key presses should trim about 20%: ${keyboardCrop.height}px`);
+  await deleteCropDraft();
+
+  await openCrop();
+  await expect(cropDialog().getByRole("button", { name: "Reset", exact: true })).toHaveCount(0);
+  await dragCropRightEdge();
+  await expect(cropDialog().getByRole("button", { name: "Reset", exact: true })).toBeVisible();
+  await cropDialog().getByRole("button", { name: "Reset", exact: true }).click();
+  await expect(cropDialog().getByRole("button", { name: "Reset", exact: true })).toHaveCount(0);
+  const resetCrop = await uploadCropAndMeasure();
+  assert.ok(Math.abs(resetCrop.width - 400) <= 2, `Reset should restore the full width: ${resetCrop.width}px`);
+  assert.ok(Math.abs(resetCrop.height - 800) <= 2, `Reset should restore the full height: ${resetCrop.height}px`);
+  await deleteCropDraft();
+
+  // Shrinking the view raises the on-screen minimum crop; a narrow crop must widen to stay valid.
+  await openCrop();
+  const rightEdge = cropDialog().getByRole("slider", { name: "Crop right edge" });
+  await rightEdge.focus();
+  for (let press = 0; press < 10; press++) await rightEdge.press("Shift+ArrowLeft");
+  const narrowRight = Number(await rightEdge.getAttribute("aria-valuenow"));
+  assert.ok(narrowRight > 0 && narrowRight < 20, `The right edge should reach its minimum crop: ${narrowRight}%`);
+  await alice.setViewportSize({ width: 390, height: 500 });
+  await expect.poll(async () => Number(await rightEdge.getAttribute("aria-valuenow"))).toBeGreaterThan(narrowRight);
+  for (const edge of ["top", "bottom", "left", "right"]) {
+    const slider = cropDialog().getByRole("slider", { name: `Crop ${edge} edge` });
+    const [min, now, max] = await Promise.all(["aria-valuemin", "aria-valuenow", "aria-valuemax"].map(async (name) => Number(await slider.getAttribute(name))));
+    assert.ok(min <= now && now <= max, `Crop ${edge} edge must stay within its bounds after a resize: ${min} ≤ ${now} ≤ ${max}`);
+  }
+  const resizedRight = Number(await rightEdge.getAttribute("aria-valuenow"));
+  const resizedCrop = await uploadCropAndMeasure();
+  assert.ok(Math.abs(resizedCrop.width - resizedRight * 4) <= 8, `The upload should match the widened crop (${resizedRight}%): ${resizedCrop.width}px`);
+  assert.ok(Math.abs(resizedCrop.height - 800) <= 2, `The resized crop should keep the full height: ${resizedCrop.height}px`);
+  await alice.setViewportSize({ width: 1280, height: 1000 });
+  await deleteCropDraft();
   // Pre-migration browser recovery must preserve an explicitly reduced item tax.
   const reducedTaxId = randomUUID();
   const reducedTaxDraft = (await api(`/groups/${group.id}/receipt-drafts/${reducedTaxId}`, "alice-token", "PUT", {

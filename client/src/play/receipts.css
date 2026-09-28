@@ -130,28 +130,6 @@
   border-radius: 50%;
   background: var(--surface-accent);
 }
-.receipt-crop-preview {
-  position: relative;
-  width: fit-content;
-  max-width: 100%;
-  margin: auto;
-}
-.receipt-crop-preview img {
-  display: block;
-  max-width: 100%;
-  max-height: 400px;
-}
-.receipt-crop-preview > div {
-  position: absolute;
-  border: 3px solid var(--focus);
-  background: color-mix(in srgb, var(--focus) 7%, transparent);
-  pointer-events: none;
-}
-.receipt-crop-sliders {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
 .receipt-drafts {
   display: flex;
   gap: 12px;
@@ -622,4 +600,225 @@
 .receipt-wizard input[type="file"] { max-width: 100%; }
 @media (max-width: 700px) {
   .receipt-page-heading h1 span { display: block; }
+}
+
+/* Crop before upload: a dark photo bed where the kept area stays bright and
+   the lime frame is the only colour. Full-screen on phones, a tall centred
+   dialog on wider screens. */
+.play-dialog.receipt-crop-dialog {
+  --crop-bed: color-mix(in srgb, var(--shadow-color) 86%, var(--surface));
+  --crop-scrim: color-mix(in srgb, var(--shadow-color) 64%, transparent);
+  --crop-frame: var(--action);
+  --crop-edge: color-mix(in srgb, var(--shadow-color) 55%, transparent);
+  width: min(880px, calc(100vw - 48px));
+  max-width: none;
+  height: calc(100dvh - 48px);
+  max-height: none;
+  padding: var(--space-6) var(--space-6) 0;
+  overflow: hidden;
+}
+.play-dialog.receipt-crop-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+.receipt-crop-dialog .dialog-heading {
+  margin-bottom: var(--space-1);
+  gap: var(--space-3);
+}
+.receipt-crop-dialog .dialog-heading h2 { font-size: var(--text-xl); letter-spacing: -0.5px; }
+.receipt-crop-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  /* Reset appears after the first change; the row keeps its height. */
+  min-height: 40px;
+  margin-bottom: var(--space-3);
+}
+.receipt-crop-hint p {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--text-base);
+  line-height: 1.4;
+}
+.receipt-crop-hint .button.text {
+  flex-shrink: 0;
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px 2px;
+  color: var(--ink-secondary);
+  font-size: var(--text-sm);
+}
+.receipt-crop-hint .button.text:hover:not(:disabled) { color: var(--ink); }
+.receipt-crop-frame {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  /* Leaves room for the half of each hit area that sits outside the photo. */
+  padding: var(--space-6);
+  border-radius: var(--radius-md);
+  background: var(--crop-bed);
+  overflow: hidden;
+}
+.receipt-crop-stage {
+  position: relative;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.receipt-crop-stage.is-loading { visibility: hidden; }
+.receipt-crop-stage img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.receipt-crop-shade {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.receipt-crop-box {
+  position: absolute;
+  outline: 2px solid var(--crop-frame);
+  outline-offset: -1px;
+  box-shadow: 0 0 0 2px var(--crop-edge), 0 0 0 100vmax var(--crop-scrim);
+}
+.receipt-crop-handle {
+  position: absolute;
+  /* --crop-hit comes from HANDLE_HIT in ReceiptPhoto.tsx, which also clamps the crop. */
+  width: var(--crop-hit);
+  height: var(--crop-hit);
+  translate: -50% -50%;
+  border-radius: var(--radius-sm);
+  touch-action: none;
+  outline: none;
+}
+.receipt-crop-handle::before {
+  content: "";
+  position: absolute;
+  inset: 50% auto auto 50%;
+  translate: -50% -50%;
+  background: var(--crop-frame);
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px var(--crop-edge), 0 1px 5px var(--crop-edge);
+  transition: scale 0.12s;
+}
+.receipt-crop-handle.edge.top::before,
+.receipt-crop-handle.edge.bottom::before { width: 30px; height: 6px; }
+.receipt-crop-handle.edge.left::before,
+.receipt-crop-handle.edge.right::before { width: 6px; height: 30px; }
+.receipt-crop-handle.top,
+.receipt-crop-handle.bottom { cursor: ns-resize; }
+.receipt-crop-handle.left,
+.receipt-crop-handle.right { cursor: ew-resize; }
+.receipt-crop-handle.top-left,
+.receipt-crop-handle.bottom-right { cursor: nwse-resize; }
+.receipt-crop-handle.top-right,
+.receipt-crop-handle.bottom-left { cursor: nesw-resize; }
+/* Corners are brackets that wrap the frame's corner. */
+.receipt-crop-handle.corner::before {
+  width: 22px;
+  height: 22px;
+  background: none;
+  border: 0 solid var(--crop-frame);
+  border-radius: 3px;
+  box-shadow: none;
+  filter: drop-shadow(0 0 1px var(--crop-edge)) drop-shadow(0 1px 3px var(--crop-edge));
+}
+.receipt-crop-handle.top-left::before { border-width: 5px 0 0 5px; translate: -4px -4px; }
+.receipt-crop-handle.top-right::before { border-width: 5px 5px 0 0; translate: -18px -4px; }
+.receipt-crop-handle.bottom-left::before { border-width: 0 0 5px 5px; translate: -4px -18px; }
+.receipt-crop-handle.bottom-right::before { border-width: 0 5px 5px 0; translate: -18px -18px; }
+.receipt-crop-handle.is-dragging::before { scale: 1.15; }
+/* Too little room for a separate target: the other handles carry this edge,
+   and the handle stays reachable from the keyboard. */
+.receipt-crop-handle.is-passive { pointer-events: none; }
+.receipt-crop-handle.is-passive:not(:focus-visible)::before { visibility: hidden; }
+.receipt-crop-handle:focus-visible {
+  box-shadow: 0 0 0 2px var(--focus), 0 0 0 4px var(--crop-edge);
+}
+.receipt-crop-stage.is-busy .receipt-crop-handle { cursor: default; }
+.receipt-crop-stage.is-busy .receipt-crop-handle::before { opacity: 0.45; }
+.receipt-crop-error { margin: var(--space-3) 0 0; }
+.receipt-crop-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin: 0 calc(-1 * var(--space-6));
+  padding: var(--space-4) var(--space-6) max(var(--space-4), env(safe-area-inset-bottom));
+}
+.receipt-crop-actions .button { min-height: 44px; min-width: 9.5rem; }
+@media (max-width: 700px), (max-height: 560px) {
+  .play-dialog.receipt-crop-dialog {
+    position: fixed;
+    inset: 0;
+    margin: 0;
+    width: 100vw;
+    height: 100dvh;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    padding: max(var(--space-4), env(safe-area-inset-top)) max(var(--space-4), env(safe-area-inset-right)) 0 max(var(--space-4), env(safe-area-inset-left));
+  }
+  .receipt-crop-dialog .dialog-heading h2 { font-size: 22px; }
+  .receipt-crop-dialog .dialog-heading .icon-button { width: 40px; height: 40px; }
+  .receipt-crop-hint { margin-bottom: var(--space-2); }
+  .receipt-crop-frame { padding: var(--space-5); border-radius: var(--radius-sm); }
+  .receipt-crop-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    margin: 0 calc(-1 * max(var(--space-4), env(safe-area-inset-right))) 0 calc(-1 * max(var(--space-4), env(safe-area-inset-left)));
+    padding: var(--space-3) max(var(--space-4), env(safe-area-inset-right)) max(var(--space-3), env(safe-area-inset-bottom)) max(var(--space-4), env(safe-area-inset-left));
+  }
+  .receipt-crop-actions .button { min-width: 0; }
+}
+/* Wide or landscape screens: the controls move to a side rail so the tall
+   photo gets the dialog's full height. */
+@media (min-width: 900px), (min-width: 600px) and (max-height: 560px) and (orientation: landscape) {
+  .play-dialog.receipt-crop-dialog {
+    width: min(1040px, calc(100vw - 48px));
+    height: calc(100dvh - 40px);
+    max-height: 1040px;
+    padding: max(var(--space-5), env(safe-area-inset-top)) max(var(--space-5), env(safe-area-inset-right)) max(var(--space-5), env(safe-area-inset-bottom)) max(var(--space-5), env(safe-area-inset-left));
+  }
+  .play-dialog.receipt-crop-dialog[open] {
+    display: grid;
+    grid-template-columns: 264px minmax(0, 1fr);
+    grid-template-rows: auto auto auto 1fr auto;
+    column-gap: var(--space-6);
+  }
+  .receipt-crop-dialog .dialog-heading { grid-column: 1; margin-bottom: var(--space-3); }
+  .receipt-crop-dialog .dialog-heading h2 { font-size: 26px; }
+  .receipt-crop-hint { grid-column: 1; flex-direction: column; align-items: flex-start; gap: var(--space-2); min-height: 0; }
+  .receipt-crop-hint p { line-height: 1.55; }
+  .receipt-crop-frame { grid-column: 2; grid-row: 1 / -1; }
+  .receipt-crop-error { grid-column: 1; }
+  .receipt-crop-actions {
+    display: flex;
+    grid-column: 1;
+    grid-row: 5;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+  }
+  .receipt-crop-actions .button { width: 100%; }
+}
+@media (max-height: 560px) and (orientation: landscape) {
+  .play-dialog.receipt-crop-dialog {
+    position: fixed;
+    inset: 0;
+    margin: 0;
+    width: 100vw;
+    height: 100dvh;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+  }
+  .receipt-crop-dialog .dialog-heading { margin-bottom: var(--space-2); }
+  .receipt-crop-dialog .dialog-heading h2 { font-size: 22px; }
+  .receipt-crop-frame { padding: var(--space-5); }
 }
