@@ -113,17 +113,7 @@
 .receipt-summary-fields { display: grid; gap: var(--space-5); }
 .receipt-sheet-content > .button { justify-self: start; }
 
-.receipt-wizard-actions.receipt-review-footer {
-  position: sticky;
-  bottom: 0;
-  z-index: 5;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--space-3) var(--space-5);
-  background: var(--bg);
-  border-top: 1px solid var(--line);
-  padding: var(--space-3) 0 max(var(--space-3), env(safe-area-inset-bottom));
-}
+.receipt-wizard-actions.receipt-review-footer { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-3) var(--space-5); }
 .receipt-review-footer > div { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; flex-wrap: wrap; gap: var(--space-3); }
 .receipt-review-footer > .button { grid-column: 2; grid-row: 1; }
 .receipt-reconciliation { display: flex; gap: var(--space-3); align-items: center; padding: var(--space-3); border-radius: var(--radius-sm); background: var(--surface); border: 1px solid var(--line); min-width: 0; }

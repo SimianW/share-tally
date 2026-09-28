@@ -447,12 +447,16 @@
   }
 }
 .receipt-wizard-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
+  background: var(--bg);
   border-top: 1px solid var(--line);
-  padding: 18px 0;
+  padding: var(--space-3) 0 max(var(--space-3), env(safe-area-inset-bottom));
   margin-top: 24px;
 }
 .receipt-wizard-actions > div {

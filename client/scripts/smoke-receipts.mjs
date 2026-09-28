@@ -801,6 +801,19 @@ try {
   await alice.reload();
   await expectNewBillRoute(savedScan.id);
   await expect(alice.getByRole("heading", { name: "Check your items" })).toBeVisible();
+  // On a short phone screen the action must remain reachable without scrolling to the end.
+  await alice.setViewportSize({ width: 390, height: 560 });
+  const expectWizardActionInViewport = async (step) => {
+    await stepButton(step).click();
+    assert.ok(await alice.evaluate(() => document.documentElement.scrollHeight > innerHeight), `${step} step must overflow the viewport`);
+    await alice.evaluate(() => window.scrollTo(0, 0));
+    await expect(alice.getByRole("button", { name: "Save draft & close" })).toBeInViewport();
+  };
+  await expectWizardActionInViewport("Items");
+  await expectWizardActionInViewport("Receipt");
+  await expectWizardActionInViewport("People");
+  await stepButton("Items").click();
+  await alice.setViewportSize({ width: 1280, height: 1000 });
   await applesRow().click();
   await expect(alice.getByLabel("Final cost · CAD", { exact: true })).toHaveValue("2.80");
   await expect(alice.getByRole("checkbox", { name: "Taxable", exact: true })).not.toBeChecked();
