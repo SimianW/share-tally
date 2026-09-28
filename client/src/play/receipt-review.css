@@ -203,7 +203,9 @@
 .claim-portion-choices button { flex: 1 0 auto; display: grid; justify-items: center; gap: 2px; min-width: 44px; padding: var(--space-2) 2px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--ink); font: inherit; cursor: pointer; }
 .claim-portion-choices b { font: 800 var(--text-lg) / 1.1 var(--font-heading); }
 .claim-portion-choices small { color: var(--ink-secondary); font-size: 0.6875rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.claim-portion-choices button:hover:not(:disabled) { background: var(--surface-soft); }
+@media (hover: hover) {
+  .claim-portion-choices button:hover:not(:disabled):not([aria-pressed="true"]) { background: var(--surface-soft); }
+}
 .claim-portion-choices button:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
 .claim-portion-choices button[aria-pressed="true"] { background: var(--action); color: var(--ink-on-action); box-shadow: 0 1px 0 var(--action-edge), var(--glow-action); }
 .claim-portion-choices button[aria-pressed="true"] small { color: var(--ink-on-action); }
