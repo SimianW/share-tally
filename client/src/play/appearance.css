@@ -23,53 +23,9 @@
   margin: 0;
 }
 .appearance-modes {
-  display: inline-flex;
-  justify-self: start;
-  gap: var(--space-1);
-  max-width: 100%;
-  padding: var(--space-1);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  margin: 0;
-  background: var(--surface-sunken);
+  max-width: 26rem;
+  font-size: var(--text-sm);
 }
-.appearance-mode {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 36px;
-  padding: 0 var(--space-4);
-  border-radius: 999px;
-  color: var(--ink-secondary);
-  font: 600 var(--text-sm) / 1 var(--font-body);
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-.appearance-mode svg {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-}
-.appearance-mode input {
-  position: absolute;
-  inset: 0;
-  margin: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-.appearance-mode:hover { color: var(--ink); }
-.appearance-mode:has(input:checked) {
-  background: var(--surface);
-  color: var(--ink);
-  box-shadow: 0 1px 3px color-mix(in srgb, var(--shadow-color) 14%, transparent), inset 0 0 0 1px var(--line);
-}
-.appearance-mode:has(input:focus-visible) {
-  outline: 3px solid var(--focus);
-  outline-offset: 1px;
-}
-.appearance-modes legend,
 .appearance-options legend {
   position: absolute;
   width: 1px;
@@ -148,6 +104,5 @@
   .appearance-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 420px) {
-  .appearance-modes { display: flex; justify-self: stretch; }
-  .appearance-mode { flex: 1; justify-content: center; padding: 0 var(--space-2); }
+  .segmented.appearance-modes .segmented-option { padding: 0 var(--space-2); }
 }

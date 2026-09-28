@@ -13,6 +13,7 @@ import { chromium, expect } from "@playwright/test";
 import { createServer } from "vite";
 import react from "@vitejs/plugin-react";
 import { openGroupSwitcher, groupSwitcher } from "./smoke-navigation.mjs";
+import { expectSegmentSlide } from "./smoke-segmented.mjs";
 
 const serverRequire = createRequire(
   new URL("../../server/package.json", import.meta.url),
@@ -384,6 +385,12 @@ try {
   await alice.getByRole("button", { name: "New bill", exact: true }).click();
   await alice.getByRole("button", { name: "Split by amount instead" }).click();
   await expect(alice.getByRole("heading", { name: "Who’s sharing this bill?" })).toBeVisible();
+  // With no items, By item is disabled and the arrow keys cannot reach it.
+  const emptySplit = alice.getByRole("radiogroup", { name: "Split" });
+  await expect(emptySplit.getByRole("radio", { name: "By item" })).toBeDisabled();
+  await emptySplit.getByRole("radio", { name: "By amount" }).focus();
+  await alice.keyboard.press("ArrowLeft");
+  await expect(emptySplit.getByRole("radio", { name: "By amount" })).toBeChecked();
   await alice.reload();
   await expectNewBillRoute();
   await expect(alice.getByRole("heading", { name: "Who’s sharing this bill?" })).toBeVisible();
@@ -1847,7 +1854,13 @@ try {
   await expect(
     alice.getByRole("button", { name: "Share bill", exact: true }),
   ).toBeEnabled();
-  await alice.getByRole("radio", { name: "By amount" }).check();
+  const split = alice.getByRole("radiogroup", { name: "Split" });
+  await expectSegmentSlide(split, "By amount");
+  await alice.keyboard.press("ArrowLeft");
+  await expect(split.getByRole("radio", { name: "By item" })).toBeChecked();
+  await expect(alice.getByLabel("Your share (CAD)", { exact: true })).toHaveCount(0);
+  await alice.keyboard.press("ArrowRight");
+  await expect(split.getByRole("radio", { name: "By amount" })).toBeChecked();
   await alice.getByLabel("Your share (CAD)", { exact: true }).fill("1.00");
   await alice
     .getByRole("button", { name: "Share bill", exact: true })
