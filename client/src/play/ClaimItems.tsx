@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { money, type Bill } from "./bill-api";
 import type { BillItem } from "./receipt-api";
 import { fraction, one, sum, subtract, text, shortText, parse, lessOrEqual, cost, share, signed } from "./claim-fractions";
@@ -56,11 +56,10 @@ export function ClaimItems({ bill, selection, change, busy, terminal, confirmAct
     return item && room(item).n > 0n;
   }) ?? null;
   // A pending advance reads these when it fires, so a bill refresh during the pause is respected.
-  const latest = useRef({ activeId, nextOpenId });
-  useEffect(() => { latest.current = { activeId, nextOpenId }; });
+  // Updated during commit, so a timer that fires between a render and its effects still sees that render.
+  const latest = useRef({ activeId, nextOpenId, terminal });
+  useLayoutEffect(() => { latest.current = { activeId, nextOpenId, terminal }; });
   useEffect(() => () => window.clearTimeout(advance.current), []);
-  // A bill that completes or is canceled during the pause stays on the item just picked.
-  useEffect(() => { if (terminal) window.clearTimeout(advance.current); }, [terminal]);
   // Moving to another item replaces the sheet content; if focus was in it, the heading takes over.
   useEffect(() => {
     const dialog = heading.current?.closest("dialog");
@@ -98,8 +97,9 @@ export function ClaimItems({ bill, selection, change, busy, terminal, confirmAct
     window.clearTimeout(advance.current);
     // Picking a portion moves on to the next item; after the last one the list and its Confirm button return.
     if (value) advance.current = window.setTimeout(() => {
-      const { activeId: current, nextOpenId: next } = latest.current;
-      if (current !== item.id) return;
+      const { activeId: current, nextOpenId: next, terminal: ended } = latest.current;
+      // A bill that completed or was canceled during the pause stays on the item just picked.
+      if (current !== item.id || ended) return;
       if (next) navigateToItem(next); else showItem(null);
     }, ADVANCE_DELAY_MS);
   }
