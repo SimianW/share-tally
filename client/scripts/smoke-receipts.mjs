@@ -558,7 +558,14 @@ try {
   await alice.getByRole("button", { name: "Receipt summary", exact: true }).click();
   await expect(alice.getByRole("dialog", { name: "Receipt summary", exact: true })).toBeVisible();
   await alice.getByRole("button", { name: "Done", exact: true }).click();
+  const initialItem = (await api(`/bills/${billId}`)).bill.items[0];
+  const firstClaimRequest = alice.waitForRequest(request => request.method() === "POST" &&
+    new URL(request.url()).pathname === `/api/bills/${billId}/claims`);
   await alice.getByRole("button", { name: "Confirm my item claims" }).click();
+  assert.deepEqual((await firstClaimRequest).postDataJSON(), {
+    reviewedItems: [{ itemId: initialItem.id, version: initialItem.version }],
+    claims: [{ itemId: initialItem.id, numerator: 1, denominator: 3 }],
+  });
   await expect(alice.locator(".claim-list .receipt-row-badges").first()).toContainText("Your claim");
   const bob = await pageFor("bob-token", { width: 390, height: 844 });
   await bob.goto(base);
@@ -572,6 +579,8 @@ try {
   await expect(claimSheet(bob)).toBeHidden();
   await bob.getByRole("button", { name: "Confirm my item claims" }).click();
   await expect(bob.locator(".claim-list .receipt-row-badges").first()).toContainText("Your claim");
+  await expect(alice.getByRole("button", { name: "Confirm my item claims" })).toBeEnabled();
+  await expect(alice.getByRole("button", { name: "I have reviewed the latest bill" })).toHaveCount(0);
   await alice.getByRole("button", { name: "Edit items & prices" }).click();
   const correctionRow = alice.getByRole("button", { name: "Edit Apples", exact: true });
   await expect(correctionRow).toContainText("3.00");
@@ -583,7 +592,13 @@ try {
   await expect(correctionRow).toContainText("2.70");
   await expect(correctionSheet.getByLabel("Final cost", { exact: true })).toHaveText("$2.70");
   await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+  const correctionVersion = (await api(`/bills/${billId}`)).bill.items[0].version;
+  const correctionRequest = alice.waitForRequest(request => request.method() === "PATCH" &&
+    new URL(request.url()).pathname === `/api/bills/${billId}/items/${initialItem.id}`);
   await alice.getByRole("button", { name: "Save item changes", exact: true }).click();
+  const correctionPayload = (await correctionRequest).postDataJSON();
+  assert.equal(correctionPayload.version, correctionVersion);
+  assert.equal("revision" in correctionPayload, false);
   await expect.poll(async () => (await api(`/bills/${billId}`)).bill.items[0].amountCents).toBe(270);
   const corrected = (await api(`/bills/${billId}`)).bill.items[0];
   assert.equal(corrected.amountCents, 270);
@@ -596,9 +611,7 @@ try {
     .click();
   await bob.getByRole("button", { name: "Confirm my item claims" }).click();
   await expect(bob.locator(".claim-list .receipt-row-badges").first()).toContainText("Your claim");
-  await alice
-    .getByRole("button", { name: "I have reviewed the latest bill" })
-    .click();
+  await expect(alice.getByRole("button", { name: "I have reviewed the latest bill" })).toHaveCount(0);
   await alice.getByRole("button", { name: "Confirm my item claims" }).click();
   await expect(alice.locator(".claim-list .receipt-row-badges").first()).toContainText("Your claim");
   const carol = await pageFor("carol-token", { width: 390, height: 844 });
@@ -651,7 +664,7 @@ try {
   const controlBill = (await api(`/receipt-drafts/${controlDraftId}/initialize`, "alice-token", "POST", { revision: controlDraft.revision })).bill;
   const apples = controlItems[0];
   await api(`/bills/${controlBill.id}/claims`, "bob-token", "POST", {
-    revision: controlBill.revision,
+    reviewedItems: controlBill.items.map(({ id, version }) => ({ itemId: id, version })),
     claims: [{ itemId: apples.id, numerator: 2, denominator: 3 }],
   });
   await alice.goto(`${base}#/bills/${controlBill.id}`);
@@ -743,7 +756,7 @@ try {
   })).draft;
   const skipBill = (await api(`/receipt-drafts/${skipDraftId}/initialize`, "alice-token", "POST", { revision: skipDraft.revision })).bill;
   await api(`/bills/${skipBill.id}/claims`, "bob-token", "POST", {
-    revision: skipBill.revision,
+    reviewedItems: skipBill.items.map(({ id, version }) => ({ itemId: id, version })),
     claims: [{ itemId: skipItems[1].id, numerator: 1, denominator: 1 }],
   });
   await alice.goto(`${base}#/bills/${skipBill.id}`);
@@ -1655,9 +1668,13 @@ try {
     const row = name => alice.getByRole("button", { name: `Edit ${name}`, exact: true });
     const open = () => alice.getByRole("button", { name: "Edit items & prices", exact: true }).click();
     const save = async () => {
+      const reviewedItems = (await api(`/bills/${legacy.id}`)).bill.items.map(({ id, version }) => ({ itemId: id, version }));
       const response = alice.waitForResponse(response => response.request().method() === "PUT" && new URL(response.url()).pathname === `/api/bills/${legacy.id}/items`);
       await alice.getByRole("button", { name: "Save item changes", exact: true }).click();
-      assert.equal((await response).status(), 200);
+      const result = await response;
+      assert.deepEqual(result.request().postDataJSON().reviewedItems, reviewedItems);
+      assert.equal("revision" in result.request().postDataJSON(), false);
+      assert.equal(result.status(), 200);
       await expect(alice.getByRole("button", { name: "Save item changes", exact: true })).toHaveCount(0);
     };
     await open();

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { BillApiError, useBillApi, type Bill } from "./bill-api";
-import { correctionInput, useReceiptApi, type LegacyCorrectionItem, type ReceiptCorrectionItem } from "./receipt-api";
+import { correctionInput, useReceiptApi, type BillItem, type LegacyCorrectionItem, type ReceiptCorrectionItem, type ReviewedItem } from "./receipt-api";
 import { previewCorrection } from "./receipt-correction";
 import { ClaimItems } from "./ClaimItems";
 import { claimAvailabilityMessage } from "./claim-fractions";
@@ -8,6 +8,10 @@ import { ReceiptReviewItems } from "./ReceiptReview";
 import { LegacyItemEditor } from "./LegacyItemEditor";
 import { Button } from "./ui";
 import { errorMessage } from "./group-api";
+
+function reviewedItems(items: BillItem[] = []): ReviewedItem[] {
+  return items.map(({ id, version }) => ({ itemId: id, version }));
+}
 
 export function ItemClaims({
   bill,
@@ -30,19 +34,22 @@ export function ItemClaims({
       ),
     ),
   );
-  const [reviewed, setReviewed] = useState(bill.revision);
+  const [reviewed, setReviewed] = useState(() => reviewedItems(bill.items));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [edit, setEdit] = useState<ReceiptCorrectionItem[] | null>(null);
   const [legacyEdit, setLegacyEdit] = useState<LegacyCorrectionItem[] | null>(null);
   const terminal = !!(bill.completedAt || bill.canceledAt);
-  const stale = reviewed !== bill.revision;
+  const stale = (bill.items ?? []).some(item => !reviewed.some(entry => entry.itemId === item.id)) ||
+    Object.entries(selection).some(([id, value]) => value.trim() &&
+      !(bill.items ?? []).some(item => item.id === id &&
+        reviewed.some(entry => entry.itemId === id && entry.version === item.version)));
   async function perform(action: () => Promise<{ bill: Bill }>) {
     setBusy(true);
     setError("");
     try {
       const result = await action();
-      setReviewed(result.bill.revision);
+      setReviewed(reviewedItems(result.bill.items));
       saved(result.bill);
       setEdit(null);
       setLegacyEdit(null);
@@ -51,8 +58,8 @@ export function ItemClaims({
     } catch (e) {
       setError(errorMessage(e));
       if (e instanceof BillApiError && e.status === 409) {
-        // A simultaneous claimant can take the last fraction before our stale
-        // revision reaches the server. Show the actual current availability.
+        // A simultaneous claimant can take the last fraction before our save
+        // reaches the server. Show the actual current availability.
         try {
           const current = await billApi.detail(bill.id);
           setError(claimAvailabilityMessage(current.bill, selection) ?? errorMessage(e));
@@ -82,8 +89,8 @@ export function ItemClaims({
     }
     setBusy(true);
     setError("");
-    let revision = reviewed;
     let changed = false;
+    let latest = bill;
     try {
       for (const item of edit) {
         const original = bill.items?.find((candidate) => candidate.id === item.id);
@@ -91,12 +98,14 @@ export function ItemClaims({
         const input = correctionInput(item);
         const previous = correctionInput(original);
         if (JSON.stringify(input) === JSON.stringify(previous)) continue;
-        const result = await api.correctItem(bill.id, item.id, revision, input);
-        revision = result.bill.revision;
+        const version = reviewed.find(entry => entry.itemId === item.id)?.version;
+        if (version === undefined) throw new Error("An item changed. Reload the bill before correcting it.");
+        const result = await api.correctItem(bill.id, item.id, version, input);
         changed = true;
+        latest = result.bill;
         saved(result.bill);
       }
-      setReviewed(revision);
+      setReviewed(reviewedItems(latest.items));
       setEdit(null);
     } catch (e) {
       setError(errorMessage(e));
@@ -157,7 +166,7 @@ export function ItemClaims({
               <Button
                 variant="secondary"
                 onClick={() => {
-                  setReviewed(bill.revision);
+                  setReviewed(reviewedItems(bill.items));
                   setSelection((s) =>
                     Object.fromEntries(
                       Object.entries(s).filter(([id]) =>
@@ -198,7 +207,7 @@ export function ItemClaims({
                 setEdit(null);
                 setLegacyEdit(items);
               }
-              setReviewed(bill.revision);
+              setReviewed(reviewedItems(bill.items));
             }}
           >
             Edit items & prices

@@ -57,6 +57,7 @@ export type LegacyCorrectionItem = Omit<LegacyReceiptItem, "amountCents" | "fina
 };
 export type ReceiptCorrectionItem = ReceiptDraftItem;
 export type ReceiptCorrection = Pick<ReceiptCorrectionItem, "name" | "quantity" | "discountCents" | "manualFinal"> & { amountCents: number; taxable: boolean; finalCents?: number };
+export type ReviewedItem = { itemId: string; version: number };
 export type ItemClaim = {
   itemId: string;
   userId: string;
@@ -65,6 +66,7 @@ export type ItemClaim = {
   confirmedAt: string | null;
 };
 export type BillItem = Omit<ReceiptItem, "taxCents" | "extraCents"> & {
+  version: number;
   taxCents: number | null;
   extraCents: number | null;
   claims: ItemClaim[];
@@ -163,6 +165,7 @@ export function useReceiptApi() {
         throw new BillApiError(
           response.status,
           error?.error || "Request failed. Please try again.",
+          error?.conflicts,
         );
       }
       const result = await response.json();
@@ -224,18 +227,18 @@ export function useReceiptApi() {
         }),
       claims: (
         id: string,
-        revision: number,
+        reviewedItems: ReviewedItem[],
         claims: { itemId: string; numerator: number; denominator: number }[],
       ) =>
         request<{ bill: Bill }>(`/bills/${id}/claims`, "POST", {
-          revision,
+          reviewedItems,
           claims,
         }),
-      legacyItems: (id: string, revision: number, items: LegacyReceiptItem[]) =>
-        request<{ bill: Bill }>(`/bills/${id}/items`, "PUT", { revision, items }),
-      correctItem: (id: string, itemId: string, revision: number, item: ReceiptCorrection) =>
+      legacyItems: (id: string, reviewedItems: ReviewedItem[], items: LegacyReceiptItem[]) =>
+        request<{ bill: Bill }>(`/bills/${id}/items`, "PUT", { reviewedItems, items }),
+      correctItem: (id: string, itemId: string, version: number, item: ReceiptCorrection) =>
         request<{ bill: Bill }>(`/bills/${id}/items/${itemId}`, "PATCH", {
-          revision,
+          version,
           ...item,
         }),
       photo: async (id: string, signal: AbortSignal) => {
