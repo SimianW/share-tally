@@ -165,12 +165,6 @@ export function BillDetails({ id }: { id: string }) {
           {bill.purchaseDate}, paid by {isInitiator ? "you" : initiator.displayName}, in CAD
         </p>
       </header>
-      <BillPanel bill={bill} needsAmountCorrection={needsAmountCorrection} initiatorActions={isInitiator && (
-        <InitiatorActions
-          key={`initiator:${bill.id}:${savedVersion}`}
-          bill={bill} api={api} saved={saved} refresh={refresh}
-        />
-      )} />
       <div className="bill-main">
         {error && <Notification><p>{error}</p><Button onClick={refresh}>Retry bill</Button></Notification>}
         {notice && !needsAmountCorrection && <Notification tone="success" title="Bill updated" onDismiss={() => setNotice("")}>{notice}</Notification>}
@@ -209,6 +203,14 @@ export function BillDetails({ id }: { id: string }) {
         </ShareTicket>
         {bill.mode === 'items' && <div className="bill-claims">{shareAction}</div>}
       </div>
+      {/* After the main column so focus and reading order follow the page;
+          on mobile only the non-interactive summary strip is moved up by CSS. */}
+      <BillPanel bill={bill} needsAmountCorrection={needsAmountCorrection} initiatorActions={isInitiator && (
+        <InitiatorActions
+          key={`initiator:${bill.id}:${savedVersion}`}
+          bill={bill} api={api} saved={saved} refresh={refresh}
+        />
+      )} />
     </section>
   );
 }
