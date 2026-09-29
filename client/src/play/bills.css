@@ -1,134 +1,264 @@
-.difference-card {
-  background: var(--surface-summary-glow), var(--surface-summary);
-  color: var(--ink);
-  border: 1px solid var(--line-summary);
-  box-shadow: var(--shadow-summary);
-  border-radius: 28px;
-  padding: 30px;
-}
-.difference-card h2 {
-  font-size: 1.15rem;
-  margin: 18px 0 6px;
-}
-.difference-number {
-  display: block;
-  font-family: var(--font-heading);
-  font-size: clamp(2.6rem, 6vw, 5.5rem);
-  font-weight: 900;
-  line-height: 1.12;
-  letter-spacing: -0.04em;
-  color: var(--ink-summary-number);
-  text-shadow: var(--glow-summary-number);
-  overflow-wrap: anywhere;
-  font-variant-numeric: tabular-nums;
-}
-.bill-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  margin: 24px 0;
-}
-.bill-heading h1 {
-  font-size: clamp(1.8rem, 4vw, 3rem);
-  line-height: 1.15;
-  overflow-wrap: anywhere;
-}
-.bill-heading p {
-  color: var(--money-pending);
-}
-#my-share-amount {
-  scroll-margin-block: 100px;
-}
-.bill-layout {
+/* Bill detail page (#158): the viewer's Your share ticket leads the main
+   column; a sticky panel on the right carries the whole bill. */
+.bill-page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-bottom: 32px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
-  gap: 24px;
-}
-.bill-status {
-  font-weight: 800;
-  font-size: 0.875rem;
-}
-.difference-card dl {
-  border-top: 1px solid var(--line-summary);
-  padding-top: 18px;
-  margin-top: 30px;
-}
-.difference-card dl div {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  margin: 10px 0;
-}
-.difference-card dd {
-  margin: 0;
-  font-weight: 800;
-}
-.bill-people {
-  border: 1px solid var(--line);
-  background: var(--surface);
-  border-radius: 28px;
-  padding: 26px;
+  grid-template-columns: minmax(0, 1fr) 348px;
+  grid-template-areas: "header header" "main panel";
+  gap: 28px 36px;
+  align-items: start;
   min-width: 0;
 }
-.bill-people h2 {
-  margin-top: 0;
-  font-size: 1.3rem;
+.bill-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* Header */
+.bill-header { grid-area: header; min-width: 0; }
+.bill-back {
+  display: inline-flex; align-items: center; gap: 4px; margin-left: -4px;
+  color: var(--ink-secondary); font-size: 13px; font-weight: 600; text-decoration: none;
 }
-.bill-person {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 20px 0;
-  border-top: 1px solid var(--line);
-}
-.bill-person > div {
-  flex: 1;
-  min-width: 0;
-}
-.bill-person b {
+.bill-back:hover { color: var(--ink); }
+.bill-header h1 {
+  margin: 10px 0 0;
+  font: 800 clamp(26px, 3vw, 38px)/1.15 var(--font-heading);
+  letter-spacing: normal;
   overflow-wrap: anywhere;
 }
-.bill-person > div > span {
+.bill-header h1:focus { outline: none; }
+.bill-header h1:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: 6px; }
+.bill-meta { margin: 6px 0 0; color: var(--ink-secondary); font-size: 14px; }
+
+/* Main column: notices, the Your share card, then item claims. */
+.bill-main { grid-area: main; display: grid; gap: 20px; min-width: 0; }
+.bill-main > * { min-width: 0; }
+.bill-main > .notification { margin: 0; }
+#my-share-amount { scroll-margin-block: 100px; }
+
+/* The Your share card is a ticket: a stub with the amount, torn from the body
+   along a perforation with notches cut out of the card edge. The stub,
+   perforation, label and "done" stamp derive from the palette's own accent
+   tint and ink, so each palette's ticket carries its own hue; in dark mode
+   the tint becomes a faint accent glow. */
+.share-card {
+  --share-stub: color-mix(in srgb, var(--surface-selected) 58%, var(--surface));
+  --share-perforation: color-mix(in srgb, var(--line-accent) 75%, var(--surface));
+  --share-label: var(--accent-ink-muted);
+  --share-figure: var(--ink);
+  --share-words: color-mix(in srgb, var(--accent-ink) 40%, var(--ink-muted));
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+/* Canceled and view-only tickets drop the accent entirely. */
+.share-card-void, .share-card-quiet {
+  --share-stub: var(--surface-sunken);
+  --share-perforation: var(--line);
+  --share-label: var(--ink-muted);
+  --share-words: var(--ink-muted);
+}
+.share-card-void { --share-figure: var(--ink-muted); }
+.share-ticket { display: grid; grid-template-columns: minmax(200px, 38%) minmax(0, 1fr); }
+.share-ticket-stub {
+  position: relative;
+  display: grid; align-content: start; gap: 10px;
+  padding: 24px 26px 26px;
+  background: var(--share-stub);
+  border-right: 2px dashed var(--share-perforation);
+}
+.share-ticket-stub::before, .share-ticket-stub::after {
+  content: ""; position: absolute; right: -11px;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--bg); border: 1px solid var(--line);
+}
+.share-ticket-stub::before { top: -11px; }
+.share-ticket-stub::after { bottom: -11px; }
+.share-ticket-label { margin: 0; font: 700 13px var(--font-heading); color: var(--share-label); }
+.share-ticket-figure {
+  margin: 0;
+  font: 900 clamp(34px, 4.4vw, 46px)/1.05 var(--font-heading);
+  letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--share-figure);
+  overflow-wrap: anywhere;
+}
+.share-ticket-figure s { text-decoration-thickness: 3px; text-decoration-color: var(--ink-subtle); }
+.share-ticket-words {
   display: block;
-  font-size: 0.875rem;
-  color: var(--ink-secondary);
-  margin-top: 4px;
+  font-size: clamp(22px, 2.6vw, 28px);
+  letter-spacing: -.02em;
+  line-height: 1.15;
+  color: var(--share-words);
 }
-.bill-person > strong {
-  font-size: 1rem;
-  text-align: right;
-  max-width: 35%;
-  overflow-wrap: anywhere;
+.share-ticket-stamp {
+  justify-self: start; display: inline-flex; align-items: center; gap: 5px;
+  margin-top: 4px; padding: 3px 10px; border-radius: 999px;
+  border: 1px solid var(--share-perforation);
+  background: var(--surface); color: var(--accent-ink);
+  font-size: 12px; font-weight: 700;
 }
-.bill-adjustment {
-  grid-column: 1/-1;
-  background: var(--surface-raised);
-  border-radius: 20px;
-  padding: 20px 26px;
-}
-.bill-adjustment h3 {
+.share-card-act .share-ticket-stamp { border-color: var(--action-edge); background: var(--action); color: var(--ink-on-action); box-shadow: var(--glow-action); }
+.share-card-warn .share-ticket-stamp { border-color: transparent; background: var(--status-warning-bg); color: var(--status-warning); }
+.share-card-void .share-ticket-stamp, .share-card-quiet .share-ticket-stamp { border-color: var(--line); color: var(--ink-secondary); }
+.share-ticket-body { display: grid; align-content: center; gap: 16px; padding: 24px 28px 26px; min-width: 0; }
+.share-ticket-line { margin: 0; max-width: 58ch; font-size: 15px; line-height: 1.5; }
+.share-ticket-ledger { display: grid; margin: 0; font-size: 14px; }
+.share-ticket-ledger > div { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
+.share-ticket-ledger dt { color: var(--ink-secondary); }
+.share-ticket-ledger dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.share-ticket-ledger > .share-ticket-ledger-total { border-top-color: var(--line-strong); }
+.share-ticket-ledger-total dt { color: var(--ink); font-weight: 700; }
+.share-ticket-ledger-total dd { font-weight: 800; }
+.share-ticket-alert { margin: 0; color: var(--status-warning); font-size: 14px; font-weight: 600; }
+
+/* The share form continues inside the card, below the ticket. */
+.share-card-action:empty { display: none; }
+.share-card-action .share-form {
+  max-width: none;
   margin: 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  padding: 22px 28px 26px;
+  background: transparent;
 }
-.bill-adjustment p {
-  margin-bottom: 0;
+.share-card-action .share-form > .eyebrow { display: none; }
+.share-card-action .share-form h2 { margin: 0; font-size: 18px; }
+.share-card-action .share-form label { max-width: 360px; margin-bottom: 8px; }
+.share-card-action .share-form input {
+  font: 800 22px var(--font-heading);
+  font-variant-numeric: tabular-nums;
+  padding: 12px 14px;
 }
-.bill-notes {
-  margin-top: 24px;
-  padding: 20px 26px;
+.share-card-action .share-form > p { margin: 8px 0 16px; max-width: 60ch; }
+.bill-claims .item-claims { margin-top: 0; }
+.bill-claims .item-claims > h2 { margin-top: 4px; font: 800 20px var(--font-heading); }
+
+/* Bill panel: stays in view below the top bar, scrolling itself if too tall. */
+.bill-panel {
+  grid-area: panel;
+  position: sticky;
+  top: calc(var(--top-bar-height) + 20px);
+  max-height: calc(100vh - var(--top-bar-height) - 40px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  display: grid;
+  min-width: 0;
   border: 1px solid var(--line);
-  border-radius: 20px;
+  border-radius: var(--radius);
   background: var(--surface);
 }
-.bill-notes h2 {
-  margin: 0 0 8px;
-  font-size: 1.3rem;
+.bill-summary, .bill-details { min-width: 0; padding: 20px 22px; }
+.bill-details { border-top: 1px solid var(--line); padding-top: 16px; }
+.bill-summary-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.bill-summary h2, .bill-details h2 { margin: 0; font: 800 17px var(--font-heading); }
+.bill-status {
+  padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--surface-sunken); color: var(--ink-secondary);
+  font-size: 12px; font-weight: 700; white-space: nowrap;
 }
-.bill-notes p {
-  margin: 0;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+.bill-status-open { border-color: transparent; background: var(--surface-selected); color: var(--ink-on-soft-accent); }
+.bill-status-done { border-color: transparent; background: var(--status-success-bg); color: var(--status-success); }
+.bill-status-warn { border-color: transparent; background: var(--status-warning-bg); color: var(--status-warning); }
+.bill-total { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 14px 0 0; color: var(--ink-secondary); font-size: 13px; }
+.bill-total strong { font: 900 30px/1.1 var(--font-heading); color: var(--ink); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.bill-rows { margin: 10px 0 0; display: grid; }
+.bill-rows > div { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.bill-rows dt { color: var(--ink-secondary); }
+.bill-rows dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.bill-row-ok dd { color: var(--status-success); }
+.bill-row-over dt, .bill-row-over dd { color: var(--money-owe); }
+.bill-panel-canceled .bill-total strong, .bill-panel-canceled .bill-rows dd { color: var(--ink-muted); text-decoration: line-through; text-decoration-color: var(--ink-subtle); }
+
+.bill-confirmed {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px 10px;
+  margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--line);
+  font-size: 13px; color: var(--ink-secondary);
 }
+.bill-confirmed b { color: var(--ink); }
+.bill-faces { display: inline-flex; }
+.bill-faces > span { display: inline-flex; border-radius: 50%; }
+.bill-faces > span + span { margin-left: -8px; }
+.bill-faces > span:not(.is-confirmed) { opacity: .45; filter: grayscale(1); }
+.bill-faces .avatar { border-color: var(--surface); }
+.bill-progress { grid-column: 1 / -1; height: 5px; border-radius: 999px; background: var(--surface-sunken); overflow: hidden; }
+.bill-progress > span { display: block; height: 100%; border-radius: inherit; background: var(--action); box-shadow: var(--glow-action); transition: width .3s ease; }
+.bill-panel-canceled .bill-progress > span { background: var(--line-strong); box-shadow: none; }
+
+.bill-people { list-style: none; margin: 8px 0 0; padding: 0; }
+.bill-person {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  padding: 9px 0; border-top: 1px solid var(--line);
+}
+.bill-person:first-child { border-top: 0; }
+.bill-person-name { display: grid; min-width: 0; }
+.bill-person-name b { font-size: 14px; overflow-wrap: anywhere; }
+.bill-person-name em { font-style: normal; font-weight: 500; color: var(--ink-muted); }
+.bill-person-name small { display: flex; align-items: center; gap: 6px; color: var(--ink-muted); font-size: 12px; }
+.bill-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: var(--line-strong); }
+.bill-dot-in { background: var(--status-success); }
+.bill-dot-out { background: transparent; box-shadow: inset 0 0 0 1.5px var(--status-warning); }
+.bill-person > strong { font-size: 14px; font-variant-numeric: tabular-nums; }
+.bill-person > .bill-person-missing { color: var(--ink-subtle); font-weight: 600; }
+.bill-panel-canceled .bill-person > strong { color: var(--ink-muted); }
+
+.bill-explanation { margin-top: 10px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface-sunken); font-size: 12.5px; line-height: 1.45; }
+.bill-explanation p { margin: 0; overflow-wrap: anywhere; }
+.bill-explanation p + p { margin-top: 6px; }
+.bill-explain { display: flex; gap: 6px; color: var(--ink-secondary); }
+.bill-explain svg { flex-shrink: 0; margin-top: .15em; }
+.bill-formula { color: var(--ink); }
+.bill-notes { margin-top: 14px; }
+.bill-notes h3 { margin: 0 0 4px; font: 700 13px var(--font-body); color: var(--ink-secondary); }
+.bill-notes p { margin: 0; font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.bill-initiator { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line-strong); }
+.bill-initiator:empty { display: none; }
+.bill-initiator .bill-controls { gap: 8px; padding-top: 0; align-items: stretch; }
+.bill-initiator .bill-controls .eyebrow { margin: 0; }
+.bill-initiator .bill-controls > .button { justify-content: center; }
+
+/* Mobile: a summary strip first, then my share, then people and details. */
+@media (max-width: 900px) {
+  .bill-page { display: flex; flex-direction: column; align-items: stretch; gap: 18px; }
+  .bill-panel { display: contents; }
+  .bill-summary {
+    order: 1;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center;
+    padding: 14px 16px;
+    border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface);
+  }
+  .bill-summary-top { display: contents; }
+  .bill-summary h2 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .bill-status { grid-column: 2; grid-row: 1; justify-self: end; }
+  .bill-total { grid-column: 1; grid-row: 1; margin: 0; justify-content: flex-start; }
+  .bill-total strong { font-size: 22px; }
+  .bill-rows { grid-column: 1 / -1; margin: 2px 0 0; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .bill-rows > div { display: grid; gap: 0; padding: 6px 0 0; font-size: 12px; }
+  .bill-rows dd { font-size: 15px; }
+  .bill-confirmed { grid-column: 1 / -1; margin-top: 2px; padding-top: 10px; }
+  .bill-main { order: 2; }
+  .bill-details {
+    order: 3;
+    border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface);
+    padding: 16px;
+  }
+}
+/* Phones: the ticket stacks, its perforation running across. */
+@media (max-width: 640px) {
+  .share-card { border-radius: var(--radius-md); }
+  .share-ticket { grid-template-columns: 1fr; }
+  .share-ticket-stub { padding: 20px; border-right: 0; border-bottom: 2px dashed var(--share-perforation); }
+  .share-ticket-stub::before, .share-ticket-stub::after { top: auto; bottom: -11px; right: auto; }
+  .share-ticket-stub::before { left: -11px; }
+  .share-ticket-stub::after { right: -11px; }
+  .share-ticket-body { padding: 18px 20px 20px; }
+  .share-card-action .share-form { padding: 18px 20px 20px; }
+  .share-card-action .share-form label { max-width: none; }
+}
+
+/* Forms shared by the share editor, bill editing, new bills and repayments. */
 .bill-form fieldset {
   border: 0;
   padding: 0;
@@ -186,54 +316,13 @@
   border-radius: 22px;
   padding: 24px;
 }
-.bills-page {
-  padding-bottom: 20px;
-}
 .bill-form :disabled {
   opacity: 0.75;
 }
 .bill-form .dialog-actions {
   flex-wrap: wrap;
 }
-@media (max-width: 760px) {
-  .bill-layout {
-    grid-template-columns: 1fr;
-  }
-  .bill-heading {
-    align-items: flex-start;
-    flex-wrap: wrap;
-  }
-  .difference-number {
-    font-size: clamp(2.8rem, 12vw, 4.5rem);
-  }
-  .difference-card,
-  .bill-people {
-    padding: 22px;
-    border-radius: 22px;
-  }
-  .bill-money-fields {
-    grid-template-columns: 1fr;
-  }
-  .bill-person {
-    gap: 8px;
-  }
-  .bill-person .avatar {
-    display: none;
-  }
-  .bill-heading h1 {
-    margin: 0;
-  }
-  .share-form {
-    padding: 20px;
-  }
-}
-
-.bill-action-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-  gap: 24px;
-  align-items: start;
-}
+.bill-form select { width: 100%; padding: .75rem; border: 1px solid var(--line); border-radius: .5rem; font: inherit; background: var(--surface); color: inherit; }
 .bill-controls {
   display: flex;
   flex-direction: column;
@@ -241,34 +330,17 @@
   gap: 14px;
   padding-top: 30px;
 }
-.button.secondary.bill-danger {
-  color: var(--status-danger);
-}
-.difference-card.canceled-bill {
-  --ink-summary-number: currentColor;
-  --glow-summary-number: none;
-  background: var(--line);
-  border-color: var(--line-strong);
-  box-shadow: none;
-}
-.bill-action-layout .share-form {
-  width: 100%;
-  max-width: none;
-  box-sizing: border-box;
-}
 .bill-controls .dialog-actions {
   flex-wrap: wrap;
 }
+.button.secondary.bill-danger {
+  color: var(--status-danger);
+}
 @media (max-width: 760px) {
-  .bill-action-layout {
+  .bill-money-fields {
     grid-template-columns: 1fr;
   }
-  .bill-controls {
-    padding-top: 0;
+  .share-form {
+    padding: 20px;
   }
 }
-
-.bill-form select { width: 100%; padding: .75rem; border: 1px solid var(--line); border-radius: .5rem; font: inherit; background: var(--surface); color: inherit; }
-
-.bill-adjustment-pending { background: transparent; padding: 0; }
-.bill-adjustment-pending > .notification { margin: 0; }

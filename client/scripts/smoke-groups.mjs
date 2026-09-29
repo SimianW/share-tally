@@ -1,5 +1,5 @@
 import { checkGroupPage } from './smoke-group-page.mjs';
-import { checkAppearance, checkBillCardPalettes } from './smoke-appearance.mjs';
+import { checkAppearance, checkShareTicketPalettes } from './smoke-appearance.mjs';
 import { checkGroupRefresh } from './smoke-group-refresh.mjs';
 import { checkNavigation, groupNet, homeRow, homeGroupNames, openGroupSwitcher, switchGroup } from './smoke-navigation.mjs';
 // Run after installing both client and server dependencies and Chromium:
@@ -33,6 +33,12 @@ async function checkHomeLayout(page, label) {
   await page.screenshot({ path: `${clientRoot}/test-results/home-${label}-mobile.png`, fullPage: true, animations: 'disabled' });
   await page.setViewportSize(viewport);
 }
+// The bill page (#158): the viewer's Your share ticket, and the Bill panel
+// with its summary and everyone's share.
+const shareTicket = page => page.getByRole('region', { name: 'Your share', exact: true });
+const billSummary = page => page.getByRole('region', { name: 'Bill summary', exact: true });
+const billPanel = page => page.getByRole('complementary', { name: 'Bill', exact: true });
+const billPeople = page => page.getByRole('region', { name: "Everyone's share", exact: true });
 const errors = [];
 const networkChangeFailures = new Map();
 try {
@@ -240,9 +246,18 @@ try {
   await alice.getByRole('button', { name: 'Retry sharing' }).click();
   await expect(alice.getByRole('heading', { name: 'Weekend groceries' })).toBeVisible();
   assert.equal(creationAttempts, 2);
-  await expect(alice.locator('.difference-number')).toHaveText('$60.00');
-  await expect(alice.locator('.difference-card')).toContainText('1/2 confirmed');
-  await checkBillCardPalettes(alice, `${clientRoot}test-results`);
+  await expect(alice.getByText('paid by you, in CAD', { exact: false })).toBeVisible();
+  await expect(billSummary(alice).getByText('In progress', { exact: true })).toBeVisible();
+  await expect(billSummary(alice)).toContainText(/Total\s*\$100\.00/);
+  await expect(billSummary(alice)).toContainText(/Left to match\s*\$60\.00/);
+  await expect(billSummary(alice)).toContainText('1 of 2 confirmed');
+  await expect(shareTicket(alice)).toContainText('$40.00');
+  await expect(shareTicket(alice).getByText('Confirmed', { exact: true })).toBeVisible();
+  await expect(shareTicket(alice)).toContainText("You're done for now. Waiting on Bob.");
+  await expect(billPanel(alice)).toContainText('Waiting for Bob to confirm.');
+  await expect(billPanel(alice)).toContainText('Up to 5¢ of difference goes to the initiator');
+  await expect(billPanel(alice).getByRole('button', { name: 'Cancel this bill', exact: true })).toBeVisible();
+  await checkShareTicketPalettes(alice, `${clientRoot}test-results`);
   const billUrl = alice.url();
   await bob.goto(base);
   const bobAttention = bob.getByRole('region', { name: 'Needs your attention' });
@@ -272,12 +287,22 @@ try {
   await bob.screenshot({ path: `${clientRoot}/test-results/attention-mobile.png`, fullPage: true });
   await bobAttention.getByRole('link', { name: /Enter your share.*Weekend groceries/ }).click();
   await expect(bob).toHaveURL(billUrl);
-  // The existing mobile layout hides avatars. Check another member's desktop view.
+  await expect(shareTicket(bob)).toContainText('Not submitted yet');
+  await expect(shareTicket(bob).getByText('Needs your confirmation', { exact: true })).toBeVisible();
+  await expect(shareTicket(bob)).toContainText('Enter what you owe, including tax, and confirm it.');
+  await expect(shareTicket(bob).getByLabel('My share · CAD', { exact: true })).toBeVisible();
+  await expect(bob.getByText('paid by Alice, in CAD', { exact: false })).toBeVisible();
+  await expect(billPanel(bob)).toContainText('Waiting for you to confirm.');
+  // Check the people rows on another member's desktop view.
   await bob.setViewportSize({ width: 1280, height: 900 });
-  const aliceAvatar = bob.locator('.bill-person').filter({ hasText: 'Alice' }).locator('.avatar');
+  const bobPeople = billPeople(bob).getByRole('listitem');
+  await expect(bobPeople.filter({ hasText: 'Alice' })).toContainText('Confirmed, paid the bill');
+  await expect(bobPeople.filter({ hasText: 'Bob (you)' })).toContainText('Not confirmed');
+  await expect(bobPeople.filter({ hasText: 'Bob (you)' })).toContainText('—');
+  const aliceAvatar = bobPeople.filter({ hasText: 'Alice' }).locator('.avatar');
   await expect(aliceAvatar.locator('img')).toBeVisible();
   assert.equal(await aliceAvatar.locator('img').evaluate(img => img.complete && img.naturalWidth > 0), true);
-  const bobAvatar = bob.locator('.bill-person').filter({ hasText: 'Bob' }).locator('.avatar');
+  const bobAvatar = bobPeople.filter({ hasText: 'Bob' }).locator('.avatar');
   await expect(bobAvatar).toHaveText('B');
   await expect(bobAvatar).toHaveCSS('display', 'flex');
   await expect(bobAvatar).toHaveCSS('align-items', 'center');
@@ -299,13 +324,24 @@ try {
   await expect(bob.getByRole('button', { name: 'Retry confirmation' })).toBeVisible();
   // The committed stream snapshot resolves the uncertain response without replaying the write.
   await expect(bob.locator('.share-form button[type=submit]')).toBeDisabled();
-  await expect(bob.locator('.bill-status')).toContainText('COMPLETE');
-  await expect(bob.locator('.difference-number')).toHaveText('$0.03');
-  await expect(bob.locator('.bill-adjustment')).toContainText('$40.03 effective cost');
+  await expect(billSummary(bob).getByText('Complete', { exact: true })).toBeVisible();
+  await expect(billSummary(bob)).toContainText(/Adjustment\s*\+\$0\.03/);
+  await expect(billPanel(bob)).toContainText('$40.03 effective cost');
+  await expect(billPanel(bob)).toContainText('Complete and final.');
+  await expect(shareTicket(bob).getByText('Final', { exact: true })).toBeVisible();
+  await expect(shareTicket(bob)).toContainText('Your final share');
+  await expect(shareTicket(bob)).toContainText('Your final share is $59.97 of the $100.00 bill. Nothing left to confirm.');
 
-  await expect(alice.locator('.bill-status')).toContainText('COMPLETE');
+  await expect(billSummary(alice).getByText('Complete', { exact: true })).toBeVisible();
+  // The initiator's ticket breaks down how the adjustment reaches their cost.
+  await expect(shareTicket(alice).getByText('Final', { exact: true })).toBeVisible();
+  await expect(shareTicket(alice)).toContainText(/You submitted\s*\$40\.00/);
+  await expect(shareTicket(alice)).toContainText(/Initiator adjustment\s*\+\$0\.03/);
+  await expect(shareTicket(alice)).toContainText(/Effective cost\s*\$40\.03/);
   await carol.goto(billUrl);
-  await expect(carol.getByText('Only its participants can submit shares.', { exact: false })).toBeVisible();
+  await expect(shareTicket(carol)).toContainText("You're not on this bill");
+  await expect(shareTicket(carol).getByText('Viewing only', { exact: true })).toBeVisible();
+  await expect(carol.getByLabel('My share · CAD', { exact: true })).toHaveCount(0);
   await expect(carol.getByRole('button', { name: 'Submit and confirm my share' })).toHaveCount(0);
   await alice.screenshot({ path: `${clientRoot}/test-results/bills-desktop.png`, fullPage: true });
   await bob.screenshot({ path: `${clientRoot}/test-results/bills-mobile.png`, fullPage: true });
@@ -388,8 +424,8 @@ try {
   // Issue #5: completed bills are final; corrections start from incomplete bills.
   const bobAgain = await pageFor('bob-token', { width: 390, height: 844 });
   await alice.goto(billUrl);
-  await expect(alice.getByText('Completed bills are final.', { exact: false })).toBeVisible();
-  await expect(alice.locator('.bill-controls')).toHaveCount(0);
+  await expect(billPanel(alice)).toContainText('Complete and final.');
+  await expect(alice.getByRole('button', { name: 'Edit details & participants' })).toHaveCount(0);
   await expect(alice.getByLabel('My share · CAD', { exact: true })).toHaveCount(0);
   async function incompleteBill(title) {
     await alice.getByRole('link', { name: 'Group bills', exact: false }).click();
@@ -404,7 +440,10 @@ try {
     await bobAgain.goto(alice.url());
     await bobAgain.getByLabel('My share · CAD', { exact: true }).fill('59.00');
     await bobAgain.getByRole('button', { name: 'Submit and confirm my share' }).click();
-    await expect(bobAgain.locator('.difference-card')).toContainText('2/2 confirmed');
+    await expect(billSummary(bobAgain)).toContainText('2 of 2 confirmed');
+    await expect(billSummary(bobAgain).getByText('Needs correction', { exact: true })).toBeVisible();
+    await expect(shareTicket(bobAgain).getByText('Check your amount', { exact: true })).toBeVisible();
+    await expect(shareTicket(bobAgain)).toContainText('Shares are $1.00 under the total.');
     const correction = bobAgain.getByRole('alert').filter({ hasText: 'Shares are $1.00 under the total' });
     await expect(correction).toBeVisible();
     await expect(correction).toContainText('within $0.05');
@@ -414,6 +453,17 @@ try {
 
   }
   await incompleteBill('Correctable groceries');
+  // Focus reaches the initiator's own share form before the panel's bill controls.
+  const editBill = alice.getByRole('button', { name: 'Edit details & participants' });
+  assert.equal(await editBill.evaluate(edit =>
+    Boolean(document.getElementById('my-share-amount').compareDocumentPosition(edit) & Node.DOCUMENT_POSITION_FOLLOWING),
+  ), true, 'The share form precedes the initiator controls in DOM order');
+  // At 390px the bill summary strip comes before the Your share card, without overflow.
+  const summaryBox = await billSummary(bobAgain).boundingBox();
+  const ticketBox = await shareTicket(bobAgain).boundingBox();
+  assert.ok(summaryBox.y + summaryBox.height <= ticketBox.y, 'Mobile bill summary precedes the Your share card');
+  assert.equal(await bobAgain.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'Bill page overflows at 390px');
+  await bobAgain.screenshot({ path: `${clientRoot}/test-results/bill-correction-mobile.png`, fullPage: true });
   // Clear confirmations, then preserve Bob's draft while a new revision arrives.
   await alice.getByRole('button', { name: 'Edit details & participants' }).click();
   await alice.getByRole('dialog').getByLabel('Notes').fill('Initial correction');
@@ -434,29 +484,32 @@ try {
   await expect(bobAgain.getByText('Corrected purchase notes', { exact: true })).toBeVisible();
   await bobAgain.getByLabel('My share · CAD', { exact: true }).fill('60.00');
   await bobAgain.getByRole('button', { name: 'Save changed amount' }).click();
-  await expect(bobAgain.locator('.difference-card')).toContainText('0/2 confirmed');
+  await expect(billSummary(bobAgain)).toContainText('0 of 2 confirmed');
   await bobAgain.getByRole('button', { name: 'Confirm my share', exact: true }).click();
-  await expect(bobAgain.locator('.difference-card')).toContainText('1/2 confirmed');
+  await expect(billSummary(bobAgain)).toContainText('1 of 2 confirmed');
 
   await alice.getByRole('button', { name: 'Review latest bill' }).click();
   await alice.getByRole('button', { name: 'Confirm my share', exact: true }).click();
-  await expect(alice.locator('.bill-status')).toContainText('COMPLETE');
+  await expect(billSummary(alice).getByText('Complete', { exact: true })).toBeVisible();
   await alice.screenshot({ path: `${clientRoot}/test-results/bill-corrected-desktop.png`, fullPage: true });
-  await expect(alice.locator('.bill-controls')).toHaveCount(0);
+  await expect(alice.getByRole('button', { name: 'Edit details & participants' })).toHaveCount(0);
   await incompleteBill('Canceled groceries');
   await alice.getByRole('button', { name: 'Edit details & participants' }).click();
   await expect(alice.getByRole('dialog').getByRole('checkbox', { name: 'You', exact: true })).toBeDisabled();
   await alice.getByRole('dialog').getByRole('checkbox', { name: 'Bob', exact: true }).uncheck();
   await alice.getByRole('button', { name: 'Save & request confirmations' }).click();
-  await expect(alice.locator('.difference-card')).toContainText('0/1 confirmed');
+  await expect(billSummary(alice)).toContainText('0 of 1 confirmed');
   await bobAgain.reload();
-  await expect(bobAgain.getByText('Only its participants can submit shares.', { exact: false })).toBeVisible();
+  await expect(shareTicket(bobAgain)).toContainText("You're not on this bill");
   await expect(bobAgain.getByLabel('My share · CAD', { exact: true })).toHaveCount(0);
   await alice.getByRole('button', { name: 'Cancel this bill', exact: true }).click();
   await alice.getByRole('button', { name: 'Yes, cancel bill' }).click();
-  await expect(alice.locator('.bill-status')).toHaveText('CANCELED');
+  await expect(billSummary(alice).getByText('Canceled', { exact: true })).toBeVisible();
+  await expect(shareTicket(alice).getByText('Canceled', { exact: true })).toBeVisible();
+  await expect(shareTicket(alice).locator('s')).toHaveText('$40.00');
+  await expect(billPanel(alice)).toContainText('Canceled bills are excluded from balances.');
   await bobAgain.reload();
-  await expect(bobAgain.locator('.bill-status')).toHaveText('CANCELED');
+  await expect(billSummary(bobAgain).getByText('Canceled', { exact: true })).toBeVisible();
   assert.equal(await bobAgain.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await bobAgain.screenshot({ path: `${clientRoot}/test-results/bill-canceled-mobile.png`, fullPage: true });
   await alice.getByRole('link', { name: 'Group bills', exact: false }).click();
@@ -542,7 +595,7 @@ try {
   await alice.getByLabel('Total paid (CAD)', { exact: true }).fill('10.00');
   await alice.getByLabel('Your share (CAD)', { exact: true }).fill('10.00');
   await alice.getByRole('button', { name: 'Share bill' }).click();
-  await expect(alice.locator('.bill-status')).toContainText('COMPLETE');
+  await expect(billSummary(alice).getByText('Complete', { exact: true })).toBeVisible();
   await alice.getByRole('link', { name: 'Group bills', exact: false }).click();
   await expect(groupNet(alice)).toContainText('$99.97');
   await expect(alice.getByRole('region', { name: 'History', exact: true }).getByRole('link').filter({ hasText: 'Weekend groceries' })).toContainText('Complete');
@@ -581,7 +634,10 @@ try {
   await carol.goto(`${base}#/bills/${negativeAdjustment.id}`);
   await carol.getByLabel('My share · CAD', { exact: true }).fill('50.03');
   await carol.getByRole('button', { name: 'Submit and confirm my share' }).click();
-  await expect(carol.locator('.difference-card')).toContainText('3/3 confirmed');
+  await expect(billSummary(carol)).toContainText('3 of 3 confirmed');
+  // With nobody left to wait for, the panel still states the completion rule.
+  await expect(billPanel(carol)).toContainText('Up to 5¢ of difference goes to the initiator');
+  await expect(billPanel(carol)).not.toContainText('Waiting for');
   const negativeWarning = carol.getByRole('alert').filter({ hasText: 'Shares are $0.03 over the total' });
   await expect(negativeWarning).toBeVisible();
   await expect(negativeWarning).toContainText('below $0.00');
@@ -591,6 +647,32 @@ try {
   await expect(carol.getByLabel('My share · CAD', { exact: true })).toBeFocused();
   // Cancel the fixture so it does not affect subsequent attention checks.
   await liveApi(`/bills/${negativeAdjustment.id}/cancel`, 'alice-token', 'POST', { revision: 1 });
+  // An item-based bill's initiator who confirms without claims sees the
+  // unclaimed remainder as their own cost.
+  const itemDraftId = crypto.randomUUID();
+  const { draft: itemDraft } = await liveApi(`/groups/${liveGroupId}/receipt-drafts/${itemDraftId}`, 'alice-token', 'PUT', {
+    revision: 0,
+    data: {
+      mode: 'items', title: 'Unclaimed apples', purchaseDate: '2026-01-01', timeZone: 'America/Toronto', notes: '',
+      totalCents: 2000, ownShareCents: 0, participantIds: [liveIds.Alice, liveIds.Bob],
+      receipt: { subtotalCents: 2000, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
+      items: [{ id: crypto.randomUUID(), name: 'Shared apples', originalText: 'APPLES', quantity: '1',
+        amountCents: 2000, discountCents: 0, taxable: false, finalCents: 2000, manualFinal: false }],
+    },
+  });
+  const { bill: itemBill } = await liveApi(`/receipt-drafts/${itemDraftId}/initialize`, 'alice-token', 'POST', { revision: itemDraft.revision });
+  await liveApi(`/bills/${itemBill.id}/claims`, 'alice-token', 'POST', {
+    reviewedItems: itemBill.items.map(({ id, version }) => ({ itemId: id, version })), claims: [],
+  });
+  await alice.goto(`${base}#/bills/${itemBill.id}`);
+  await expect(shareTicket(alice).getByText('Confirmed', { exact: true })).toBeVisible();
+  await expect(shareTicket(alice)).toContainText(/Your claims\s*\$0\.00/);
+  await expect(shareTicket(alice)).toContainText(/Unassigned, yours as initiator\s*\+\$20\.00/);
+  await expect(shareTicket(alice)).toContainText(/Effective cost\s*\$20\.00/);
+  await expect(billSummary(alice)).toContainText(/Unclaimed \(initiator\)\s*\$20\.00/);
+  await expect(billPanel(alice)).toContainText('Every item must be fully claimed');
+  await alice.screenshot({ path: `${clientRoot}/test-results/bill-items-initiator-desktop.png`, fullPage: true });
+  await liveApi(`/bills/${itemBill.id}/cancel`, 'alice-token', 'POST', { revision: (await liveApi(`/bills/${itemBill.id}`)).bill.revision });
   const { bill: liveBill } = await liveApi(`/groups/${liveGroupId}/bills`, 'alice-token', 'POST', {
     requestId: crypto.randomUUID(), title: 'Live draft protection', purchaseDate: '2026-01-01',
     timeZone: 'America/Toronto', notes: '', totalCents: 10000, ownShareCents: 4000,
@@ -600,7 +682,7 @@ try {
   await alice.getByRole('button', { name: 'Edit details & participants' }).click();
   await alice.getByRole('dialog').getByLabel('Title', { exact: true }).fill('Keep this unsent title');
   await liveApi(`/bills/${liveBill.id}/share`, 'bob-token', 'POST', { revision: 1, expectedAmountCents: null, amountCents: 6000 });
-  await expect(alice.locator('.difference-card')).toContainText('2/3 confirmed');
+  await expect(billSummary(alice)).toContainText('2 of 3 confirmed');
   await expect(alice.getByRole('dialog').getByLabel('Title', { exact: true })).toHaveValue('Keep this unsent title');
   await expect(alice.getByRole('button', { name: 'Save & request confirmations' })).toBeEnabled();
   await liveApi(`/bills/${liveBill.id}/share`, 'carol-token', 'POST', { revision: 1, expectedAmountCents: null, amountCents: 0 });
