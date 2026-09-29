@@ -330,7 +330,7 @@ try {
   await expect(billPanel(bob)).toContainText('Complete and final.');
   await expect(shareTicket(bob).getByText('Final', { exact: true })).toBeVisible();
   await expect(shareTicket(bob)).toContainText('Your final share');
-  await expect(shareTicket(bob)).toContainText('You paid $59.97 of the $100.00 bill. Nothing left to do.');
+  await expect(shareTicket(bob)).toContainText('Your final share is $59.97 of the $100.00 bill. Nothing left to confirm.');
 
   await expect(billSummary(alice).getByText('Complete', { exact: true })).toBeVisible();
   // The initiator's ticket breaks down how the adjustment reaches their cost.

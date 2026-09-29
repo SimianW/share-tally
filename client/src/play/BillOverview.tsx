@@ -38,10 +38,11 @@ function shareState(bill: Bill, own: Participant | undefined, needsAmountCorrect
       line: "This bill was canceled, so you don't owe anything on it. It's kept for reference only.",
     };
   } else if (bill.completedAt) {
-    const paid = (own.amountCents ?? 0) + (isInitiator ? adjustment : 0);
+    // A share is an allocation, not money paid; completion is not repayment (ADR-0006).
+    const finalShare = (own.amountCents ?? 0) + (isInitiator ? adjustment : 0);
     state = {
-      tone: "done", stamp: "Final", label: "Your final share", figure: money(paid),
-      line: <>You paid <b>{money(paid)}</b> of the <b>{money(bill.totalCents)}</b> bill. Nothing left to do.</>,
+      tone: "done", stamp: "Final", label: "Your final share", figure: money(finalShare),
+      line: <>Your final share is <b>{money(finalShare)}</b> of the <b>{money(bill.totalCents)}</b> bill. Nothing left to confirm.</>,
     };
   } else if (needsAmountCorrection) {
     state = {
