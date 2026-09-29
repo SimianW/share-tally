@@ -1005,13 +1005,17 @@ try {
   const reviewer = await pageFor("carol-token", { width: 1280, height: 1000 });
   await mkdir("/tmp/share-tally-receipt-smoke", { recursive: true });
   // Key states for design review, on desktop and then on a 390×844 phone.
-  // List states scroll the row in question into view first.
+  // List states scroll the row in question into view first. Each capture waits out the sheet's
+  // 220 ms entry animation and the bars' springs, which settle in under half a second.
+  const settle = () => reviewer.waitForTimeout(600);
   const reviewShot = async (name, subject) => {
     await subject?.scrollIntoViewIfNeeded();
+    await settle();
     await reviewer.screenshot({ path: `/tmp/share-tally-receipt-smoke/claim-review-${name}-desktop.png` });
     await reviewer.setViewportSize({ width: 390, height: 844 });
     assert.equal(await reviewer.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${name} fits a phone`);
     await subject?.evaluate((element) => element.scrollIntoView({ block: "center" }));
+    await settle();
     await reviewer.screenshot({ path: `/tmp/share-tally-receipt-smoke/claim-review-${name}-mobile.png` });
     await reviewer.setViewportSize({ width: 1280, height: 1000 });
   };
@@ -1041,6 +1045,8 @@ try {
   await expect(bobChip).toHaveClass(/is-lit/);
   await expect(sheetBar("Bread").locator(`[data-flash="${memberIds.Bob}"]`)).toHaveCount(1);
   await expect(reviewRow("Bread").locator(`[data-flash="${memberIds.Bob}"]`)).toHaveCount(1);
+  // Settled, but well within the highlight's 1.2 s.
+  await reviewer.waitForTimeout(500);
   await reviewer.screenshot({ path: "/tmp/share-tally-receipt-smoke/claim-review-live-change-desktop.png" });
   await expect.poll(async () => (await segmentGeometry("Bread", memberIds.Bob))?.share).toBeCloseTo(1 / 2, 2);
   await expect(reviewSheet("Bread").locator(".claim-legend")).toContainText("You · 1/4");
@@ -1058,6 +1064,19 @@ try {
   const separators = await sheetBar("Bread").evaluate((bar) => [...bar.querySelectorAll(".claim-bar-segment")]
     .map((segment) => getComputedStyle(segment).boxShadow.includes("-2px")));
   assert.deepEqual(separators, [true, false], "only the segment before Carol's has a separator");
+  // The compact meter on the row fills to its end as well, once its springs settle.
+  const rowMeter = () => reviewRow("Bread").locator(".claim-bar").evaluate((bar) => {
+    const track = bar.querySelector(".claim-bar-track").getBoundingClientRect();
+    const segments = [...bar.querySelectorAll(".claim-bar-segment")];
+    const [first, last] = [segments[0].getBoundingClientRect(), segments.at(-1).getBoundingClientRect()];
+    return {
+      settled: Math.abs(first.width / track.width - 3 / 4) < 0.002,
+      rightGap: track.right - last.right,
+      separators: segments.map((segment) => getComputedStyle(segment).boxShadow.includes("-2px")),
+    };
+  });
+  await expect.poll(async () => { const meter = await rowMeter(); return meter.settled && Math.abs(meter.rightGap) <= 0.5; }).toBe(true);
+  assert.deepEqual((await rowMeter()).separators, [true, false], "the row meter has no separator after its last segment");
   await expect(reviewSheet("Bread").locator(".claim-legend")).not.toContainText("Free");
   await reviewShot("full");
 
@@ -1078,6 +1097,7 @@ try {
   await reviewSheet("Bread").getByRole("button", { name: "Close claim", exact: true }).click();
   await expect(reviewRow("Bread")).toHaveClass(/is-over/);
   await expect(reviewRow("Bread")).toContainText("Over by 1/12");
+  await expect(reviewer.getByRole("button", { name: "View Bread · $6.00", exact: true })).toHaveAccessibleDescription(/Over by 1\/12/);
   await expect(reviewConfirm).toBeDisabled();
   const overChip = reviewer.getByRole("button", { name: "1 item exceeds what's left", exact: true });
   await overChip.click();
@@ -1129,6 +1149,10 @@ try {
   const reviewChip = (count) => reviewer.getByRole("button", { name: `${count} item${count === 1 ? "" : "s"} changed — review`, exact: true });
   await expect(reviewChip(3)).toBeVisible();
   await expect(reviewConfirm).toBeDisabled();
+  // The short row names stay; each status reaches screen readers as the row's description.
+  await expect(reviewer.getByRole("button", { name: "View Oat milk · $11.23", exact: true })).toHaveAccessibleDescription(/Price \$8\.98 → \$11\.23/);
+  await expect(reviewer.getByRole("button", { name: "View Syrup · $5.00", exact: true })).toHaveAccessibleDescription(/\bNew\b/);
+  await expect(removedRow.getByRole("button", { name: "Got it", exact: true })).toHaveAccessibleDescription(/Removed — your 1\/2 \(\$3\.00\) was dropped/);
   await reviewShot("attention", reviewRow("Oat milk"));
   // The chip opens the first item needing review, in list order.
   await reviewChip(3).click();
@@ -1189,10 +1213,99 @@ try {
   const reviewSaved = reviewer.waitForResponse((response) => response.request().method() === "POST" &&
     new URL(response.url()).pathname === `/api/bills/${reviewBill.id}/claims`);
   await reviewConfirm.click();
-  assert.equal((await reviewSaved).status(), 200);
-  assert.deepEqual((await api(`/bills/${reviewBill.id}`)).bill.items.map((item) => item.claims
+  const reviewSavedResponse = await reviewSaved;
+  assert.equal(reviewSavedResponse.status(), 200);
+  const afterReview = (await api(`/bills/${reviewBill.id}`)).bill;
+  // The removed cheese is not sent back as reviewed; every current item is, at the version Carol saw.
+  assert.deepEqual(reviewSavedResponse.request().postDataJSON().reviewedItems,
+    afterReview.items.map(({ id, version }) => ({ itemId: id, version })));
+  assert.deepEqual(afterReview.items.map((item) => item.claims
     .filter((claim) => claim.userId === memberIds.Carol).map((claim) => `${claim.numerator}/${claim.denominator}`)),
   [["1/4"], ["1/6"], ["1/3"], ["1/3"]]);
+  // A change that ends where it started still needs review, and the row says so.
+  await editReviewItems(reprice(eggs, 650));
+  await expect(reviewRow("Eggs")).toContainText("Price $6.00 → $6.50");
+  await editReviewItems(reprice(eggs, 600));
+  await expect(reviewRow("Eggs")).toContainText("Item changed — review");
+  await expect(reviewRow("Eggs")).not.toContainText("Price");
+  await expect(reviewConfirm).toBeDisabled();
+  await reviewer.getByRole("button", { name: "1 item changed — review", exact: true }).click();
+  const sameNotice = reviewSheet("Eggs").locator(".claim-notice.is-review");
+  await expect(sameNotice).toContainText("its name and price of $6.00 are what you saw before");
+  await sameNotice.getByRole("button", { name: "I've seen the new price", exact: true }).click();
+  await expect(reviewSheet("Syrup")).toBeVisible();
+  await reviewSheet("Syrup").getByRole("button", { name: "Close claim", exact: true }).click();
+  await expect(reviewRow("Eggs")).not.toContainText("Item changed");
+  await expect(reviewConfirm).toBeEnabled();
+
+  // Two other claimants get their own segments, tints and initials. A remainder that is not a
+  // claimable fraction (both parts at most 10,000) is never offered as a one-tap fix.
+  const twoItems = [["Jam", 600], ["Tiny slices", 600]].map(([name, cents]) => ({ id: randomUUID(), name, originalText: name.toUpperCase(), quantity: "1", amountCents: cents, discountCents: 0, taxable: false, finalCents: cents, manualFinal: false }));
+  const [jam, tiny] = twoItems;
+  const twoDraftId = randomUUID();
+  const twoDraft = (await api(`/groups/${group.id}/receipt-drafts/${twoDraftId}`, "alice-token", "PUT", {
+    revision: 0,
+    data: {
+      mode: "items", title: "Two claimants", purchaseDate: "2026-09-24", timeZone: "America/Toronto",
+      notes: "", totalCents: 1200, ownShareCents: 0, participantIds: [memberIds.Alice, memberIds.Bob, memberIds.Carol],
+      receipt: { subtotalCents: 1200, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
+      items: twoItems,
+    },
+  })).draft;
+  const twoBill = (await api(`/receipt-drafts/${twoDraftId}/initialize`, "alice-token", "POST", { revision: twoDraft.revision })).bill;
+  const claimTwo = async (token, claims) => api(`/bills/${twoBill.id}/claims`, token, "POST", {
+    reviewedItems: (await api(`/bills/${twoBill.id}`)).bill.items.map(({ id, version }) => ({ itemId: id, version })),
+    claims: claims.map(([item, numerator, denominator]) => ({ itemId: item.id, numerator, denominator })),
+  });
+  await claimTwo("bob-token", [[jam, 1, 3]]);
+  await claimTwo("alice-token", [[jam, 1, 3]]);
+  await reviewer.goto(`${base}#/bills/${twoBill.id}`);
+  await reviewer.getByRole("button", { name: "View Jam · $6.00", exact: true }).click();
+  const jamSegments = () => reviewSheet("Jam").locator(".claim-portion .claim-bar-segment").evaluateAll((segments) =>
+    segments.map((segment) => ({ key: segment.dataset.segment, tint: getComputedStyle(segment).backgroundColor, label: segment.textContent })));
+  await expect.poll(async () => (await jamSegments()).map(({ key }) => key).sort())
+    .toEqual([memberIds.Alice, memberIds.Bob].sort());
+  const [firstSegment, secondSegment] = await jamSegments();
+  assert.notEqual(firstSegment.tint, secondSegment.tint, "each claimant has their own tint");
+  assert.deepEqual(Object.fromEntries((await jamSegments()).map(({ key, label }) => [key, label])),
+    { [memberIds.Alice]: "A", [memberIds.Bob]: "B" });
+  await expect(reviewSheet("Jam").locator(".claim-legend")).toContainText("Alice · 1/3");
+  await expect(reviewSheet("Jam").locator(".claim-legend")).toContainText("Bob · 1/3");
+  await reviewSheet("Jam").getByRole("button", { name: "Next item", exact: true }).click();
+  await itemOption(reviewer, "All of it · $6.00", "Tiny slices").click();
+  await expect(reviewSheet("Tiny slices")).toBeHidden();
+  await claimTwo("bob-token", [[jam, 1, 3], [tiny, 1, 101]]);
+  await claimTwo("alice-token", [[jam, 1, 3], [tiny, 1, 103]]);
+  // 1 − 1/101 − 1/103 = 10199/10403, whose denominator is past the claim limit.
+  const tinyRow = reviewer.locator(".claim-list .receipt-compact-row").filter({ has: reviewer.getByRole("button", { name: /^View Tiny slices ·/ }) });
+  await expect(tinyRow).toContainText("Over by 204/10403");
+  await expect(reviewer.getByRole("button", { name: "View Tiny slices · $6.00", exact: true })).toHaveAccessibleDescription(/Over by 204\/10403/);
+  await reviewer.getByRole("button", { name: "View Tiny slices · $6.00", exact: true }).click();
+  await expect(reviewSheet("Tiny slices").locator(".claim-over-text"))
+    .toHaveText("Only 10199/10403 left. Your 1/1 is over by 204/10403. Pick a smaller portion to confirm.");
+  await expect(reviewSheet("Tiny slices").getByRole("button", { name: /^Take the/ })).toHaveCount(0);
+  await expect(reviewSheet("Tiny slices").locator(".claim-sheet-footer")).toContainText("Resolve this item to unlock Confirm");
+  await itemOption(reviewer, "1/2 · $3.00", "Tiny slices").click();
+  await expect(reviewSheet("Tiny slices")).toBeHidden();
+  await expect(reviewConfirm).toBeEnabled();
+  // The review rules themselves, as the page loads them: a draft that is not a claimable fraction
+  // blocks Confirm, and the reviewed list keeps acknowledged versions of current items only.
+  const rules = await reviewer.evaluate(async () => {
+    const { claimReview, reviewedFor } = await import("/src/play/claim-review.ts");
+    const item = (id, version) => ({ id, version, name: id, finalCents: 100, claims: [] });
+    const seen = [{ itemId: "kept", version: 1, name: "kept", finalCents: 100 }, { itemId: "gone", version: 1, name: "gone", finalCents: 100 }];
+    const review = claimReview({ items: [item("kept", 1)], ownId: "me", selection: { kept: "10199/10403" }, seen, known: {}, conflicts: [] });
+    return {
+      invalid: review.attention.kept.invalid,
+      blockers: review.blockers,
+      reviewed: reviewedFor(seen, [item("kept", 2)]),
+    };
+  });
+  assert.deepEqual(rules, {
+    invalid: true,
+    blockers: [{ kind: "item", itemId: "kept", review: false, over: false, invalid: true }],
+    reviewed: [{ itemId: "kept", version: 1 }],
+  });
   await mkdir("/tmp/share-tally-receipt-smoke", { recursive: true });
   await carol.screenshot({
     path: "/tmp/share-tally-receipt-smoke/mobile.png",
