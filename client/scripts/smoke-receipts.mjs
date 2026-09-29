@@ -1065,7 +1065,8 @@ try {
   await claimAs("bob-token", [[bread, 5, 6]]);
   const overText = reviewSheet("Bread").locator(".claim-over-text");
   await expect(overText).toHaveText("Only 1/6 left. Your 1/4 is over by 1/12. Pick 1/6 or less to confirm.");
-  await expect(sheetBar("Bread").locator('[data-segment="over"]')).toHaveCount(1);
+  // The overflow is Carol's 1/12 too many, on a bar scaled to 5/6 + 1/4 = 13/12.
+  await expect.poll(async () => (await segmentGeometry("Bread", "over"))?.share).toBeCloseTo(1 / 13, 2);
   // The item ends 12/13 of the way along a bar scaled to 5/6 + 1/4.
   await expect.poll(() => sheetBar("Bread").evaluate((bar) => {
     const track = bar.querySelector(".claim-bar-track").getBoundingClientRect();
