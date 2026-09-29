@@ -631,7 +631,7 @@ try {
   await expect(claimSheet(carol)).toBeHidden();
   await carol.getByRole("button", { name: "Confirm my item claims" }).click();
   await expect(
-    carol.getByText("Completed bills are final.", { exact: false }),
+    carol.getByText("Complete and final.", { exact: false }),
   ).toBeVisible();
   assert.equal((await api(`/bills/${billId}`)).bill.adjustmentCents, 40);
   assert.equal(
@@ -2514,7 +2514,7 @@ try {
     .getByRole("button", { name: "Share bill", exact: true })
     .click();
   await expect(
-    alice.getByText("Completed bills are final.", { exact: false }),
+    alice.getByText("Complete and final.", { exact: false }),
   ).toBeVisible();
   assert.equal(
     (await api(`/bills/${alice.url().split("/").at(-1)}`)).bill.mode,
