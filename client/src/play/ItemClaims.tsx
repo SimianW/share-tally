@@ -1,16 +1,29 @@
 import { useState } from "react";
-import { BillApiError, useBillApi, type Bill } from "./bill-api";
+import { BillApiError, useBillApi, type Bill, type ItemConflicts } from "./bill-api";
 import { correctionInput, useReceiptApi, type BillItem, type LegacyCorrectionItem, type ReceiptCorrectionItem, type ReviewedItem } from "./receipt-api";
 import { previewCorrection } from "./receipt-correction";
 import { ClaimItems } from "./ClaimItems";
-import { claimAvailabilityMessage } from "./claim-fractions";
+import { claimAvailabilityMessage, fromParts, shortText } from "./claim-fractions";
+import { acknowledge, claimReview, knownOf, seenOf, type SeenItem } from "./claim-review";
 import { ReceiptReviewItems } from "./ReceiptReview";
 import { LegacyItemEditor } from "./LegacyItemEditor";
 import { Button } from "./ui";
 import { errorMessage } from "./group-api";
 
-function reviewedItems(items: BillItem[] = []): ReviewedItem[] {
+function reviewedItems(items: { id: string; version: number }[] = []): ReviewedItem[] {
   return items.map(({ id, version }) => ({ itemId: id, version }));
+}
+
+// Names the first item that ran out, with what is left of it for this participant.
+function conflictMessage(conflicts: ItemConflicts, items: BillItem[]) {
+  const first = conflicts.overAllocated[0];
+  if (first) {
+    const name = items.find((item) => item.id === first.itemId)?.name ?? "an item";
+    const left = fromParts(first.available.numerator, first.available.denominator);
+    return `Not saved. Someone just updated ${name} — ${left.n > 0n ? `only ${shortText(left)} left` : "nothing is left"}. Your picks are kept.`;
+  }
+  if (conflicts.stale.length) return "Not saved. Some items changed since you looked. Your picks are kept; review the marked items to confirm.";
+  return null;
 }
 
 export function ItemClaims({
@@ -34,7 +47,18 @@ export function ItemClaims({
       ),
     ),
   );
-  const [reviewed, setReviewed] = useState(() => reviewedItems(bill.items));
+  // Acknowledged per item. Only the participant's own look at an item, a pick, or a save
+  // that the server checked against every version may advance an entry.
+  const [seen, setSeen] = useState<SeenItem[]>(() => (bill.items ?? []).map(seenOf));
+  // Items as this page last showed them, so a removed pick can still say what was dropped.
+  const [knownFrom, setKnownFrom] = useState(bill.items);
+  const [known, setKnown] = useState(() => knownOf(bill.items ?? []));
+  if (bill.items !== knownFrom) {
+    setKnownFrom(bill.items);
+    setKnown((current) => ({ ...current, ...knownOf(bill.items ?? []) }));
+  }
+  // Items the server said ran out when Confirm was rejected; cleared as each pick changes.
+  const [conflicts, setConflicts] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [edit, setEdit] = useState<ReceiptCorrectionItem[] | null>(null);
@@ -43,10 +67,7 @@ export function ItemClaims({
   // against this, not against live updates that arrive while editing.
   const [editBase, setEditBase] = useState<BillItem[]>([]);
   const terminal = !!(bill.completedAt || bill.canceledAt);
-  const stale = (bill.items ?? []).some(item => !reviewed.some(entry => entry.itemId === item.id)) ||
-    Object.entries(selection).some(([id, value]) => value.trim() &&
-      !(bill.items ?? []).some(item => item.id === id &&
-        reviewed.some(entry => entry.itemId === id && entry.version === item.version)));
+  const review = claimReview({ items: bill.items ?? [], ownId: own?.userId, selection, seen, known, conflicts });
   async function perform(action: () => Promise<{ bill: Bill }>, markAllReviewed: boolean) {
     setBusy(true);
     setError("");
@@ -55,18 +76,26 @@ export function ItemClaims({
       // A whole-list save was checked against every reviewed version. A claim
       // only checks the selected items and never changes versions, so the
       // response may carry changes this user has not reviewed.
-      if (markAllReviewed) setReviewed(reviewedItems(result.bill.items));
+      // A pick on an item removed meanwhile stays in the draft, so its row can say it was dropped;
+      // a whole-list save removed those items itself.
+      if (markAllReviewed) {
+        setSeen((result.bill.items ?? []).map(seenOf));
+        setSelection(current => Object.fromEntries(Object.entries(current)
+          .filter(([id]) => result.bill.items?.some(item => item.id === id))));
+      }
+      setConflicts([]);
       saved(result.bill);
       setEdit(null);
       setLegacyEdit(null);
-      setSelection(current => Object.fromEntries(Object.entries(current)
-        .filter(([id]) => result.bill.items?.some(item => item.id === id))));
     } catch (e) {
       setError(errorMessage(e));
       if (e instanceof BillApiError && e.status === 409) {
-        // A simultaneous claimant can take the last fraction before our save
-        // reaches the server. Show the actual current availability.
-        try {
+        // Someone saved first. The draft is kept; the rows the server named turn red once the
+        // refreshed bill arrives, and changed or added items ask for review again.
+        const message = e.conflicts && conflictMessage(e.conflicts, bill.items ?? []);
+        if (e.conflicts) setConflicts(e.conflicts.overAllocated.map((entry) => entry.itemId));
+        if (message) setError(message);
+        else try {
           const current = await billApi.detail(bill.id);
           setError(claimAvailabilityMessage(current.bill, selection) ?? errorMessage(e));
         } catch { /* Keep the original server message if the refresh fails. */ }
@@ -109,8 +138,7 @@ export function ItemClaims({
         // may carry changes this user has not reviewed.
         const corrected = result.bill.items?.find(candidate => candidate.id === item.id);
         if (corrected)
-          setReviewed(current => current.map(entry =>
-            entry.itemId === item.id ? { ...entry, version: corrected.version } : entry));
+          setSeen(current => current.map(entry => entry.itemId === item.id ? seenOf(corrected) : entry));
         saved(result.bill);
       }
       setEdit(null);
@@ -142,7 +170,7 @@ export function ItemClaims({
             );
           return { itemId, numerator, denominator };
         });
-      void perform(() => api.claims(bill.id, reviewed, claims), false);
+      void perform(() => api.claims(bill.id, seen.map(({ itemId, version }) => ({ itemId, version })), claims), false);
     } catch (e) {
       setError(errorMessage(e));
     }
@@ -150,44 +178,23 @@ export function ItemClaims({
   return (
     <section className="item-claims">
       <h2>Items & claims</h2>
-      <ClaimItems bill={bill} selection={selection} change={(id, value) =>
-        setSelection((current) => ({ ...current, [id]: value }))} busy={busy} terminal={terminal} error={error}
-        confirmAction={!terminal && own ? <Button disabled={busy || stale} onClick={confirm}>
+      <ClaimItems bill={bill} selection={selection} review={review} change={(id, value) => {
+        setSelection((current) => ({ ...current, [id]: value }));
+        setConflicts((current) => current.filter((entry) => entry !== id));
+      }} dismissRemoved={(id) => setSelection((current) => Object.fromEntries(Object.entries(current).filter(([key]) => key !== id)))}
+        acknowledge={(item) => setSeen((current) => acknowledge(current, item))}
+        busy={busy} terminal={terminal} error={error}
+        confirmAction={!terminal && own ? <Button disabled={busy || review.blockers.length > 0} onClick={confirm}>
           {busy ? "Saving…" : Object.values(selection).some((value) => value.trim())
             ? "Confirm my item claims" : "Confirm I purchased nothing"}
         </Button> : null} />
       {!terminal && own && (
-        <>
-          <p>
-            Confirm submits all your selections and calculates your share. Empty
-            selections confirm that you purchased nothing and release your
-            existing claims or reservations. Fractions use integers from 1 to
-            10,000.
-          </p>
-          {stale && (
-            <div role="alert">
-              <p>
-                The bill changed. Your selections are kept. Review current
-                prices and availability before confirming.
-              </p>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setReviewed(reviewedItems(bill.items));
-                  setSelection((s) =>
-                    Object.fromEntries(
-                      Object.entries(s).filter(([id]) =>
-                        bill.items?.some((i) => i.id === id),
-                      ),
-                    ),
-                  );
-                }}
-              >
-                I have reviewed the latest bill
-              </Button>
-            </div>
-          )}
-        </>
+        <p>
+          Confirm submits all your selections and calculates your share. Empty
+          selections confirm that you purchased nothing and release your
+          existing claims or reservations. Fractions use integers from 1 to
+          10,000.
+        </p>
       )}
       {!terminal && own?.userId === bill.initiatorId && (
         <>

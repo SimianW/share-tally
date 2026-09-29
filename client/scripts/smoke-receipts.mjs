@@ -580,7 +580,8 @@ try {
   await bob.getByRole("button", { name: "Confirm my item claims" }).click();
   await expect(bob.locator(".claim-list .receipt-row-badges").first()).toContainText("Your claim");
   await expect(alice.getByRole("button", { name: "Confirm my item claims" })).toBeEnabled();
-  await expect(alice.getByRole("button", { name: "I have reviewed the latest bill" })).toHaveCount(0);
+  // Bob's claim is not a change Alice has to review.
+  await expect(alice.locator(".claim-attention-chips")).toHaveCount(0);
   await alice.getByRole("button", { name: "Edit items & prices" }).click();
   const correctionRow = alice.getByRole("button", { name: "Edit Apples", exact: true });
   await expect(correctionRow).toContainText("3.00");
@@ -606,12 +607,21 @@ try {
   assert.equal(corrected.manualFinal, false);
   await expect(bob.locator(".claim-list .receipt-row-badges").first()).toContainText("Your reservation · reconfirm");
   await expect(alice.locator(".claim-list .receipt-row-badges").first()).toContainText("Your reservation · reconfirm");
-  await bob
-    .getByRole("button", { name: "I have reviewed the latest bill" })
-    .click();
+  // Bob's pick is on the corrected item, so the row names the new price and Confirm waits for him.
+  await expect(bob.locator(".claim-list .receipt-row-badges").first()).toContainText("Price $3.00 → $2.70");
+  await expect(bob.getByRole("button", { name: "Confirm my item claims" })).toBeDisabled();
+  await bob.getByRole("button", { name: "1 item changed — review", exact: true }).click();
+  const bobNotice = claimSheet(bob).locator(".claim-notice.is-review");
+  await expect(bobNotice).toContainText("Alice changed this item since you picked it");
+  await expect(bobNotice).toContainText("Your 1/3 is now $0.90 (was $1.00)");
+  await bobNotice.getByRole("button", { name: "I've seen the new price", exact: true }).click();
+  // With nothing after it, the acknowledged item returns to the list and its Confirm button.
+  await expect(claimSheet(bob)).toBeHidden();
   await bob.getByRole("button", { name: "Confirm my item claims" }).click();
   await expect(bob.locator(".claim-list .receipt-row-badges").first()).toContainText("Your claim");
-  await expect(alice.getByRole("button", { name: "I have reviewed the latest bill" })).toHaveCount(0);
+  // Alice made the correction herself, so she has nothing to review.
+  await expect(alice.locator(".claim-attention-chips")).toHaveCount(0);
+  await expect(alice.locator(".claim-list .receipt-row-badges").first()).not.toContainText("Price");
   await alice.getByRole("button", { name: "Confirm my item claims" }).click();
   await expect(alice.locator(".claim-list .receipt-row-badges").first()).toContainText("Your claim");
   const carol = await pageFor("carol-token", { width: 390, height: 844 });
@@ -682,8 +692,8 @@ try {
   await expect(itemOption(alice, "1/2 · $1.50")).toBeDisabled();
   // Bob's 2/3 appears as held by others; nothing is chosen yet.
   await expect(controlSheet.locator(".claim-portion")).toContainText("Pick a portion of $3.00");
-  await expect(controlSheet.locator(".claim-portion-legend")).toContainText("Others · 2/3");
-  await expect(controlSheet.locator(".claim-portion-legend")).toContainText("Free · 1/3");
+  await expect(controlSheet.locator(".claim-legend")).toContainText("Bob · 2/3");
+  await expect(controlSheet.locator(".claim-legend")).toContainText("Free · 1/3");
   for (const option of ["1/3 · $1.00", "1/4 · $0.75", "1/5 · $0.60", "1/6 · $0.50"])
     await expect(itemOption(alice, option)).toBeEnabled();
   await expect(controlSheet).toContainText("CLAIM AN ITEM · 1 OF 2");
@@ -795,7 +805,9 @@ try {
   await expect(alice.getByRole("button", { name: "Keep current items", exact: true })).toHaveCount(0);
   assert.deepEqual(racePatches, [raceApples.id]);
   await expect(alice.getByRole("button", { name: "View Milk · $4.00", exact: true })).toBeVisible();
-  await expect(alice.getByRole("button", { name: "I have reviewed the latest bill" })).toBeVisible();
+  const raceRow = (name) => alice.locator(".claim-list .receipt-compact-row").filter({ has: alice.getByRole("button", { name: new RegExp(`^View ${name} ·`) }) });
+  await expect(raceRow("Milk")).toContainText("Price $3.00 → $4.00");
+  await expect(raceRow("Apples")).not.toContainText("Price");
   await expect(alice.getByRole("button", { name: "Confirm my item claims" })).toBeDisabled();
   // Milk still awaits review, but a correction from a freshly opened editor is not held back by it.
   await alice.getByRole("button", { name: "Edit items & prices" }).click();
@@ -804,9 +816,14 @@ try {
   await alice.getByRole("button", { name: "Close editor", exact: true }).click();
   await alice.getByRole("button", { name: "Save item changes", exact: true }).click();
   await expect(alice.getByRole("button", { name: "View Bread · $3.20", exact: true })).toBeVisible();
-  await expect(alice.getByRole("button", { name: "I have reviewed the latest bill" })).toBeVisible();
+  await expect(raceRow("Milk")).toContainText("Price $3.00 → $4.00");
+  await expect(alice.getByRole("button", { name: "Confirm my item claims" })).toBeDisabled();
   // A successful claim does not mark an unselected item's concurrent change as reviewed.
-  await alice.getByRole("button", { name: "I have reviewed the latest bill" }).click();
+  await raceRow("Milk").getByRole("button").click();
+  await claimSheet(alice, "Milk").getByRole("button", { name: "I've seen the new price", exact: true }).click();
+  // Acknowledging moves on like a pick does, to Bread.
+  await claimSheet(alice, "Bread").getByRole("button", { name: "Close claim", exact: true }).click();
+  await expect(raceRow("Milk")).not.toContainText("Price");
   await alice.route(`**/api/bills/${raceBill.id}/claims`, async (route) => {
     try { await correctElsewhere(raceBread, 360); } catch (error) { raceError = error; }
     await route.continue();
@@ -816,11 +833,14 @@ try {
   await alice.getByRole("button", { name: "Confirm my item claims" }).click();
   assert.equal((await raceClaimed).status(), 200);
   assert.equal(raceError, undefined);
+  // Bread was unselected, so its change is shown quietly until Alice looks at it; it never blocks.
+  await expect(raceRow("Bread")).toContainText("Updated");
+  await expect(alice.getByRole("button", { name: "Confirm my item claims" })).toBeEnabled();
   await alice.getByRole("button", { name: "View Bread · $3.60", exact: true }).click();
+  await expect(raceRow("Bread")).not.toContainText("Updated");
   await itemOption(alice, "1/4 · $0.90", "Bread").click();
   await expect(claimSheet(alice, "Bread")).toBeHidden();
-  await expect(alice.getByRole("button", { name: "I have reviewed the latest bill" })).toBeVisible();
-  await expect(alice.getByRole("button", { name: "Confirm my item claims" })).toBeDisabled();
+  await expect(alice.getByRole("button", { name: "Confirm my item claims" })).toBeEnabled();
 
   // Auto-advance passes over items others hold in full; Previous, Next and the arrow keys still visit them.
   const skipDraftId = randomUUID();
@@ -939,8 +959,14 @@ try {
   const conflictResult = (await api(`/bills/${conflictBill.id}`)).bill;
   assert.equal(conflictResult.items[0].claims.length, 1);
   const conflictLoser = conflictResult.items[0].claims[0].userId === memberIds.Alice ? bob : alice;
-  const conflictAlert = conflictLoser.getByRole("alert").filter({ hasText: "Not enough of Conflict item is available" });
-  await expect(conflictAlert).toContainText("Only 0/1 is currently available to you");
+  // The loser keeps their pick; the refreshed row turns red and names the item that ran out.
+  const conflictAlert = conflictLoser.getByRole("alert").filter({ hasText: "Someone just updated Conflict item" });
+  await expect(conflictAlert).toContainText("nothing is left. Your picks are kept.");
+  const conflictRow = conflictLoser.locator(".claim-list .receipt-compact-row").first();
+  await expect(conflictRow).toHaveClass(/is-over/);
+  await expect(conflictRow).toContainText("Over by 1");
+  await expect(conflictRow).toContainText("Someone just updated this");
+  await expect(conflictLoser.getByRole("button", { name: "Confirm my item claims" })).toBeDisabled();
   await mkdir("/tmp/share-tally-receipt-smoke", { recursive: true });
   await carol.screenshot({
     path: "/tmp/share-tally-receipt-smoke/mobile.png",
