@@ -169,9 +169,10 @@
 .claim-filters button[aria-pressed="true"] { border-color: var(--money-owed); background: var(--surface-soft); font-weight: 700; }
 .claim-row-details { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .claim-avatars { display: inline-flex; padding-left: var(--space-2); }
-.claim-meter { width: min(115px, 30%); height: 6px; background: var(--line); border-radius: 100px; overflow: hidden; }
-.claim-meter > span { display: block; height: 100%; background: var(--money-owed); border-radius: inherit; }
+/* A fixed width: the row copy shrinks to its content, so a percentage would collapse on unclaimed rows. */
+.claim-meter { display: block; flex: none; width: min(130px, 34vw); }
 .claim-left { min-width: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.claim-left.is-over { color: var(--status-danger); font-weight: 700; }
 .claim-mine { color: var(--ink); }
 .claim-sheet .receipt-cost-breakdown { margin-top: var(--space-3); }
 /* Previous and Next sit in the header at every size. Each keeps its 32px circle, but an invisible
@@ -193,16 +194,97 @@
 .claim-portion > strong { margin-top: calc(var(--space-2) * -1); font: 800 2rem / 1.1 var(--font-heading); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
 .claim-portion > .claim-portion-empty { color: var(--ink-subtle); }
 .claim-portion-caption { margin-top: calc(var(--space-3) * -1); color: var(--ink-secondary); font-size: var(--text-sm); }
-.claim-portion-bar { display: flex; height: 14px; border-radius: 999px; overflow: hidden; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
-.claim-portion-bar span { transition: width .25s ease; }
-.claim-portion-others { background: repeating-linear-gradient(135deg, var(--line-strong) 0 4px, var(--surface-raised) 4px 8px); }
-.claim-portion-mine { background: var(--action); box-shadow: inset 0 0 0 1px var(--action-edge); }
-.claim-portion-bar .claim-portion-mine { border-radius: 0 999px 999px 0; }
-.claim-portion-legend { display: flex; flex-wrap: wrap; gap: var(--space-3); color: var(--ink-secondary); font-size: var(--text-xs); }
-.claim-portion-legend span { display: inline-flex; align-items: center; gap: 6px; }
-.claim-portion-legend i { width: 10px; height: 10px; border-radius: 3px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-strong); }
-.claim-portion-legend .claim-portion-mine { background: var(--action); box-shadow: inset 0 0 0 1px var(--action-edge); }
-.claim-portion-legend .claim-portion-others { background: repeating-linear-gradient(135deg, var(--line-strong) 0 2px, var(--surface-raised) 2px 4px); }
+.claim-portion.is-over { background: var(--status-danger-bg); border-color: color-mix(in srgb, var(--status-danger) 35%, var(--line)); }
+.claim-over-text { color: var(--status-danger); font-size: var(--text-sm); font-weight: 600; line-height: 1.5; }
+
+/* One segment per claimant in their avatar tint, then your pick, then free space. */
+.claim-bar { position: relative; display: block; }
+.claim-bar-track { display: flex; height: 24px; border-radius: 999px; overflow: hidden; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.claim-bar.is-compact .claim-bar-track { height: 8px; box-shadow: inset 0 0 0 1px var(--line); }
+.claim-bar-segment { --segment-edge: color-mix(in srgb, var(--segment-tint) 65%, var(--ink-secondary)); position: relative; flex: none; display: flex; align-items: center; justify-content: center; height: 100%; min-width: 0; overflow: hidden; background: var(--segment-tint); box-shadow: inset 0 0 0 1px var(--segment-edge); }
+/* Separators sit only between segments, so a fully held item reads as one full bar. */
+.claim-bar-segment:not(:last-child) { box-shadow: inset -2px 0 0 var(--surface), inset 0 0 0 1px var(--segment-edge); }
+.claim-bar-segment.is-reserved { background: repeating-linear-gradient(135deg, var(--segment-tint) 0 4px, color-mix(in srgb, var(--segment-tint) 45%, var(--surface)) 4px 8px); }
+.claim-bar-segment.is-you { --segment-tint: var(--action); --segment-edge: var(--action-edge); }
+.claim-bar-segment.is-over { background: repeating-linear-gradient(135deg, var(--status-danger) 0 5px, color-mix(in srgb, var(--status-danger) 65%, var(--surface)) 5px 10px); box-shadow: none; }
+.claim-bar-segment b { position: relative; z-index: 1; font: 800 11px / 1 var(--font-heading); color: var(--ink); white-space: nowrap; }
+.claim-bar-segment.is-over b { color: var(--ink-inverse); }
+/* Where the item ends when picks run past it. */
+.claim-bar-edge { position: absolute; top: -5px; bottom: -5px; width: 3px; margin-left: -1.5px; border-radius: 2px; background: var(--ink); }
+.claim-bar.is-compact .claim-bar-edge { top: -3px; bottom: -3px; width: 2px; margin-left: -1px; }
+.claim-bar-flash { position: absolute; inset: 0; pointer-events: none; animation: claim-bar-flash 1.2s ease-out forwards; }
+@keyframes claim-bar-flash {
+  0%, 30% { background: color-mix(in srgb, var(--highlight) 80%, transparent); box-shadow: inset 0 0 0 2px var(--ink); }
+  100% { background: transparent; box-shadow: inset 0 0 0 2px transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .claim-bar-flash { animation: none; background: color-mix(in srgb, var(--highlight) 60%, transparent); box-shadow: inset 0 0 0 2px var(--ink); }
+}
+.claim-legend { display: flex; flex-wrap: wrap; gap: 6px; }
+.claim-legend-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 26px; padding: 2px 10px 2px 2px; border-radius: 999px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink-secondary); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+.claim-legend-chip .avatar.small { width: 22px; height: 22px; border-width: 0; font-size: 10px; }
+.claim-legend-chip em { font-style: normal; font-weight: 800; color: var(--ink); }
+.claim-legend-chip.is-lit { background: color-mix(in srgb, var(--highlight) 45%, var(--surface)); color: var(--ink); }
+.claim-legend-chip.is-gone { opacity: .8; }
+.claim-legend-chip > i { width: 12px; height: 12px; margin-left: 6px; border-radius: 50%; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.claim-legend-chip.is-you { color: var(--ink); font-weight: 600; }
+.claim-legend-chip.is-you > i { background: var(--action); box-shadow: inset 0 0 0 1px var(--action-edge); }
+.claim-legend-chip.is-you.is-over { color: var(--status-danger); box-shadow: inset 0 0 0 1.5px var(--status-danger); }
+.claim-take-left.button { width: 100%; }
+/* The pick that no longer fits stays marked, in red, until it is changed. */
+.claim-options:has(.claim-portion.is-over) .claim-portion-choices button[aria-pressed="true"] { opacity: 1; background: var(--status-danger); color: var(--ink-inverse); box-shadow: none; }
+.claim-options:has(.claim-portion.is-over) .claim-portion-choices button[aria-pressed="true"] small { color: var(--ink-inverse); }
+
+/* Attention: rows, badges, removed picks and the notices inside a sheet. */
+.claim-list .receipt-compact-row.is-review { box-shadow: inset 4px 0 0 var(--highlight); }
+.claim-list .receipt-compact-row.is-over { background: var(--status-danger-bg); box-shadow: inset 4px 0 0 var(--status-danger); }
+.claim-attention-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px var(--space-2); border-radius: var(--radius-sm); font-size: var(--text-xs); font-weight: 600; }
+.claim-attention-badge.is-changed { background: var(--status-warning-bg); color: var(--status-warning); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--highlight) 80%, var(--status-warning)); }
+.claim-attention-badge.is-new { background: var(--status-info-bg); color: var(--status-info); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--status-info) 25%, var(--status-info-bg)); }
+.claim-attention-badge.is-over { background: var(--status-danger); color: var(--ink-inverse); }
+.claim-price-change { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.claim-price-change s { opacity: .65; font-weight: 400; }
+.claim-removed-row { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-4) var(--space-5); background: var(--surface-sunken); color: var(--ink-secondary); box-shadow: inset 4px 0 0 var(--highlight); }
+.claim-list > * + .claim-removed-row, .claim-removed-row + * { border-top: 1px solid var(--line); }
+.claim-removed-row > span { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.claim-removed-row s { color: var(--ink); font-weight: 700; overflow-wrap: anywhere; }
+.claim-removed-row small { font-size: var(--text-sm); }
+.claim-removed-row > svg { flex-shrink: 0; }
+.claim-notice { display: grid; gap: var(--space-2); padding: var(--space-4); border: 1px solid; border-radius: var(--radius-md); font-size: var(--text-sm); line-height: 1.5; }
+.claim-notice strong { display: flex; align-items: center; gap: 6px; font-size: var(--text-base); }
+.claim-notice .button { justify-self: start; margin-top: var(--space-1); }
+.claim-notice small { color: var(--ink-secondary); }
+.claim-notice.is-review { background: var(--status-warning-bg); border-color: color-mix(in srgb, var(--highlight) 85%, var(--status-warning)); }
+.claim-notice.is-review strong { color: var(--status-warning); }
+.claim-notice.is-new { background: var(--status-info-bg); border-color: color-mix(in srgb, var(--status-info) 22%, var(--status-info-bg)); }
+.claim-notice.is-new strong { color: var(--status-info); }
+.claim-notice.is-over { background: var(--status-danger-bg); border-color: color-mix(in srgb, var(--status-danger) 30%, var(--status-danger-bg)); }
+.claim-notice.is-over strong { color: var(--status-danger); }
+.claim-resolved { display: flex; align-items: center; gap: 6px; color: var(--status-success); font-size: var(--text-sm); font-weight: 600; }
+
+/* The sheet's own footer: why Confirm is locked, and the way to the next item that needs you. */
+.claim-sheet { --claim-sheet-pad: var(--space-6); }
+.claim-sheet-footer { position: sticky; bottom: calc(-1 * var(--claim-sheet-pad)); z-index: 2; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3);
+  margin: var(--space-5) calc(-1 * var(--claim-sheet-pad)) calc(-1 * var(--claim-sheet-pad)); padding: var(--space-3) var(--claim-sheet-pad) max(var(--space-4), env(safe-area-inset-bottom));
+  background: var(--surface); border-top: 1px solid var(--line); }
+.claim-sheet-footer > span { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--ink-secondary); font-size: var(--text-sm); font-weight: 600; }
+.claim-sheet-footer > span svg { flex-shrink: 0; color: var(--status-warning); }
+.claim-sheet-footer > span.is-clear svg { color: var(--status-success); }
+.claim-sheet-footer .button { display: inline-flex; align-items: center; gap: var(--space-2); }
+@media (min-width: 701px) {
+  /* On the full-height desktop sheet the footer rests at the bottom even when the item is short. */
+  .play-dialog.claim-sheet[open] { display: flex; flex-direction: column; }
+  .claim-sheet .receipt-sheet-content { flex-shrink: 0; }
+  .claim-sheet .claim-sheet-footer { margin-top: auto; }
+  .claim-sheet .receipt-sheet-content:not(:last-child) { margin-bottom: var(--space-5); }
+}
+
+/* Page footer chips that open the first item needing attention. */
+.claim-attention-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); flex-basis: 100%; }
+.claim-attention-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 7px 12px; border: 0; border-radius: 999px; font: inherit; font-size: var(--text-sm); font-weight: 700; cursor: pointer; }
+.claim-attention-chip:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
+.claim-attention-chip.is-review { background: var(--status-warning-bg); color: var(--status-warning); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--highlight) 85%, var(--status-warning)); }
+.claim-attention-chip.is-over { background: var(--status-danger-bg); color: var(--status-danger); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--status-danger) 35%, var(--status-danger-bg)); }
 /* Segments grow to fit their price and wrap only when a large amount needs the room. */
 .claim-portion-choices { display: flex; flex-wrap: wrap; gap: 2px; padding: 4px; border-radius: 14px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
 .claim-portion-choices button { flex: 1 0 auto; display: grid; justify-items: center; gap: 2px; min-width: 44px; padding: var(--space-2) 2px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--ink); font: inherit; cursor: pointer; }
@@ -239,6 +321,8 @@
   .claim-sticky-footer { padding-bottom: max(var(--space-3), env(safe-area-inset-bottom)); }
   .claim-sticky-footer > .button { width: 100%; order: 3; }
   .claim-row-details { gap: var(--space-1) var(--space-2); }
+  .claim-sheet { --claim-sheet-pad: var(--space-5); }
+  .claim-removed-row { padding: var(--space-4); }
 }
 .claim-avatars > span + span { margin-left: -7px; }
 .claim-reserved-avatar .avatar { border: 2px dashed var(--money-owe); }
