@@ -18,6 +18,15 @@ export function acknowledge(seen: SeenItem[], item: BillItem): SeenItem[] {
   return entry ? seen.map((candidate) => candidate.itemId === item.id ? seenOf(item) : candidate) : [...seen, seenOf(item)];
 }
 
+/**
+ * The reviewed list sent with a claim: only items still on the bill, each at the version the
+ * participant acknowledged. Removed items would otherwise pile up past the server's limit.
+ */
+export function reviewedFor(seen: SeenItem[], items: BillItem[]): ReviewedItem[] {
+  return seen.filter((entry) => items.some((item) => item.id === entry.itemId))
+    .map(({ itemId, version }) => ({ itemId, version }));
+}
+
 /** An item as the page last showed it, kept after the item leaves the bill. */
 export type KnownItem = { name: string; finalCents: number; index: number };
 

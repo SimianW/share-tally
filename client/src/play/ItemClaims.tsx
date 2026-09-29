@@ -4,7 +4,7 @@ import { correctionInput, useReceiptApi, type BillItem, type LegacyCorrectionIte
 import { previewCorrection } from "./receipt-correction";
 import { ClaimItems } from "./ClaimItems";
 import { claimAvailabilityMessage, fromParts, shortText } from "./claim-fractions";
-import { acknowledge, claimReview, knownOf, seenOf, type SeenItem } from "./claim-review";
+import { acknowledge, claimReview, knownOf, reviewedFor, seenOf, type SeenItem } from "./claim-review";
 import { ReceiptReviewItems } from "./ReceiptReview";
 import { LegacyItemEditor } from "./LegacyItemEditor";
 import { Button } from "./ui";
@@ -170,7 +170,7 @@ export function ItemClaims({
             );
           return { itemId, numerator, denominator };
         });
-      void perform(() => api.claims(bill.id, seen.map(({ itemId, version }) => ({ itemId, version })), claims), false);
+      void perform(() => api.claims(bill.id, reviewedFor(seen, bill.items ?? []), claims), false);
     } catch (e) {
       setError(errorMessage(e));
     }
