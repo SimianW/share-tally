@@ -47,12 +47,15 @@ export function ItemClaims({
     Object.entries(selection).some(([id, value]) => value.trim() &&
       !(bill.items ?? []).some(item => item.id === id &&
         reviewed.some(entry => entry.itemId === id && entry.version === item.version)));
-  async function perform(action: () => Promise<{ bill: Bill }>) {
+  async function perform(action: () => Promise<{ bill: Bill }>, markAllReviewed: boolean) {
     setBusy(true);
     setError("");
     try {
       const result = await action();
-      setReviewed(reviewedItems(result.bill.items));
+      // A whole-list save was checked against every reviewed version. A claim
+      // only checks the selected items and never changes versions, so the
+      // response may carry changes this user has not reviewed.
+      if (markAllReviewed) setReviewed(reviewedItems(result.bill.items));
       saved(result.bill);
       setEdit(null);
       setLegacyEdit(null);
@@ -81,7 +84,7 @@ export function ItemClaims({
       return;
     }
     const items = legacyEdit.map(item => ({ ...item, amountCents: item.amountCents!, finalCents: item.finalCents! }));
-    void perform(() => api.legacyItems(bill.id, reviewedItems(editBase), items));
+    void perform(() => api.legacyItems(bill.id, reviewedItems(editBase), items), true);
   }
   async function saveCorrection() {
     if (!edit || busy) return;
@@ -139,7 +142,7 @@ export function ItemClaims({
             );
           return { itemId, numerator, denominator };
         });
-      void perform(() => api.claims(bill.id, reviewed, claims));
+      void perform(() => api.claims(bill.id, reviewed, claims), false);
     } catch (e) {
       setError(errorMessage(e));
     }

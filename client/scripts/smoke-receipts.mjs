@@ -805,6 +805,22 @@ try {
   await alice.getByRole("button", { name: "Save item changes", exact: true }).click();
   await expect(alice.getByRole("button", { name: "View Bread · $3.20", exact: true })).toBeVisible();
   await expect(alice.getByRole("button", { name: "I have reviewed the latest bill" })).toBeVisible();
+  // A successful claim does not mark an unselected item's concurrent change as reviewed.
+  await alice.getByRole("button", { name: "I have reviewed the latest bill" }).click();
+  await alice.route(`**/api/bills/${raceBill.id}/claims`, async (route) => {
+    try { await correctElsewhere(raceBread, 360); } catch (error) { raceError = error; }
+    await route.continue();
+  }, { times: 1 });
+  const raceClaimed = alice.waitForResponse((response) => response.request().method() === "POST" &&
+    new URL(response.url()).pathname === `/api/bills/${raceBill.id}/claims`);
+  await alice.getByRole("button", { name: "Confirm my item claims" }).click();
+  assert.equal((await raceClaimed).status(), 200);
+  assert.equal(raceError, undefined);
+  await alice.getByRole("button", { name: "View Bread · $3.60", exact: true }).click();
+  await itemOption(alice, "1/4 · $0.90", "Bread").click();
+  await expect(claimSheet(alice, "Bread")).toBeHidden();
+  await expect(alice.getByRole("button", { name: "I have reviewed the latest bill" })).toBeVisible();
+  await expect(alice.getByRole("button", { name: "Confirm my item claims" })).toBeDisabled();
 
   // Auto-advance passes over items others hold in full; Previous, Next and the arrow keys still visit them.
   const skipDraftId = randomUUID();
