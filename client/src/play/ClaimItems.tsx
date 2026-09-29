@@ -79,7 +79,9 @@ export function ClaimItems({ bill, selection, change, busy, terminal, confirmAct
     setOrder(displayed.map((entry) => entry.id));
     showItem(item.id);
   }
+  // At either end of the list there is nowhere to go, but the press still cancels a pending advance.
   function navigateToItem(id: string | null) {
+    window.clearTimeout(advance.current);
     if (!id) return;
     showItem(id);
     const item = itemFor(id);
@@ -108,12 +110,21 @@ export function ClaimItems({ bill, selection, change, busy, terminal, confirmAct
       // Only this sheet, not a photo viewer opened over it, and never while editing text.
       if (!target || target.closest("dialog") !== heading.current?.closest("dialog") || target.closest("input, textarea, select, [contenteditable]")) return;
       const id = event.key === "ArrowLeft" ? previousId : nextId;
-      if (!id) return;
-      event.preventDefault();
+      if (id) event.preventDefault();
       navigateToItem(id);
     }
+    // Any other tap or key press in the sheet, header included, means the user is not done with this item.
+    // A portion pick schedules its advance on the click that follows.
+    const dialog = heading.current?.closest("dialog");
+    const stay = () => window.clearTimeout(advance.current);
+    dialog?.addEventListener("pointerdown", stay, true);
+    dialog?.addEventListener("keydown", stay, true);
     document.addEventListener("keydown", arrows);
-    return () => document.removeEventListener("keydown", arrows);
+    return () => {
+      dialog?.removeEventListener("pointerdown", stay, true);
+      dialog?.removeEventListener("keydown", stay, true);
+      document.removeEventListener("keydown", arrows);
+    };
   });
   function saveCustom(item: BillItem) {
     const value = parse(customText);
@@ -152,10 +163,8 @@ export function ClaimItems({ bill, selection, change, busy, terminal, confirmAct
         <button type="button" className="icon-button" aria-label="Previous item" aria-keyshortcuts="ArrowLeft" aria-disabled={!previousId} onClick={() => navigateToItem(previousId)}><Icon name="left" size={18} /></button>
         <button type="button" className="icon-button" aria-label="Next item" aria-keyshortcuts="ArrowRight" aria-disabled={!nextId} onClick={() => navigateToItem(nextId)}><Icon name="right" size={18} /></button>
       </div>}>
-      {/* Any other tap or key press in the sheet, such as opening the photo, means the user is not done with this item. */}
       <p className="sr-only" aria-live="polite" aria-atomic="true">{announcement}</p>
-      <div className="receipt-sheet-content" key={active.id} onPointerDownCapture={() => window.clearTimeout(advance.current)}
-        onKeyDownCapture={() => window.clearTimeout(advance.current)}>
+      <div className="receipt-sheet-content" key={active.id}>
         {bill.photo && page && region && region.pageNumber === 1 && <ReceiptLinePhoto id={bill.photo.draftId} version={0} page={page} polygon={region.polygon} subject={active.name}
           fallback={<ReceiptPhoto id={bill.photo.draftId} subject={active.name} />} />}
         <div className="receipt-original-text"><span className="eyebrow">ON THE RECEIPT</span><p>{active.originalText || "Manually added item"}</p></div>
