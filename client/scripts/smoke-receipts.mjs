@@ -777,8 +777,13 @@ try {
   await alice.getByRole("button", { name: "View Yogurt · $1.00", exact: true }).click();
   await alice.clock.runFor(700);
   await expect(claimSheet(alice, "Yogurt")).toBeVisible();
+  // So does an activation that sends only a click, as some assistive technology does.
+  await itemOption(alice, "1/2 · $0.50", "Yogurt").click();
+  await claimSheet(alice, "Yogurt").evaluate((dialog) => dialog.querySelector(".claim-portion-custom").click());
+  await alice.clock.runFor(700);
+  await expect(claimSheet(alice, "Yogurt").getByLabel("Custom fraction", { exact: true })).toBeVisible();
   // Arrow keys type in the custom fraction instead of changing items.
-  await itemOption(alice, "Custom", "Yogurt").click();
+  await claimSheet(alice, "Yogurt").getByLabel("Custom fraction", { exact: true }).click();
   await alice.keyboard.press("ArrowLeft");
   await expect(claimSheet(alice, "Yogurt").getByLabel("Custom fraction", { exact: true })).toBeFocused();
   // Moving to another item by hand cancels the advance picked on the one before.

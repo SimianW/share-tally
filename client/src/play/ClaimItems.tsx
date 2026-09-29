@@ -113,16 +113,19 @@ export function ClaimItems({ bill, selection, change, busy, terminal, confirmAct
       if (id) event.preventDefault();
       navigateToItem(id);
     }
-    // Any other tap or key press in the sheet, header included, means the user is not done with this item.
-    // A portion pick schedules its advance on the click that follows.
+    // Any other tap, click or key press in the sheet, header included, means the user is not done with this item.
+    // Click catches activations that send nothing else, as some assistive technology does. A portion pick still
+    // schedules its advance, because its React click handler runs after this capture listener.
     const dialog = heading.current?.closest("dialog");
     const stay = () => window.clearTimeout(advance.current);
     dialog?.addEventListener("pointerdown", stay, true);
     dialog?.addEventListener("keydown", stay, true);
+    dialog?.addEventListener("click", stay, true);
     document.addEventListener("keydown", arrows);
     return () => {
       dialog?.removeEventListener("pointerdown", stay, true);
       dialog?.removeEventListener("keydown", stay, true);
+      dialog?.removeEventListener("click", stay, true);
       document.removeEventListener("keydown", arrows);
     };
   });
