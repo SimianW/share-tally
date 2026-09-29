@@ -172,6 +172,7 @@ export function Button({
   className = "",
   type = "button",
   disabled = false,
+  describedBy,
 }: {
   children: ReactNode;
   onClick?: () => void;
@@ -179,6 +180,8 @@ export function Button({
   className?: string;
   type?: "button" | "submit";
   disabled?: boolean;
+  /** Ids of elements that explain the action, such as the row a short label belongs to. */
+  describedBy?: string;
 }) {
   return (
     <button
@@ -186,6 +189,7 @@ export function Button({
       className={`button ${variant} ${className}`}
       onClick={onClick}
       disabled={disabled}
+      aria-describedby={describedBy}
     >
       {children}
     </button>

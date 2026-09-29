@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowRight, Check, CircleAlert, Sparkles, Trash2 } from "lucide-react";
 import { money, type Bill } from "./bill-api";
 import type { BillItem } from "./receipt-api";
@@ -389,11 +389,12 @@ function AttentionBadges({ attention, initiatorName }: { attention: ItemAttentio
 
 // A picked item the initiator removed. It has no sheet, so the row itself explains and dismisses it.
 function RemovedRow({ removed, dismiss }: { removed: RemovedItem; dismiss: () => void }) {
+  const id = useId();
   return <div className="claim-removed-row" data-removed={removed.itemId}>
     <Trash2 size={18} aria-hidden="true" />
-    <span><s>{removed.name}</s>
+    <span id={id}><s>{removed.name}</s>
       <small>Removed — your {removed.portion ? `${text(removed.portion)} (${money(cost(removed.finalCents, removed.portion))})` : "pick"} was dropped</small></span>
-    <Button variant="secondary" className="small" onClick={dismiss}>Got it</Button>
+    <Button variant="secondary" className="small" onClick={dismiss} describedBy={id}>Got it</Button>
   </div>;
 }
 
