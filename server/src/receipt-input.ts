@@ -106,9 +106,14 @@ export function checked<T>(schema: z.ZodType<T>, value: unknown): T {
   return result.data;
 }
 export const revisionInput = z.number().int().positive();
+export const reviewedItemsInput = z.array(z.object({
+  itemId: z.uuid(),
+  version: z.number().int().positive(),
+}).strict()).max(200).refine(items => new Set(items.map(item => item.itemId)).size === items.length,
+  'Reviewed items must have unique IDs.');
 export const claimInput = z
   .object({
-    revision: revisionInput,
+    reviewedItems: reviewedItemsInput,
     claims: z
       .array(
         z

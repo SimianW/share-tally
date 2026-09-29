@@ -32,6 +32,9 @@ _Avoid_: Payment confirmation, which acknowledges received money.
 **Bill item**:
 A separately listed purchase entry within an item-based bill, with a cost that participants can claim in full or in fractions.
 
+**Item version**:
+A bill item's concurrency marker, set to the bill revision whenever the item is added or its final cost or name changes, including cost changes from receipt allocations. Claims do not change it; participants and initiators submit the versions they reviewed when confirming claims or correcting items.
+
 **Item claim**:
 A participant's declared fraction of a bill item, contributing to that participant's share when confirmed.
 

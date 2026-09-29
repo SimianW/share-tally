@@ -139,7 +139,7 @@ test("changed weights drop tie-breaking offsets and restoring frozen weights res
     const item = bill.items[1];
     const input = { name: item.name, quantity: item.quantity, amountCents, discountCents: 0, taxable: true, manualFinal: false };
     const preview = previewCorrection(bill, item, { ...item, ...input });
-    bill = (await json(await api(`/bills/${bill.id}/items/${item.id}`, "alice-token", "PATCH", { revision: bill.revision, ...input }))).bill;
+    bill = (await json(await api(`/bills/${bill.id}/items/${item.id}`, "alice-token", "PATCH", { version: item.version, ...input }))).bill;
     const corrected = bill.items[1];
     assert.deepEqual([corrected.allocatedTaxCents, corrected.allocatedExtraCents, corrected.finalCents], [0, 0, amountCents]);
     assert.deepEqual([preview.allocatedTaxCents, preview.allocatedExtraCents, preview.finalCents], [0, 0, amountCents]);
@@ -156,7 +156,7 @@ test("manual final preserves an independently available adjustment when newly ta
   assert.deepEqual([item.allocatedTaxCents, item.allocatedExtraCents], [0, 100]);
   const input = { name: item.name, quantity: "1", amountCents: 2000, discountCents: 0, taxable: true, manualFinal: true, finalCents: 2300 };
   const preview = previewCorrection(bill, item, { ...item, ...input });
-  const updated = (await json(await api(`/bills/${bill.id}/items/${item.id}`, "alice-token", "PATCH", { revision: bill.revision, ...input }))).bill;
+  const updated = (await json(await api(`/bills/${bill.id}/items/${item.id}`, "alice-token", "PATCH", { version: item.version, ...input }))).bill;
   const saved = updated.items[0];
   assert.deepEqual([saved.allocatedDiscountCents, saved.allocatedTaxCents, saved.allocatedExtraCents, saved.finalCents], [0, null, 200, 2300]);
   assert.deepEqual([preview.allocatedDiscountCents, preview.allocatedTaxCents, preview.allocatedExtraCents, preview.finalCents], [0, null, 200, 2300]);
@@ -178,7 +178,7 @@ for (const component of ["discount", "tax", "extra"] as const) {
       const share = component === "extra" && positiveShare !== 0 ? -positiveShare! : positiveShare!;
       const final = component === "discount" ? amountCents! - share : amountCents! + share;
       const preview = previewCorrection(bill, item, { ...item, ...input });
-      bill = (await json(await api(`/bills/${bill.id}/items/${item.id}`, "alice-token", "PATCH", { revision: bill.revision, ...input }))).bill;
+      bill = (await json(await api(`/bills/${bill.id}/items/${item.id}`, "alice-token", "PATCH", { version: item.version, ...input }))).bill;
       assert.deepEqual([bill.items[1][allocatedKey], bill.items[1].finalCents], [share, final]);
       assert.deepEqual([preview[allocatedKey], preview.finalCents], [share, final]);
       assert.deepEqual(bill.items[0], sibling, "no redistribution across siblings");
@@ -191,17 +191,17 @@ test("a one-cent receipt discount never becomes negative after correcting the ti
   const item = bill.items[1];
   const input = { name: item.name, quantity: "1", amountCents: 1, discountCents: 0, taxable: true, manualFinal: false };
   const preview = previewCorrection(bill, item, { ...item, ...input });
-  const saved = (await json(await api(`/bills/${bill.id}/items/${item.id}`, "alice-token", "PATCH", { revision: bill.revision, ...input }))).bill.items[1];
+  const saved = (await json(await api(`/bills/${bill.id}/items/${item.id}`, "alice-token", "PATCH", { version: item.version, ...input }))).bill.items[1];
   assert.deepEqual([saved.allocatedDiscountCents, saved.finalCents], [0, 1]);
   assert.deepEqual([preview.allocatedDiscountCents, preview.finalCents], [0, 1]);
 });
 
 
 for (const sameItem of [true, false]) {
-  test(`concurrent PATCH corrections on ${sameItem ? "the same item" : "different items"} commit exactly one revision without partial writes`, async () => {
+  test(`concurrent PATCH corrections on ${sameItem ? "the same item" : "different items"} ${sameItem ? "conflict on the edited version" : "both succeed independently"}`, async () => {
     let bill = await summarizedBill({ taxCents: 30 }, [100, 100, 100]);
     bill = (await json(await api(`/bills/${bill.id}/claims`, "bob-token", "POST", {
-      revision: bill.revision, claims: [{ itemId: bill.items[2].id, numerator: 1, denominator: 2 }],
+      reviewedItems: bill.items.map(({ id, version }: { id: string; version: number }) => ({ itemId: id, version })), claims: [{ itemId: bill.items[2].id, numerator: 1, denominator: 2 }],
     }))).bill;
     bill = (await json(await api(`/bills/${bill.id}`))).bill;
     const initial = structuredClone(bill);
@@ -212,64 +212,90 @@ for (const sameItem of [true, false]) {
     const responses = await Promise.all(corrections.map(correction => {
       const item = initial.items[correction.index];
       return api(`/bills/${bill.id}/items/${item.id}`, "alice-token", "PATCH", {
-        revision: initial.revision, name: item.name, quantity: item.quantity,
+        version: item.version, name: item.name, quantity: item.quantity,
         amountCents: correction.amountCents, discountCents: 0, taxable: true, manualFinal: false,
       });
     }));
-    assert.deepEqual(responses.map(r => r.status).sort(), [200, 409]);
-    const winner = corrections[responses.findIndex(r => r.status === 200)]!;
+    assert.deepEqual(
+      responses.map(r => r.status).sort(),
+      sameItem ? [200, 409] : [200, 200],
+    );
     await Promise.all(responses.map(response => response.arrayBuffer()));
     const saved = (await json(await api(`/bills/${bill.id}`))).bill;
     const expected = structuredClone(initial.items);
-    expected[winner.index] = { ...expected[winner.index], amountCents: winner.amountCents, taxCents: winner.taxCents, allocatedTaxCents: winner.taxCents, finalCents: winner.finalCents };
-    assert.equal(saved.revision, initial.revision + 1);
-    assert.deepEqual(saved.items, expected, "only the winner changes; every sibling and its confirmations is byte-identical");
+    for (let i = 0; i < corrections.length; i++) {
+      if (responses[i]!.status !== 200) continue;
+      const correction = corrections[i]!;
+      expected[correction.index] = { ...expected[correction.index], amountCents: correction.amountCents, taxCents: correction.taxCents, allocatedTaxCents: correction.taxCents, finalCents: correction.finalCents, version: saved.items[correction.index].version };
+      assert.ok(saved.items[correction.index].version > initial.items[correction.index].version);
+    }
+    assert.equal(saved.revision, initial.revision + (sameItem ? 1 : 2));
+    assert.deepEqual(saved.items, expected, "only successful corrections change their edited item");
     assert.deepEqual(saved.participants, initial.participants, "neither request changes sibling claimants' shares");
   });
 }
 
 for (const launchClaimFirst of [false, true]) {
-  test(`PATCH racing a claim serializes prices and reservations (${launchClaimFirst ? "claim" : "PATCH"} launched first)`, async () => {
-    let bill = await summarizedBill({ taxCents: 30 }, [100, 100, 100]);
-    bill = (await json(await api(`/bills/${bill.id}/claims`, "alice-token", "POST", {
-      revision: bill.revision, claims: [{ itemId: bill.items[1].id, numerator: 1, denominator: 2 }],
-    }))).bill;
+  test(`same-item PATCH and claim race (${launchClaimFirst ? "claim" : "PATCH"} launched first)`, async () => {
+    const bill = await summarizedBill({ taxCents: 30 }, [100, 100, 100]);
     const initial = structuredClone(bill);
     const item = bill.items[0];
     const input = { name: item.name, quantity: item.quantity, amountCents: 150, discountCents: 0, taxable: true, manualFinal: false };
     const claims = [{ itemId: item.id, numerator: 1, denominator: 2 }];
-    const patch = () => api(`/bills/${bill.id}/items/${item.id}`, "alice-token", "PATCH", { revision: initial.revision, ...input });
-    const claim = () => api(`/bills/${bill.id}/claims`, "bob-token", "POST", { revision: initial.revision, claims });
+    const reviewedItems = bill.items.map(({ id, version }: { id: string; version: number }) => ({ itemId: id, version }));
+    const patch = () => api(`/bills/${bill.id}/items/${item.id}`, "alice-token", "PATCH", { version: item.version, ...input });
+    const claim = () => api(`/bills/${bill.id}/claims`, "bob-token", "POST", { reviewedItems, claims });
     const responses = await Promise.all((launchClaimFirst ? [claim, patch] : [patch, claim]).map(request => request()));
     const patchResponse = responses[launchClaimFirst ? 1 : 0]!;
     const claimResponse = responses[launchClaimFirst ? 0 : 1]!;
-    assert.deepEqual(responses.map(r => r.status).sort(), [200, 409]);
-    await Promise.all(responses.map(response => response.arrayBuffer()));
-    bill = (await json(await api(`/bills/${bill.id}`))).bill;
-    assert.equal(bill.revision, initial.revision + 1);
+    assert.equal(patchResponse.status, 200);
+    assert.ok([200, 409].includes(claimResponse.status));
+    if (claimResponse.status === 409) {
+      const conflict = await json(claimResponse, 409);
+      assert.deepEqual(conflict.conflicts, {
+        stale: [{ itemId: item.id, kind: "changed", finalCents: 165, name: item.name }], overAllocated: [],
+      });
+    } else await claimResponse.arrayBuffer();
+    await patchResponse.arrayBuffer();
+    let saved = (await json(await api(`/bills/${bill.id}`))).bill;
+    assert.equal(saved.revision, initial.revision + (claimResponse.status === 200 ? 2 : 1));
+    assert.equal(saved.items[0].finalCents, 165);
+    assert.deepEqual(saved.items.slice(1), initial.items.slice(1), "sibling items and confirmations remain unchanged");
     if (claimResponse.status === 200) {
-      // The old-price claim won. The stale PATCH is atomic; retry at the
-      // refreshed revision must reserve exactly that claim at the new price.
-      assert.equal(bill.items[0].finalCents, 110);
-      assert.ok(bill.items[0].claims[0].confirmedAt);
-      bill = (await json(await api(`/bills/${bill.id}/items/${item.id}`, "alice-token", "PATCH", { revision: bill.revision, ...input }))).bill;
-      const reservation = bill.items[0].claims[0];
-      assert.deepEqual([reservation.numerator, reservation.denominator, reservation.confirmedAt], [1, 2, null]);
-      const claimant = bill.participants.find((p: { userId: string }) => p.userId === reservation.userId);
-      assert.deepEqual([claimant.amountCents, claimant.confirmedAt], [0, null]);
+      assert.equal(saved.items[0].claims.length, 1);
+      assert.equal(saved.items[0].claims[0].confirmedAt, null, "the price correction leaves the reservation unconfirmed");
     } else {
-      assert.equal(patchResponse.status, 200);
-      assert.deepEqual(bill.items[0].claims, [], "the stale old-price claim was not written");
+      assert.deepEqual(saved.items[0].claims, [], "a stale same-item claim writes nothing");
     }
-    assert.equal(bill.items[0].finalCents, 165);
-    assert.deepEqual(bill.items.slice(1), initial.items.slice(1), "other items and their confirmations are untouched");
-    // Refreshing and confirming always uses the corrected price, whether
-    // this creates a new claim or reconfirms a reservation.
-    bill = (await json(await api(`/bills/${bill.id}/claims`, "bob-token", "POST", { revision: bill.revision, claims }))).bill;
-    const confirmed = bill.items[0].claims[0];
+    const refreshedItems = saved.items.map(({ id, version }: { id: string; version: number }) => ({ itemId: id, version }));
+    saved = (await json(await api(`/bills/${bill.id}/claims`, "bob-token", "POST", { reviewedItems: refreshedItems, claims }))).bill;
+    const confirmed = saved.items[0].claims[0];
     assert.ok(confirmed.confirmedAt);
-    assert.equal(bill.participants.find((p: { userId: string }) => p.userId === confirmed.userId).amountCents, 83);
-    assert.deepEqual(bill.items.slice(1), initial.items.slice(1));
+    assert.equal(saved.participants.find((participant: { userId: string }) => participant.userId === confirmed.userId).amountCents, 83);
+    assert.deepEqual(saved.items.slice(1), initial.items.slice(1), "refreshing the claim leaves sibling items unchanged");
+  });
+
+  test(`an unrelated PATCH and claim both succeed (${launchClaimFirst ? "claim" : "PATCH"} launched first)`, async () => {
+    const bill = await summarizedBill({ taxCents: 30 }, [100, 100, 100]);
+    const initial = structuredClone(bill);
+    const item = bill.items[0];
+    const claimedItem = bill.items[1];
+    const input = { name: item.name, quantity: item.quantity, amountCents: 150, discountCents: 0, taxable: true, manualFinal: false };
+    const claims = [{ itemId: claimedItem.id, numerator: 1, denominator: 2 }];
+    const reviewedItems = bill.items.map(({ id, version }: { id: string; version: number }) => ({ itemId: id, version }));
+    const patch = () => api(`/bills/${bill.id}/items/${item.id}`, "alice-token", "PATCH", { version: item.version, ...input });
+    const claim = () => api(`/bills/${bill.id}/claims`, "bob-token", "POST", { reviewedItems, claims });
+    const responses = await Promise.all((launchClaimFirst ? [claim, patch] : [patch, claim]).map(request => request()));
+    assert.deepEqual(responses.map(r => r.status).sort(), [200, 200]);
+    await Promise.all(responses.map(response => response.arrayBuffer()));
+    let saved = (await json(await api(`/bills/${bill.id}`))).bill;
+    assert.equal(saved.revision, initial.revision + 2);
+    assert.equal(saved.items[0].finalCents, 165);
+    assert.ok(saved.items[1].claims[0].confirmedAt);
+    assert.deepEqual(saved.items[2], initial.items[2], "a third item remains untouched");
+    const refreshedItems = saved.items.map(({ id, version }: { id: string; version: number }) => ({ itemId: id, version }));
+    saved = (await json(await api(`/bills/${bill.id}/claims`, "bob-token", "POST", { reviewedItems: refreshedItems, claims }))).bill;
+    assert.ok(saved.items[1].claims[0].confirmedAt);
   });
 }
 
@@ -284,10 +310,10 @@ for (const example of [
     const item = bill.items[0];
     const input = { name: item.name, quantity: "1", amountCents: 100, discountCents: 0, taxable: example.taxable, manualFinal: true, finalCents: 500 };
     const preview = previewCorrection(bill, item, { ...item, ...input });
-    const saved = (await json(await api(`/bills/${bill.id}/items/${item.id}`, "alice-token", "PATCH", { revision: bill.revision, ...input }))).bill;
+    const saved = (await json(await api(`/bills/${bill.id}/items/${item.id}`, "alice-token", "PATCH", { version: item.version, ...input }))).bill;
     assert.deepEqual([saved.items[0].allocatedDiscountCents, saved.items[0].allocatedTaxCents, saved.items[0].allocatedExtraCents, saved.items[0].finalCents], [null, 0, 0, 500]);
     assert.deepEqual([preview.allocatedDiscountCents, preview.allocatedTaxCents, preview.allocatedExtraCents, preview.finalCents], [null, 0, 0, 500]);
-    await json(await api(`/bills/${bill.id}/items/${item.id}`, "alice-token", "PATCH", { revision: saved.revision, ...input, manualFinal: false }), 400);
+    await json(await api(`/bills/${bill.id}/items/${item.id}`, "alice-token", "PATCH", { version: saved.items[0].version, ...input, manualFinal: false }), 400);
     const reloaded = (await json(await api(`/bills/${bill.id}`))).bill;
     assert.deepEqual([reloaded.revision, reloaded.items], [saved.revision, saved.items], "an unavailable automatic total cannot replace the manual final or change the revision");
   });
@@ -302,7 +328,7 @@ test("making an originally non-taxable item taxable uses the available frozen ra
     const item = bill.items[1];
     const input = { name: item.name, quantity: "1", amountCents: 100, discountCents: 0, taxable, manualFinal: false };
     const preview = previewCorrection(bill, item, { ...item, ...input });
-    bill = (await json(await api(`/bills/${bill.id}/items/${item.id}`, "alice-token", "PATCH", { revision: bill.revision, ...input }))).bill;
+    bill = (await json(await api(`/bills/${bill.id}/items/${item.id}`, "alice-token", "PATCH", { version: item.version, ...input }))).bill;
     const expected = taxable ? [1, 101] : [0, 100];
     assert.deepEqual([bill.items[1].allocatedTaxCents, bill.items[1].finalCents], expected);
     assert.deepEqual([preview.allocatedTaxCents, preview.finalCents], expected);
@@ -325,7 +351,7 @@ for (const scenario of [
       const item = bill.items[0];
       const input = { name: item.name, quantity: "1", amountCents, discountCents: 0, taxable: true, manualFinal: false };
       const preview = previewCorrection(bill, item, { ...item, ...input });
-      bill = (await json(await api(`/bills/${bill.id}/items/${item.id}`, "alice-token", "PATCH", { revision: bill.revision, ...input }))).bill;
+      bill = (await json(await api(`/bills/${bill.id}/items/${item.id}`, "alice-token", "PATCH", { version: item.version, ...input }))).bill;
       assert.deepEqual([bill.items[0].allocatedTaxCents, bill.items[0].finalCents], [taxCents, amountCents! + taxCents!]);
       assert.deepEqual([preview.allocatedTaxCents, preview.finalCents], [taxCents, amountCents! + taxCents!]);
       assert.deepEqual(bill.items[1], sibling);

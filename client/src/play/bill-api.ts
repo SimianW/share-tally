@@ -1,11 +1,20 @@
 import { AccessError, cachedRead, useCachedRequest, refreshFinancialQueries } from './query-cache';
 import { useMemo } from "react";
 import { useAuth } from "@clerk/react";
+export type ItemConflicts = {
+  stale: (
+    | { itemId: string; kind: "changed"; finalCents: number; name: string }
+    | { itemId: string; kind: "added" | "removed" }
+  )[];
+  overAllocated: { itemId: string; available: { numerator: string; denominator: string } }[];
+};
 export class BillApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  conflicts?: ItemConflicts;
+  constructor(status: number, message: string, conflicts?: ItemConflicts) {
     super(message);
     this.status = status;
+    this.conflicts = conflicts;
   }
 }
 export type AttentionAction = { groupId: string; groupName: string } & (
