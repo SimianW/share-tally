@@ -39,6 +39,9 @@ export function ItemClaims({
   const [error, setError] = useState("");
   const [edit, setEdit] = useState<ReceiptCorrectionItem[] | null>(null);
   const [legacyEdit, setLegacyEdit] = useState<LegacyCorrectionItem[] | null>(null);
+  // The items as the editor opened them: edits and their versions are judged
+  // against this, not against live updates that arrive while editing.
+  const [editBase, setEditBase] = useState<BillItem[]>([]);
   const terminal = !!(bill.completedAt || bill.canceledAt);
   const stale = (bill.items ?? []).some(item => !reviewed.some(entry => entry.itemId === item.id)) ||
     Object.entries(selection).some(([id, value]) => value.trim() &&
@@ -78,7 +81,7 @@ export function ItemClaims({
       return;
     }
     const items = legacyEdit.map(item => ({ ...item, amountCents: item.amountCents!, finalCents: item.finalCents! }));
-    void perform(() => api.legacyItems(bill.id, reviewed, items));
+    void perform(() => api.legacyItems(bill.id, reviewedItems(editBase), items));
   }
   async function saveCorrection() {
     if (!edit || busy || stale) return;
@@ -90,22 +93,23 @@ export function ItemClaims({
     setBusy(true);
     setError("");
     let changed = false;
-    let latest = bill;
     try {
       for (const item of edit) {
-        const original = bill.items?.find((candidate) => candidate.id === item.id);
+        const original = editBase.find((candidate) => candidate.id === item.id);
         if (!original) throw new Error("An item changed. Reload the bill before correcting it.");
         const input = correctionInput(item);
         const previous = correctionInput(original);
         if (JSON.stringify(input) === JSON.stringify(previous)) continue;
-        const version = reviewed.find(entry => entry.itemId === item.id)?.version;
-        if (version === undefined) throw new Error("An item changed. Reload the bill before correcting it.");
-        const result = await api.correctItem(bill.id, item.id, version, input);
+        const result = await api.correctItem(bill.id, item.id, original.version, input);
         changed = true;
-        latest = result.bill;
+        // Only the corrected item is newly seen. Other items in the response
+        // may carry changes this user has not reviewed.
+        const corrected = result.bill.items?.find(candidate => candidate.id === item.id);
+        if (corrected)
+          setReviewed(current => current.map(entry =>
+            entry.itemId === item.id ? { ...entry, version: corrected.version } : entry));
         saved(result.bill);
       }
-      setReviewed(reviewedItems(latest.items));
       setEdit(null);
     } catch (e) {
       setError(errorMessage(e));
@@ -207,7 +211,7 @@ export function ItemClaims({
                 setEdit(null);
                 setLegacyEdit(items);
               }
-              setReviewed(reviewedItems(bill.items));
+              setEditBase(bill.items ?? []);
             }}
           >
             Edit items & prices
@@ -216,7 +220,7 @@ export function ItemClaims({
             <div className="receipt-correction">
               {legacyEdit && <LegacyItemEditor items={legacyEdit} change={setLegacyEdit} />}
               {edit && <ReceiptReviewItems mode="correction" hasFrozenRate={!!bill.frozenTaxRate} items={edit} change={(items) => setEdit(items.map((item) => {
-                const original = bill.items?.find((candidate) => candidate.id === item.id);
+                const original = editBase.find((candidate) => candidate.id === item.id);
                 return original ? previewCorrection(bill, original, item) : item;
               }))} />}
               <p>Price changes reserve only the corrected item's claims until their owners reconfirm. Other items stay confirmed.</p>

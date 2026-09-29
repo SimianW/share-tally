@@ -742,6 +742,62 @@ try {
     [[memberIds.Alice, 1, 1]],
   ]);
 
+  // A correction sends only rows edited since the editor opened, and marks only those rows reviewed.
+  const raceDraftId = randomUUID();
+  const raceItems = ["Apples", "Milk", "Bread"].map((name) => ({ id: randomUUID(), name, originalText: name.toUpperCase(), quantity: "1", amountCents: 300, discountCents: 0, taxable: false, finalCents: 300, manualFinal: false }));
+  const raceDraft = (await api(`/groups/${group.id}/receipt-drafts/${raceDraftId}`, "alice-token", "PUT", {
+    revision: 0,
+    data: {
+      mode: "items", title: "Correction races", purchaseDate: "2026-09-24", timeZone: "America/Toronto",
+      notes: "", totalCents: 900, ownShareCents: 0, participantIds: [memberIds.Alice, memberIds.Bob],
+      receipt: { subtotalCents: 900, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
+      items: raceItems,
+    },
+  })).draft;
+  const raceBill = (await api(`/receipt-drafts/${raceDraftId}/initialize`, "alice-token", "POST", { revision: raceDraft.revision })).bill;
+  const [raceApples, raceMilk, raceBread] = raceItems;
+  await api(`/bills/${raceBill.id}/claims`, "alice-token", "POST", {
+    reviewedItems: raceBill.items.map(({ id, version }) => ({ itemId: id, version })),
+    claims: [{ itemId: raceMilk.id, numerator: 1, denominator: 2 }],
+  });
+  // Another tab corrects an item, as the initiator.
+  const correctElsewhere = async (item, amountCents) => {
+    const current = (await api(`/bills/${raceBill.id}`)).bill.items.find(({ id }) => id === item.id);
+    await api(`/bills/${raceBill.id}/items/${item.id}`, "alice-token", "PATCH", {
+      version: current.version, name: item.name, quantity: "1", amountCents, discountCents: 0, taxable: false, manualFinal: false,
+    });
+  };
+  await alice.goto(`${base}#/bills/${raceBill.id}`);
+  await alice.getByRole("button", { name: "Edit items & prices" }).click();
+  await alice.getByRole("button", { name: "Edit Apples", exact: true }).click();
+  await alice.getByLabel("Printed price", { exact: true }).fill("2.70");
+  await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+  // Bread is unselected, so its live change leaves Save enabled; its untouched row must not be sent.
+  await correctElsewhere(raceBread, 350);
+  await expect(alice.getByRole("button", { name: "View Bread · $3.50", exact: true })).toBeVisible();
+  const racePatches = [];
+  alice.on("request", (request) => {
+    if (request.method() === "PATCH" && new URL(request.url()).pathname.startsWith(`/api/bills/${raceBill.id}/items/`))
+      racePatches.push(new URL(request.url()).pathname.split("/").at(-1));
+  });
+  // Milk, which Alice holds, changes while the Apples correction is in flight.
+  const applesPath = `/api/bills/${raceBill.id}/items/${raceApples.id}`;
+  let raceError;
+  await alice.route(`**${applesPath}`, async (route) => {
+    try { await correctElsewhere(raceMilk, 400); } catch (error) { raceError = error; }
+    await route.continue();
+  }, { times: 1 });
+  const applesSaved = alice.waitForResponse((response) => response.request().method() === "PATCH" &&
+    new URL(response.url()).pathname === applesPath);
+  await alice.getByRole("button", { name: "Save item changes", exact: true }).click();
+  assert.equal((await applesSaved).status(), 200);
+  assert.equal(raceError, undefined);
+  await expect(alice.getByRole("button", { name: "Keep current items", exact: true })).toHaveCount(0);
+  assert.deepEqual(racePatches, [raceApples.id]);
+  await expect(alice.getByRole("button", { name: "View Milk · $4.00", exact: true })).toBeVisible();
+  await expect(alice.getByRole("button", { name: "I have reviewed the latest bill" })).toBeVisible();
+  await expect(alice.getByRole("button", { name: "Confirm my item claims" })).toBeDisabled();
+
   // Auto-advance passes over items others hold in full; Previous, Next and the arrow keys still visit them.
   const skipDraftId = randomUUID();
   const skipItems = ["Bananas", "Taken rice", "Yogurt"].map((name) => ({ id: randomUUID(), name, originalText: name.toUpperCase(), quantity: "1", amountCents: 100, discountCents: 0, taxable: false, finalCents: 100, manualFinal: false }));
