@@ -1,4 +1,5 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
+import { avatarTint } from "./appearance";
 
 const paths = {
   grid: (
@@ -139,10 +140,7 @@ export function Avatar({
 }) {
   const [failedUrls, setFailedUrls] = useState<string[]>([]);
   const source = [imageUrl, fallbackImageUrl].find(url => url && !failedUrls.includes(url));
-  // A stable tint for real member names, not just the five prototype names.
-  const tint = [...name.trim().toLowerCase()].reduce((hash, character) =>
-    (hash * 31 + character.codePointAt(0)!) % 5, 0) + 1;
-  const color = name.trim() ? `var(--avatar-${tint})` : "var(--avatar-default)";
+  const color = avatarTint(name);
   return (
     <span
       className={`avatar ${small ? "small" : ""}`}

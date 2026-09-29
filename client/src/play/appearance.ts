@@ -77,3 +77,11 @@ export function saveScheme(key: SchemeKey) {
     return false;
   }
 }
+
+// A stable avatar tint for real member names, not just the five prototype names.
+// Claim bars reuse it, so a person's segment matches their avatar.
+export function avatarTint(name: string) {
+  const tint = [...name.trim().toLowerCase()].reduce((hash, character) =>
+    (hash * 31 + character.codePointAt(0)!) % 5, 0) + 1;
+  return name.trim() ? `var(--avatar-${tint})` : "var(--avatar-default)";
+}

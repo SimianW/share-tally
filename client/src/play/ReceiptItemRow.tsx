@@ -16,12 +16,14 @@ export type ReceiptItemRowProps = {
   accessibleLabel?: string;
   /** Show the Azure line price rather than provisional allocated cost. */
   printedCents?: number | null;
+  /** Extra classes on the row, e.g. a tone for rows that need attention. */
+  className?: string;
 };
 
-export function ReceiptItemRow({ item, mode, onOpen, selected, disabled, badges, secondary, actions, accessibleLabel, printedCents }: ReceiptItemRowProps) {
+export function ReceiptItemRow({ item, mode, onOpen, selected, disabled, badges, secondary, actions, accessibleLabel, printedCents, className = "" }: ReceiptItemRowProps) {
   const detailId = useId();
   const displayCents = printedCents === undefined ? item.finalCents : printedCents;
-  return <div className={`receipt-compact-row receipt-row-${mode}${selected ? " is-selected" : ""}`} data-item-id={item.id}>
+  return <div className={`receipt-compact-row receipt-row-${mode}${selected ? " is-selected" : ""}${className ? ` ${className.trim()}` : ""}`} data-item-id={item.id}>
     <button type="button" className="receipt-row-open" onClick={onOpen} disabled={disabled}
       aria-label={accessibleLabel ?? `${mode === "claim" ? "View" : "Edit"} ${item.name || "Unnamed item"}`} aria-haspopup="dialog" aria-describedby={detailId}>
       <span id={detailId} className="sr-only">Quantity {item.quantity || "1"}. {printedCents !== undefined ? "Printed price" : "Final cost"} {displayCents === null ? "missing" : money(displayCents)}.{printedCents === undefined && item.manualFinal ? " Manual override." : ""}{printedCents === undefined && item.taxable === false ? " No tax." : ""}</span>

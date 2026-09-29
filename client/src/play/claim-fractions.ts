@@ -3,14 +3,14 @@ import type { BillItem, ItemClaim } from "./receipt-api";
 
 // Match the server's BigInt rational arithmetic: sum exact fractions, then round
 // the participant's *whole* share once, not each item independently.
-type Fraction = { n: bigint; d: bigint };
+export type Fraction = { n: bigint; d: bigint };
 function gcd(a: bigint, b: bigint): bigint { return b ? gcd(b, a % b) : a; }
 export function fraction(n: bigint, d: bigint): Fraction {
   const divisor = gcd(n < 0n ? -n : n, d);
   return { n: n / divisor, d: d / divisor };
 }
-function add(a: Fraction, b: Fraction): Fraction { return fraction(a.n * b.d + b.n * a.d, a.d * b.d); }
-const zero: Fraction = { n: 0n, d: 1n };
+export function add(a: Fraction, b: Fraction): Fraction { return fraction(a.n * b.d + b.n * a.d, a.d * b.d); }
+export const zero: Fraction = { n: 0n, d: 1n };
 export const one: Fraction = { n: 1n, d: 1n };
 export function sum(claims: Pick<ItemClaim, "numerator" | "denominator">[]): Fraction {
   return claims.reduce((a, c) => add(a, fraction(BigInt(c.numerator), BigInt(c.denominator))), zero);
@@ -24,6 +24,10 @@ export function parse(value: string): Fraction | null {
   const n = Number(match[1]), d = Number(match[2] ?? 1);
   if (!Number.isSafeInteger(n) || !Number.isSafeInteger(d) || n < 1 || d < n || n > 10000 || d > 10000) return null;
   return fraction(BigInt(n), BigInt(d));
+}
+// The server sends exact fractions as decimal integer strings.
+export function fromParts(numerator: string, denominator: string): Fraction {
+  return fraction(BigInt(numerator), BigInt(denominator));
 }
 export function lessOrEqual(a: Fraction, b: Fraction) { return a.n * b.d <= b.n * a.d; }
 export function cost(cents: number, f: Fraction) { return Number((BigInt(cents) * f.n * 2n + f.d) / (2n * f.d)); }
