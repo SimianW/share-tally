@@ -2007,7 +2007,8 @@ try {
       assert.deepEqual(result.request().postDataJSON().reviewedItems, reviewedItems);
       assert.equal("revision" in result.request().postDataJSON(), false);
       assert.equal(result.status(), 200);
-      await expect(alice.getByRole("button", { name: "Save item changes", exact: true })).toHaveCount(0);
+      // The editor closes once saved; its Save button alone would vanish while it reads "Saving…".
+      await expect(alice.locator(".receipt-correction")).toHaveCount(0);
     };
     await open();
     await expect(row("Historical cost")).toContainText("2.75");
