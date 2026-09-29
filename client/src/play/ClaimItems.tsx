@@ -379,6 +379,8 @@ function AttentionBadges({ attention, initiatorName }: { attention: ItemAttentio
       <span className="claim-attention-badge is-changed">Price <PriceChange from={change.from.finalCents} to={change.to.finalCents} /></span>}
     {change && change.from.name !== change.to.name &&
       <span className="claim-attention-badge is-changed">Renamed from “{change.from.name}”</span>}
+    {change && change.from.name === change.to.name && change.from.finalCents === change.to.finalCents &&
+      <span className="claim-attention-badge is-changed">Item changed — review</span>}
     {attention.invalid && <span className="claim-attention-badge is-over">Pick your portion again</span>}
     {attention.conflict && attention.over && <span className="claim-attention-badge is-over">Someone just updated this</span>}
     {attention.updated && <span className="receipt-badge">{initiatorName === "You" ? "Updated" : `Updated by ${initiatorName}`}</span>}
@@ -407,6 +409,8 @@ function SheetNotices({ item, attention, mine, isNew, reviewed, initiatorName, s
       {change.from.finalCents !== change.to.finalCents && <p>Price <PriceChange from={change.from.finalCents} to={change.to.finalCents} />.
         {mine && <> Your {text(mine)} is now <b>{money(cost(change.to.finalCents, mine))}</b> (was {money(cost(change.from.finalCents, mine))}).</>}</p>}
       {change.from.name !== change.to.name && <p>Renamed from “{change.from.name}”.</p>}
+      {change.from.name === change.to.name && change.from.finalCents === change.to.finalCents &&
+        <p>It was edited, but its name and price of <b>{money(change.to.finalCents)}</b> are what you saw before.</p>}
       <Button onClick={seen}>I've seen the new price</Button>
       <small>Or pick a different portion below.</small>
     </div>}
