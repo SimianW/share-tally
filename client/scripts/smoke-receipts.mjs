@@ -1005,9 +1005,19 @@ try {
   const reviewer = await pageFor("carol-token", { width: 1280, height: 1000 });
   await mkdir("/tmp/share-tally-receipt-smoke", { recursive: true });
   // Key states for design review, on desktop and then on a 390×844 phone.
-  // List states scroll the row in question into view first. Each capture waits out the sheet's
-  // 220 ms entry animation and the bars' springs, which settle in under half a second.
-  const settle = () => reviewer.waitForTimeout(600);
+  // List states scroll the row in question into view first. Each capture waits until the sheet's
+  // entry animation and the bars' springs have stopped: nothing on them is animating, and their
+  // positions and opacity hold still across two frames.
+  const settle = () => expect.poll(() => reviewer.evaluate(async () => {
+    const moving = ".claim-bar, .claim-meter, .receipt-sheet-content";
+    const snapshot = () => JSON.stringify([...document.querySelectorAll(`.claim-bar [data-segment], ${moving}`)]
+      .map((element) => { const box = element.getBoundingClientRect(); return [box.x, box.width, getComputedStyle(element).opacity]; }));
+    const before = snapshot();
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const animating = document.getAnimations().some((animation) => animation.playState === "running" &&
+      animation.effect?.target instanceof Element && animation.effect.target.closest(moving));
+    return !animating && snapshot() === before;
+  })).toBe(true);
   const reviewShot = async (name, subject) => {
     await subject?.scrollIntoViewIfNeeded();
     await settle();
@@ -1045,10 +1055,9 @@ try {
   await expect(bobChip).toHaveClass(/is-lit/);
   await expect(sheetBar("Bread").locator(`[data-flash="${memberIds.Bob}"]`)).toHaveCount(1);
   await expect(reviewRow("Bread").locator(`[data-flash="${memberIds.Bob}"]`)).toHaveCount(1);
-  // Settled, but well within the highlight's 1.2 s.
-  await reviewer.waitForTimeout(500);
-  await reviewer.screenshot({ path: "/tmp/share-tally-receipt-smoke/claim-review-live-change-desktop.png" });
+  // Captured once Bob's segment reaches its new width, normally well within the highlight's 1.2 s.
   await expect.poll(async () => (await segmentGeometry("Bread", memberIds.Bob))?.share).toBeCloseTo(1 / 2, 2);
+  await reviewer.screenshot({ path: "/tmp/share-tally-receipt-smoke/claim-review-live-change-desktop.png" });
   await expect(reviewSheet("Bread").locator(".claim-legend")).toContainText("You · 1/4");
   await expect(itemOption(reviewer, "1/4 · $1.50", "Bread")).toHaveAttribute("aria-pressed", "true");
   // The highlight lasts about a second, then the legend settles.
