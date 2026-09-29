@@ -1732,9 +1732,9 @@ test('claim conflicts report every unavailable item and the exact fraction avail
 
 test('legacy corrections accept a claim since review and version every changed final cost or name', async () => {
   const { bill, data } = await itemBill([100, 200, 300], 600);
-  await json(await api(`/bills/${bill.id}/claims`, 'bob-token', 'POST', {
+  const claimed = (await json(await api(`/bills/${bill.id}/claims`, 'bob-token', 'POST', {
     reviewedItems: reviewedItems(bill), claims: [{ itemId: data.items[0]!.id, numerator: 1, denominator: 2 }],
-  }));
+  }))).bill;
   // The whole-list editor sends the recalculated final costs after receipt tax
   // changes: both affected rows must advance, not just the directly edited row.
   const adjusted = data.items.map((item, index) => index < 2
@@ -1743,12 +1743,15 @@ test('legacy corrections accept a claim since review and version every changed f
   const corrected = (await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', {
     reviewedItems: reviewedItems(bill), items: adjusted,
   }))).bill;
-  assert.deepEqual(corrected.items.map((item: { version: number }) => item.version), [2, 2, 1]);
+  // A changed item takes the revision of the edit that changed it.
+  assert.deepEqual(corrected.items.map((item: { version: number }) => item.version),
+    [claimed.revision + 1, claimed.revision + 1, 1]);
   assert.equal(corrected.items[0].claims[0].confirmedAt, null, 'price corrections retain reservations');
   const renamed = (await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', {
     reviewedItems: reviewedItems(corrected), items: adjusted.map((item, index) => index === 2 ? { ...item, name: 'New name' } : item),
   }))).bill;
-  assert.deepEqual(renamed.items.map((item: { version: number }) => item.version), [2, 2, 2]);
+  assert.deepEqual(renamed.items.map((item: { version: number }) => item.version),
+    [claimed.revision + 1, claimed.revision + 1, corrected.revision + 1]);
 });
 
 test('claims collect changed, added, removed and capacity conflicts while ignoring unselected changes', async () => {
@@ -1838,6 +1841,28 @@ test('selected removals conflict alone while unselected removals permit confirma
   await json(await api(`/bills/${bill.id}/claims`, 'bob-token', 'POST', {
     reviewedItems: reviewedItems(bill), claims: [{ itemId: data.items[0]!.id, numerator: 1, denominator: 2 }],
   }));
+});
+
+test('an item re-added under a removed id does not match reviews of the removed item', async () => {
+  const { bill, data } = await itemBill([100, 200], 300);
+  const [reused, kept] = data.items;
+  const withoutItem = (await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', {
+    reviewedItems: reviewedItems(bill), items: [kept],
+  }))).bill;
+  await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', {
+    reviewedItems: reviewedItems(withoutItem),
+    items: [kept, { ...reused!, name: 'Changed item', amountCents: 200, finalCents: 200 }],
+  }));
+  const stale = await json(await api(`/bills/${bill.id}/claims`, 'bob-token', 'POST', {
+    reviewedItems: reviewedItems(bill), claims: [{ itemId: reused!.id, numerator: 1, denominator: 1 }],
+  }), 409);
+  assert.deepEqual(stale.conflicts, {
+    stale: [{ itemId: reused!.id, kind: 'changed', finalCents: 200, name: 'Changed item' }], overAllocated: [],
+  });
+  const staleEdit = await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', {
+    reviewedItems: reviewedItems(bill), items: [kept, reused],
+  }), 409);
+  assert.deepEqual(staleEdit.conflicts.stale, [{ itemId: reused!.id, kind: 'changed', finalCents: 200, name: 'Changed item' }]);
 });
 
 test('item requests reject duplicate reviewed ids and canceled bills reject even identical claim retries', async () => {
@@ -2810,7 +2835,8 @@ test('receipt corrections and unrelated claims succeed concurrently and stale se
   ]);
   for (const response of responses) await json(response);
   const current = (await json(await api(`/bills/${bill.id}`))).bill;
-  assert.deepEqual(current.items.map((item: { version: number }) => item.version), [2, 1, 1]);
+  assert.ok(current.items[0].version > bill.items[0].version);
+  assert.deepEqual(current.items.slice(1).map((item: { version: number }) => item.version), [1, 1]);
   assert.equal(current.items[0].finalCents, 1212);
   const conflict = await json(await api(`/bills/${bill.id}/claims`, 'carol-token', 'POST', {
     reviewedItems: reviewedItems(bill), claims: [{ itemId: first.id, numerator: 1, denominator: 2 }],

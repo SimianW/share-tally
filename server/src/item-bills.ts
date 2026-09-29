@@ -61,15 +61,22 @@ function staleItems(
   return stale;
 }
 
+// Versions are the bill revision that last created or changed the item, so an
+// item re-added under a removed id never matches a review of the removed one.
+function nextVersion(bill: typeof bills.$inferSelect) {
+  return bill.revision + 1;
+}
+
 // Both initiated-item editors use the same comparison at write time. Derivation
 // changes alone do not advance a version; their resulting final cost does.
 async function writeItem(
   tx: Tx,
+  bill: typeof bills.$inferSelect,
   old: typeof billItems.$inferSelect,
   next: Partial<typeof billItems.$inferInsert> & { name: string; finalCents: number },
 ) {
   const changed = old.finalCents !== next.finalCents || old.name !== next.name;
-  await tx.update(billItems).set({ ...next, version: old.version + (changed ? 1 : 0) })
+  await tx.update(billItems).set({ ...next, version: changed ? nextVersion(bill) : old.version })
     .where(eq(billItems.id, old.id));
 }
 
@@ -196,7 +203,7 @@ export async function correctItem(id: string, itemId: string, userId: string, bo
         await tx.update(billShares).set({ confirmedAt: null })
           .where(and(eq(billShares.billId, id), inArray(billShares.userId, claimants)));
     }
-    await writeItem(tx, old, { ...next, name: input.name, quantity: input.quantity,
+    await writeItem(tx, bill, old, { ...next, name: input.name, quantity: input.quantity,
       amountCents: input.amountCents, discountCents: input.discountCents });
     await tx.update(bills).set({ revision: bill.revision + 1 }).where(eq(bills.id, id));
     await recalculateItemBill(tx, bill);
@@ -255,12 +262,12 @@ export async function editItems(id: string, userId: string, body: unknown) {
             .set({ confirmedAt: null })
             .where(eq(itemClaims.itemId, item.id));
         }
-        await writeItem(tx, old, { ...item, position });
+        await writeItem(tx, bill, old, { ...item, position });
       } else {
         added = true;
         const inserted = await tx
           .insert(billItems)
-          .values({ ...item, billId: id, position })
+          .values({ ...item, billId: id, position, version: nextVersion(bill) })
           .onConflictDoNothing()
           .returning();
         if (!inserted.length)

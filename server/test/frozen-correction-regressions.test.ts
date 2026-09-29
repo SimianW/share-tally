@@ -226,7 +226,8 @@ for (const sameItem of [true, false]) {
     for (let i = 0; i < corrections.length; i++) {
       if (responses[i]!.status !== 200) continue;
       const correction = corrections[i]!;
-      expected[correction.index] = { ...expected[correction.index], amountCents: correction.amountCents, taxCents: correction.taxCents, allocatedTaxCents: correction.taxCents, finalCents: correction.finalCents, version: expected[correction.index].version + 1 };
+      expected[correction.index] = { ...expected[correction.index], amountCents: correction.amountCents, taxCents: correction.taxCents, allocatedTaxCents: correction.taxCents, finalCents: correction.finalCents, version: saved.items[correction.index].version };
+      assert.ok(saved.items[correction.index].version > initial.items[correction.index].version);
     }
     assert.equal(saved.revision, initial.revision + (sameItem ? 1 : 2));
     assert.deepEqual(saved.items, expected, "only successful corrections change their edited item");
