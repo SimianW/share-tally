@@ -1802,6 +1802,61 @@ test('whole-list edits reject all stale versions and item-set differences withou
   assert.deepEqual((await json(await api(`/bills/${bill.id}`))).bill.items, corrected.items);
 });
 
+test('identical claim retries stay idempotent but cannot acknowledge a newly added or renamed item', async () => {
+  const { bill, data } = await itemBill([100, 200], 300);
+  const claims = [{ itemId: data.items[0]!.id, numerator: 1, denominator: 2 }];
+  const request = { reviewedItems: reviewedItems(bill), claims };
+  const confirmed = (await json(await api(`/bills/${bill.id}/claims`, 'bob-token', 'POST', request))).bill;
+  const retry = (await json(await api(`/bills/${bill.id}/claims`, 'bob-token', 'POST', request))).bill;
+  assert.equal(retry.revision, confirmed.revision);
+  assert.deepEqual(retry.items, confirmed.items);
+  const renamed = (await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', {
+    reviewedItems: reviewedItems(bill), items: data.items.map((item, index) => index === 0 ? { ...item, name: 'Renamed' } : item),
+  }))).bill;
+  assert.ok(renamed.items[0].claims[0].confirmedAt, 'name-only edits preserve existing confirmations');
+  const changed = await json(await api(`/bills/${bill.id}/claims`, 'bob-token', 'POST', request), 409);
+  assert.deepEqual(changed.conflicts, { stale: [{ itemId: data.items[0]!.id, kind: 'changed', finalCents: 100, name: 'Renamed' }], overAllocated: [] });
+  const added = { ...data.items[1]!, id: crypto.randomUUID() };
+  await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', {
+    reviewedItems: reviewedItems(renamed), items: [{ ...data.items[0]!, name: 'Renamed' }, data.items[1], added],
+  }));
+  const newItem = await json(await api(`/bills/${bill.id}/claims`, 'bob-token', 'POST', {
+    reviewedItems: reviewedItems(renamed), claims,
+  }), 409);
+  assert.deepEqual(newItem.conflicts, { stale: [{ itemId: added.id, kind: 'added' }], overAllocated: [] });
+});
+
+test('selected removals conflict alone while unselected removals permit confirmation', async () => {
+  const { bill, data } = await itemBill([100, 200], 300);
+  await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', {
+    reviewedItems: reviewedItems(bill), items: [data.items[0]],
+  }));
+  const removed = await json(await api(`/bills/${bill.id}/claims`, 'bob-token', 'POST', {
+    reviewedItems: reviewedItems(bill), claims: [{ itemId: data.items[1]!.id, numerator: 1, denominator: 2 }],
+  }), 409);
+  assert.deepEqual(removed.conflicts, { stale: [{ itemId: data.items[1]!.id, kind: 'removed' }], overAllocated: [] });
+  await json(await api(`/bills/${bill.id}/claims`, 'bob-token', 'POST', {
+    reviewedItems: reviewedItems(bill), claims: [{ itemId: data.items[0]!.id, numerator: 1, denominator: 2 }],
+  }));
+});
+
+test('item requests reject duplicate reviewed ids and canceled bills reject even identical claim retries', async () => {
+  const { bill, data } = await itemBill([100], 100);
+  const claims = [{ itemId: data.items[0]!.id, numerator: 1, denominator: 2 }];
+  await json(await api(`/bills/${bill.id}/claims`, 'bob-token', 'POST', {
+    reviewedItems: [...reviewedItems(bill), ...reviewedItems(bill)], claims,
+  }), 400);
+  await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', {
+    reviewedItems: [...reviewedItems(bill), ...reviewedItems(bill)], items: data.items,
+  }), 400);
+  const confirmed = (await json(await api(`/bills/${bill.id}/claims`, 'bob-token', 'POST', {
+    reviewedItems: reviewedItems(bill), claims,
+  }))).bill;
+  await json(await api(`/bills/${bill.id}/cancel`, 'alice-token', 'POST', { revision: confirmed.revision }));
+  await json(await api(`/bills/${bill.id}/claims`, 'bob-token', 'POST', { reviewedItems: reviewedItems(bill), claims }), 409);
+  await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', { reviewedItems: reviewedItems(bill), items: data.items }), 409);
+});
+
 test('new item bills expose initial item versions', async () => {
   const { bill } = await itemBill([100, 200], 300);
   assert.deepEqual(bill.items.map((item: { version: number }) => item.version), [1, 1]);
@@ -1824,8 +1879,9 @@ test('exact thirds round after summing, complete once, and permit item adjustmen
   const repayment = (await json(await api(`/groups/${bill.groupId}/repayments`, 'bob-token', 'POST', { requestId: crypto.randomUUID(), recipientId: bill.initiatorId, amountCents: 1 }), 201)).repayment;
   await json(await api(`/repayments/${repayment.id}/decision`, 'alice-token', 'POST', { decision: 'confirmed' }));
   assert.equal((await json(await api(`/groups/${bill.groupId}/bills`))).summary.netCents, 1);
-  const retry = await claimBill(bill.id, 'carol-token', claims);
+  const retry = (await json(await api(`/bills/${bill.id}/claims`, 'carol-token', 'POST', { reviewedItems: reviewedItems(bill), claims }))).bill;
   assert.equal(retry.completedAt, completed.completedAt);
+  assert.equal(retry.revision, completed.revision);
   await json(await api(`/bills/${bill.id}/items`, 'alice-token', 'PUT', { reviewedItems: reviewedItems(completed), items: data.items }), 409);
   await json(await api(`/bills/${bill.id}/cancel`, 'alice-token', 'POST', { revision: completed.revision }), 409);
 });
@@ -1834,6 +1890,8 @@ test('competing last claims serialize, stale prices fail, and reservations retai
   const claims = [{ itemId: data.items[0]!.id, numerator: 1, denominator: 1 }];
   const responses = await Promise.all(['bob-token', 'carol-token'].map(token => api(`/bills/${bill.id}/claims`, token, 'POST', { reviewedItems: reviewedItems(bill), claims })));
   assert.deepEqual(responses.map(r => r.status).sort(), [200, 409]);
+  const conflict = await json(responses.find(response => response.status === 409)!, 409);
+  assert.deepEqual(conflict.conflicts, { stale: [], overAllocated: [{ itemId: data.items[0]!.id, available: { numerator: '0', denominator: '1' } }] });
   let current = (await json(await api(`/bills/${bill.id}`))).bill;
   const winner = responses[0]!.ok ? 'bob-token' : 'carol-token';
   const loser = winner === 'bob-token' ? 'carol-token' : 'bob-token';
