@@ -797,6 +797,14 @@ try {
   await expect(alice.getByRole("button", { name: "View Milk · $4.00", exact: true })).toBeVisible();
   await expect(alice.getByRole("button", { name: "I have reviewed the latest bill" })).toBeVisible();
   await expect(alice.getByRole("button", { name: "Confirm my item claims" })).toBeDisabled();
+  // Milk still awaits review, but a correction from a freshly opened editor is not held back by it.
+  await alice.getByRole("button", { name: "Edit items & prices" }).click();
+  await alice.getByRole("button", { name: "Edit Bread", exact: true }).click();
+  await alice.getByLabel("Printed price", { exact: true }).fill("3.20");
+  await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+  await alice.getByRole("button", { name: "Save item changes", exact: true }).click();
+  await expect(alice.getByRole("button", { name: "View Bread · $3.20", exact: true })).toBeVisible();
+  await expect(alice.getByRole("button", { name: "I have reviewed the latest bill" })).toBeVisible();
 
   // Auto-advance passes over items others hold in full; Previous, Next and the arrow keys still visit them.
   const skipDraftId = randomUUID();

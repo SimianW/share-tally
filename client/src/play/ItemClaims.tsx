@@ -74,7 +74,7 @@ export function ItemClaims({
     }
   }
   function saveLegacyCorrection() {
-    if (!legacyEdit || busy || stale) return;
+    if (!legacyEdit || busy) return;
     if (!legacyEdit.length || legacyEdit.some(item => !item.name.trim() || item.amountCents === null ||
       item.finalCents === null || item.finalCents < 0 || item.finalCents > 1_000_000)) {
       setError("Keep at least one item and check each name, printed price and final cost (CAD 0–10,000).");
@@ -84,7 +84,7 @@ export function ItemClaims({
     void perform(() => api.legacyItems(bill.id, reviewedItems(editBase), items));
   }
   async function saveCorrection() {
-    if (!edit || busy || stale) return;
+    if (!edit || busy) return;
     if (edit.some((item) => !item.name.trim() || item.amountCents === null ||
       item.discountCents > item.amountCents || item.finalCents === null)) {
       setError("Check each item's name, printed price, discount and final cost.");
@@ -225,7 +225,8 @@ export function ItemClaims({
               }))} />}
               <p>Price changes reserve only the corrected item's claims until their owners reconfirm. Other items stay confirmed.</p>
               <div className="receipt-correction-actions">
-                <Button disabled={busy || stale} onClick={() => legacyEdit ? saveLegacyCorrection() : void saveCorrection()}>
+                {/* Claim review does not gate corrections: the server checks them against editBase. */}
+                <Button disabled={busy} onClick={() => legacyEdit ? saveLegacyCorrection() : void saveCorrection()}>
                   {busy ? "Saving…" : "Save item changes"}
                 </Button>
                 <Button variant="text" disabled={busy} onClick={() => { setEdit(null); setLegacyEdit(null); }}>
