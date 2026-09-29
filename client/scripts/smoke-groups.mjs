@@ -454,10 +454,10 @@ try {
   }
   await incompleteBill('Correctable groceries');
   // Focus reaches the initiator's own share form before the panel's bill controls.
-  assert.equal(await alice.evaluate(() => {
-    const edit = [...document.querySelectorAll('button')].find(button => button.textContent === 'Edit details & participants');
-    return Boolean(document.getElementById('my-share-amount').compareDocumentPosition(edit) & Node.DOCUMENT_POSITION_FOLLOWING);
-  }), true, 'The share form precedes the initiator controls in DOM order');
+  const editBill = alice.getByRole('button', { name: 'Edit details & participants' });
+  assert.equal(await editBill.evaluate(edit =>
+    Boolean(document.getElementById('my-share-amount').compareDocumentPosition(edit) & Node.DOCUMENT_POSITION_FOLLOWING),
+  ), true, 'The share form precedes the initiator controls in DOM order');
   // At 390px the bill summary strip comes before the Your share card, without overflow.
   const summaryBox = await billSummary(bobAgain).boundingBox();
   const ticketBox = await shareTicket(bobAgain).boundingBox();
