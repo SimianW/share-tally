@@ -174,6 +174,19 @@
 .claim-left { min-width: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .claim-mine { color: var(--ink); }
 .claim-sheet .receipt-cost-breakdown { margin-top: var(--space-3); }
+/* Desktop steps through items from the header; the mobile sheet relies on auto-advance. */
+.claim-sheet-nav { display: flex; gap: var(--space-1); }
+.claim-sheet-nav .icon-button { color: var(--ink); cursor: pointer; }
+/* aria-disabled rather than disabled, so focus stays on the button at either end of the list. */
+.claim-sheet-nav .icon-button[aria-disabled="true"] { opacity: .35; cursor: not-allowed; }
+.claim-sheet-nav .icon-button:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
+@media (hover: hover) {
+  .claim-sheet-nav .icon-button:hover:not([aria-disabled="true"]) { background: var(--surface-soft); }
+}
+.claim-sheet .receipt-sheet-content { animation: claim-item-in .22s ease-out; }
+@keyframes claim-item-in { from { opacity: 0; transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) { .claim-sheet .receipt-sheet-content { animation: none; } }
+@media (max-width: 700px) { .claim-sheet-nav { display: none; } }
 .claim-options { display: grid; gap: var(--space-3); }
 .claim-portion { display: grid; gap: var(--space-3); padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-soft); }
 .claim-portion > strong { margin-top: calc(var(--space-2) * -1); font: 800 2rem / 1.1 var(--font-heading); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
