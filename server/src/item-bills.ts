@@ -8,12 +8,12 @@ import {
   itemClaims,
   billShares,
 } from "./db/schema.js";
-import { BillError } from "./bill-error.js";
+import { BillError, type ItemConflicts } from "./bill-error.js";
 import {
   checked,
   claimInput,
   itemInput,
-  revisionInput,
+  reviewedItemsInput,
 } from "./receipt-input.js";
 import { correctedPrice } from "./frozen-receipt-pricing.js";
 import {
@@ -21,7 +21,7 @@ import {
   recalculateItemBill,
   type Tx,
 } from "./item-accounting.js";
-import { sumFractions } from "./fractions.js";
+import { fraction, sumFractions } from "./fractions.js";
 import { notifyGroupChanged } from "./group-events.js";
 
 async function locked(tx: Tx, id: string, userId: string) {
@@ -38,15 +38,41 @@ async function locked(tx: Tx, id: string, userId: string) {
     throw new BillError(400, "This bill uses manual shares.");
   return bill;
 }
-function mutable(bill: typeof bills.$inferSelect, revision: number) {
+function mutable(bill: typeof bills.$inferSelect) {
   if (bill.completedAt || bill.canceledAt)
     throw new BillError(409, "This bill is final.");
-  if (bill.revision !== revision)
-    throw new BillError(
-      409,
-      "This bill changed. Review the latest items before confirming. Your selections have not been submitted.",
-    );
 }
+function staleItems(
+  items: { id: string; version: number; name: string; finalCents: number }[],
+  reviewed: { itemId: string; version: number }[],
+  selected: string[],
+): ItemConflicts["stale"] {
+  const versions = new Map(reviewed.map(item => [item.itemId, item.version]));
+  const selectedIds = new Set(selected);
+  const stale: ItemConflicts["stale"] = [];
+  for (const item of items) {
+    if (!versions.has(item.id)) stale.push({ itemId: item.id, kind: "added" });
+    else if (selectedIds.has(item.id) && versions.get(item.id) !== item.version)
+      stale.push({ itemId: item.id, kind: "changed", finalCents: item.finalCents, name: item.name });
+  }
+  const currentIds = new Set(items.map(item => item.id));
+  for (const itemId of selectedIds)
+    if (!currentIds.has(itemId)) stale.push({ itemId, kind: "removed" });
+  return stale;
+}
+
+// Both initiated-item editors use the same comparison at write time. Derivation
+// changes alone do not advance a version; their resulting final cost does.
+async function writeItem(
+  tx: Tx,
+  old: typeof billItems.$inferSelect,
+  next: Partial<typeof billItems.$inferInsert> & { name: string; finalCents: number },
+) {
+  const changed = old.finalCents !== next.finalCents || old.name !== next.name;
+  await tx.update(billItems).set({ ...next, version: old.version + (changed ? 1 : 0) })
+    .where(eq(billItems.id, old.id));
+}
+
 export async function confirmClaims(id: string, userId: string, body: unknown) {
   const input = checked(claimInput, body);
   if (
@@ -66,12 +92,14 @@ export async function confirmClaims(id: string, userId: string, body: unknown) {
     if (!share)
       throw new BillError(403, "Only selected participants can claim items.");
     const { items } = await itemDetails(tx, id);
+    const stale = staleItems(items, input.reviewedItems, input.claims.map(claim => claim.itemId));
     const previous = items.flatMap((i) =>
       i.claims.filter((c) => c.userId === userId),
     );
     // Identical retries have no financial effect, including a response lost at completion.
     if (
       !bill.canceledAt &&
+      !stale.length &&
       share.confirmedAt &&
       previous.length === input.claims.length &&
       previous.every(
@@ -86,20 +114,21 @@ export async function confirmClaims(id: string, userId: string, body: unknown) {
       )
     )
       return bill.groupId;
-    mutable(bill, input.revision);
+    mutable(bill);
+    const conflicts: ItemConflicts = { stale, overAllocated: [] };
     for (const claim of input.claims) {
       const item = items.find((i) => i.id === claim.itemId);
-      if (!item) throw new BillError(400, "An item is no longer on this bill.");
-      const allocated = sumFractions([
-        ...item.claims.filter((c) => c.userId !== userId),
-        claim,
-      ]);
-      if (allocated.n > allocated.d)
-        throw new BillError(
-          409,
-          `Not enough of ${item.name} is available. Other confirmed or reserved claims already hold that portion.`,
-        );
+      if (!item) continue;
+      const others = sumFractions(item.claims.filter((c) => c.userId !== userId));
+      if (others.n * BigInt(claim.denominator) + BigInt(claim.numerator) * others.d > others.d * BigInt(claim.denominator)) {
+        const available = fraction(others.d - others.n, others.d);
+        conflicts.overAllocated.push({ itemId: item.id, available: {
+          numerator: available.n.toString(), denominator: available.d.toString(),
+        } });
+      }
     }
+    if (conflicts.stale.length || conflicts.overAllocated.length)
+      throw new BillError(409, "The selected items changed or not enough is available. Review the latest items before confirming. Your selections have not been submitted.", conflicts);
     if (items.length)
       await tx.delete(itemClaims).where(
         and(
@@ -131,7 +160,7 @@ export async function confirmClaims(id: string, userId: string, body: unknown) {
 }
 export async function correctItem(id: string, itemId: string, userId: string, body: unknown) {
   const input = checked(z.object({
-    revision: revisionInput,
+    version: z.number().int().positive(),
     name: z.string().trim().min(1).max(160),
     quantity: z.string().max(40),
     amountCents: z.number().int().min(0).max(1_000_000),
@@ -144,11 +173,17 @@ export async function correctItem(id: string, itemId: string, userId: string, bo
     const bill = await locked(tx, id, userId);
     if (bill.initiatorId !== userId)
       throw new BillError(403, "Only the initiator can correct items.");
-    mutable(bill, input.revision);
+    mutable(bill);
     if (!bill.receipt) throw new BillError(400, "This bill has no stored receipt summary. Use the legacy item editor.");
     const { items } = await itemDetails(tx, id);
     const old = items.find(item => item.id === itemId);
-    if (!old) throw new BillError(404, "Item not found.");
+    if (!old) throw new BillError(409, "This item was removed.", {
+      stale: [{ itemId, kind: "removed" }], overAllocated: [],
+    });
+    if (old.version !== input.version)
+      throw new BillError(409, "This item changed. Review it before correcting it.", {
+        stale: [{ itemId, kind: "changed", finalCents: old.finalCents, name: old.name }], overAllocated: [],
+      });
     if (input.manualFinal && input.finalCents === undefined)
       throw new BillError(400, "Enter a manual final cost.");
     const next = correctedPrice(bill, old, input);
@@ -161,9 +196,8 @@ export async function correctItem(id: string, itemId: string, userId: string, bo
         await tx.update(billShares).set({ confirmedAt: null })
           .where(and(eq(billShares.billId, id), inArray(billShares.userId, claimants)));
     }
-    await tx.update(billItems).set({ ...next, name: input.name, quantity: input.quantity,
-      amountCents: input.amountCents, discountCents: input.discountCents })
-      .where(eq(billItems.id, itemId));
+    await writeItem(tx, old, { ...next, name: input.name, quantity: input.quantity,
+      amountCents: input.amountCents, discountCents: input.discountCents });
     await tx.update(bills).set({ revision: bill.revision + 1 }).where(eq(bills.id, id));
     await recalculateItemBill(tx, bill);
     return bill.groupId;
@@ -175,7 +209,7 @@ export async function editItems(id: string, userId: string, body: unknown) {
   const input = checked(
     z
       .object({
-        revision: revisionInput,
+        reviewedItems: reviewedItemsInput,
         // No default: omitted historical provenance stays unknown, while a
         // newly chosen override (or return to calculation) records its intent.
         items: z.array(itemInput.extend({ manualFinal: z.boolean().nullable().optional() })).min(1).max(200),
@@ -191,9 +225,12 @@ export async function editItems(id: string, userId: string, body: unknown) {
     const bill = await locked(tx, id, userId);
     if (bill.initiatorId !== userId)
       throw new BillError(403, "Only the initiator can edit items.");
-    mutable(bill, input.revision);
+    mutable(bill);
     if (bill.receipt) throw new BillError(409, "Correct one item at a time with the receipt correction endpoint.");
     const { items: previous } = await itemDetails(tx, id);
+    const stale = staleItems(previous, input.reviewedItems, input.reviewedItems.map(item => item.itemId));
+    if (stale.length)
+      throw new BillError(409, "These items changed. Review the latest items before correcting them.", { stale, overAllocated: [] });
     const invalidate = new Set<string>();
     for (const old of previous) {
       if (!input.items.some((i) => i.id === old.id)) {
@@ -218,10 +255,7 @@ export async function editItems(id: string, userId: string, body: unknown) {
             .set({ confirmedAt: null })
             .where(eq(itemClaims.itemId, item.id));
         }
-        await tx
-          .update(billItems)
-          .set({ ...item, position })
-          .where(eq(billItems.id, item.id));
+        await writeItem(tx, old, { ...item, position });
       } else {
         added = true;
         const inserted = await tx

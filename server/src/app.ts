@@ -112,7 +112,8 @@ export function createApp(auth: Authentication = {
 
     if (error instanceof GroupAccessError || error instanceof BillError) {
       res.status(error.status).json({ error: error.message,
-        ...(error instanceof GroupDeletionError ? { reasons: error.reasons } : {}) });
+        ...(error instanceof GroupDeletionError ? { reasons: error.reasons } : {}),
+        ...(error instanceof BillError && error.conflicts ? { conflicts: error.conflicts } : {}) });
       return;
     }
 
