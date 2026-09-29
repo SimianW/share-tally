@@ -47,6 +47,7 @@ export default function Dialog({
   className = "",
   closeLabel = "Close dialog",
   headingRef,
+  actions,
 }: {
   title: string;
   children: ReactNode;
@@ -56,6 +57,8 @@ export default function Dialog({
   closeLabel?: string;
   // Makes the heading focusable, so it can take focus instead of a field.
   headingRef?: RefObject<HTMLHeadingElement | null>;
+  // Extra header controls, placed before the close button.
+  actions?: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const id = useId();
@@ -90,14 +93,17 @@ export default function Dialog({
           <div className="eyebrow">{kicker}</div>
           <h2 id={id} ref={headingRef} tabIndex={headingRef ? -1 : undefined}>{title}</h2>
         </div>
-        <button
-          type="button"
-          className="icon-button"
-          aria-label={closeLabel}
-          onClick={close}
-        >
-          <Icon name="close" />
-        </button>
+        <div className="dialog-heading-actions">
+          {actions}
+          <button
+            type="button"
+            className="icon-button"
+            aria-label={closeLabel}
+            onClick={close}
+          >
+            <Icon name="close" />
+          </button>
+        </div>
       </div>
       {children}
     </dialog>

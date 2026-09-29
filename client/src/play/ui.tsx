@@ -29,6 +29,8 @@ const paths = {
   arrow: <path d="M5 12h14m-6-6 6 6-6 6" />,
   diagonal: <path d="M6 18 18 6H7m11 0v11" />,
   down: <path d="m6 9 6 6 6-6" />,
+  left: <path d="m15 18-6-6 6-6" />,
+  right: <path d="m9 18 6-6-6-6" />,
   check: <path d="m5 12 4 4L19 6" />,
   close: <path d="m6 6 12 12M6 18 18 6" />,
   bell: (

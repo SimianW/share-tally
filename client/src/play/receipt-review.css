@@ -174,6 +174,20 @@
 .claim-left { min-width: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .claim-mine { color: var(--ink); }
 .claim-sheet .receipt-cost-breakdown { margin-top: var(--space-3); }
+/* Previous and Next sit in the header at every size. Each keeps its 32px circle, but an invisible
+   ring widens the touch target to 44px; the gap keeps neighbouring targets from overlapping. */
+.claim-sheet-nav { display: flex; gap: var(--space-3); }
+.claim-sheet-nav .icon-button { position: relative; color: var(--ink); cursor: pointer; }
+.claim-sheet-nav .icon-button::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; }
+/* aria-disabled rather than disabled, so focus stays on the button at either end of the list. */
+.claim-sheet-nav .icon-button[aria-disabled="true"] { opacity: .35; cursor: not-allowed; }
+.claim-sheet-nav .icon-button:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
+@media (hover: hover) {
+  .claim-sheet-nav .icon-button:hover:not([aria-disabled="true"]) { background: var(--surface-soft); }
+}
+.claim-sheet .receipt-sheet-content { animation: claim-item-in .22s ease-out; }
+@keyframes claim-item-in { from { opacity: 0; transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) { .claim-sheet .receipt-sheet-content { animation: none; } }
 .claim-options { display: grid; gap: var(--space-3); }
 .claim-portion { display: grid; gap: var(--space-3); padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-soft); }
 .claim-portion > strong { margin-top: calc(var(--space-2) * -1); font: 800 2rem / 1.1 var(--font-heading); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }

@@ -1,6 +1,6 @@
 .create-group-dialog { max-width:440px; background:var(--surface-sunken); }
 .create-group-dialog .dialog-heading { text-align:center; }
-.create-group-dialog .dialog-heading>div { flex:1; }
+.create-group-dialog .dialog-heading>div:first-child { flex:1; }
 .create-group-dialog .dialog-heading h2 { font-size:30px; }
 .create-group-summary { justify-items:stretch; }
 .create-group-summary .choose-group-icon { justify-self:center; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; width:123px; height:123px; padding:14px; margin:0 0 15px; border:1px dashed color-mix(in srgb, var(--action-edge) 80%, var(--line-accent)); border-radius:29px; background:var(--surface-selected); color:var(--ink); }

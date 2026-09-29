@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { money, type Bill } from "./bill-api";
 import type { BillItem } from "./receipt-api";
 import { fraction, one, sum, subtract, text, shortText, parse, lessOrEqual, cost, share, signed } from "./claim-fractions";
@@ -6,7 +6,10 @@ import Dialog from "./Dialog";
 import { ReceiptItemRow } from "./ReceiptItemRow";
 import { ReceiptPhoto } from "./ReceiptPhoto";
 import { ReceiptLinePhoto } from "./ReceiptLinePhoto";
-import { Button, Avatar } from "./ui";
+import { Button, Avatar, Icon } from "./ui";
+
+// Long enough to see the chosen portion fill the bar before the sheet moves on.
+const ADVANCE_DELAY_MS = 600;
 
 export function ClaimItems({ bill, selection, change, busy, terminal, confirmAction, error }: {
   bill: Bill; selection: Record<string, string>; change: (id: string, fraction: string) => void;
@@ -16,6 +19,12 @@ export function ClaimItems({ bill, selection, change, busy, terminal, confirmAct
   const own = bill.participants.find((p) => p.isCurrentUser);
   const [filter, setFilter] = useState<"unclaimed" | "mine" | "all">("all");
   const [activeId, setActiveId] = useState<string | null>(null);
+  // The list the sheet was opened from, so Previous and Next follow what was on screen.
+  const [order, setOrder] = useState<string[]>([]);
+  const advance = useRef<number | undefined>(undefined);
+  const heading = useRef<HTMLHeadingElement>(null);
+  // Previous and Next keep focus on themselves, so the new item is announced instead.
+  const [announcement, setAnnouncement] = useState("");
   const [summary, setSummary] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
   const [customText, setCustomText] = useState("");
@@ -32,18 +41,96 @@ export function ClaimItems({ bill, selection, change, busy, terminal, confirmAct
   const unclaimed = items.filter((i) => left(i).n > 0n);
   const myItems = items.filter(mine);
   const displayed = filter === "unclaimed" ? unclaimed : filter === "mine" ? myItems : items;
-  function open(item: BillItem) {
-    setActiveId(item.id);
+  const sequence = order.filter((id) => items.some((item) => item.id === id));
+  const position = active ? sequence.indexOf(active.id) : -1;
+  // Located in the opening list, so a pending advance still finds the next item if this one was removed.
+  const index = activeId ? order.indexOf(activeId) : -1;
+  const before = index < 0 ? [] : order.slice(0, index).reverse();
+  const after = index < 0 ? [] : order.slice(index + 1);
+  const itemFor = (id: string) => items.find((item) => item.id === id);
+  const previousId = before.find(itemFor) ?? null;
+  const nextId = after.find(itemFor) ?? null;
+  // Auto-advance passes over items others already hold in full; Previous and Next still visit every item.
+  const nextOpenId = after.find((id) => {
+    const item = itemFor(id);
+    return item && room(item).n > 0n;
+  }) ?? null;
+  // A pending advance reads these when it fires, so a bill refresh during the pause is respected.
+  // Updated during commit, so a timer that fires between a render and its effects still sees that render.
+  const latest = useRef({ activeId, nextOpenId, terminal });
+  useLayoutEffect(() => { latest.current = { activeId, nextOpenId, terminal }; });
+  useEffect(() => () => window.clearTimeout(advance.current), []);
+  // Moving to another item replaces the sheet content; if focus was in it, the heading takes over.
+  useEffect(() => {
+    const dialog = heading.current?.closest("dialog");
+    if (activeId && dialog && !dialog.contains(document.activeElement)) heading.current?.focus({ preventScroll: true });
+  }, [activeId]);
+  function resetCustom() {
     setCustomOpen(false);
     setCustomError("");
+  }
+  // Shows an item's sheet, or closes it with null, cancelling any pending advance.
+  function showItem(id: string | null) {
+    window.clearTimeout(advance.current);
+    setActiveId(id);
+    setAnnouncement("");
+    resetCustom();
+  }
+  function open(item: BillItem) {
+    setOrder(displayed.map((entry) => entry.id));
+    showItem(item.id);
+  }
+  // At either end of the list there is nowhere to go, but the press still cancels a pending advance.
+  function navigateToItem(id: string | null) {
+    window.clearTimeout(advance.current);
+    if (!id) return;
+    showItem(id);
+    const item = itemFor(id);
+    if (item) setAnnouncement(`${item.name}, item ${sequence.indexOf(id) + 1} of ${sequence.length}`);
+    heading.current?.closest("dialog")?.scrollTo({ top: 0 });
   }
   function choose(item: BillItem, value: string, custom = false) {
     change(item.id, value);
     if (custom) setCustomChoices((previous) => ({ ...previous, [item.id]: value }));
     setSelectedCustom((previous) => ({ ...previous, [item.id]: custom }));
-    setCustomOpen(false);
-    setCustomError("");
+    resetCustom();
+    window.clearTimeout(advance.current);
+    // Picking a portion moves on to the next item; after the last one the list and its Confirm button return.
+    if (value) advance.current = window.setTimeout(() => {
+      const { activeId: current, nextOpenId: next, terminal: ended } = latest.current;
+      // A bill that completed or was canceled during the pause stays on the item just picked.
+      if (current !== item.id || ended) return;
+      if (next) navigateToItem(next); else showItem(null);
+    }, ADVANCE_DELAY_MS);
   }
+  useEffect(() => {
+    if (!activeId) return;
+    function arrows(event: KeyboardEvent) {
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      const target = event.target instanceof Element ? event.target : null;
+      // Only this sheet, not a photo viewer opened over it, and never while editing text.
+      if (!target || target.closest("dialog") !== heading.current?.closest("dialog") || target.closest("input, textarea, select, [contenteditable]")) return;
+      const id = event.key === "ArrowLeft" ? previousId : nextId;
+      if (id) event.preventDefault();
+      navigateToItem(id);
+    }
+    // Any other tap, click or key press in the sheet, header included, means the user is not done with this item.
+    // Click catches activations that send nothing else, as some assistive technology does. A portion pick still
+    // schedules its advance, because its React click handler runs after this capture listener.
+    const dialog = heading.current?.closest("dialog");
+    const stay = () => window.clearTimeout(advance.current);
+    dialog?.addEventListener("pointerdown", stay, true);
+    dialog?.addEventListener("keydown", stay, true);
+    dialog?.addEventListener("click", stay, true);
+    document.addEventListener("keydown", arrows);
+    return () => {
+      dialog?.removeEventListener("pointerdown", stay, true);
+      dialog?.removeEventListener("keydown", stay, true);
+      dialog?.removeEventListener("click", stay, true);
+      document.removeEventListener("keydown", arrows);
+    };
+  });
   function saveCustom(item: BillItem) {
     const value = parse(customText);
     if (!value) { setCustomError("Use a positive fraction up to 1, with numerator and denominator at most 10,000."); return; }
@@ -75,8 +162,14 @@ export function ClaimItems({ bill, selection, change, busy, terminal, confirmAct
       })}
       {!displayed.length && <p className="receipt-list-empty">No items in this filter.</p>}
     </div>
-    {active && <Dialog title={active.name} kicker="CLAIM AN ITEM" className="receipt-sheet claim-sheet" closeLabel="Close claim" close={() => setActiveId(null)}>
-      <div className="receipt-sheet-content">
+    {active && <Dialog title={active.name} kicker={sequence.length > 1 && position >= 0 ? `CLAIM AN ITEM · ${position + 1} OF ${sequence.length}` : "CLAIM AN ITEM"}
+      className="receipt-sheet claim-sheet" closeLabel="Close claim" close={() => showItem(null)} headingRef={heading}
+      actions={sequence.length > 1 && <div className="claim-sheet-nav">
+        <button type="button" className="icon-button" aria-label="Previous item" aria-keyshortcuts="ArrowLeft" aria-disabled={!previousId} onClick={() => navigateToItem(previousId)}><Icon name="left" size={18} /></button>
+        <button type="button" className="icon-button" aria-label="Next item" aria-keyshortcuts="ArrowRight" aria-disabled={!nextId} onClick={() => navigateToItem(nextId)}><Icon name="right" size={18} /></button>
+      </div>}>
+      <p className="sr-only" aria-live="polite" aria-atomic="true">{announcement}</p>
+      <div className="receipt-sheet-content" key={active.id}>
         {bill.photo && page && region && region.pageNumber === 1 && <ReceiptLinePhoto id={bill.photo.draftId} version={0} page={page} polygon={region.polygon} subject={active.name}
           fallback={<ReceiptPhoto id={bill.photo.draftId} subject={active.name} />} />}
         <div className="receipt-original-text"><span className="eyebrow">ON THE RECEIPT</span><p>{active.originalText || "Manually added item"}</p></div>

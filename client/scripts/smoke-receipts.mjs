@@ -516,22 +516,45 @@ try {
   await expect(claimSheet(alice)).toContainText("Receipt discount share");
   await expect(claimSheet(alice)).toContainText("Tax share");
   await expect(claimSheet(alice)).toContainText("Other adjustments share");
+  // A single item has nowhere to step to.
+  await expect(claimSheet(alice).getByRole("button", { name: "Next item", exact: true })).toHaveCount(0);
+  await expect(claimSheet(alice)).toContainText(/^CLAIM AN ITEM(?! ·)/);
+  // Picking a portion on the last item returns to the list and its Confirm button.
+  const reopenApples = async () => {
+    await expect(claimSheet(alice)).toBeHidden();
+    await alice.getByRole("button", { name: "View Apples · $3.00", exact: true }).click();
+    await expect(claimSheet(alice)).toBeVisible();
+  };
   await itemOption(alice, "All of it · $3.00").click();
-  await expect(itemOption(alice, "All of it · $3.00")).toHaveAttribute("aria-pressed", "true");
   await expect(alice.locator(".claim-sticky-footer")).toContainText("Your share $3.00");
+  await reopenApples();
+  await expect(itemOption(alice, "All of it · $3.00")).toHaveAttribute("aria-pressed", "true");
   await itemOption(alice, "1/2 · $1.50").click();
+  await reopenApples();
   await itemOption(alice, "Custom").click();
   await alice.getByLabel("Custom fraction", { exact: true }).fill("4/5");
   await itemOption(alice, "Use custom fraction").click();
-  await expect(itemOption(alice, "Custom · 4/5 · $2.40")).toHaveAttribute("aria-pressed", "true");
   await expect(alice.locator(".claim-sticky-footer")).toContainText("Your share $2.40");
+  await reopenApples();
+  await expect(itemOption(alice, "Custom · 4/5 · $2.40")).toHaveAttribute("aria-pressed", "true");
   await itemOption(alice, "1/3 · $1.00").click();
+  await reopenApples();
   await expect(itemOption(alice, "1/3 · $1.00")).toHaveAttribute("aria-pressed", "true");
   await expect(itemOption(alice, "Custom · 4/5 · $2.40")).toHaveAttribute("aria-pressed", "false");
   await expect(claimSheet(alice).locator(".claim-portion")).toContainText("$1.001/3 of $3.00");
   await expect(alice.locator(".claim-sticky-footer")).toContainText("Your share $1.00");
   await expect.poll(async () => (await api(`/bills/${billId}`)).bill.items[0].claims.length).toBe(0);
-  await claimSheet(alice).getByRole("button", { name: "Close claim", exact: true }).click();
+  // Removing a claim stays on the item. Alice's page keeps a fake clock from here on, so each
+  // pause that must not advance is run through without real sleeps.
+  await alice.clock.install();
+  await alice.clock.pauseAt(await alice.evaluate(() => Date.now() + 1000));
+  await claimSheet(alice).getByRole("button", { name: "Remove my claim", exact: true }).click();
+  await expect(alice.locator(".claim-sticky-footer")).toContainText("Your share $0.00");
+  await alice.clock.runFor(700);
+  await expect(claimSheet(alice)).toBeVisible();
+  await alice.clock.resume();
+  await itemOption(alice, "1/3 · $1.00").click();
+  await expect(claimSheet(alice)).toBeHidden();
   await alice.getByRole("button", { name: "Receipt summary", exact: true }).click();
   await expect(alice.getByRole("dialog", { name: "Receipt summary", exact: true })).toBeVisible();
   await alice.getByRole("button", { name: "Done", exact: true }).click();
@@ -546,7 +569,7 @@ try {
   await expect(bob).toHaveURL(`${base}#/bills/${billId}`);
   await bob.getByRole("button", { name: "View Apples · $3.00", exact: true }).click();
   await itemOption(bob, "1/3 · $1.00").click();
-  await claimSheet(bob).getByRole("button", { name: "Close claim", exact: true }).click();
+  await expect(claimSheet(bob)).toBeHidden();
   await bob.getByRole("button", { name: "Confirm my item claims" }).click();
   await expect(bob.locator(".claim-list .receipt-row-badges").first()).toContainText("Your claim");
   await alice.getByRole("button", { name: "Edit items & prices" }).click();
@@ -582,7 +605,7 @@ try {
   await carol.goto(`${base}#/bills/${billId}`);
   await carol.getByRole("button", { name: "View Apples · $2.70", exact: true }).click();
   await itemOption(carol, "1/3 · $0.90").click();
-  await claimSheet(carol).getByRole("button", { name: "Close claim", exact: true }).click();
+  await expect(claimSheet(carol)).toBeHidden();
   await carol.getByRole("button", { name: "Confirm my item claims" }).click();
   await expect(
     carol.getByText("Completed bills are final.", { exact: false }),
@@ -650,9 +673,20 @@ try {
   await expect(controlSheet.locator(".claim-portion-legend")).toContainText("Free · 1/3");
   for (const option of ["1/3 · $1.00", "1/4 · $0.75", "1/5 · $0.60", "1/6 · $0.50"])
     await expect(itemOption(alice, option)).toBeEnabled();
+  await expect(controlSheet).toContainText("CLAIM AN ITEM · 1 OF 2");
+  const navButton = (name, item) => claimSheet(alice, item).getByRole("button", { name, exact: true });
+  await expect(navButton("Previous item", "Apples")).toHaveAttribute("aria-disabled", "true");
   const quarterOption = itemOption(alice, "1/4 · $0.75");
   await quarterOption.click();
+  // Picking a portion moves on to the next item in the list.
+  await expect(claimSheet(alice, "Milk")).toContainText("CLAIM AN ITEM · 2 OF 2");
+  await expect(navButton("Next item", "Milk")).toHaveAttribute("aria-disabled", "true");
+  await navButton("Previous item", "Milk").click();
+  await expect(controlSheet).toBeVisible();
+  // Focus stays on the now-unavailable Previous button, so arrow keys keep working.
+  assert.equal(await alice.evaluate(() => document.activeElement?.getAttribute("aria-label")), "Previous item");
   await expect(quarterOption).toHaveAttribute("aria-pressed", "true");
+  await quarterOption.hover();
   assert.ok(await quarterOption.evaluate((option) => option.matches(":hover")), "selected portion is still hovered");
   const actionColor = await controlSheet.evaluate((sheet) => {
     const probe = document.createElement("span");
@@ -667,18 +701,24 @@ try {
   await itemOption(alice, "Custom").click();
   await alice.getByLabel("Custom fraction", { exact: true }).fill("1/4");
   await itemOption(alice, "Use custom fraction").click();
+  await expect(claimSheet(alice, "Milk")).toBeVisible();
+  // Auto-advance focuses the new item's heading; the arrow keys step between items.
+  await expect(claimSheet(alice, "Milk").getByRole("heading", { name: "Milk", exact: true })).toBeFocused();
+  await alice.keyboard.press("ArrowLeft");
+  await expect(controlSheet).toBeVisible();
   const customChoice = () => itemOption(alice, "Custom · 1/4 · $0.75");
   await expect(customChoice()).toHaveAttribute("aria-pressed", "true");
   await expect(alice.locator(".claim-sticky-footer")).toContainText("Your share $0.75");
   await itemOption(alice, "1/3 · $1.00").click();
+  await expect(claimSheet(alice, "Milk")).toBeVisible();
+  await navButton("Previous item", "Milk").click();
   await expect(itemOption(alice, "1/3 · $1.00")).toHaveAttribute("aria-pressed", "true");
   await expect(customChoice()).toHaveAttribute("aria-pressed", "false");
   await expect(alice.locator(".claim-sticky-footer")).toContainText("Your share $1.00");
-  await claimSheet(alice).getByRole("button", { name: "Close claim", exact: true }).click();
-  await alice.getByRole("button", { name: "View Milk · $2.00", exact: true }).click();
+  await navButton("Next item", "Apples").click();
   await itemOption(alice, "All of it · $2.00", "Milk").click();
   await expect(alice.locator(".claim-sticky-footer")).toContainText("Your share $3.00");
-  await claimSheet(alice, "Milk").getByRole("button", { name: "Close claim", exact: true }).click();
+  await expect(claimSheet(alice, "Milk")).toBeHidden();
   await alice.getByRole("button", { name: "Confirm my item claims" }).click();
   await expect.poll(async () => (await api(`/bills/${controlBill.id}`)).bill.items[1].claims.length).toBe(1);
   const confirmedControls = (await api(`/bills/${controlBill.id}`)).bill;
@@ -688,6 +728,96 @@ try {
     [[memberIds.Alice, 1, 3], [memberIds.Bob, 2, 3]].sort(([left], [right]) => left.localeCompare(right)),
     [[memberIds.Alice, 1, 1]],
   ]);
+
+  // Auto-advance passes over items others hold in full; Previous, Next and the arrow keys still visit them.
+  const skipDraftId = randomUUID();
+  const skipItems = ["Bananas", "Taken rice", "Yogurt"].map((name) => ({ id: randomUUID(), name, originalText: name.toUpperCase(), quantity: "1", amountCents: 100, discountCents: 0, taxable: false, finalCents: 100, manualFinal: false }));
+  const skipDraft = (await api(`/groups/${group.id}/receipt-drafts/${skipDraftId}`, "alice-token", "PUT", {
+    revision: 0,
+    data: {
+      mode: "items", title: "Skip taken items", purchaseDate: "2026-09-24", timeZone: "America/Toronto",
+      notes: "", totalCents: 300, ownShareCents: 0, participantIds: [memberIds.Alice, memberIds.Bob],
+      receipt: { subtotalCents: 300, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
+      items: skipItems,
+    },
+  })).draft;
+  const skipBill = (await api(`/receipt-drafts/${skipDraftId}/initialize`, "alice-token", "POST", { revision: skipDraft.revision })).bill;
+  await api(`/bills/${skipBill.id}/claims`, "bob-token", "POST", {
+    revision: skipBill.revision,
+    claims: [{ itemId: skipItems[1].id, numerator: 1, denominator: 1 }],
+  });
+  await alice.goto(`${base}#/bills/${skipBill.id}`);
+  await alice.getByRole("button", { name: "View Bananas · $1.00", exact: true }).click();
+  // Stop time so the pause before advancing can be measured.
+  await alice.clock.pauseAt(await alice.evaluate(() => Date.now() + 1000));
+  await itemOption(alice, "All of it · $1.00", "Bananas").click();
+  await alice.clock.runFor(500);
+  await expect(claimSheet(alice, "Bananas")).toBeVisible();
+  await alice.clock.runFor(200);
+  await expect(claimSheet(alice, "Yogurt")).toContainText("CLAIM AN ITEM · 3 OF 3");
+  // At the end of the list, Next and → go nowhere but still cancel a pending advance.
+  await itemOption(alice, "1/2 · $0.50", "Yogurt").click();
+  // Playwright will not click an aria-disabled element; a person still can.
+  await navButton("Next item", "Yogurt").click({ force: true });
+  await alice.clock.runFor(700);
+  await expect(claimSheet(alice, "Yogurt")).toBeVisible();
+  await itemOption(alice, "1/2 · $0.50", "Yogurt").click();
+  await navButton("Next item", "Yogurt").focus();
+  await alice.keyboard.press("ArrowRight");
+  await alice.clock.runFor(700);
+  await expect(claimSheet(alice, "Yogurt")).toBeVisible();
+  // So does a tap on the header outside the content, such as the item title.
+  await itemOption(alice, "1/2 · $0.50", "Yogurt").click();
+  await claimSheet(alice, "Yogurt").getByRole("heading", { name: "Yogurt", exact: true }).click();
+  await alice.clock.runFor(700);
+  await expect(claimSheet(alice, "Yogurt")).toBeVisible();
+  // Closing cancels it too: reopening the item within the pause does not carry the old advance over.
+  await itemOption(alice, "1/2 · $0.50", "Yogurt").click();
+  await claimSheet(alice, "Yogurt").getByRole("button", { name: "Close claim", exact: true }).click();
+  await alice.getByRole("button", { name: "View Yogurt · $1.00", exact: true }).click();
+  await alice.clock.runFor(700);
+  await expect(claimSheet(alice, "Yogurt")).toBeVisible();
+  // So does an activation that sends only a click, as some assistive technology does.
+  await itemOption(alice, "1/2 · $0.50", "Yogurt").click();
+  await claimSheet(alice, "Yogurt").evaluate((dialog) => dialog.querySelector(".claim-portion-custom").click());
+  await alice.clock.runFor(700);
+  await expect(claimSheet(alice, "Yogurt").getByLabel("Custom fraction", { exact: true })).toBeVisible();
+  // Arrow keys type in the custom fraction instead of changing items.
+  await claimSheet(alice, "Yogurt").getByLabel("Custom fraction", { exact: true }).click();
+  await alice.keyboard.press("ArrowLeft");
+  await expect(claimSheet(alice, "Yogurt").getByLabel("Custom fraction", { exact: true })).toBeFocused();
+  // Moving to another item by hand cancels the advance picked on the one before.
+  await itemOption(alice, "1/2 · $0.50", "Yogurt").click();
+  await navButton("Previous item", "Yogurt").click();
+  await alice.clock.runFor(700);
+  await expect(claimSheet(alice, "Taken rice")).toContainText("0/1 available to you");
+  await alice.clock.resume();
+  await expect(claimSheet(alice, "Taken rice").locator("[aria-live]")).toHaveText("Taken rice, item 2 of 3");
+  // Arrow keys keep working after the focused portion button is replaced by the next item.
+  await navButton("Previous item", "Taken rice").click();
+  await itemOption(alice, "1/2 · $0.50", "Bananas").focus();
+  await alice.keyboard.press("ArrowRight");
+  await expect(claimSheet(alice, "Taken rice")).toBeVisible();
+  await alice.keyboard.press("ArrowRight");
+  await expect(claimSheet(alice, "Yogurt")).toBeVisible();
+  await itemOption(alice, "All of it · $1.00", "Yogurt").click();
+  await expect(claimSheet(alice, "Yogurt")).toBeHidden();
+  await expect(alice.locator(".claim-sticky-footer")).toContainText("Your share $2.00");
+  // Picking the same portion again still moves on.
+  await alice.getByRole("button", { name: "View Yogurt · $1.00", exact: true }).click();
+  await itemOption(alice, "All of it · $1.00", "Yogurt").click();
+  await expect(claimSheet(alice, "Yogurt")).toBeHidden();
+  // The sheet keeps the list it was opened from, even when a change drops the item from that filter.
+  await alice.locator(".claim-filters").getByRole("button", { name: "Mine (2)" }).click();
+  await alice.getByRole("button", { name: "View Bananas · $1.00", exact: true }).click();
+  await expect(claimSheet(alice, "Bananas")).toContainText("CLAIM AN ITEM · 1 OF 2");
+  await navButton("Next item", "Bananas").click();
+  await claimSheet(alice, "Yogurt").getByRole("button", { name: "Remove my claim", exact: true }).click();
+  await expect(alice.locator(".claim-filters")).toContainText("Mine (1)");
+  await expect(claimSheet(alice, "Yogurt")).toContainText("CLAIM AN ITEM · 2 OF 2");
+  await navButton("Previous item", "Yogurt").click();
+  await expect(claimSheet(alice, "Bananas")).toContainText("CLAIM AN ITEM · 1 OF 2");
+  await claimSheet(alice, "Bananas").getByRole("button", { name: "Close claim", exact: true }).click();
 
   const conflictDraftId = randomUUID();
   const conflictItem = { id: randomUUID(), name: "Conflict item", originalText: "CONFLICT ITEM", quantity: "1", amountCents: 100, discountCents: 0, taxable: false, finalCents: 100, manualFinal: false };
@@ -706,7 +836,7 @@ try {
   for (const page of [alice, bob]) {
     await page.getByRole("button", { name: "View Conflict item · $1.00", exact: true }).click();
     await itemOption(page, "All of it · $1.00", "Conflict item").click();
-    await claimSheet(page, "Conflict item").getByRole("button", { name: "Close claim", exact: true }).click();
+    await expect(claimSheet(page, "Conflict item")).toBeHidden();
   }
   await Promise.all([
     alice.getByRole("button", { name: "Confirm my item claims" }).click(),
@@ -1273,6 +1403,15 @@ try {
     await alice.getByRole("button", { name: "View Apples · $10.00", exact: true }).click();
     const sheet = claimSheet(alice);
     await expect(sheet.getByRole("img", { name: "Highlighted receipt line", exact: true })).toHaveAttribute("points", "30,100 180,100 180,140 30,140");
+    // The mobile sheet shows the counter and Previous and Next too. Next keeps its 32px circle,
+    // and a tap just outside the circle still reaches it.
+    await expect(sheet).toContainText("CLAIM AN ITEM · 1 OF 3");
+    const mobileNext = sheet.getByRole("button", { name: "Next item", exact: true });
+    await expect(mobileNext).toBeVisible();
+    const nextBox = await mobileNext.boundingBox();
+    assert.equal(Math.round(nextBox.width), 32);
+    assert.equal(await alice.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest("button")?.getAttribute("aria-label"),
+      { x: nextBox.x - 4, y: nextBox.y + nextBox.height / 2 }), "Next item");
     await expect(sheet.getByRole("button", { name: "View receipt photo", exact: true })).toHaveCount(0);
     const lineButton = sheet.getByRole("button", { name: /View whole receipt/ });
     await expect(lineButton).toBeVisible();
@@ -1282,9 +1421,23 @@ try {
     assert.equal((await lineButton.textContent()).trim(), "");
     const selectedFraction = itemOption(alice, "1/2 · $5.00");
     await selectedFraction.click();
+    // Auto-advance also works on the mobile sheet, where the arrow keys still step back.
+    await expect(claimSheet(alice, "Milk")).toBeVisible();
+    await alice.keyboard.press("ArrowLeft");
     await expect(selectedFraction).toHaveAttribute("aria-pressed", "true");
     const selectedShare = alice.locator(".claim-sticky-footer");
     await expect(selectedShare).toContainText("Your share $5.00");
+    // Touching the photo right after picking cancels the pending advance. Both happen in one task,
+    // so the advance cannot fire between them however slow the machine is.
+    await alice.clock.pauseAt(await alice.evaluate(() => Date.now() + 1000));
+    await sheet.evaluate((dialog) => {
+      dialog.querySelector('[aria-label="1/2 · $5.00"]').click();
+      dialog.querySelector('[aria-label="View whole receipt"]')
+        .dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    });
+    await alice.clock.runFor(700);
+    await expect(sheet).toContainText("CLAIM AN ITEM · 1 OF 3");
+    await alice.clock.resume();
     await lineButton.click();
     const viewer = alice.getByRole("dialog", { name: /Receipt photo.*Apples/ });
     await expect(viewer).toBeVisible();
