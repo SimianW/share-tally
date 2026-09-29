@@ -544,11 +544,15 @@ try {
   await expect(claimSheet(alice).locator(".claim-portion")).toContainText("$1.001/3 of $3.00");
   await expect(alice.locator(".claim-sticky-footer")).toContainText("Your share $1.00");
   await expect.poll(async () => (await api(`/bills/${billId}`)).bill.items[0].claims.length).toBe(0);
-  // Removing a claim stays on the item.
+  // Removing a claim stays on the item. Alice's page keeps a fake clock from here on, so each
+  // pause that must not advance is run through without real sleeps.
+  await alice.clock.install();
+  await alice.clock.pauseAt(await alice.evaluate(() => Date.now() + 1000));
   await claimSheet(alice).getByRole("button", { name: "Remove my claim", exact: true }).click();
   await expect(alice.locator(".claim-sticky-footer")).toContainText("Your share $0.00");
-  await alice.waitForTimeout(800);
+  await alice.clock.runFor(700);
   await expect(claimSheet(alice)).toBeVisible();
+  await alice.clock.resume();
   await itemOption(alice, "1/3 · $1.00").click();
   await expect(claimSheet(alice)).toBeHidden();
   await alice.getByRole("button", { name: "Receipt summary", exact: true }).click();
@@ -742,7 +746,6 @@ try {
     revision: skipBill.revision,
     claims: [{ itemId: skipItems[1].id, numerator: 1, denominator: 1 }],
   });
-  await alice.clock.install();
   await alice.goto(`${base}#/bills/${skipBill.id}`);
   await alice.getByRole("button", { name: "View Bananas · $1.00", exact: true }).click();
   // Stop time so the pause before advancing can be measured.
@@ -1382,13 +1385,15 @@ try {
     await expect(selectedShare).toContainText("Your share $5.00");
     // Touching the photo right after picking cancels the pending advance. Both happen in one task,
     // so the advance cannot fire between them however slow the machine is.
+    await alice.clock.pauseAt(await alice.evaluate(() => Date.now() + 1000));
     await sheet.evaluate((dialog) => {
       dialog.querySelector('[aria-label="1/2 · $5.00"]').click();
       dialog.querySelector('[aria-label="View whole receipt"]')
         .dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
     });
-    await alice.waitForTimeout(800);
-    await expect(sheet).toBeVisible();
+    await alice.clock.runFor(700);
+    await expect(sheet).toContainText("CLAIM AN ITEM · 1 OF 3");
+    await alice.clock.resume();
     await lineButton.click();
     const viewer = alice.getByRole("dialog", { name: /Receipt photo.*Apples/ });
     await expect(viewer).toBeVisible();
