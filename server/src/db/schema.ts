@@ -197,6 +197,7 @@ export const receiptEvidence = pgTable('receipt_evidence', {
 });
 
 export const billItems = pgTable('bill_items', {
+  version: integer('version').notNull().default(1),
   id: uuid('id').primaryKey(),
   billId: uuid('bill_id').notNull().references(() => bills.id),
   position: integer('position').notNull(),

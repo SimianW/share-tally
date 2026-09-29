@@ -1693,6 +1693,13 @@ async function claimBill(id: string, token: string, claims: { itemId: string; nu
   const result = await json(await api(`/bills/${id}/claims`, token, 'POST', { revision: bill.revision, claims }), status);
   return result.bill;
 }
+test('new item bills expose initial item versions', async () => {
+  const { bill } = await itemBill([100, 200], 300);
+  assert.deepEqual(bill.items.map((item: { version: number }) => item.version), [1, 1]);
+  const current = (await json(await api(`/bills/${bill.id}`))).bill;
+  assert.deepEqual(current.items.map((item: { version: number }) => item.version), [1, 1]);
+});
+
 test('exact thirds round after summing, complete once, and permit item adjustments beyond five cents', async () => {
   const { bill, data } = await itemBill([1, 1, 1], 100);
   const claims = data.items.map(i => ({ itemId: i.id, numerator: 1, denominator: 3 }));
