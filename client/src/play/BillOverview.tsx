@@ -146,7 +146,8 @@ export function BillPanel({ bill, needsAmountCorrection, initiatorActions }: {
       </p>}
       <p className="bill-explain"><Icon name="check" size={14} />Complete and final. Details, participants and shares can no longer change.</p>
     </>
-      : waiting && <p className="bill-explain"><Icon name="clock" size={14} />Waiting for {waiting} to confirm. {bill.mode === "items"
+      // The completion rule stays visible after everyone confirms, while the bill is still open.
+      : <p className="bill-explain"><Icon name="clock" size={14} />{waiting && `Waiting for ${waiting} to confirm. `}{bill.mode === "items"
         ? "Every item must be fully claimed; anything left over goes to the initiator."
         : "Up to 5¢ of difference goes to the initiator once everyone confirms."}</p>;
   return <aside className={`bill-panel${bill.canceledAt ? " bill-panel-canceled" : ""}`} aria-label="Bill">
@@ -191,7 +192,7 @@ export function BillPanel({ bill, needsAmountCorrection, initiatorActions }: {
           </li>;
         })}
       </ul>
-      {explanation && <div className="bill-explanation">{explanation}</div>}
+      <div className="bill-explanation">{explanation}</div>
       {bill.notes && <div className="bill-notes"><h3>Purchase notes</h3><p>{bill.notes}</p></div>}
       {initiatorActions && <div className="bill-initiator">{initiatorActions}</div>}
     </section>

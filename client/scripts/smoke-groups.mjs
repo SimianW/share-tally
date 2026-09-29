@@ -630,6 +630,9 @@ try {
   await carol.getByLabel('My share · CAD', { exact: true }).fill('50.03');
   await carol.getByRole('button', { name: 'Submit and confirm my share' }).click();
   await expect(billSummary(carol)).toContainText('3 of 3 confirmed');
+  // With nobody left to wait for, the panel still states the completion rule.
+  await expect(billPanel(carol)).toContainText('Up to 5¢ of difference goes to the initiator');
+  await expect(billPanel(carol)).not.toContainText('Waiting for');
   const negativeWarning = carol.getByRole('alert').filter({ hasText: 'Shares are $0.03 over the total' });
   await expect(negativeWarning).toBeVisible();
   await expect(negativeWarning).toContainText('below $0.00');
