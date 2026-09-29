@@ -96,13 +96,14 @@ export async function checkGroupPage(pageFor, base, api) {
   const waiting = await manual('Alice', waitingName, 9200, 3000, ['Alice', 'Bob', 'Carol']);
   const claim = await itemBill(claimName);
   const confirmItems = await itemBill(confirmItemsName);
+  // Item claims and corrections carry item versions, not the bill revision (ADR-0014).
   await api(`/bills/${confirmItems.bill.id}/claims`, 'alice-token', 'POST', {
-    revision: confirmItems.bill.revision,
+    reviewedItems: confirmItems.bill.items.map(({ id, version }) => ({ itemId: id, version })),
     claims: [{ itemId: confirmItems.itemId, numerator: 1, denominator: 2 }],
   });
   const beforeCorrection = (await api(`/bills/${confirmItems.bill.id}`)).bill;
   await api(`/bills/${confirmItems.bill.id}/items/${confirmItems.itemId}`, 'alice-token', 'PATCH', {
-    revision: beforeCorrection.revision, name: 'Shared apples', quantity: '1',
+    version: beforeCorrection.items.find(({ id }) => id === confirmItems.itemId).version, name: 'Shared apples', quantity: '1',
     amountCents: 2200, discountCents: 0, taxable: false, manualFinal: false,
   });
   const corrected = (await api(`/bills/${confirmItems.bill.id}`)).bill;
