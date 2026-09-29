@@ -180,7 +180,11 @@ export function ItemClaims({
       <h2>Items & claims</h2>
       <ClaimItems bill={bill} selection={selection} review={review} change={(id, value) => {
         setSelection((current) => ({ ...current, [id]: value }));
-        setConflicts((current) => current.filter((entry) => entry !== id));
+        // Changing a pick the server rejected answers that rejection.
+        if (conflicts.includes(id)) {
+          setConflicts((current) => current.filter((entry) => entry !== id));
+          setError("");
+        }
       }} dismissRemoved={(id) => setSelection((current) => Object.fromEntries(Object.entries(current).filter(([key]) => key !== id)))}
         acknowledge={(item) => setSeen((current) => acknowledge(current, item))}
         busy={busy} terminal={terminal} error={error}

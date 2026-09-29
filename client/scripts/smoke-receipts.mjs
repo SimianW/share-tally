@@ -967,6 +967,231 @@ try {
   await expect(conflictRow).toContainText("Over by 1");
   await expect(conflictRow).toContainText("Someone just updated this");
   await expect(conflictLoser.getByRole("button", { name: "Confirm my item claims" })).toBeDisabled();
+
+  // #154: per-person bars, over-allocation and per-item review, seen by Carol while Bob claims
+  // and Alice edits the bill elsewhere.
+  const reviewItems = [["Oat milk", 898], ["Bread", 600], ["Eggs", 600], ["Cheese", 600]].map(([name, cents]) => ({ id: randomUUID(), name, originalText: name.toUpperCase(), quantity: "1", amountCents: cents, discountCents: 0, taxable: false, finalCents: cents, manualFinal: false }));
+  const [oatMilk, bread, eggs, cheese] = reviewItems;
+  const reviewDraftId = randomUUID();
+  const reviewDraft = (await api(`/groups/${group.id}/receipt-drafts/${reviewDraftId}`, "alice-token", "PUT", {
+    revision: 0,
+    data: {
+      mode: "items", title: "Claim review", purchaseDate: "2026-09-24", timeZone: "America/Toronto",
+      notes: "", totalCents: 2698, ownShareCents: 0, participantIds: [memberIds.Alice, memberIds.Bob, memberIds.Carol],
+      receipt: { subtotalCents: 2698, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
+      items: reviewItems,
+    },
+  })).draft;
+  const reviewBill = (await api(`/receipt-drafts/${reviewDraftId}/initialize`, "alice-token", "POST", { revision: reviewDraft.revision })).bill;
+  // Without a receipt summary the initiator edits the whole list, so items can be added and removed.
+  await pool.query("UPDATE bills SET receipt = NULL, frozen_tax_base_cents = NULL, frozen_discount_base_cents = NULL, frozen_extra_base_cents = NULL WHERE id = $1", [reviewBill.id]);
+  await pool.query("UPDATE bill_items SET taxable = NULL, manual_final = NULL, allocated_discount_cents = NULL, frozen_tax_rounding_cents = NULL, frozen_discount_rounding_cents = NULL, frozen_extra_rounding_cents = NULL WHERE bill_id = $1", [reviewBill.id]);
+  const reviewed = async () => (await api(`/bills/${reviewBill.id}`)).bill.items.map(({ id, version }) => ({ itemId: id, version }));
+  // Each claim request replaces all of that person's claims on the bill.
+  const claimAs = async (token, claims) => api(`/bills/${reviewBill.id}/claims`, token, "POST", {
+    reviewedItems: await reviewed(),
+    claims: claims.map(([item, numerator, denominator]) => ({ itemId: item.id, numerator, denominator })),
+  });
+  // Alice, in another tab, edits the whole item list.
+  const editReviewItems = async (change) => {
+    const current = (await api(`/bills/${reviewBill.id}`)).bill.items;
+    const items = change(current.map(({ id, name, originalText, quantity, amountCents, taxCents, discountCents, extraCents, finalCents }) =>
+      ({ id, name, originalText, quantity, amountCents, taxCents: taxCents ?? 0, discountCents, extraCents: extraCents ?? 0, finalCents })));
+    await api(`/bills/${reviewBill.id}/items`, "alice-token", "PUT", { reviewedItems: current.map(({ id, version }) => ({ itemId: id, version })), items });
+  };
+  const reprice = (item, cents) => (items) => items.map((entry) => entry.id === item.id ? { ...entry, amountCents: cents, finalCents: cents } : entry);
+  await claimAs("carol-token", [[oatMilk, 1, 4], [cheese, 1, 2]]);
+  await claimAs("bob-token", [[bread, 1, 3]]);
+  const reviewer = await pageFor("carol-token", { width: 1280, height: 1000 });
+  await mkdir("/tmp/share-tally-receipt-smoke", { recursive: true });
+  // Key states for design review, on desktop and then on a 390×844 phone.
+  // List states scroll the row in question into view first.
+  const reviewShot = async (name, subject) => {
+    await subject?.scrollIntoViewIfNeeded();
+    await reviewer.screenshot({ path: `/tmp/share-tally-receipt-smoke/claim-review-${name}-desktop.png` });
+    await reviewer.setViewportSize({ width: 390, height: 844 });
+    assert.equal(await reviewer.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${name} fits a phone`);
+    await subject?.evaluate((element) => element.scrollIntoView({ block: "center" }));
+    await reviewer.screenshot({ path: `/tmp/share-tally-receipt-smoke/claim-review-${name}-mobile.png` });
+    await reviewer.setViewportSize({ width: 1280, height: 1000 });
+  };
+  await reviewer.goto(`${base}#/bills/${reviewBill.id}`);
+  const reviewSheet = (name) => claimSheet(reviewer, name);
+  const reviewRow = (name) => reviewer.locator(".claim-list .receipt-compact-row").filter({ has: reviewer.getByRole("button", { name: new RegExp(`^View ${name} ·`) }) });
+  const reviewConfirm = reviewer.getByRole("button", { name: "Confirm my item claims", exact: true });
+  const sheetBar = (name) => reviewSheet(name).locator(".claim-portion .claim-bar");
+  // A segment's share of the bar, and where its right edge sits relative to the bar's.
+  const segmentGeometry = (name, segment) => sheetBar(name).evaluate((bar, key) => {
+    const track = bar.querySelector(".claim-bar-track").getBoundingClientRect();
+    const box = bar.querySelector(`[data-segment="${key}"]`)?.getBoundingClientRect();
+    return box ? { share: box.width / track.width, rightGap: track.right - box.right } : null;
+  }, segment);
+  await reviewer.getByRole("button", { name: "View Bread · $6.00", exact: true }).click();
+  await expect(reviewSheet("Bread").locator(".claim-legend")).toContainText("Bob · 1/3");
+  await itemOption(reviewer, "1/4 · $1.50", "Bread").click();
+  await expect(reviewSheet("Eggs")).toBeVisible();
+  await reviewSheet("Eggs").getByRole("button", { name: "Previous item", exact: true }).click();
+  await expect.poll(async () => (await segmentGeometry("Bread", memberIds.Bob))?.share).toBeCloseTo(1 / 3, 2);
+
+  // Bob's saved claim grows his own segment and highlights it, with the change in the legend.
+  // Carol's unsaved 1/4 stays as it was.
+  await claimAs("bob-token", [[bread, 1, 2]]);
+  const bobChip = reviewSheet("Bread").locator(`.claim-legend-chip[data-person="${memberIds.Bob}"]`);
+  await expect(bobChip).toContainText("Bob · 1/2+1/6");
+  await expect(bobChip).toHaveClass(/is-lit/);
+  await expect(sheetBar("Bread").locator(`[data-flash="${memberIds.Bob}"]`)).toHaveCount(1);
+  await expect(reviewRow("Bread").locator(`[data-flash="${memberIds.Bob}"]`)).toHaveCount(1);
+  await reviewer.screenshot({ path: "/tmp/share-tally-receipt-smoke/claim-review-live-change-desktop.png" });
+  await expect.poll(async () => (await segmentGeometry("Bread", memberIds.Bob))?.share).toBeCloseTo(1 / 2, 2);
+  await expect(reviewSheet("Bread").locator(".claim-legend")).toContainText("You · 1/4");
+  await expect(itemOption(reviewer, "1/4 · $1.50", "Bread")).toHaveAttribute("aria-pressed", "true");
+  // The highlight lasts about a second, then the legend settles.
+  await expect(sheetBar("Bread").locator(".claim-bar-flash")).toHaveCount(0, { timeout: 3000 });
+  await expect(bobChip).not.toHaveClass(/is-lit/);
+  await expect(bobChip).not.toContainText("+1/6");
+
+  // Fully held: the bar fills to its end, with no separator after the last segment.
+  await claimAs("bob-token", [[bread, 3, 4]]);
+  await expect(bobChip).toContainText("Bob · 3/4");
+  await expect.poll(async () => (await segmentGeometry("Bread", "you"))?.rightGap).toBeCloseTo(0, 0);
+  await expect.poll(async () => (await segmentGeometry("Bread", memberIds.Bob))?.share).toBeCloseTo(3 / 4, 2);
+  const separators = await sheetBar("Bread").evaluate((bar) => [...bar.querySelectorAll(".claim-bar-segment")]
+    .map((segment) => getComputedStyle(segment).boxShadow.includes("-2px")));
+  assert.deepEqual(separators, [true, false], "only the segment before Carol's has a separator");
+  await expect(reviewSheet("Bread").locator(".claim-legend")).not.toContainText("Free");
+  await reviewShot("full");
+
+  // Over-allocated before saving: the overflow runs red past where the item ends.
+  await claimAs("bob-token", [[bread, 5, 6]]);
+  const overText = reviewSheet("Bread").locator(".claim-over-text");
+  await expect(overText).toHaveText("Only 1/6 left. Your 1/4 is over by 1/12. Pick 1/6 or less to confirm.");
+  await expect(sheetBar("Bread").locator('[data-segment="over"]')).toHaveCount(1);
+  // The item ends 12/13 of the way along a bar scaled to 5/6 + 1/4.
+  await expect.poll(() => sheetBar("Bread").evaluate((bar) => {
+    const track = bar.querySelector(".claim-bar-track").getBoundingClientRect();
+    const edge = bar.querySelector(".claim-bar-edge").getBoundingClientRect();
+    return (edge.left + edge.width / 2 - track.left) / track.width;
+  })).toBeCloseTo(12 / 13, 2);
+  await expect(reviewSheet("Bread").locator(".claim-sheet-footer")).toContainText("Resolve this item to unlock Confirm");
+  await reviewShot("over-sheet");
+  await reviewSheet("Bread").getByRole("button", { name: "Close claim", exact: true }).click();
+  await expect(reviewRow("Bread")).toHaveClass(/is-over/);
+  await expect(reviewRow("Bread")).toContainText("Over by 1/12");
+  await expect(reviewConfirm).toBeDisabled();
+  const overChip = reviewer.getByRole("button", { name: "1 item exceeds what's left", exact: true });
+  await overChip.click();
+  await expect(reviewSheet("Bread")).toBeVisible();
+  await reviewSheet("Bread").getByRole("button", { name: "Take the 1/6 left · $1.00", exact: true }).click();
+  await expect(overText).toHaveCount(0);
+  await expect(reviewSheet("Eggs")).toBeVisible();
+  await itemOption(reviewer, "1/2 · $3.00", "Eggs").click();
+  await expect(reviewSheet("Cheese")).toBeVisible();
+  await reviewSheet("Cheese").getByRole("button", { name: "Close claim", exact: true }).click();
+  await expect(overChip).toHaveCount(0);
+
+  // Over-allocated at save time: Bob takes most of the eggs while Carol's Confirm is in flight.
+  let reviewRaceError;
+  await reviewer.route(`**/api/bills/${reviewBill.id}/claims`, async (route) => {
+    try { await claimAs("bob-token", [[bread, 5, 6], [eggs, 2, 3]]); } catch (error) { reviewRaceError = error; }
+    await route.continue();
+  }, { times: 1 });
+  const rejected = reviewer.waitForResponse((response) => response.request().method() === "POST" &&
+    new URL(response.url()).pathname === `/api/bills/${reviewBill.id}/claims`);
+  await reviewConfirm.click();
+  assert.equal((await rejected).status(), 409);
+  assert.equal(reviewRaceError, undefined);
+  await expect(reviewer.locator(".claim-footer-error")).toHaveText("Not saved. Someone just updated Eggs — only 1/3 left. Your picks are kept.");
+  await expect(reviewRow("Eggs")).toHaveClass(/is-over/);
+  await expect(reviewRow("Eggs")).toContainText("Over by 1/6");
+  await expect(reviewRow("Eggs")).toContainText("Someone just updated this");
+  await expect(reviewRow("Eggs")).toContainText("Your portion 1/2 · not submitted");
+  await expect(reviewConfirm).toBeDisabled();
+  await reviewShot("save-conflict", reviewRow("Eggs"));
+  await overChip.click();
+  const conflictNotice = reviewSheet("Eggs").locator(".claim-notice.is-over");
+  await expect(conflictNotice).toContainText("Someone just updated this item — only 1/3 left");
+  await itemOption(reviewer, "1/3 · $2.00", "Eggs").click();
+  await expect(conflictNotice).toHaveCount(0);
+  await expect(reviewSheet("Cheese")).toBeVisible();
+  await reviewSheet("Cheese").getByRole("button", { name: "Close claim", exact: true }).click();
+  await expect(reviewer.locator(".claim-footer-error")).toHaveCount(0);
+  await expect(reviewConfirm).toBeEnabled();
+
+  // Alice changes the oat milk price, adds syrup and removes the cheese Carol picked.
+  const syrup = { id: randomUUID(), name: "Syrup", originalText: "SYRUP", quantity: "1", amountCents: 500, taxCents: 0, discountCents: 0, extraCents: 0, finalCents: 500 };
+  await editReviewItems((items) => [...reprice(oatMilk, 1123)(items).filter((item) => item.id !== cheese.id), syrup]);
+  await expect(reviewRow("Oat milk")).toContainText("Price $8.98 → $11.23");
+  await expect(reviewRow("Oat milk")).toHaveClass(/is-review/);
+  await expect(reviewRow("Syrup")).toContainText("New");
+  const removedRow = reviewer.locator(`[data-removed="${cheese.id}"]`);
+  await expect(removedRow).toContainText("Removed — your 1/2 ($3.00) was dropped");
+  const reviewChip = (count) => reviewer.getByRole("button", { name: `${count} item${count === 1 ? "" : "s"} changed — review`, exact: true });
+  await expect(reviewChip(3)).toBeVisible();
+  await expect(reviewConfirm).toBeDisabled();
+  await reviewShot("attention", reviewRow("Oat milk"));
+  // The chip opens the first item needing review, in list order.
+  await reviewChip(3).click();
+  const priceNotice = reviewSheet("Oat milk").locator(".claim-notice.is-review");
+  await expect(priceNotice).toContainText("Alice changed this item since you picked it");
+  await expect(priceNotice).toContainText("Your 1/4 is now $2.81 (was $2.25)");
+  const reviewFooter = (name) => reviewSheet(name).locator(".claim-sheet-footer");
+  await expect(reviewFooter("Oat milk")).toContainText("Confirm is locked: 2 other items need you");
+  await reviewShot("changed-sheet");
+  // Next to review goes to the removed cheese, which has no sheet: its row takes focus.
+  await reviewFooter("Oat milk").getByRole("button", { name: "Next to review", exact: true }).click();
+  await expect(reviewSheet("Oat milk")).toBeHidden();
+  await expect(removedRow.getByRole("button", { name: "Got it", exact: true })).toBeFocused();
+  await removedRow.getByRole("button", { name: "Got it", exact: true }).click();
+  await expect(removedRow).toHaveCount(0);
+  await expect(reviewChip(2)).toBeVisible();
+  // Opening a new item acknowledges it.
+  await reviewer.getByRole("button", { name: "View Syrup · $5.00", exact: true }).click();
+  await expect(reviewSheet("Syrup").locator(".claim-notice.is-new")).toContainText("Alice added this after you started");
+  await expect(reviewRow("Syrup")).not.toContainText("New");
+  await expect(reviewFooter("Syrup")).toContainText("Confirm is locked: 1 other item needs you");
+  await reviewFooter("Syrup").getByRole("button", { name: "Next to review", exact: true }).click();
+  await expect(priceNotice).toBeVisible();
+  await expect(reviewFooter("Oat milk")).toContainText("Resolve this item to unlock Confirm");
+
+  // "I've seen the new price" moves on after the same pause as a pick, to the next item with room.
+  await reviewer.clock.install();
+  await reviewer.clock.pauseAt(await reviewer.evaluate(() => Date.now() + 1000));
+  await priceNotice.getByRole("button", { name: "I've seen the new price", exact: true }).click();
+  await reviewer.clock.runFor(500);
+  await expect(reviewSheet("Oat milk").locator(".claim-resolved")).toContainText("Reviewed");
+  await expect(reviewFooter("Oat milk")).toContainText("Nothing else needs review");
+  await reviewer.clock.runFor(200);
+  await expect(reviewSheet("Bread")).toBeVisible();
+  await expect(reviewRow("Oat milk")).not.toContainText("Price");
+  // The advance is cancelled if the item changes during the pause.
+  await editReviewItems(reprice(bread, 660));
+  const breadNotice = reviewSheet("Bread").locator(".claim-notice.is-review");
+  await expect(breadNotice).toContainText("Price $6.00 → $6.60");
+  await breadNotice.getByRole("button", { name: "I've seen the new price", exact: true }).click();
+  await editReviewItems(reprice(bread, 700));
+  await expect(breadNotice).toContainText("Price $6.60 → $7.00");
+  await reviewer.clock.runFor(700);
+  await expect(reviewSheet("Bread")).toBeVisible();
+  // ...and if it runs out during the pause.
+  await breadNotice.getByRole("button", { name: "I've seen the new price", exact: true }).click();
+  await reviewSheet("Bread").getByRole("button", { name: "Next item", exact: true }).click();
+  await reviewSheet("Eggs").getByRole("button", { name: "Next item", exact: true }).click();
+  await itemOption(reviewer, "1/2 · $2.50", "Syrup").click();
+  await claimAs("bob-token", [[bread, 5, 6], [eggs, 2, 3], [syrup, 2, 3]]);
+  await expect(reviewSheet("Syrup").locator(".claim-over-text")).toContainText("Only 1/3 left");
+  await reviewer.clock.runFor(700);
+  await expect(reviewSheet("Syrup")).toBeVisible();
+  await reviewer.clock.resume();
+  await itemOption(reviewer, "1/3 · $1.67", "Syrup").click();
+  await expect(reviewSheet("Syrup")).toBeHidden();
+  await expect(reviewer.locator(".claim-attention-chips")).toHaveCount(0);
+  const reviewSaved = reviewer.waitForResponse((response) => response.request().method() === "POST" &&
+    new URL(response.url()).pathname === `/api/bills/${reviewBill.id}/claims`);
+  await reviewConfirm.click();
+  assert.equal((await reviewSaved).status(), 200);
+  assert.deepEqual((await api(`/bills/${reviewBill.id}`)).bill.items.map((item) => item.claims
+    .filter((claim) => claim.userId === memberIds.Carol).map((claim) => `${claim.numerator}/${claim.denominator}`)),
+  [["1/4"], ["1/6"], ["1/3"], ["1/3"]]);
   await mkdir("/tmp/share-tally-receipt-smoke", { recursive: true });
   await carol.screenshot({
     path: "/tmp/share-tally-receipt-smoke/mobile.png",
