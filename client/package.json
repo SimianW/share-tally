@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test:avatar": "node scripts/smoke-avatar.mjs",
     "test:receipts": "node scripts/smoke-receipts.mjs",
-    "test:groups": "node scripts/smoke-groups.mjs"
+    "test:groups": "node scripts/smoke-groups.mjs",
+    "prototype:bill": "node scripts/bill-page.prototype.mjs"
   },
   "dependencies": {
     "@clerk/react": "^6.15.1",

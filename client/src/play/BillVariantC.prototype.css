@@ -1,0 +1,420 @@
+/* PROTOTYPE — variant C "Split bar". Every selector is scoped under .bv-c. */
+.bv-c {
+  --bar-h: 64px;
+  --bar-r: 16px;
+  max-width: 960px;
+  margin: 0 auto;
+  display: grid;
+  gap: 28px;
+  min-width: 0;
+  padding-bottom: 20px;
+}
+.bv-c > * { min-width: 0; }
+.bv-c > .notification { margin: 0; }
+
+/* Header */
+.bv-c-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: -4px;
+  color: var(--ink-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.bv-c-back:hover { color: var(--ink); }
+.bv-c-titlerow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin-top: 10px;
+}
+.bv-c-titlerow h1 {
+  margin: 0;
+  min-width: 0;
+  font: 800 clamp(26px, 3vw, 38px)/1.15 var(--font-heading);
+  overflow-wrap: anywhere;
+}
+.bv-c-meta {
+  margin: 6px 0 0;
+  color: var(--ink-secondary);
+  font-size: 13px;
+}
+.bv-c-status {
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  color: var(--ink-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.bv-c-status-done { border-color: transparent; background: var(--status-success-bg); color: var(--status-success); }
+.bv-c-status-warning { border-color: transparent; background: var(--status-warning-bg); color: var(--status-warning); }
+.bv-c-status-open { border-color: var(--line-accent); background: var(--surface-selected); color: var(--ink-on-soft-accent); }
+
+/* The split card */
+.bv-c-split {
+  padding: 24px 28px 22px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--surface);
+}
+.bv-c-split h2 {
+  margin: 0 0 18px;
+  font: 800 20px var(--font-heading);
+}
+.bv-c-bar {
+  position: relative;
+  padding-block: 10px; /* room for the total tick to poke out */
+}
+.bv-c-track {
+  display: flex;
+  height: var(--bar-h);
+  border-radius: var(--bar-r);
+  background: var(--surface-sunken);
+  overflow: hidden;
+  animation: bv-c-reveal .7s cubic-bezier(.2, .7, .2, 1) both;
+}
+@keyframes bv-c-reveal {
+  from { clip-path: inset(0 100% 0 0 round var(--bar-r)); }
+  to { clip-path: inset(0 0 0 0 round var(--bar-r)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bv-c-track { animation: none; }
+}
+.bv-c-seg,
+.bv-c-gap {
+  position: relative;
+  flex: none;
+  min-width: 3px;
+  container-type: inline-size;
+  display: flex;
+  align-items: center;
+}
+.bv-c-seg {
+  background: var(--seg);
+  color: var(--ink);
+}
+.bv-c-seg + .bv-c-seg { box-shadow: inset 2px 0 0 var(--surface); }
+/* Unconfirmed shares are hatched: present, but not yet agreed. */
+.bv-c-seg-pending {
+  background: repeating-linear-gradient(-45deg,
+    var(--seg) 0 7px,
+    color-mix(in srgb, var(--seg) 45%, var(--surface)) 7px 14px);
+}
+.bv-c-seg-label {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  padding: 0 12px;
+  font-size: 12px;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.bv-c-seg-label b {
+  font: 800 14px/1.2 var(--font-heading);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bv-c-seg-label span {
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bv-c-seg-pending .bv-c-seg-label > * {
+  width: fit-content;
+  max-width: 100%;
+  padding-inline: 4px;
+  margin-inline: -4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+}
+@container (max-width: 72px) { .bv-c-seg-label b { display: none; } }
+@container (max-width: 52px) { .bv-c-seg-label { display: none; } }
+
+/* What is still unaccounted for: an empty, dashed slot. */
+.bv-c-gap {
+  flex: 1 1 auto;
+  justify-content: center;
+  margin: 0;
+  border: 2px dashed var(--line-strong);
+  border-left-style: solid;
+  border-radius: 0 var(--bar-r) var(--bar-r) 0;
+  background: var(--surface);
+  color: var(--ink-secondary);
+}
+.bv-c-gap:first-child { border-left-style: dashed; border-radius: var(--bar-r); }
+.bv-c-gap .bv-c-seg-label span { font-weight: 700; font-size: 13px; text-overflow: clip; }
+@container (max-width: 150px) { .bv-c-gap-words { display: none; } }
+.bv-c-gap-adjust { border-color: var(--line); color: var(--ink-muted); }
+.bv-c-gap-warn {
+  border-color: var(--status-warning);
+  background: var(--status-warning-bg);
+  color: var(--status-warning);
+}
+
+/* Over the total: shares run past the tick. */
+.bv-c-overflow {
+  position: absolute;
+  top: 10px;
+  right: 0;
+  height: var(--bar-h);
+  container-type: inline-size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--money-owe);
+  border-left: 0;
+  border-radius: 0 var(--bar-r) var(--bar-r) 0;
+  background: repeating-linear-gradient(45deg,
+    color-mix(in srgb, var(--money-owe) 40%, transparent) 0 3px,
+    color-mix(in srgb, var(--money-owe-bg) 75%, transparent) 3px 9px);
+  color: var(--money-owe);
+  pointer-events: none;
+}
+.bv-c-overflow .bv-c-seg-label {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--money-owe-bg);
+  font-weight: 800;
+  font-size: 13px;
+}
+.bv-c-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  background: var(--ink);
+}
+
+/* Ruler under the bar */
+.bv-c-scale {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  min-height: 20px;
+  margin-top: 2px;
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.bv-c-scale-total { color: var(--ink-secondary); text-align: right; }
+.bv-c-scale-total b { color: var(--ink); }
+.bv-c-scale-total[style] { position: absolute; top: 0; }
+.bv-c-bar-over + .bv-c-scale .bv-c-scale-total b { color: var(--ink); }
+
+/* Facts strip */
+.bv-c-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 18px 0 0;
+  border-top: 1px solid var(--line);
+}
+.bv-c-facts > div {
+  display: grid;
+  gap: 2px;
+  padding: 14px 0 0 18px;
+  border-left: 1px solid var(--line);
+}
+.bv-c-facts > div:first-child { padding-left: 0; border-left: 0; }
+.bv-c-facts dt { color: var(--ink-muted); font-size: 12px; }
+.bv-c-facts dd {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font: 800 20px/1.2 var(--font-heading);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.bv-c-fact-over dd, .bv-c-fact-over dt { color: var(--money-owe); }
+.bv-c-fact-match dd { color: var(--status-success); }
+
+/* One quiet explanation line */
+.bv-c-explain {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: -12px 0 0;
+  padding: 0 4px;
+  color: var(--ink-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.bv-c-explain svg { flex-shrink: 0; margin-top: .25em; }
+.bv-c-explain b { color: var(--ink); }
+
+/* Legend tiles */
+.bv-c-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px 4px;
+  font: 800 20px var(--font-heading);
+}
+.bv-c-section-title > span {
+  padding: 1px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-secondary);
+  font: 700 12px var(--font-body);
+}
+.bv-c-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bv-c-tile {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "key who pct"
+    "amount amount amount"
+    "state state state";
+  align-items: center;
+  gap: 4px 12px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+}
+.bv-c-tile-you { border-color: var(--line-accent); background: var(--surface-soft); }
+.bv-c-key {
+  grid-area: key;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--seg);
+  color: var(--ink);
+  font: 800 15px var(--font-heading);
+}
+.bv-c-tile-pending .bv-c-key {
+  background: repeating-linear-gradient(-45deg,
+    var(--seg) 0 5px,
+    color-mix(in srgb, var(--seg) 45%, var(--surface)) 5px 10px);
+}
+.bv-c-who { grid-area: who; display: grid; min-width: 0; }
+.bv-c-who b { font-size: 15px; overflow-wrap: anywhere; }
+.bv-c-you { color: var(--ink-secondary); font-weight: 600; }
+.bv-c-who > span { color: var(--ink-muted); font-size: 12px; }
+.bv-c-pct {
+  grid-area: pct;
+  align-self: start;
+  color: var(--ink-secondary);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.bv-c-amount {
+  grid-area: amount;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  margin-top: 10px;
+  font: 900 28px/1.1 var(--font-heading);
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.bv-c-amount small {
+  color: var(--ink-secondary);
+  font: 600 12px var(--font-body);
+  letter-spacing: normal;
+}
+.bv-c-amount-missing {
+  color: var(--ink-muted);
+  font: 700 16px/1.75 var(--font-body);
+  letter-spacing: normal;
+}
+.bv-c-state {
+  grid-area: state;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.bv-c-state-done { color: var(--status-success); }
+
+.bv-c-notes {
+  margin: 0;
+  padding: 18px 22px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.bv-c-actions { display: grid; gap: 28px; }
+.bv-c-actions .item-claims { margin-top: 0; }
+.bv-c-viewer { margin: 0; color: var(--ink-muted); font-size: 13px; }
+
+/* Canceled: the split is void, so it loses its color and weight. */
+.bv-c-canceled .bv-c-track,
+.bv-c-canceled .bv-c-key {
+  filter: grayscale(1);
+  opacity: .45;
+}
+.bv-c-canceled .bv-c-bar::after {
+  content: "Canceled";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  padding: 4px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-secondary);
+  font: 800 14px var(--font-heading);
+}
+.bv-c-canceled .bv-c-seg-label { visibility: hidden; }
+.bv-c-canceled .bv-c-tile-you { border-color: var(--line); background: var(--surface); }
+.bv-c-canceled .bv-c-facts dd,
+.bv-c-canceled .bv-c-amount,
+.bv-c-canceled .bv-c-scale-total b {
+  color: var(--ink-muted);
+}
+.bv-c-canceled .bv-c-amount:not(.bv-c-amount-missing) {
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+  text-decoration-color: var(--ink-subtle);
+}
+
+@media (max-width: 640px) {
+  .bv-c { --bar-h: 56px; --bar-r: 12px; }
+  .bv-c-split { padding: 18px 16px 16px; border-radius: 20px; }
+  .bv-c-facts > div { padding-left: 10px; }
+  .bv-c-facts dd { font-size: 16px; }
+  .bv-c-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .bv-c-tile {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "key pct"
+      "who who"
+      "amount amount"
+      "state state";
+    padding: 14px;
+  }
+  .bv-c-pct { align-self: center; justify-self: end; }
+  .bv-c-amount { margin-top: 6px; font-size: 22px; }
+  .bv-c-amount-missing { font-size: 15px; }
+  .bv-c-state { align-items: flex-start; }
+  .bv-c-state svg { flex-shrink: 0; margin-top: 1px; }
+}

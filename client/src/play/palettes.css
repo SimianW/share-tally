@@ -52,7 +52,6 @@
   --money-owed-bg: #e8f3e6;
   --status-success-bg: #e8f3e6;
   --accent-mark: color-mix(in srgb, var(--palette-chartreuse) 70%, var(--palette-white));
-  --surface-summary: var(--palette-lime-tint);
   --ink-on-soft-accent: var(--ink);
   --focus: var(--palette-leaf);
 }
@@ -228,7 +227,7 @@
 
 /* Dark mode ("Glow"). Every palette shares one graphite ground with a whisper
    of its own accent, and the accent becomes the light: filled glowing
-   buttons, a light-leak summary card, a neon heading underline. Dark blocks
+   buttons and a neon heading underline. Dark blocks
    must stay after every light block: they tie on specificity and win by
    order. A root without data-palette is Classic, like the light default. */
 :root[data-scheme="dark"],
@@ -286,14 +285,6 @@
   --mark-highlight: var(--action);
   --mark-highlight-top: 86%;
   --ink-mark: var(--accent-ink);
-  --surface-summary: var(--surface);
-  --surface-summary-glow:
-    radial-gradient(120% 100% at 0% 0%, color-mix(in srgb, var(--action) 30%, transparent), transparent 62%),
-    radial-gradient(90% 80% at 100% 100%, color-mix(in srgb, var(--accent-decoration) 14%, transparent), transparent 60%);
-  --line-summary: color-mix(in srgb, var(--action) 42%, var(--line));
-  --shadow-summary: 0 24px 70px -34px color-mix(in srgb, var(--action) 70%, transparent);
-  --ink-summary-number: var(--accent-ink);
-  --glow-summary-number: 0 0 32px color-mix(in srgb, var(--action) 50%, transparent);
 }
 
 /* Each dark palette only lifts its accents to glow on graphite. */

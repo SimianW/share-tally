@@ -299,11 +299,11 @@ try {
   await expect(bob.getByRole('button', { name: 'Retry confirmation' })).toBeVisible();
   // The committed stream snapshot resolves the uncertain response without replaying the write.
   await expect(bob.locator('.share-form button[type=submit]')).toBeDisabled();
-  await expect(bob.locator('.bill-status')).toContainText('COMPLETE');
+  await expect(bob.locator('.bill-status')).toHaveText('Complete');
   await expect(bob.locator('.difference-number')).toHaveText('$0.03');
   await expect(bob.locator('.bill-adjustment')).toContainText('$40.03 effective cost');
 
-  await expect(alice.locator('.bill-status')).toContainText('COMPLETE');
+  await expect(alice.locator('.bill-status')).toHaveText('Complete');
   await carol.goto(billUrl);
   await expect(carol.getByText('Only its participants can submit shares.', { exact: false })).toBeVisible();
   await expect(carol.getByRole('button', { name: 'Submit and confirm my share' })).toHaveCount(0);
@@ -440,7 +440,7 @@ try {
 
   await alice.getByRole('button', { name: 'Review latest bill' }).click();
   await alice.getByRole('button', { name: 'Confirm my share', exact: true }).click();
-  await expect(alice.locator('.bill-status')).toContainText('COMPLETE');
+  await expect(alice.locator('.bill-status')).toHaveText('Complete');
   await alice.screenshot({ path: `${clientRoot}/test-results/bill-corrected-desktop.png`, fullPage: true });
   await expect(alice.locator('.bill-controls')).toHaveCount(0);
   await incompleteBill('Canceled groceries');
@@ -454,9 +454,9 @@ try {
   await expect(bobAgain.getByLabel('My share · CAD', { exact: true })).toHaveCount(0);
   await alice.getByRole('button', { name: 'Cancel this bill', exact: true }).click();
   await alice.getByRole('button', { name: 'Yes, cancel bill' }).click();
-  await expect(alice.locator('.bill-status')).toHaveText('CANCELED');
+  await expect(alice.locator('.bill-status')).toHaveText('Canceled');
   await bobAgain.reload();
-  await expect(bobAgain.locator('.bill-status')).toHaveText('CANCELED');
+  await expect(bobAgain.locator('.bill-status')).toHaveText('Canceled');
   assert.equal(await bobAgain.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await bobAgain.screenshot({ path: `${clientRoot}/test-results/bill-canceled-mobile.png`, fullPage: true });
   await alice.getByRole('link', { name: 'Group bills', exact: false }).click();
@@ -542,7 +542,7 @@ try {
   await alice.getByLabel('Total paid (CAD)', { exact: true }).fill('10.00');
   await alice.getByLabel('Your share (CAD)', { exact: true }).fill('10.00');
   await alice.getByRole('button', { name: 'Share bill' }).click();
-  await expect(alice.locator('.bill-status')).toContainText('COMPLETE');
+  await expect(alice.locator('.bill-status')).toHaveText('Complete');
   await alice.getByRole('link', { name: 'Group bills', exact: false }).click();
   await expect(groupNet(alice)).toContainText('$99.97');
   await expect(alice.getByRole('region', { name: 'History', exact: true }).getByRole('link').filter({ hasText: 'Weekend groceries' })).toContainText('Complete');

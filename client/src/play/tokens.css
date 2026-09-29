@@ -130,8 +130,6 @@
   --surface-accent: color-mix(in srgb, var(--palette-lime-tint) 70%, var(--palette-mist));
   --surface-selected: var(--palette-lime-tint);
   --surface-highlight: var(--palette-chartreuse);
-  /* The bill summary card; added palettes tint it with their own accent. */
-  --surface-summary: var(--surface-highlight);
   /* Ink: secondary labels are darker than muted metadata. */
   --ink: var(--palette-ink);
   --page-ink: var(--palette-page-ink);
@@ -189,11 +187,6 @@
   --mark-highlight: var(--accent-mark);
   --mark-highlight-top: 56%;
   --ink-mark: currentColor;
-  --surface-summary-glow: none;
-  --line-summary: color-mix(in srgb, var(--surface-summary) 60%, var(--ink-secondary));
-  --shadow-summary: none;
-  --ink-summary-number: currentColor;
-  --glow-summary-number: none;
   /* Shadow geometry/opacity is chosen at the use site; hue is shared. */
   --shadow-color: var(--palette-deep);
   --overlay: color-mix(in srgb, var(--palette-deep) 40%, transparent);

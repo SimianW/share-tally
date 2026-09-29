@@ -12,10 +12,12 @@ import {
   type Bill,
 } from "./bill-api";
 import { useGroupApi, errorMessage, type GroupDetail } from "./group-api";
-import { Avatar, Button } from "./ui";
+import { Avatar, Button, Icon } from "./ui";
 import { GroupDetails } from "./GroupDetails";
+import "./group-workspace.css";
 import "./bills.css";
 import { InitiatorActions, ShareActions } from "./BillActions";
+import { BillVariantSwitch, useBillVariant } from "./bill-variants.prototype";
 
 function LoadingFinancials({ label }: { label: string }) {
   return <div className="financial-skeleton" role="status" aria-label={label}>
@@ -91,6 +93,7 @@ export function BillDetails({ id }: { id: string }) {
   const [savedVersion, setSavedVersion] = useState(0);
   const resetEditors = useRef(false);
   const live = useRef<ReturnType<typeof startGroupSync> | null>(null);
+  const variant = useBillVariant(); // PROTOTYPE
   useEffect(() => {
     const controller = new AbortController();
     let sync: ReturnType<typeof startGroupSync> | undefined;
@@ -147,82 +150,140 @@ export function BillDetails({ id }: { id: string }) {
     setRevision((n) => n + 1);
   }
 
-  return (
-    <section className="bills-page">
-      <a href={`#/group-bills/${bill.groupId}`}>← Group bills</a>
-      <div className="bill-heading">
-        <div>
-          <h1 ref={heading} tabIndex={-1}>
-            {bill.title}
-          </h1>
-          <p>
-            {bill.purchaseDate} · Paid by {initiator.displayName} · CAD
-          </p>
-        </div>
+  const open = !bill.completedAt && !bill.canceledAt;
+  const waiting = bill.participants.filter(p => !p.confirmedAt);
+  const waitingFor = new Intl.ListFormat("en", { type: "conjunction" }).format(
+    [...waiting.filter(p => p.isCurrentUser).map(() => "you"), ...waiting.filter(p => !p.isCurrentUser).map(p => p.displayName)]);
+  const initiatorCost = (initiator.amountCents ?? 0) + bill.differenceCents;
+  const [status, statusTone] = bill.canceledAt ? ["Canceled", "muted"]
+    : bill.completedAt ? ["Complete", "done"]
+      : needsAmountCorrection ? ["Needs correction", "warning"] : ["In progress", "open"];
+  // The headline number is the difference still to resolve; an exact match has nothing to show.
+  const [headline, tone, showNumber] = bill.mode === 'items' ? ["Initiator adjustment", "", true]
+    : bill.completedAt ? bill.adjustmentCents ? ["Difference assigned to the initiator", "", true] : ["Shares matched the total", "match", false]
+      : bill.differenceCents > 0 ? ["Left to match", "", true]
+        : bill.differenceCents < 0 ? ["Over the total", "over", true] : ["Shares match the total", "match", false];
 
-      </div>
-      {error && <Notification><p>{error}</p><Button onClick={refresh}>Retry bill</Button></Notification>}
-      {notice && !needsAmountCorrection && <Notification tone="success" title="Bill updated" onDismiss={() => setNotice("")}>{notice}</Notification>}
-      {needsAmountCorrection && (
-        <Notification tone="warning" title={`Shares are ${money(Math.abs(bill.differenceCents))} ${bill.differenceCents < 0 ? "over" : "under"} the total`}>
-          <p>
-            This bill cannot complete yet. Check your amount and correct it if needed. The combined shares must
-            be within $0.05 of the bill total.
-            {adjustmentWouldBeNegative && " The difference would reduce the initiator’s final cost below $0.00, so the shares need correcting even within that tolerance."}
-          </p>
-          <p>
-            Changing a saved amount requires everyone to confirm again.
-            The initiator’s new amount is confirmed when saved.
-            Confirming unchanged amounts will not fix the difference.
-          </p>
-          {own && (
-            <Button variant="secondary" onClick={() => document.getElementById("my-share-amount")?.focus()}>
-              Edit my share
-            </Button>
-          )}
-        </Notification>
-      )}
-      <div className="bill-layout">
-        <section
-          className={`difference-card${bill.canceledAt ? " canceled-bill" : ""}`}
-        >
-          <span className="bill-status">
-            {bill.canceledAt
-              ? "CANCELED"
-              : bill.completedAt
-                ? "✓ COMPLETE"
-                : needsAmountCorrection
-                  ? "SHARES NEED CORRECTION"
-                  : "IN PROGRESS"}
-          </span>
-          <h2>
-            {bill.mode === 'items' ? "Initiator adjustment" : bill.differenceCents > 0
-              ? "Left to match"
-              : bill.differenceCents < 0
-                ? "Over the total"
-                : "Exact match"}
-          </h2>
-          <strong className="difference-number">
-            {money(bill.mode === 'items' ? bill.differenceCents : Math.abs(bill.differenceCents))}
-          </strong>
+  const notices = <>
+    {error && <Notification><p>{error}</p><Button onClick={refresh}>Retry bill</Button></Notification>}
+    {notice && !needsAmountCorrection && <Notification tone="success" title="Bill updated" onDismiss={() => setNotice("")}>{notice}</Notification>}
+    {needsAmountCorrection && (
+      <Notification tone="warning" title={`Shares are ${money(Math.abs(bill.differenceCents))} ${bill.differenceCents < 0 ? "over" : "under"} the total`}>
+        <p>
+          This bill cannot complete yet. Check your amount and correct it if needed. The combined shares must
+          be within $0.05 of the bill total.
+          {adjustmentWouldBeNegative && " The difference would reduce the initiator’s final cost below $0.00, so the shares need correcting even within that tolerance."}
+        </p>
+        <p>
+          Changing a saved amount requires everyone to confirm again.
+          The initiator’s new amount is confirmed when saved.
+          Confirming unchanged amounts will not fix the difference.
+        </p>
+        {own && (
+          <Button variant="secondary" onClick={() => document.getElementById("my-share-amount")?.focus()}>
+            Edit my share
+          </Button>
+        )}
+      </Notification>
+    )}
+    {open && !needsAmountCorrection && bill.confirmedCount === bill.participants.length && (
+      <Notification tone="warning" title="This bill cannot complete yet.">
+        <p>
+          {bill.mode === 'items' ? 'Every item must be fully claimed and confirmed. The difference goes to the initiator; a negative effective cost prevents completion.'
+            : Math.abs(bill.differenceCents) > 5
+              ? "The difference exceeds $0.05. Participants can correct their own amounts below."
+              : "The adjustment would make the initiator’s cost negative. Participants can correct their own amounts below."}
+        </p>
+      </Notification>
+    )}
+  </>;
+  const shareAction = bill.mode === 'items' ? <ItemClaims key={`items:${bill.id}`} bill={bill} saved={saved} refresh={refresh} /> : <ShareActions
+    key={`share:${bill.id}:${savedVersion}`}
+    bill={bill} api={api} saved={saved} refresh={refresh}
+  />;
+  const initiatorActions = own?.userId === bill.initiatorId ? <InitiatorActions
+    key={`initiator:${bill.id}:${savedVersion}`}
+    bill={bill} api={api} saved={saved} refresh={refresh}
+  /> : null;
+
+  const current = (
+    <section className="bills-page">
+      <header className="bill-heading">
+        <a className="bill-back" href={`#/group-bills/${bill.groupId}`}><Icon name="left" size={16} />Group bills</a>
+        <h1 ref={heading} tabIndex={-1}>
+          {bill.title}
+        </h1>
+        <p className="bill-meta">
+          <span className={`bill-status bill-status-${statusTone}`}>{status}</span>
+          {bill.purchaseDate} · Paid by {initiator.displayName} · CAD
+        </p>
+      </header>
+      {notices}
+      <section className={`group-card difference-card${bill.canceledAt ? " canceled-bill" : ""}`} aria-label="Bill progress">
+        <h2 className={`bill-difference${tone ? ` bill-difference-${tone}` : ""}`}>
+          <span>{headline}{!showNumber && <span aria-hidden="true"> ✓</span>}</span>
+          {showNumber && <strong className="difference-number">
+            {money(bill.mode === 'items' ? bill.differenceCents : Math.abs(bill.completedAt ? bill.adjustmentCents! : bill.differenceCents))}
+          </strong>}
+        </h2>
+        <div className="bill-progress">
           <p>
             {bill.confirmedCount}/{bill.participants.length} confirmed
-            {bill.confirmedCount < bill.participants.length &&
-              " · Everyone must confirm"}
+            {open && bill.confirmedCount < bill.participants.length && " · Everyone must confirm"}
           </p>
-          <dl>
-            <div>
-              <dt>Bill total</dt>
-              <dd>{money(bill.totalCents)}</dd>
-            </div>
-            <div>
-              <dt>Submitted shares</dt>
-              <dd>{money(bill.submittedCents)}</dd>
-            </div>
-          </dl>
-        </section>
-        <section className="bill-people">
-          <h2>Everyone's share</h2>
+          <span className="bill-progress-track" aria-hidden="true">
+            <span style={{ width: `${(bill.confirmedCount / bill.participants.length) * 100}%` }} />
+          </span>
+        </div>
+        <dl className="bill-totals">
+          <div>
+            <dt>Bill total</dt>
+            <dd>{money(bill.totalCents)}</dd>
+          </div>
+          <div>
+            <dt>Submitted shares</dt>
+            <dd>{money(bill.submittedCents)}</dd>
+          </div>
+        </dl>
+        {!needsAmountCorrection && <div className="bill-adjustment">
+          {bill.canceledAt ? (
+            <p className="bill-note"><Icon name="close" size={14} />
+              This bill was canceled. It is kept for reference and excluded from financial totals.
+              Shares can no longer be submitted or confirmed.
+            </p>
+          ) : bill.completedAt ? (
+            <>
+              {bill.adjustmentCents !== 0 && <p>
+                {initiator.displayName}: {money(initiator.amountCents!)}{" "}
+                submitted {bill.adjustmentCents! < 0 ? "−" : "+"}{" "}
+                {money(Math.abs(bill.adjustmentCents!))} adjustment ={" "}
+                <b>
+                  {money(initiator.amountCents! + bill.adjustmentCents!)}{" "}
+                  effective cost
+                </b>
+                .
+              </p>}
+              <p className="bill-note"><Icon name="check" size={14} />
+                Completed bills are final. Details, participants, and shares can no longer be changed.
+              </p>
+            </>
+          ) : (
+            <>
+              {bill.mode === 'items' && <p>
+                Based on current confirmed claims, {initiator.displayName}'s effective cost is <b>{money(initiatorCost)}</b>.
+                {initiatorCost < 0 && ' This is negative. The initiator must correct item prices or the paid total, then obtain the required confirmations.'}
+              </p>}
+              {waiting.length > 0 && <p className="bill-note"><Icon name="clock" size={14} />
+                Waiting for {waitingFor} to confirm.{" "}
+                {bill.mode === 'items' ? 'Every item must be fully claimed and confirmed, and everyone must respond.' : 'Up to five cents can be assigned to the initiator after everyone confirms.'}
+              </p>}
+            </>
+          )}
+        </div>}
+      </section>
+      <section aria-label="Everyone's share">
+        <h2 className="group-section-heading">Everyone's share <span className="count">{bill.participants.length}</span></h2>
+        <div className="group-card bill-people">
           {bill.participants.map((p) => (
             <div className="bill-person" key={p.userId}>
               <Avatar name={p.displayName} imageUrl={p.imageUrl} fallbackImageUrl={p.fallbackImageUrl} />
@@ -240,83 +301,37 @@ export function BillDetails({ id }: { id: string }) {
                       : "Awaiting confirmation"}
                 </span>
               </div>
-              <strong>
+              <strong className={p.amountCents === null ? "bill-person-missing" : undefined}>
                 {p.amountCents === null
                   ? "Not submitted"
                   : money(p.amountCents)}
               </strong>
             </div>
           ))}
-        </section>
-        {!needsAmountCorrection && <div className={`bill-adjustment${!bill.completedAt && !bill.canceledAt ? " bill-adjustment-pending" : ""}`}>
-          {bill.canceledAt ? (
-            <>
-              <h3>This bill was canceled.</h3>
-              <p>
-                Kept for reference and excluded from financial totals. Shares
-                can no longer be submitted or confirmed.
-              </p>
-            </>
-          ) : bill.completedAt ? (
-            <>
-              <p>Completed bills are final. Details, participants, and shares can no longer be changed.</p>
-              <h3>
-                {bill.adjustmentCents === 0
-                  ? "Everything matches."
-                  : "Difference assigned to the initiator."}
-              </h3>
-              <p>
-                {initiator.displayName}: {money(initiator.amountCents!)}{" "}
-                submitted {bill.adjustmentCents! < 0 ? "−" : "+"}{" "}
-                {money(Math.abs(bill.adjustmentCents!))} adjustment ={" "}
-                <b>
-                  {money(initiator.amountCents! + bill.adjustmentCents!)}{" "}
-                  effective cost
-                </b>
-                .
-              </p>
-            </>
-          ) : (
-            <Notification
-              tone={bill.confirmedCount < bill.participants.length ? "info" : "warning"}
-              title={bill.confirmedCount < bill.participants.length ? "Waiting for everyone to confirm." : "This bill cannot complete yet."}
-            >
-              {bill.mode === 'items' && <p>Based on current confirmed claims: {initiator.displayName}'s effective cost is {money((initiator.amountCents ?? 0) + bill.differenceCents)}. {(initiator.amountCents ?? 0) + bill.differenceCents < 0 && 'This is negative. The initiator must correct item prices or the paid total, then obtain the required confirmations.'}</p>}
-              <p>
-                {bill.mode === 'items' ? 'Every item must be fully claimed and confirmed, and everyone must respond. The difference goes to the initiator; a negative effective cost prevents completion.' : bill.confirmedCount < bill.participants.length
-                  ? "Up to five cents can be assigned to the initiator after everyone confirms."
-                  : Math.abs(bill.differenceCents) > 5
-                    ? "The difference exceeds $0.05. Participants can correct their own amounts below."
-                    : "The adjustment would make the initiator’s cost negative. Participants can correct their own amounts below."}
-              </p>
-            </Notification>
-          )}
-        </div>}
-      </div>
+        </div>
+      </section>
       {bill.notes && (
-        <section className="bill-notes">
-          <h2>Purchase notes</h2>
-          <p>{bill.notes}</p>
+        <section className="bill-notes" aria-label="Purchase notes">
+          <h2 className="group-section-heading">Purchase notes</h2>
+          <p className="group-card">{bill.notes}</p>
         </section>
       )}
       <div className="bill-action-layout">
-        {bill.mode === 'items' ? <ItemClaims key={`items:${bill.id}`} bill={bill} saved={saved} refresh={refresh} /> : <ShareActions
-          key={`share:${bill.id}:${savedVersion}`}
-          bill={bill} api={api} saved={saved} refresh={refresh}
-        />}
-        {own?.userId === bill.initiatorId && (
-          <InitiatorActions
-            key={`initiator:${bill.id}:${savedVersion}`}
-            bill={bill} api={api} saved={saved} refresh={refresh}
-          />
-        )}
+        {shareAction}
+        {initiatorActions}
       </div>
       {!own && (
-        <p>
+        <p className="bill-viewer-note">
           You can view this bill as a group member. Only its participants can
           submit shares.
         </p>
       )}
     </section>
   );
+  return <BillVariantSwitch variant={variant} current={current} props={{
+    bill, initiator, own, headingRef: element => { heading.current = element; }, backHref: `#/group-bills/${bill.groupId}`,
+    status: { label: status, tone: statusTone as "open" | "done" | "warning" | "muted" },
+    needsAmountCorrection, waiting: [...waiting.filter(p => p.isCurrentUser), ...waiting.filter(p => !p.isCurrentUser)],
+    initiatorCost, notices, shareAction, initiatorActions,
+  }} />;
 }
