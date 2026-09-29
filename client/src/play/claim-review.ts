@@ -45,13 +45,15 @@ export type ItemAttention = {
   over: { left: Fraction; by: Fraction } | null;
   /** The server rejected the last Confirm because this item ran out. */
   conflict: boolean;
+  /** The draft holds something that is not a claimable fraction, so it cannot be confirmed. */
+  invalid: boolean;
 };
 
 /** A picked item the initiator removed. It has no sheet, only a row to dismiss. */
-export type RemovedItem = { itemId: string; name: string; finalCents: number; portion: Fraction; index: number };
+export type RemovedItem = { itemId: string; name: string; finalCents: number; portion: Fraction | null; index: number };
 
 export type Blocker =
-  | { kind: "item"; itemId: string; review: boolean; over: boolean }
+  | { kind: "item"; itemId: string; review: boolean; over: boolean; invalid: boolean }
   | { kind: "removed"; itemId: string };
 
 export type ClaimReview = {
@@ -105,11 +107,12 @@ export function claimReview({ items, ownId, selection, seen, known, conflicts }:
       updated: differs && !pick,
       over: overAllocation(item, ownId, pick),
       conflict: conflicts.includes(item.id),
+      invalid: !!(selection[item.id] ?? "").trim() && !pick,
     };
   }
   const removed = Object.entries(selection).flatMap(([itemId, value]) => {
     const portion = parse(value);
-    if (!portion || items.some((item) => item.id === itemId)) return [];
+    if (!value.trim() || items.some((item) => item.id === itemId)) return [];
     const last = known[itemId] ?? { name: "An item", finalCents: 0, index: items.length };
     return [{ itemId, portion, ...last }];
   }).sort((a, b) => a.index - b.index);
@@ -120,7 +123,8 @@ export function claimReview({ items, ownId, selection, seen, known, conflicts }:
     removedAt(index);
     const review = needsReview(attention[item.id]);
     const over = !!attention[item.id].over;
-    if (review || over) blockers.push({ kind: "item", itemId: item.id, review, over });
+    const invalid = attention[item.id].invalid;
+    if (review || over || invalid) blockers.push({ kind: "item", itemId: item.id, review, over, invalid });
   });
   removed.filter((entry) => entry.index >= items.length)
     .forEach((entry) => blockers.push({ kind: "removed", itemId: entry.itemId }));

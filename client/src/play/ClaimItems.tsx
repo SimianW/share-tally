@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "re
 import { ArrowRight, Check, CircleAlert, Sparkles, Trash2 } from "lucide-react";
 import { money, type Bill } from "./bill-api";
 import type { BillItem } from "./receipt-api";
-import { fraction, one, sum, subtract, text, shortText, parse, lessOrEqual, cost, share, signed, zero } from "./claim-fractions";
+import { claimable, fraction, one, sum, subtract, text, shortText, parse, lessOrEqual, cost, share, signed, zero } from "./claim-fractions";
 import { needsReview, type Blocker, type ClaimReview, type ItemAttention, type RemovedItem } from "./claim-review";
 import { ClaimPortion, PortionBar } from "./ClaimPortion";
 import { useClaimChanges } from "./claim-changes";
@@ -211,9 +211,10 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
     if (!lessOrEqual(value, room(item))) { setCustomError(`Only ${text(room(item))} is available to you.`); return; }
     choose(item, text(value), true);
   }
-  // When a pick no longer fits, the sheet offers whatever is still left in one tap.
+  // When a pick no longer fits, the sheet offers whatever is still left in one tap, but only if
+  // that remainder is itself a claimable fraction. It is never rounded to make it one.
   const activeOver = active ? attention[active.id]?.over : null;
-  const activeLeft = activeOver && activeOver.left.n > 0n ? activeOver.left : null;
+  const activeLeft = activeOver && claimable(activeOver.left) ? activeOver.left : null;
   return <>
     <div className="claim-filters" aria-label="Filter items">
       {([ ["unclaimed", `Unclaimed (${unclaimed.length})`], ["mine", `Mine (${myItems.length})`], ["all", `All (${items.length})`] ] as const).map(([key, label]) =>
@@ -231,7 +232,7 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
           const selected = parse(selection[item.id] ?? "");
           const state = attention[item.id];
           const free = selected ? (lessOrEqual(selected, room(item)) ? subtract(room(item), selected) : zero) : room(item);
-          const tone = state?.over ? " is-over" : state && needsReview(state) ? " is-review" : "";
+          const tone = state?.over || state?.invalid ? " is-over" : state && needsReview(state) ? " is-review" : "";
           rows.push(<ReceiptItemRow key={item.id} item={item} mode="claim" selected={activeId === item.id} onOpen={() => open(item)} className={tone}
             accessibleLabel={`View ${item.name} · ${money(item.finalCents)}`}
             badges={<>
@@ -378,6 +379,7 @@ function AttentionBadges({ attention, initiatorName }: { attention: ItemAttentio
       <span className="claim-attention-badge is-changed">Price <PriceChange from={change.from.finalCents} to={change.to.finalCents} /></span>}
     {change && change.from.name !== change.to.name &&
       <span className="claim-attention-badge is-changed">Renamed from “{change.from.name}”</span>}
+    {attention.invalid && <span className="claim-attention-badge is-over">Pick your portion again</span>}
     {attention.conflict && attention.over && <span className="claim-attention-badge is-over">Someone just updated this</span>}
     {attention.updated && <span className="receipt-badge">{initiatorName === "You" ? "Updated" : `Updated by ${initiatorName}`}</span>}
   </>;
@@ -388,7 +390,7 @@ function RemovedRow({ removed, dismiss }: { removed: RemovedItem; dismiss: () =>
   return <div className="claim-removed-row" data-removed={removed.itemId}>
     <Trash2 size={18} aria-hidden="true" />
     <span><s>{removed.name}</s>
-      <small>Removed — your {text(removed.portion)} ({money(cost(removed.finalCents, removed.portion))}) was dropped</small></span>
+      <small>Removed — your {removed.portion ? `${text(removed.portion)} (${money(cost(removed.finalCents, removed.portion))})` : "pick"} was dropped</small></span>
     <Button variant="secondary" className="small" onClick={dismiss}>Got it</Button>
   </div>;
 }

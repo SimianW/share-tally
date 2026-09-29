@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import { AnimatePresence, motion, type Transition } from "motion/react";
 import { money, type Bill } from "./bill-api";
 import type { BillItem } from "./receipt-api";
-import { add, cost, fraction, lessOrEqual, one, subtract, sum, text, shortText, zero, type Fraction } from "./claim-fractions";
+import { add, claimable, cost, fraction, lessOrEqual, one, subtract, sum, text, shortText, zero, type Fraction } from "./claim-fractions";
 import type { ClaimChange } from "./claim-changes";
 import { avatarTint } from "./appearance";
 import { Avatar } from "./ui";
@@ -112,7 +112,7 @@ export function ClaimPortion({ item, participants, ownId, mine, changes, over }:
     <PortionLegend item={item} participants={participants} ownId={ownId} mine={mine} changes={changes} />
     {over && mine && <p className="claim-over-text" role="alert">
       {over.left.n > 0n ? `Only ${shortText(over.left)} left. ` : "Nothing is left. "}
-      Your {text(mine)} is over by {shortText(over.by)}. {over.left.n > 0n ? `Pick ${shortText(over.left)} or less to confirm.` : "Remove your claim to confirm."}
+      Your {text(mine)} is over by {shortText(over.by)}. {over.left.n === 0n ? "Remove your claim to confirm." : claimable(over.left) ? `Pick ${shortText(over.left)} or less to confirm.` : "Pick a smaller portion to confirm."}
     </p>}
   </div>;
 }

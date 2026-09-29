@@ -18,6 +18,9 @@ export function sum(claims: Pick<ItemClaim, "numerator" | "denominator">[]): Fra
 export function subtract(a: Fraction, b: Fraction): Fraction { return add(a, fraction(-b.n, b.d)); }
 export function text(f: Fraction) { return `${f.n}/${f.d}`; }
 export function shortText(f: Fraction) { return f.d === 1n ? String(f.n) : text(f); }
+// Claims store numerators and denominators of at most 10,000, here and on the server.
+export const maxClaimPart = 10_000n;
+export function claimable(f: Fraction) { return f.n > 0n && f.n <= maxClaimPart && f.d <= maxClaimPart; }
 export function parse(value: string): Fraction | null {
   const match = /^(\d+)(?:\/(\d+))?$/.exec(value.trim());
   if (!match) return null;
