@@ -59,6 +59,8 @@ export function ClaimItems({ bill, selection, change, busy, terminal, confirmAct
   const latest = useRef({ activeId, nextOpenId });
   useEffect(() => { latest.current = { activeId, nextOpenId }; });
   useEffect(() => () => window.clearTimeout(advance.current), []);
+  // A bill that completes or is canceled during the pause stays on the item just picked.
+  useEffect(() => { if (terminal) window.clearTimeout(advance.current); }, [terminal]);
   // Moving to another item replaces the sheet content; if focus was in it, the heading takes over.
   useEffect(() => {
     const dialog = heading.current?.closest("dialog");
