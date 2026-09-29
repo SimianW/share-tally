@@ -1403,9 +1403,15 @@ try {
     await alice.getByRole("button", { name: "View Apples · $10.00", exact: true }).click();
     const sheet = claimSheet(alice);
     await expect(sheet.getByRole("img", { name: "Highlighted receipt line", exact: true })).toHaveAttribute("points", "30,100 180,100 180,140 30,140");
-    // The mobile sheet keeps the counter but relies on auto-advance instead of Previous and Next.
+    // The mobile sheet shows the counter and Previous and Next too. Next keeps its 32px circle,
+    // and a tap just outside the circle still reaches it.
     await expect(sheet).toContainText("CLAIM AN ITEM · 1 OF 3");
-    await expect(sheet.getByRole("button", { name: "Next item", exact: true })).toBeHidden();
+    const mobileNext = sheet.getByRole("button", { name: "Next item", exact: true });
+    await expect(mobileNext).toBeVisible();
+    const nextBox = await mobileNext.boundingBox();
+    assert.equal(Math.round(nextBox.width), 32);
+    assert.equal(await alice.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest("button")?.getAttribute("aria-label"),
+      { x: nextBox.x - 4, y: nextBox.y + nextBox.height / 2 }), "Next item");
     await expect(sheet.getByRole("button", { name: "View receipt photo", exact: true })).toHaveCount(0);
     const lineButton = sheet.getByRole("button", { name: /View whole receipt/ });
     await expect(lineButton).toBeVisible();
