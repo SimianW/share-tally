@@ -85,6 +85,14 @@ export async function checkAmountPortion(pageFor, base, api, screenshots) {
   await expect(alice.getByRole('button', { name: 'Use custom fraction', exact: true })).toBeDisabled();
   await totalPaid(alice).fill('100.00');
   await expect(shareInput(alice)).toHaveValue('40.00');
+  // A portion that rounds to $0.00 for one total still follows the next.
+  await alice.getByLabel('Custom fraction', { exact: true }).fill('1/10000');
+  await alice.getByRole('button', { name: 'Use custom fraction', exact: true }).click();
+  await expect(shareInput(alice)).toHaveValue('0.01');
+  await totalPaid(alice).fill('40.00');
+  await expect(shareInput(alice)).toHaveValue('0.00');
+  await totalPaid(alice).fill('100.00');
+  await expect(shareInput(alice)).toHaveValue('0.01');
   // A share over the total paid is an error that blocks sharing.
   await shareInput(alice).fill('120.00');
   await expect(card(alice).getByRole('alert')).toHaveText("Your share can't be more than the total paid.");

@@ -12,6 +12,7 @@ import { Button } from "./ui";
 import { ParticipantPicker } from "./ParticipantPicker";
 import Dialog from "./Dialog";
 import { AmountPortion } from "./AmountPortion";
+import type { Fraction } from "./claim-fractions";
 
 type Props = {
   bill: Bill;
@@ -123,6 +124,8 @@ function ShareEditor({ bill, api, saved, refresh }: Props) {
     own.amountCents === null ? "" : (own.amountCents / 100).toFixed(2),
   );
   const [validation, setValidation] = useState("");
+  // The Custom fraction last used on this share form.
+  const [custom, setCustom] = useState<Fraction | null>(null);
   const mutation = useMutation(saved);
   const review = useDraftReview(bill, `${bill.revision}:${currentOwn?.amountCents}:${!!currentOwn}`, mutation);
   let parsedAmount: number | null = null;
@@ -174,6 +177,8 @@ function ShareEditor({ bill, api, saved, refresh }: Props) {
         others={bill.participants.filter((p) => !p.isCurrentUser).map((person) => ({ person, cents: person.amountCents }))}
         amount={amount}
         setAmount={setAmount}
+        custom={custom}
+        setCustom={setCustom}
         inputId="my-share-amount"
         required
         busy={mutation.busy}

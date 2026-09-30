@@ -13,7 +13,7 @@ type Participant = Bill["participants"][number];
  * portion choices that fill it in. Shares over the total only warn; a share over the total
  * itself is an error.
  */
-export function AmountPortion({ totalCents, count, others, amount, setAmount, onPick, inputId, required = false, readOnly = false, busy = false }: {
+export function AmountPortion({ totalCents, count, others, amount, setAmount, custom, setCustom, onPick, inputId, required = false, readOnly = false, busy = false }: {
   /** Null or zero until the total paid is entered. */
   totalCents: number | null;
   /** Everyone on the bill, which sets N in Even · 1/N. */
@@ -23,15 +23,16 @@ export function AmountPortion({ totalCents, count, others, amount, setAmount, on
   /** The amount as typed. */
   amount: string;
   setAmount: (amount: string) => void;
-  /** Called after a choice fills in the amount, with the portion it was and whether it was Custom. */
-  onPick?: (portion: Fraction, custom: boolean) => void;
+  /** The Custom fraction last used, remembered while the form is open, as on a By item bill. */
+  custom: Fraction | null;
+  setCustom: (custom: Fraction) => void;
+  /** Called after a choice fills in the amount, with the portion it was. */
+  onPick?: (portion: Fraction) => void;
   inputId?: string;
   required?: boolean;
   readOnly?: boolean;
   busy?: boolean;
 }) {
-  // Remembered only while this form is open, as on a By item bill.
-  const [custom, setCustom] = useState<Fraction | null>(null);
   const [customOpen, setCustomOpen] = useState(false);
   const captionId = useId();
   const total = totalCents && totalCents > 0 ? totalCents : null;
@@ -75,7 +76,7 @@ export function AmountPortion({ totalCents, count, others, amount, setAmount, on
         if (total === null) return;
         if (isCustom) setCustom(value);
         setAmount(amountText(cost(total, value)));
-        onPick?.(value, isCustom);
+        onPick?.(value);
       }} />
     {total === null && <p className="amount-portion-hint">Enter the total paid to pick a portion</p>}
   </div>;

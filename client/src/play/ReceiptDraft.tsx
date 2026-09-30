@@ -532,7 +532,7 @@ export function ReceiptDraftForm({
   // The portion of the total your share was last picked as, kept while the total is cleared, so a
   // corrected total can recalculate it. A typed share that matches a choice follows too.
   const [sharePortion, setSharePortion] = useState<Fraction | null>(null);
-  // The last Custom fraction picked, which a typed share can match as well as the fixed choices.
+  // The last Custom fraction picked. The picker highlights it, and a typed share can match it.
   const [customPortion, setCustomPortion] = useState<Fraction | null>(null);
   function typeShare(text: string) {
     const cents = text.trim() ? parseCents(text) : 0;
@@ -549,7 +549,11 @@ export function ReceiptDraftForm({
       : sharePortion && cost(previous, sharePortion) === share ? sharePortion
         : pressedChoice(amountChoices(data.participantIds.length), previous, share, customPortion)?.fraction ?? null;
     setSharePortion(linked);
-    update(linked && totalCents && totalCents > 0 ? { totalCents, ownShareCents: cost(totalCents, linked) } : { totalCents });
+    if (!linked || !totalCents || totalCents <= 0) { update({ totalCents }); return; }
+    // Show the recalculated share as it is, even $0.00, so the next correction still matches it.
+    const ownShareCents = cost(totalCents, linked);
+    setShareInput({ value: ownShareCents, text: amountText(ownShareCents) });
+    update({ totalCents, ownShareCents });
   }
   const valid =
     data.totalCents !== null &&
@@ -936,10 +940,9 @@ export function ReceiptDraftForm({
                       others={[]}
                       amount={shareText}
                       setAmount={typeShare}
-                      onPick={(portion, custom) => {
-                        setSharePortion(portion);
-                        if (custom) setCustomPortion(portion);
-                      }}
+                      custom={customPortion}
+                      setCustom={setCustomPortion}
+                      onPick={setSharePortion}
                     />
                   )}
                   {data.mode === "items" && (

@@ -87,9 +87,6 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
     const dialog = heading.current?.closest("dialog");
     if (activeId && dialog && !dialog.contains(document.activeElement)) heading.current?.focus({ preventScroll: true });
   }, [activeId]);
-  function resetCustom() {
-    setCustomOpen(false);
-  }
   // Shows an item's sheet, or closes it with null, cancelling any pending advance. Seeing an item
   // acknowledges it if it is new or changed without a pick on it; a changed pick needs its own confirmation.
   // A pending advance passes the latest bill; handlers use the one on screen.
@@ -98,7 +95,7 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
     setActiveId(id);
     setAnnouncement("");
     setReviewedHere(null);
-    resetCustom();
+    setCustomOpen(false);
     const item = id ? current.find((entry) => entry.id === id) : undefined;
     const state = id ? now[id] : undefined;
     setOpened(id ? { id, isNew: !!state?.isNew, attention: pending.length > 0 } : null);
@@ -137,7 +134,7 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
     if (attention[item.id]?.changed) setReviewedHere(item.id);
     if (custom) setCustomChoices((previous) => ({ ...previous, [item.id]: value }));
     setSelectedCustom((previous) => ({ ...previous, [item.id]: custom }));
-    resetCustom();
+    setCustomOpen(false);
     window.clearTimeout(advance.current);
     if (value) advanceFrom(item);
   }
