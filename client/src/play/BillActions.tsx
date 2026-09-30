@@ -11,6 +11,8 @@ import { errorMessage, useGroupApi, type GroupDetail } from "./group-api";
 import { Button } from "./ui";
 import { ParticipantPicker } from "./ParticipantPicker";
 import Dialog from "./Dialog";
+import { AmountPortion } from "./AmountPortion";
+import type { Fraction } from "./claim-fractions";
 
 type Props = {
   bill: Bill;
@@ -122,6 +124,8 @@ function ShareEditor({ bill, api, saved, refresh }: Props) {
     own.amountCents === null ? "" : (own.amountCents / 100).toFixed(2),
   );
   const [validation, setValidation] = useState("");
+  // The Custom fraction last used on this share form.
+  const [custom, setCustom] = useState<Fraction | null>(null);
   const mutation = useMutation(saved);
   const review = useDraftReview(bill, `${bill.revision}:${currentOwn?.amountCents}:${!!currentOwn}`, mutation);
   let parsedAmount: number | null = null;
@@ -167,18 +171,19 @@ function ShareEditor({ bill, api, saved, refresh }: Props) {
             ? "Confirm your share"
             : "Check your saved amount."}
       </h2>
-      <label>
-        My share · CAD
-        <input
-          id="my-share-amount"
-          required
-          inputMode="decimal"
-          value={amount}
-          disabled={mutation.busy}
-          readOnly={mutation.locked || review.terminal || !currentOwn}
-          onChange={(e) => setAmount(e.target.value)}
-        />
-      </label>
+      <AmountPortion
+        totalCents={bill.totalCents}
+        count={bill.participants.length}
+        others={bill.participants.filter((p) => !p.isCurrentUser).map((person) => ({ person, cents: person.amountCents }))}
+        amount={amount}
+        setAmount={setAmount}
+        custom={custom}
+        setCustom={setCustom}
+        inputId="my-share-amount"
+        required
+        busy={mutation.busy}
+        readOnly={mutation.locked || review.terminal || !currentOwn}
+      />
       <p>
         {review.terminal
           ? "This bill is final. Your share can no longer be changed."

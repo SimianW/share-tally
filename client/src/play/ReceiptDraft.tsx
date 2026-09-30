@@ -10,6 +10,9 @@ import {
   type ReceiptData,
 } from "./receipt-api";
 import { ReceiptAmount } from "./ReceiptAmount";
+import { AmountPortion } from "./AmountPortion";
+import { amountChoices, amountText, parseCents, pressedChoice } from "./amount-portion";
+import { cost, type Fraction } from "./claim-fractions";
 import { ReceiptReviewItems, ReceiptSummary, ReceiptReconciliation } from "./ReceiptReview";
 import { deriveReceiptItems, recoverReceiptData, unassignedReceiptTaxMessage } from "./receipt-pricing";
 import { ReceiptCrop, ReceiptPhoto } from "./ReceiptPhoto";
@@ -520,12 +523,44 @@ export function ReceiptDraftForm({
   const processing = draft.processingStatus === "processing";
   const itemTotal = data.items.reduce((sum, i) => sum + (i.finalCents ?? 0), 0);
   const unassignedTaxMessage = unassignedReceiptTaxMessage(data);
+  // Your share as typed. An empty share is saved as 0, and a saved 0 shows as empty, so the
+  // card asks for a pick. Text that is not an amount keeps the last valid share.
+  const savedShareText = data.ownShareCents ? amountText(data.ownShareCents) : "";
+  const [shareInput, setShareInput] = useState({ value: data.ownShareCents, text: savedShareText });
+  const shareText = shareInput.value === data.ownShareCents ? shareInput.text : savedShareText;
+  const shareValid = !shareText.trim() || parseCents(shareText) !== null;
+  // The portion of the total your share was last picked as, kept while the total is cleared, so a
+  // corrected total can recalculate it. A typed share that matches a choice follows too.
+  const [sharePortion, setSharePortion] = useState<Fraction | null>(null);
+  // The last Custom fraction picked. The picker highlights it, and a typed share can match it.
+  const [customPortion, setCustomPortion] = useState<Fraction | null>(null);
+  function typeShare(text: string) {
+    const cents = text.trim() ? parseCents(text) : 0;
+    setShareInput({ value: cents ?? data.ownShareCents, text });
+    if (cents === null || cents === data.ownShareCents) return;
+    setSharePortion(null);
+    update({ ownShareCents: cents });
+  }
+  function changeTotal(totalCents: number | null) {
+    if (data.mode !== "manual") { update({ totalCents }); return; }
+    const previous = data.totalCents && data.totalCents > 0 ? data.totalCents : null;
+    const share = parseCents(shareText);
+    const linked = previous === null ? sharePortion
+      : sharePortion && cost(previous, sharePortion) === share ? sharePortion
+        : pressedChoice(amountChoices(data.participantIds.length), previous, share, customPortion)?.fraction ?? null;
+    setSharePortion(linked);
+    if (!linked || !totalCents || totalCents <= 0) { update({ totalCents }); return; }
+    // Show the recalculated share as it is, even $0.00, so the next correction still matches it.
+    const ownShareCents = cost(totalCents, linked);
+    setShareInput({ value: ownShareCents, text: amountText(ownShareCents) });
+    update({ totalCents, ownShareCents });
+  }
   const valid =
     data.totalCents !== null &&
     data.totalCents > 0 &&
     data.title.trim() &&
     (data.mode === "manual"
-      ? data.ownShareCents <= data.totalCents
+      ? data.ownShareCents <= data.totalCents && shareValid
       : itemsComplete(data));
   const canSplitByItem = itemsReady({ ...data, mode: "items" });
   const splitLegendId = useId();
@@ -533,6 +568,7 @@ export function ReceiptDraftForm({
     !data.title.trim() && "a bill title",
     !(data.totalCents !== null && data.totalCents > 0) && "the total paid",
     data.mode === "items" && !itemsComplete(data) && "item names and prices",
+    data.mode === "manual" && !shareValid && "a valid share",
   ].filter(Boolean);
   const stepOpen = (index: number) =>
     !(index === 1 && data.mode === "manual") &&
@@ -868,7 +904,7 @@ export function ReceiptDraftForm({
                   <SegmentedControl
                     labelledBy={splitLegendId}
                     value={data.mode}
-                    onChange={(mode) => update({ mode, ownShareCents: 0 })}
+                    onChange={(mode) => { setSharePortion(null); update({ mode, ownShareCents: 0 }); }}
                     options={[
                       {
                         value: "items",
@@ -893,26 +929,22 @@ export function ReceiptDraftForm({
                     <ReceiptAmount
                       label="Total paid (CAD)"
                       value={data.totalCents}
-                      change={(totalCents) => update({ totalCents })}
+                      change={changeTotal}
                     />
-                    {data.mode === "manual" && (
-                      <ReceiptAmount
-                        label="Your share (CAD)"
-                        emptyAsZero
-                        value={data.ownShareCents}
-                        change={(ownShareCents) => {
-                          if (ownShareCents !== null) update({ ownShareCents });
-                        }}
-                      />
-                    )}
                   </div>
-                  {data.mode === "manual" &&
-                    data.totalCents !== null &&
-                    data.ownShareCents > data.totalCents && (
-                      <p role="alert" className="field-error">
-                        Your share can't be more than the total paid.
-                      </p>
-                    )}
+                  {data.mode === "manual" && (
+                    <AmountPortion
+                      totalCents={data.totalCents}
+                      count={data.participantIds.length}
+                      // Nobody else can submit a share before the bill is shared.
+                      others={[]}
+                      amount={shareText}
+                      setAmount={typeShare}
+                      custom={customPortion}
+                      setCustom={setCustomPortion}
+                      onPick={setSharePortion}
+                    />
+                  )}
                   {data.mode === "items" && (
                     <div className="split-items">
                       <p>

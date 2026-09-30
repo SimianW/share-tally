@@ -2,9 +2,10 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } f
 import { ArrowRight, Check, CircleAlert, Sparkles, Trash2 } from "lucide-react";
 import { money, type Bill } from "./bill-api";
 import type { BillItem } from "./receipt-api";
-import { claimable, fraction, one, sum, subtract, text, shortText, parse, lessOrEqual, cost, share, signed, zero } from "./claim-fractions";
+import { claimable, fraction, one, sum, subtract, text, shortText, parse, lessOrEqual, cost, share, signed, zero, type Fraction } from "./claim-fractions";
 import { needsReview, type Blocker, type ClaimReview, type ItemAttention, type RemovedItem } from "./claim-review";
-import { ClaimPortion, PortionBar } from "./ClaimPortion";
+import { ClaimPortion, ItemPortionBar } from "./ClaimPortion";
+import { PortionChoices, type PortionChoice } from "./PortionPicker";
 import { useClaimChanges } from "./claim-changes";
 import Dialog from "./Dialog";
 import { ReceiptItemRow } from "./ReceiptItemRow";
@@ -16,6 +17,9 @@ import { Button, Avatar, Icon } from "./ui";
 const ADVANCE_DELAY_MS = 600;
 
 const plural = (count: number, singular: string, many: string) => `${count} ${count === 1 ? singular : many}`;
+
+const itemChoices: PortionChoice[] = ([["1", "All of it"], ["1/2", "1/2"], ["1/3", "1/3"], ["1/4", "1/4"], ["1/5", "1/5"], ["1/6", "1/6"]] as const)
+  .map(([key, name]) => ({ key, name, fraction: parse(key)! }));
 
 export function ClaimItems({ bill, selection, review, change, acknowledge, dismissRemoved, busy, terminal, confirmAction, error }: {
   bill: Bill; selection: Record<string, string>; review: ClaimReview;
@@ -43,8 +47,6 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
   const [announcement, setAnnouncement] = useState("");
   const [summary, setSummary] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
-  const [customText, setCustomText] = useState("");
-  const [customError, setCustomError] = useState("");
   const [customChoices, setCustomChoices] = useState<Record<string, string>>({});
   const [selectedCustom, setSelectedCustom] = useState<Record<string, boolean>>({});
   // What the open sheet needed when it opened, so its notices can say what was resolved.
@@ -85,10 +87,6 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
     const dialog = heading.current?.closest("dialog");
     if (activeId && dialog && !dialog.contains(document.activeElement)) heading.current?.focus({ preventScroll: true });
   }, [activeId]);
-  function resetCustom() {
-    setCustomOpen(false);
-    setCustomError("");
-  }
   // Shows an item's sheet, or closes it with null, cancelling any pending advance. Seeing an item
   // acknowledges it if it is new or changed without a pick on it; a changed pick needs its own confirmation.
   // A pending advance passes the latest bill; handlers use the one on screen.
@@ -97,7 +95,7 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
     setActiveId(id);
     setAnnouncement("");
     setReviewedHere(null);
-    resetCustom();
+    setCustomOpen(false);
     const item = id ? current.find((entry) => entry.id === id) : undefined;
     const state = id ? now[id] : undefined;
     setOpened(id ? { id, isNew: !!state?.isNew, attention: pending.length > 0 } : null);
@@ -136,7 +134,7 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
     if (attention[item.id]?.changed) setReviewedHere(item.id);
     if (custom) setCustomChoices((previous) => ({ ...previous, [item.id]: value }));
     setSelectedCustom((previous) => ({ ...previous, [item.id]: custom }));
-    resetCustom();
+    setCustomOpen(false);
     window.clearTimeout(advance.current);
     if (value) advanceFrom(item);
   }
@@ -205,12 +203,6 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
       document.removeEventListener("keydown", arrows);
     };
   });
-  function saveCustom(item: BillItem) {
-    const value = parse(customText);
-    if (!value) { setCustomError("Use a positive fraction up to 1, with numerator and denominator at most 10,000."); return; }
-    if (!lessOrEqual(value, room(item))) { setCustomError(`Only ${text(room(item))} is available to you.`); return; }
-    choose(item, text(value), true);
-  }
   // When a pick no longer fits, the sheet offers whatever is still left in one tap, but only if
   // that remainder is itself a claimable fraction. It is never rounded to make it one.
   const activeOver = active ? attention[active.id]?.over : null;
@@ -246,7 +238,7 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
                 return participant && <span key={claim.userId} className={claim.confirmedAt ? "" : "claim-reserved-avatar"} title={`${participant.displayName}: ${text(fraction(BigInt(claim.numerator), BigInt(claim.denominator)))} · ${claim.confirmedAt ? "confirmed" : "reserved, needs reconfirmation"}`}><Avatar name={participant.displayName} imageUrl={participant.imageUrl} fallbackImageUrl={participant.fallbackImageUrl} small /></span>;
               })}</span>
               <span className="claim-meter" role="img" aria-label={`${text(subtract(one, room(item)))} claimed by others${selected ? `; ${text(selected)} picked by you` : ""}; ${text(free)} free`}>
-                <PortionBar item={item} participants={bill.participants} ownId={own?.userId} mine={selected} changes={changes} compact />
+                <ItemPortionBar item={item} participants={bill.participants} ownId={own?.userId} mine={selected} changes={changes} />
               </span>
               {state?.over ? <span className="claim-left is-over">Over by {shortText(state.over.by)}</span> : <span className="claim-left">{shortText(free)} left</span>}
               {selected && <strong className="claim-mine">Your portion {text(selected)}{myClaim && !myClaim.confirmedAt ? " · reserved" : myClaim && text(selected) !== `${myClaim.numerator}/${myClaim.denominator}` ? " · not submitted" : !myClaim ? " · not submitted" : ""}</strong>}
@@ -289,28 +281,17 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
         {!terminal && own && <div className="claim-options">
           <ClaimPortion item={active} participants={bill.participants} ownId={own.userId} mine={parse(selection[active.id] ?? "")}
             changes={changes} over={activeOver ?? null} />
-          <div className="claim-portion-choices" role="group" aria-label="Your portion">
-            {([ ["1", "All of it"], ["1/2", "1/2"], ["1/3", "1/3"], ["1/4", "1/4"], ["1/5", "1/5"], ["1/6", "1/6"] ] as const).map(([value, label]) => {
-              const f = parse(value)!;
-              return <button type="button" key={value} aria-label={`${label} · ${money(cost(active.finalCents, f))}`}
-                aria-pressed={!customOpen && !selectedCustom[active.id] && (parse(selection[active.id] ?? "")?.n === f.n && parse(selection[active.id] ?? "")?.d === f.d)}
-                disabled={busy || !lessOrEqual(f, room(active))} onClick={() => choose(active, value)}>
-                <b>{value === "1" ? "All" : <FractionText value={f} />}</b><small>{money(cost(active.finalCents, f))}</small>
-              </button>;
-            })}
-            {(() => {
-              const custom = customChoices[active.id] ? parse(customChoices[active.id]) : null;
-              return <button type="button" className="claim-portion-custom" aria-label={custom ? `Custom · ${customChoices[active.id]} · ${money(cost(active.finalCents, custom))}` : "Custom"} aria-pressed={!customOpen && !!selectedCustom[active.id]} disabled={busy || room(active).n <= 0n}
-                onClick={() => { setCustomOpen(true); setCustomText(customChoices[active.id] || selection[active.id] || ""); setCustomError(""); }}>
-                <b>{custom ? <FractionText value={custom} /> : "…"}</b><small>{custom ? money(cost(active.finalCents, custom)) : "Custom"}</small>
-              </button>;
-            })()}
-          </div>
-          {activeLeft && <Button variant="secondary" className="claim-take-left" disabled={busy} onClick={() => choose(active, text(activeLeft))}>
-            Take the {shortText(activeLeft)} left · {money(cost(active.finalCents, activeLeft))}
-          </Button>}
-          {customOpen && <div className="claim-custom"><label>Custom fraction<input autoFocus aria-label="Custom fraction" placeholder="4/5" value={customText} onChange={(event) => setCustomText(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") saveCustom(active); }} /></label>
-            <Button onClick={() => saveCustom(active)}>Use custom fraction</Button>{customError && <p role="alert">{customError}</p>}</div>}
+          {(() => {
+            const picked = parse(selection[active.id] ?? "");
+            const pressed = selectedCustom[active.id] ? "custom"
+              : itemChoices.find((choice) => picked?.n === choice.fraction.n && picked?.d === choice.fraction.d)?.key ?? null;
+            return <PortionChoices label="Your portion" totalCents={active.finalCents} choices={itemChoices} pressed={pressed}
+              custom={customChoices[active.id] ? parse(customChoices[active.id]) : null}
+              customStart={customChoices[active.id] || selection[active.id] || ""} customOpen={customOpen} setCustomOpen={setCustomOpen}
+              cap={room(active)} disabled={busy}
+              takeLeft={activeLeft && { fraction: activeLeft, label: `Take the ${shortText(activeLeft)} left · ${money(cost(active.finalCents, activeLeft))}` }}
+              onPick={(value, custom) => choose(active, custom ? text(value) : shortText(value), custom)} />;
+          })()}
           {!!selection[active.id] && <Button variant="text" className="claim-remove" onClick={() => choose(active, "")}>Remove my claim</Button>}
         </div>}
       </div>
@@ -358,13 +339,6 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
       {confirmAction}
     </div>
   </>;
-}
-
-type Fraction = NonNullable<ReturnType<typeof parse>>;
-
-// Stacked numerals render alike in every palette font; Unicode ⅕ and ⅙ fall back to another font.
-function FractionText({ value }: { value: Fraction }) {
-  return <span className="claim-fraction"><sup>{String(value.n)}</sup><span>/</span><sub>{String(value.d)}</sub></span>;
 }
 
 function PriceChange({ from, to }: { from: number; to: number }) {
