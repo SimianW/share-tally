@@ -477,13 +477,41 @@ try {
   await alice.getByLabel("Item name", { exact: true }).fill("Apples");
   await alice.getByLabel("Printed price", { exact: true }).fill("3.00");
   await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+  // With no receipt total, the Items step agrees that the total paid follows the items.
+  const followingBar = alice.locator(".receipt-reconciliation");
+  await expect(followingBar).toContainText("Total paid follows items");
+  await expect(followingBar).not.toContainText("Add the receipt total");
   await alice.getByRole("button", { name: "Continue to sharing" }).click();
+  await expect(alice.getByRole("button", { name: "Edit 1 item", exact: true })).toBeVisible();
   await alice.getByLabel("Bill title", { exact: true }).fill("Shared apples");
   await alice.getByLabel("Bob", { exact: true }).check();
   await alice.getByLabel("Carol", { exact: true }).check();
-  await alice
-    .getByLabel("Total paid (CAD)", { exact: true })
-    .fill("3.10");
+  // Edits leave no standing status text; the leave guard covers unsaved work.
+  await expect(alice.getByText("Unsaved changes", { exact: true })).toHaveCount(0);
+  // Split by item, the total paid follows the items unless a different charge is entered.
+  const splitSection = alice.getByRole("group", { name: "Split" });
+  await expect(alice.getByLabel("Total paid (CAD)", { exact: true })).toHaveCount(0);
+  await expect(splitSection).toContainText("Total paid $3.00 · from items");
+  await expect(alice.getByText("Enter an amount.", { exact: true })).toHaveCount(0);
+  await expect(alice.getByRole("button", { name: "Share bill", exact: true })).toBeEnabled();
+  await splitSection.getByRole("button", { name: "Paid a different amount?", exact: true }).click();
+  await expect(alice.getByLabel("Total paid (CAD)", { exact: true })).toBeFocused();
+  await alice.getByLabel("Total paid (CAD)", { exact: true }).fill("3.10");
+  await expect(splitSection).toContainText("($0.10 under the total paid)");
+  await splitSection.getByRole("button", { name: "Use item total", exact: true }).click();
+  await expect(alice.getByLabel("Total paid (CAD)", { exact: true })).toHaveCount(0);
+  await expect(splitSection).toContainText("Total paid $3.00 · from items");
+  await alice.getByRole("button", { name: "Back", exact: true }).click();
+  await alice.getByRole("button", { name: "Edit Apples", exact: true }).click();
+  await alice.getByLabel("Printed price", { exact: true }).fill("3.50");
+  await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+  await alice.getByRole("button", { name: "Continue to sharing" }).click();
+  await expect(splitSection).toContainText("Total paid $3.50 · from items");
+  await alice.getByRole("button", { name: "Back", exact: true }).click();
+  await alice.getByRole("button", { name: "Edit Apples", exact: true }).click();
+  await alice.getByLabel("Printed price", { exact: true }).fill("3.00");
+  await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+  await alice.getByRole("button", { name: "Continue to sharing" }).click();
   await alice.getByRole("button", { name: "Save draft & close" }).click();
   await alice.locator(".draft-list-row").filter({ hasText: "Shared apples" }).getByRole("button", { name: "Continue", exact: true }).click();
   await expect(
@@ -492,6 +520,7 @@ try {
   await alice.getByRole("button", { name: "Back", exact: true }).click();
   await expect(alice.getByRole("button", { name: "Edit Apples", exact: true })).toContainText("3.00");
   await alice.getByRole("button", { name: "Continue to sharing" }).click();
+  await expect(splitSection).toContainText("Total paid $3.00 · from items");
   await alice
     .getByRole("button", { name: "Share bill", exact: true })
     .click();
@@ -499,6 +528,7 @@ try {
     alice.getByRole("heading", { name: "Items & claims" }),
   ).toBeVisible();
   const billId = alice.url().split("/").at(-1);
+  assert.equal((await api(`/bills/${billId}`)).bill.totalCents, 300);
   const claimSheet = (page, name = "Apples") => page.getByRole("dialog", { name, exact: true });
   const itemOption = (page, label, name = "Apples") => claimSheet(page, name).getByRole("button", { name: label, exact: true });
   await alice.getByRole("button", { name: "View Apples · $3.00", exact: true }).click();
@@ -633,7 +663,7 @@ try {
   await expect(
     carol.getByText("Complete and final.", { exact: false }),
   ).toBeVisible();
-  assert.equal((await api(`/bills/${billId}`)).bill.adjustmentCents, 40);
+  assert.equal((await api(`/bills/${billId}`)).bill.adjustmentCents, 30);
   assert.equal(
     await carol.evaluate(
       () => document.documentElement.scrollWidth > innerWidth,
@@ -2492,6 +2522,9 @@ try {
     alice.getByRole("button", { name: "Share bill", exact: true }),
   ).toBeDisabled();
   await alice.getByLabel("Bill title", { exact: true }).fill("Manual fallback");
+  // Free items add up to nothing, so the followed total still needs a charge.
+  await expect(alice.getByText("Add the total paid.", { exact: true })).toBeVisible();
+  await alice.getByRole("button", { name: "Paid a different amount?", exact: true }).click();
   await alice
     .getByLabel("Total paid (CAD)", { exact: true })
     .fill("1.00");

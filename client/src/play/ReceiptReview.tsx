@@ -164,11 +164,13 @@ export function ReceiptReconciliation({ data, openSummary, processing = false }:
   const missing = data.items.some((item) => item.finalCents === null);
   const difference = data.totalCents === null ? null : Math.abs(total - data.totalCents);
   const matches = !processing && !missing && difference === 0;
-  return <button type="button" className={`receipt-reconciliation${matches ? " is-matched" : ""}`} onClick={openSummary} aria-haspopup="dialog">
+  // A blank receipt total makes the total paid the item total when the bill is shared.
+  const following = !processing && !missing && difference === null;
+  return <button type="button" className={`receipt-reconciliation${matches ? " is-matched" : following ? " is-following" : ""}`} onClick={openSummary} aria-haspopup="dialog">
     <ReceiptText size={21} aria-hidden="true" /><span>
-      <strong>{processing ? `Printed items ${money(printed)}` : matches ? <><Check size={15} aria-hidden="true" /> Matches receipt</> : missing ? "Some item costs are missing" : difference === null ? "Add the receipt total" : `Off by ${money(difference)}`}</strong>
+      <strong>{processing ? `Printed items ${money(printed)}` : matches ? <><Check size={15} aria-hidden="true" /> Matches receipt</> : missing ? "Some item costs are missing" : difference === null ? "Total paid follows items" : `Off by ${money(difference)}`}</strong>
       <span>{processing ? `Receipt subtotal ${data.receipt?.subtotalCents == null ? "—" : money(data.receipt.subtotalCents)}` : <>Items {money(total)}{missing ? " so far" : ""} · Receipt {data.totalCents === null ? "—" : money(data.totalCents)}</>}</span>
-      <small>{processing ? "Tax and final costs appear after checking · View receipt summary" : `Receipt summary · ${matches ? "View or edit totals" : "You can still continue"}`}</small>
+      {!following && <small>{processing ? "Tax and final costs appear after checking · View receipt summary" : `Receipt summary · ${matches ? "View or edit totals" : "You can still continue"}`}</small>}
     </span><ChevronRight size={18} aria-hidden="true" />
   </button>;
 }

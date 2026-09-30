@@ -7,6 +7,7 @@ export function ReceiptAmount({
   signed = false,
   emptyAsZero = false,
   required = !emptyAsZero,
+  autoFocus = false,
 }: {
   label: string;
   value: number | null;
@@ -14,6 +15,7 @@ export function ReceiptAmount({
   signed?: boolean;
   emptyAsZero?: boolean;
   required?: boolean;
+  autoFocus?: boolean;
 }) {
   const [input, setInput] = useState({
     value,
@@ -31,6 +33,7 @@ export function ReceiptAmount({
       <input
         required={required}
         aria-label={label}
+        autoFocus={autoFocus}
         inputMode="decimal"
         value={text}
         onChange={(e) => {

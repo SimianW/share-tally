@@ -358,6 +358,11 @@
   margin: 0;
   font-size: var(--text-sm);
 }
+.split-items-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-4);
+}
 .split-items .button {
   min-height: 32px;
   padding: 4px 0;

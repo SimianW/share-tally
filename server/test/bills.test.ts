@@ -1649,6 +1649,37 @@ test('receipt drafts preserve missing money and reject initialization until requ
   assert.equal(retry.id, initialized.id);
 });
 
+test('an item draft without a total paid initializes with the item total', async () => {
+  const { group, draft } = await setup();
+  const { requestId: _requestId, ...fields } = draft;
+  const item = (name: string, cents: number) => ({
+    id: crypto.randomUUID(), name, originalText: name, quantity: '1', taxable: true, manualFinal: false,
+    amountCents: cents, finalCents: cents, discountCents: 0,
+  });
+  const receipt = { subtotalCents: null, taxCents: 0, discountCents: 0, extraCents: 0, pricesIncludeTax: false };
+  const initialize = async (data: import('../src/receipt-input.js').ReceiptDraftData, status?: number) => {
+    const id = crypto.randomUUID();
+    const saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data }))).draft;
+    assert.equal(saved.data.totalCents, data.totalCents);
+    const body = await json(await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST', { revision: saved.revision }), status);
+    return body.bill;
+  };
+
+  const bill = await initialize({ ...fields, mode: 'items', totalCents: null, receipt,
+    items: [item('Apples', 1000), item('Bread', 250)] });
+  assert.equal(bill.totalCents, 1250);
+  assert.equal(bill.receipt.totalCents, 1250);
+
+  // A total paid the initiator entered stays, difference and all.
+  const charged = await initialize({ ...fields, mode: 'items', totalCents: 1300, receipt,
+    items: [item('Apples', 1000), item('Bread', 250)] });
+  assert.equal(charged.totalCents, 1300);
+  assert.equal(charged.receipt.totalCents, 1300);
+
+  await initialize({ ...fields, mode: 'items', totalCents: null, receipt, items: [item('Free bag', 0)] }, 400);
+  await initialize({ ...fields, mode: 'manual', totalCents: null, ownShareCents: 0, items: [] }, 400);
+});
+
 async function markLegacyItemBill(billId: string) {
   // Fixture only: models a bill published before receipt summaries and item
   // derivation provenance existed. Assertions still use authenticated HTTP.
