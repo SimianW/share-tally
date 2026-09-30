@@ -355,7 +355,7 @@ try {
     revision: 0,
     data: {
       mode: "items", title: "Reduced tax recovery", purchaseDate: "2026-09-24",
-      timeZone: "America/Toronto", notes: "", totalCents: 1000, ownShareCents: 0,
+      timeZone: "America/Toronto", notes: "", totalCents: 1000,
       participantIds: [],
       receipt: { subtotalCents: 1000, discountCents: 0, taxCents: 100, extraCents: 0, pricesIncludeTax: false },
       items: [{ id: randomUUID(), name: "Reduced tax", originalText: "", quantity: "1",
@@ -555,21 +555,34 @@ try {
     await alice.getByRole("button", { name: "View Apples · $3.00", exact: true }).click();
     await expect(claimSheet(alice)).toBeVisible();
   };
-  await itemOption(alice, "All of it · $3.00").click();
-  await expect(alice.locator(".claim-sticky-footer")).toContainText("Your share $3.00");
+  await expect(itemOption(alice, "Even · 1/3 · $1.00")).toBeVisible();
+  await expect(claimSheet(alice).getByRole("group", { name: "Your portion" }).getByRole("button").first())
+    .toHaveAttribute("aria-label", "Even · 1/3 · $1.00");
+  await expect(itemOption(alice, "1/3 · $1.00")).toHaveCount(0);
+  await itemOption(alice, "Even · 1/3 · $1.00").click();
+  await expect(itemOption(alice, "Even · 1/3 · $1.00")).toHaveAttribute("aria-pressed", "true");
+  await expect(alice.locator(".claim-sticky-footer")).toContainText("Your share $1.00");
   await reopenApples();
-  await expect(itemOption(alice, "All of it · $3.00")).toHaveAttribute("aria-pressed", "true");
+  await expect(itemOption(alice, "Even · 1/3 · $1.00")).toHaveAttribute("aria-pressed", "true");
+  await itemOption(alice, "All of it · $3.00").click();
+  await reopenApples();
   await itemOption(alice, "1/2 · $1.50").click();
   await reopenApples();
   await itemOption(alice, "Custom").click();
+  await alice.getByLabel("Custom fraction", { exact: true }).fill("1/3");
+  await itemOption(alice, "Use custom fraction").click();
+  await reopenApples();
+  await expect(itemOption(alice, "Even · 1/3 · $1.00")).toHaveAttribute("aria-pressed", "true");
+  await expect(itemOption(alice, "Custom · 1/3 · $1.00")).toHaveAttribute("aria-pressed", "false");
+  await itemOption(alice, "Custom · 1/3 · $1.00").click();
   await alice.getByLabel("Custom fraction", { exact: true }).fill("4/5");
   await itemOption(alice, "Use custom fraction").click();
   await expect(alice.locator(".claim-sticky-footer")).toContainText("Your share $2.40");
   await reopenApples();
   await expect(itemOption(alice, "Custom · 4/5 · $2.40")).toHaveAttribute("aria-pressed", "true");
-  await itemOption(alice, "1/3 · $1.00").click();
+  await itemOption(alice, "Even · 1/3 · $1.00").click();
   await reopenApples();
-  await expect(itemOption(alice, "1/3 · $1.00")).toHaveAttribute("aria-pressed", "true");
+  await expect(itemOption(alice, "Even · 1/3 · $1.00")).toHaveAttribute("aria-pressed", "true");
   await expect(itemOption(alice, "Custom · 4/5 · $2.40")).toHaveAttribute("aria-pressed", "false");
   await expect(claimSheet(alice).locator(".claim-portion")).toContainText("$1.001/3 of $3.00");
   await expect(alice.locator(".claim-sticky-footer")).toContainText("Your share $1.00");
@@ -583,7 +596,7 @@ try {
   await alice.clock.runFor(700);
   await expect(claimSheet(alice)).toBeVisible();
   await alice.clock.resume();
-  await itemOption(alice, "1/3 · $1.00").click();
+  await itemOption(alice, "Even · 1/3 · $1.00").click();
   await expect(claimSheet(alice)).toBeHidden();
   await alice.getByRole("button", { name: "Receipt summary", exact: true }).click();
   await expect(alice.getByRole("dialog", { name: "Receipt summary", exact: true })).toBeVisible();
@@ -605,7 +618,7 @@ try {
   await itemAction.click();
   await expect(bob).toHaveURL(`${base}#/bills/${billId}`);
   await bob.getByRole("button", { name: "View Apples · $3.00", exact: true }).click();
-  await itemOption(bob, "1/3 · $1.00").click();
+  await itemOption(bob, "Even · 1/3 · $1.00").click();
   await expect(claimSheet(bob)).toBeHidden();
   await bob.getByRole("button", { name: "Confirm my item claims" }).click();
   await expect(bob.locator(".claim-list .receipt-row-badges").first()).toContainText("Your claim");
@@ -657,7 +670,7 @@ try {
   const carol = await pageFor("carol-token", { width: 390, height: 844 });
   await carol.goto(`${base}#/bills/${billId}`);
   await carol.getByRole("button", { name: "View Apples · $2.70", exact: true }).click();
-  await itemOption(carol, "1/3 · $0.90").click();
+  await itemOption(carol, "Even · 1/3 · $0.90").click();
   await expect(claimSheet(carol)).toBeHidden();
   await carol.getByRole("button", { name: "Confirm my item claims" }).click();
   await expect(
@@ -673,6 +686,36 @@ try {
   // Exercise portion controls, disabled overclaims, and a concurrent last-fraction conflict.
   const members = (await api(`/groups/${group.id}`)).group.members;
   const memberIds = Object.fromEntries(members.map((member) => [member.displayName, member.id]));
+  const assertItemChoiceCount = async (count, title, expectedEven, absent, present) => {
+    const draftId = randomUUID();
+    const participants = members.slice(0, count).map((member) => member.id);
+    const itemId = randomUUID();
+    const draft = (await api(`/groups/${group.id}/receipt-drafts/${draftId}`, "alice-token", "PUT", {
+      revision: 0,
+      data: {
+        mode: "items", title, purchaseDate: "2026-09-24", timeZone: "America/Toronto",
+        notes: "", totalCents: 100, participantIds: participants,
+        receipt: { subtotalCents: 100, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
+        items: [{ id: itemId, name: title, originalText: "", quantity: "1", amountCents: 100,
+          discountCents: 0, taxable: false, finalCents: 100, manualFinal: true }],
+      },
+    })).draft;
+    const bill = (await api(`/receipt-drafts/${draftId}/initialize`, "alice-token", "POST", { revision: draft.revision })).bill;
+    await alice.goto(`${base}#/bills/${bill.id}`);
+    await alice.getByRole("button", { name: `View ${title} · $1.00`, exact: true }).click();
+    const sheet = claimSheet(alice, title);
+    const choices = sheet.getByRole("group", { name: "Your portion" }).getByRole("button");
+    await expect(choices.first()).toHaveAttribute("aria-label", expectedEven);
+    await expect(itemOption(alice, absent, title)).toHaveCount(0);
+    for (const label of present) await expect(itemOption(alice, label, title)).toBeVisible();
+    await itemOption(alice, expectedEven, title).click();
+    await expect(sheet).toBeHidden();
+    await alice.getByRole("button", { name: `View ${title} · $1.00`, exact: true }).click();
+    await expect(itemOption(alice, expectedEven, title)).toHaveAttribute("aria-pressed", "true");
+    await alice.getByRole("button", { name: "Close claim", exact: true }).click();
+  };
+  await assertItemChoiceCount(1, "Solo choice", "Even · All · $1.00", "All of it · $1.00", []);
+  await assertItemChoiceCount(2, "Pair choice", "Even · 1/2 · $0.50", "1/2 · $0.50", ["All of it · $1.00"]);
   // A saved, titled draft with no items, so a scan starts from the receipt step.
   const titledDraft = async (title) => {
     const draftId = randomUUID();
@@ -680,7 +723,7 @@ try {
       revision: 0,
       data: {
         mode: "items", title, purchaseDate: "2026-09-24", timeZone: "America/Toronto",
-        notes: "", totalCents: null, ownShareCents: 0, participantIds: [memberIds.Alice], items: [],
+        notes: "", totalCents: null, participantIds: [memberIds.Alice], items: [],
         receipt: { subtotalCents: null, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
       },
     });
@@ -695,7 +738,7 @@ try {
     revision: 0,
     data: {
       mode: "items", title: "Claim controls", purchaseDate: "2026-09-24", timeZone: "America/Toronto",
-      notes: "", totalCents: 500, ownShareCents: 0,
+      notes: "", totalCents: 500,
       participantIds: [memberIds.Alice, memberIds.Bob, memberIds.Carol],
       receipt: { subtotalCents: 500, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
       items: controlItems,
@@ -724,8 +767,9 @@ try {
   await expect(controlSheet.locator(".claim-portion")).toContainText("Pick a portion of $3.00");
   await expect(controlSheet.locator(".claim-legend")).toContainText("Bob · 2/3");
   await expect(controlSheet.locator(".claim-legend")).toContainText("Free · 1/3");
-  for (const option of ["1/3 · $1.00", "1/4 · $0.75", "1/5 · $0.60", "1/6 · $0.50"])
+  for (const option of ["Even · 1/3 · $1.00", "1/4 · $0.75", "1/5 · $0.60", "1/6 · $0.50"])
     await expect(itemOption(alice, option)).toBeEnabled();
+  await expect(itemOption(alice, "1/3 · $1.00")).toHaveCount(0);
   await expect(controlSheet).toContainText("CLAIM AN ITEM · 1 OF 2");
   const navButton = (name, item) => claimSheet(alice, item).getByRole("button", { name, exact: true });
   await expect(navButton("Previous item", "Apples")).toHaveAttribute("aria-disabled", "true");
@@ -762,10 +806,10 @@ try {
   const customChoice = () => itemOption(alice, "Custom · 1/4 · $0.75");
   await expect(customChoice()).toHaveAttribute("aria-pressed", "true");
   await expect(alice.locator(".claim-sticky-footer")).toContainText("Your share $0.75");
-  await itemOption(alice, "1/3 · $1.00").click();
+  await itemOption(alice, "Even · 1/3 · $1.00").click();
   await expect(claimSheet(alice, "Milk")).toBeVisible();
   await navButton("Previous item", "Milk").click();
-  await expect(itemOption(alice, "1/3 · $1.00")).toHaveAttribute("aria-pressed", "true");
+  await expect(itemOption(alice, "Even · 1/3 · $1.00")).toHaveAttribute("aria-pressed", "true");
   await expect(customChoice()).toHaveAttribute("aria-pressed", "false");
   await expect(alice.locator(".claim-sticky-footer")).toContainText("Your share $1.00");
   await navButton("Next item", "Apples").click();
@@ -789,7 +833,7 @@ try {
     revision: 0,
     data: {
       mode: "items", title: "Correction races", purchaseDate: "2026-09-24", timeZone: "America/Toronto",
-      notes: "", totalCents: 900, ownShareCents: 0, participantIds: [memberIds.Alice, memberIds.Bob],
+      notes: "", totalCents: 900, participantIds: [memberIds.Alice, memberIds.Bob],
       receipt: { subtotalCents: 900, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
       items: raceItems,
     },
@@ -879,7 +923,7 @@ try {
     revision: 0,
     data: {
       mode: "items", title: "Skip taken items", purchaseDate: "2026-09-24", timeZone: "America/Toronto",
-      notes: "", totalCents: 300, ownShareCents: 0, participantIds: [memberIds.Alice, memberIds.Bob],
+      notes: "", totalCents: 300, participantIds: [memberIds.Alice, memberIds.Bob],
       receipt: { subtotalCents: 300, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
       items: skipItems,
     },
@@ -899,29 +943,29 @@ try {
   await alice.clock.runFor(200);
   await expect(claimSheet(alice, "Yogurt")).toContainText("CLAIM AN ITEM · 3 OF 3");
   // At the end of the list, Next and → go nowhere but still cancel a pending advance.
-  await itemOption(alice, "1/2 · $0.50", "Yogurt").click();
+  await itemOption(alice, "Even · 1/2 · $0.50", "Yogurt").click();
   // Playwright will not click an aria-disabled element; a person still can.
   await navButton("Next item", "Yogurt").click({ force: true });
   await alice.clock.runFor(700);
   await expect(claimSheet(alice, "Yogurt")).toBeVisible();
-  await itemOption(alice, "1/2 · $0.50", "Yogurt").click();
+  await itemOption(alice, "Even · 1/2 · $0.50", "Yogurt").click();
   await navButton("Next item", "Yogurt").focus();
   await alice.keyboard.press("ArrowRight");
   await alice.clock.runFor(700);
   await expect(claimSheet(alice, "Yogurt")).toBeVisible();
   // So does a tap on the header outside the content, such as the item title.
-  await itemOption(alice, "1/2 · $0.50", "Yogurt").click();
+  await itemOption(alice, "Even · 1/2 · $0.50", "Yogurt").click();
   await claimSheet(alice, "Yogurt").getByRole("heading", { name: "Yogurt", exact: true }).click();
   await alice.clock.runFor(700);
   await expect(claimSheet(alice, "Yogurt")).toBeVisible();
   // Closing cancels it too: reopening the item within the pause does not carry the old advance over.
-  await itemOption(alice, "1/2 · $0.50", "Yogurt").click();
+  await itemOption(alice, "Even · 1/2 · $0.50", "Yogurt").click();
   await claimSheet(alice, "Yogurt").getByRole("button", { name: "Close claim", exact: true }).click();
   await alice.getByRole("button", { name: "View Yogurt · $1.00", exact: true }).click();
   await alice.clock.runFor(700);
   await expect(claimSheet(alice, "Yogurt")).toBeVisible();
   // So does an activation that sends only a click, as some assistive technology does.
-  await itemOption(alice, "1/2 · $0.50", "Yogurt").click();
+  await itemOption(alice, "Even · 1/2 · $0.50", "Yogurt").click();
   await claimSheet(alice, "Yogurt").evaluate((dialog) => dialog.querySelector(".claim-portion-custom").click());
   await alice.clock.runFor(700);
   await expect(claimSheet(alice, "Yogurt").getByLabel("Custom fraction", { exact: true })).toBeVisible();
@@ -930,7 +974,7 @@ try {
   await alice.keyboard.press("ArrowLeft");
   await expect(claimSheet(alice, "Yogurt").getByLabel("Custom fraction", { exact: true })).toBeFocused();
   // Moving to another item by hand cancels the advance picked on the one before.
-  await itemOption(alice, "1/2 · $0.50", "Yogurt").click();
+  await itemOption(alice, "Even · 1/2 · $0.50", "Yogurt").click();
   await navButton("Previous item", "Yogurt").click();
   await alice.clock.runFor(700);
   await expect(claimSheet(alice, "Taken rice")).toContainText("0/1 available to you");
@@ -938,7 +982,7 @@ try {
   await expect(claimSheet(alice, "Taken rice").locator("[aria-live]")).toHaveText("Taken rice, item 2 of 3");
   // Arrow keys keep working after the focused portion button is replaced by the next item.
   await navButton("Previous item", "Taken rice").click();
-  await itemOption(alice, "1/2 · $0.50", "Bananas").focus();
+  await itemOption(alice, "Even · 1/2 · $0.50", "Bananas").focus();
   await alice.keyboard.press("ArrowRight");
   await expect(claimSheet(alice, "Taken rice")).toBeVisible();
   await alice.keyboard.press("ArrowRight");
@@ -968,7 +1012,7 @@ try {
     revision: 0,
     data: {
       mode: "items", title: "Concurrent claims", purchaseDate: "2026-09-24", timeZone: "America/Toronto",
-      notes: "", totalCents: 100, ownShareCents: 0, participantIds: [memberIds.Alice, memberIds.Bob],
+      notes: "", totalCents: 100, participantIds: [memberIds.Alice, memberIds.Bob],
       receipt: { subtotalCents: 100, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
       items: [conflictItem],
     },
@@ -1007,7 +1051,7 @@ try {
     revision: 0,
     data: {
       mode: "items", title: "Claim review", purchaseDate: "2026-09-24", timeZone: "America/Toronto",
-      notes: "", totalCents: 2698, ownShareCents: 0, participantIds: [memberIds.Alice, memberIds.Bob, memberIds.Carol],
+      notes: "", totalCents: 2698, participantIds: [memberIds.Alice, memberIds.Bob, memberIds.Carol],
       receipt: { subtotalCents: 2698, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
       items: reviewItems,
     },
@@ -1170,7 +1214,7 @@ try {
   await overChip.click();
   const conflictNotice = reviewSheet("Eggs").locator(".claim-notice.is-over");
   await expect(conflictNotice).toContainText("Someone just updated this item — only 1/3 left");
-  await itemOption(reviewer, "1/3 · $2.00", "Eggs").click();
+  await itemOption(reviewer, "Even · 1/3 · $2.00", "Eggs").click();
   await expect(conflictNotice).toHaveCount(0);
   await expect(reviewSheet("Cheese")).toBeVisible();
   await reviewSheet("Cheese").getByRole("button", { name: "Close claim", exact: true }).click();
@@ -1246,7 +1290,7 @@ try {
   await reviewer.clock.runFor(700);
   await expect(reviewSheet("Syrup")).toBeVisible();
   await reviewer.clock.resume();
-  await itemOption(reviewer, "1/3 · $1.67", "Syrup").click();
+  await itemOption(reviewer, "Even · 1/3 · $1.67", "Syrup").click();
   await expect(reviewSheet("Syrup")).toBeHidden();
   await expect(reviewer.locator(".claim-attention-chips")).toHaveCount(0);
   const reviewSaved = reviewer.waitForResponse((response) => response.request().method() === "POST" &&
@@ -1286,7 +1330,7 @@ try {
     revision: 0,
     data: {
       mode: "items", title: "Two claimants", purchaseDate: "2026-09-24", timeZone: "America/Toronto",
-      notes: "", totalCents: 1200, ownShareCents: 0, participantIds: [memberIds.Alice, memberIds.Bob, memberIds.Carol],
+      notes: "", totalCents: 1200, participantIds: [memberIds.Alice, memberIds.Bob, memberIds.Carol],
       receipt: { subtotalCents: 1200, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
       items: twoItems,
     },
@@ -1673,7 +1717,7 @@ try {
     });
     const data = {
       mode: "items", title: `Compact review ${viewport.width}`, purchaseDate: "2026-09-24",
-      timeZone: "America/Toronto", notes: "", totalCents: 3000, ownShareCents: 0,
+      timeZone: "America/Toronto", notes: "", totalCents: 3000,
       participantIds: [],
       receipt: { subtotalCents: 3000, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
       items: [item("Apples", 1000, true), item("Milk", 2000, false)],
@@ -1871,7 +1915,7 @@ try {
     });
     const data = {
       mode: "items", title: "Located claim lines", purchaseDate: "2026-09-24",
-      timeZone: "America/Toronto", notes: "", totalCents: 3000, ownShareCents: 0,
+      timeZone: "America/Toronto", notes: "", totalCents: 3000,
       participantIds: [memberIds.Alice],
       receipt: { subtotalCents: 3000, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
       items: [item("Apples"), item("Milk"), item("Bread")],
@@ -2078,7 +2122,7 @@ try {
       revision: 0,
       data: {
         mode: "items", title: `Unassigned tax ${viewport.width}`, purchaseDate: "2026-09-24",
-        timeZone: "America/Toronto", notes: "", totalCents: 3300, ownShareCents: 0,
+        timeZone: "America/Toronto", notes: "", totalCents: 3300,
         participantIds: [],
         receipt: { subtotalCents: 3000, discountCents: 0, taxCents: 300, extraCents: 0, pricesIncludeTax: false },
         items: [item("Apples", 1000), item("Milk", 2000)],
@@ -2110,7 +2154,7 @@ try {
     };
     const data = (items) => ({
       mode: "items", title: "Reload check", purchaseDate: "2026-09-24", timeZone: "America/Toronto",
-      notes: "", totalCents: 400, ownShareCents: 0, participantIds: [memberIds.Alice], items,
+      notes: "", totalCents: 400, participantIds: [memberIds.Alice], items,
       receipt: { subtotalCents: 400, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
     });
     const opened = (await api(`/groups/${group.id}/receipt-drafts/${draftId}`, "alice-token", "PUT", { revision: 0, data: data([pears]) })).draft;
@@ -2141,7 +2185,7 @@ try {
     ].map(item => ({ ...item, id: randomUUID(), originalText: item.name.toUpperCase(), quantity: "1", discountCents: 0, finalCents: item.amountCents, manualFinal: false }));
     const draft = (await api(`/groups/${group.id}/receipt-drafts/${draftId}`, "alice-token", "PUT", {
       revision: 0, data: { mode: "items", title: `Legacy corrections ${viewport.width}`, purchaseDate: "2026-09-24", timeZone: "America/Toronto",
-        notes: "", totalCents: 1300, ownShareCents: 0, participantIds: [ownerId], items },
+        notes: "", totalCents: 1300, participantIds: [ownerId], items },
     })).draft;
     const legacy = (await api(`/receipt-drafts/${draftId}/initialize`, "alice-token", "POST", { revision: draft.revision })).bill;
     await pool.query("UPDATE bills SET receipt = NULL, frozen_tax_base_cents = NULL, frozen_discount_base_cents = NULL, frozen_extra_base_cents = NULL WHERE id = $1", [legacy.id]);
@@ -2229,7 +2273,7 @@ try {
     revision: 0,
     data: {
       mode: "items", title: "Frozen rate correction", purchaseDate: "2026-09-24", timeZone: "America/Toronto",
-      notes: "", totalCents: 2910, ownShareCents: 0, participantIds: [initiatorId],
+      notes: "", totalCents: 2910, participantIds: [initiatorId],
       receipt: { subtotalCents: 3000, discountCents: 300, taxCents: 180, extraCents: 30, pricesIncludeTax: false },
       items: correctionItems,
     },
@@ -2324,7 +2368,7 @@ try {
     revision: 0,
     data: {
       mode: "items", title: "Tax-inclusive correction", purchaseDate: "2026-09-24", timeZone: "America/Toronto",
-      notes: "", totalCents: 2730, ownShareCents: 0, participantIds: [initiatorId],
+      notes: "", totalCents: 2730, participantIds: [initiatorId],
       receipt: { subtotalCents: 3000, discountCents: 300, taxCents: 180, extraCents: 30, pricesIncludeTax: true },
       items: correctionItems.map(item => ({ ...item, id: randomUUID() })),
     },
@@ -2347,7 +2391,7 @@ try {
     revision: 0,
     data: {
       mode: "items", title: "Printed-rate correction", purchaseDate: "2026-09-24", timeZone: "America/Toronto",
-      notes: "", totalCents: 305, ownShareCents: 0, participantIds: [initiatorId],
+      notes: "", totalCents: 305, participantIds: [initiatorId],
       receipt: { subtotalCents: 300, discountCents: 0, taxCents: 5, extraCents: 0, pricesIncludeTax: false,
         evidence: { taxDetails: [{ rate: 0.13, description: "HST" }] } },
       items: [100, 200].map((amountCents, index) => ({ id: randomUUID(), name: `Taxed item ${index + 1}`,
@@ -2542,10 +2586,13 @@ try {
   await alice.getByLabel("Total paid (CAD)", { exact: true }).focus();
   await alice.keyboard.press("Shift+Tab");
   await expect(split.getByRole("radio", { name: "By amount" })).toBeFocused();
-  await alice.getByLabel("Your share (CAD)", { exact: true }).fill("1.00");
+  await expect(alice.getByLabel("Your share (CAD)", { exact: true })).toHaveCount(0);
   await alice
     .getByRole("button", { name: "Share bill", exact: true })
     .click();
+  await expect(alice.getByRole("region", { name: "Bill summary", exact: true }).getByText("In progress", { exact: true })).toBeVisible();
+  await alice.getByLabel("Your share (CAD)", { exact: true }).fill("1.00");
+  await alice.getByRole("button", { name: "Submit and confirm my share", exact: true }).click();
   await expect(
     alice.getByText("Complete and final.", { exact: false }),
   ).toBeVisible();
