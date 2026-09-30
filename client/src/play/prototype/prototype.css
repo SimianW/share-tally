@@ -1,0 +1,128 @@
+/* PROTOTYPE for #150 — throwaway, do not ship.
+   Plan: three variants of the By amount share picker, switchable via ?variant=A|B|C.
+   Only what the By item classes (receipt-review.css) do not already cover, plus prototype chrome. */
+
+/* ---------- The By amount card, on top of .claim-portion / .claim-bar / .claim-legend ---------- */
+
+/* Generic form label rules (.share-form, .bill-form) must not reach inside the card. */
+.amount-portion.claim-options label { max-width: none; margin: 0; }
+.amount-portion.claim-options > label.amount-field { gap: var(--space-2); }
+
+/* Variant A: the big figure is the input. It keeps .claim-portion > strong's type and
+   gets a quiet field outline and a pencil so it reads as editable. */
+.amount-portion .claim-portion > label.amount-figure {
+  display: inline-flex; align-items: center; justify-self: start; gap: 2px; max-width: 100%;
+  margin: calc(var(--space-2) * -1) 0 0 -8px; padding: 2px 10px 2px 8px;
+  border-radius: var(--radius-sm); background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font: 800 2rem / 1.1 var(--font-heading); font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+  color: var(--ink); cursor: text;
+}
+@media (hover: hover) {
+  .amount-portion .claim-portion > label.amount-figure:hover { box-shadow: inset 0 0 0 1px var(--line-strong); }
+}
+.amount-portion .claim-portion > label.amount-figure:focus-within { box-shadow: inset 0 0 0 2px var(--focus); }
+.amount-portion .claim-portion > label.amount-figure[data-invalid] { box-shadow: inset 0 0 0 2px var(--status-danger); }
+.amount-portion .claim-portion .amount-figure input.amount-figure-input {
+  width: auto; min-width: 4ch; field-sizing: content; margin: 0; padding: 0;
+  border: 0; border-radius: 0; background: transparent; box-shadow: none;
+  color: inherit; font: inherit; letter-spacing: inherit; outline: none;
+}
+.amount-portion .claim-portion .amount-figure input.amount-figure-input::placeholder { color: var(--ink-subtle); }
+.amount-figure-edit { margin-left: var(--space-2); color: var(--ink-subtle); }
+.amount-figure:focus-within .amount-figure-edit { color: var(--accent-ink); }
+.amount-figure:has(input:placeholder-shown) .amount-figure-currency { color: var(--ink-subtle); }
+
+/* Shares over the total are a warning, not an error: the pick itself is allowed. */
+.claim-portion.is-warn { background: var(--status-warning-bg); border-color: color-mix(in srgb, var(--status-warning) 35%, var(--line)); }
+.amount-warn-text { margin: 0; color: var(--status-warning); font-size: var(--text-sm); font-weight: 600; line-height: 1.5; }
+.amount-portion .claim-over-text { margin: 0; }
+.amount-legend-pending { color: var(--ink-subtle); }
+.amount-legend-pending .avatar { opacity: .5; }
+.amount-hint { margin: calc(var(--space-1) * -1) 0 0; color: var(--ink-secondary); font-size: var(--text-sm); }
+
+/* Even · 1/N carries a small tab on its top edge, so button heights stay equal. */
+.claim-portion-choices .amount-choice-even { position: relative; }
+.amount-choice-tag {
+  position: absolute; top: -9px; left: 50%; transform: translateX(-50%);
+  padding: 1px 6px; border-radius: 999px; background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line-strong); color: var(--ink-secondary);
+  font: 800 9px / 1.3 var(--font-heading); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; pointer-events: none;
+}
+.claim-portion-choices button[aria-pressed="true"] .amount-choice-tag { background: var(--action); color: var(--ink-on-action); box-shadow: inset 0 0 0 1px var(--action-edge); }
+.amount-portion .claim-portion-choices { margin-top: var(--space-2); }
+
+/* The inline Custom panel copies the By item sheet's input. */
+.amount-portion.claim-options .claim-custom label { display: grid; gap: var(--space-2); font-weight: inherit; }
+.amount-portion.claim-options .claim-custom input:not([type="radio"]):not([type="checkbox"]) {
+  width: 100%; min-width: 0; padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--ink); font: inherit;
+}
+
+/* ---------- Page chrome ---------- */
+
+.proto-page .main-content { padding-bottom: 140px; }
+.proto-people { display: grid; gap: var(--space-2); margin: var(--space-6) 0 0; }
+.proto-people-list { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.proto-people-list > span { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px 2px 2px; border-radius: 999px; background: var(--surface-soft); box-shadow: inset 0 0 0 1px var(--line); font-weight: 600; }
+
+/* By item reference: two sheets side by side. */
+.proto-compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-6); max-width: 1120px; margin: 0 auto; align-items: start; }
+.proto-compare-header { grid-column: 1 / -1; }
+.proto-compare-header h1 { margin: 0; font: 800 clamp(26px, 3vw, 38px) / 1.15 var(--font-heading); letter-spacing: normal; }
+.proto-compare-header p { margin: 6px 0 0; color: var(--ink-secondary); font-size: 14px; }
+/* The real sticky action bar would sit under the variant switcher. */
+.proto-page .receipt-wizard-actions { position: static; }
+.proto-sheet { display: grid; gap: var(--space-4); max-width: 480px; padding: 30px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.proto-page .proto-sheet.share-form { margin: 0; }
+.proto-sheet > .eyebrow { margin: 0; }
+.proto-sheet-title { margin: 0; font: 800 var(--text-xl) / 1.2 var(--font-heading); }
+.proto-sheet .receipt-field-help { margin: 0; }
+@media (max-width: 760px) {
+  .proto-compare { grid-template-columns: minmax(0, 1fr); }
+  .proto-sheet { padding: 20px; }
+}
+
+/* ---------- Prototype controls: dashed and monospaced so they never pass for product UI ---------- */
+
+.proto-scenario {
+  position: fixed; top: var(--space-3); right: var(--space-3); z-index: 40;
+  width: min(300px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto;
+  border: 2px dashed var(--accent-ink); border-radius: var(--radius-md);
+  background: var(--surface-raised); color: var(--ink); box-shadow: var(--shadow-floating);
+  font: 12px / 1.4 var(--font-code);
+}
+.proto-scenario:not([open]) { width: auto; }
+.proto-scenario summary { padding: var(--space-2) var(--space-3); font-weight: 700; cursor: pointer; }
+.proto-scenario summary small { margin-left: var(--space-2); color: var(--ink-subtle); font-weight: 400; }
+.proto-scenario-body { display: grid; gap: var(--space-3); padding: 0 var(--space-3) var(--space-3); }
+.proto-scenario fieldset { display: grid; gap: 2px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.proto-scenario legend, .proto-field > span { margin-bottom: var(--space-1); padding: 0; color: var(--ink-secondary); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.proto-scenario label { display: flex; align-items: center; gap: var(--space-2); }
+.proto-scenario label.proto-field { display: grid; gap: 0; }
+.proto-scenario label:has(> select:disabled, > input:disabled) { opacity: .5; }
+.proto-scenario select { width: 100%; padding: 5px 6px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); font: inherit; }
+.proto-scenario input { margin: 0; accent-color: var(--accent-ink); }
+.proto-scenario-note { margin: 0; color: var(--ink-subtle); }
+
+.proto-readout {
+  display: grid; gap: var(--space-1); margin-top: var(--space-2); padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--line-strong); border-radius: var(--radius-sm); background: var(--surface-sunken);
+  color: var(--ink-secondary); font: 12px / 1.5 var(--font-code);
+}
+.proto-readout dl { display: grid; gap: 1px; margin: 0; }
+.proto-readout dl > div { display: grid; grid-template-columns: 11rem minmax(0, 1fr); gap: var(--space-3); }
+.proto-readout dt { color: var(--ink-subtle); }
+.proto-readout dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+@media (max-width: 520px) { .proto-readout dl > div { grid-template-columns: 8rem minmax(0, 1fr); } }
+
+.proto-switcher {
+  position: fixed; left: 50%; bottom: var(--space-5); z-index: 50; transform: translateX(-50%);
+  display: flex; align-items: center; gap: var(--space-1); padding: var(--space-1);
+  border-radius: 999px; background: var(--ink); color: var(--ink-inverse); box-shadow: var(--shadow-floating);
+  font: 700 var(--text-sm) / 1 var(--font-body); white-space: nowrap;
+}
+.proto-switcher button { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: transparent; color: inherit; }
+@media (hover: hover) { .proto-switcher button:hover { background: color-mix(in srgb, var(--ink-inverse) 18%, transparent); } }
+.proto-switcher button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.proto-switcher output { min-width: 17ch; padding: 0 var(--space-2); text-align: center; }

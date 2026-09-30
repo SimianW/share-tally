@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prototype:portion": "vite --host 0.0.0.0 --port 5174 --strictPort",
     "build": "tsc -b && vite build",
     "lint": "eslint . && node scripts/check-tokens.mjs",
     "preview": "vite preview",
