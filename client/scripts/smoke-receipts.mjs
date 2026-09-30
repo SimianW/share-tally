@@ -477,7 +477,12 @@ try {
   await alice.getByLabel("Item name", { exact: true }).fill("Apples");
   await alice.getByLabel("Printed price", { exact: true }).fill("3.00");
   await alice.getByRole("button", { name: "Close editor", exact: true }).click();
+  // With no receipt total, the Items step agrees that the total paid follows the items.
+  const followingBar = alice.locator(".receipt-reconciliation");
+  await expect(followingBar).toContainText("Total paid follows items");
+  await expect(followingBar).not.toContainText("Add the receipt total");
   await alice.getByRole("button", { name: "Continue to sharing" }).click();
+  await expect(alice.getByRole("button", { name: "Edit 1 item", exact: true })).toBeVisible();
   await alice.getByLabel("Bill title", { exact: true }).fill("Shared apples");
   await alice.getByLabel("Bob", { exact: true }).check();
   await alice.getByLabel("Carol", { exact: true }).check();

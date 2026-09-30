@@ -984,7 +984,7 @@ export function ReceiptDraftForm({
                           {data.totalCents === null && !enteringTotal ? "Paid a different amount?" : "Use item total"}
                         </Button>
                         <Button variant="text" onClick={() => setStep(1)}>
-                          Edit {data.items.length} items <ArrowRight size={16} aria-hidden="true" />
+                          Edit {data.items.length} {data.items.length === 1 ? "item" : "items"} <ArrowRight size={16} aria-hidden="true" />
                         </Button>
                       </div>
                     </div>
