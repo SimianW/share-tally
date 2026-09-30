@@ -1660,7 +1660,7 @@ test('an item draft without a total paid initializes with the item total', async
   const initialize = async (data: import('../src/receipt-input.js').ReceiptDraftData, status?: number) => {
     const id = crypto.randomUUID();
     const saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data }))).draft;
-    assert.equal(saved.data.totalCents, null);
+    assert.equal(saved.data.totalCents, data.totalCents);
     const body = await json(await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST', { revision: saved.revision }), status);
     return body.bill;
   };
@@ -1669,6 +1669,12 @@ test('an item draft without a total paid initializes with the item total', async
     items: [item('Apples', 1000), item('Bread', 250)] });
   assert.equal(bill.totalCents, 1250);
   assert.equal(bill.receipt.totalCents, 1250);
+
+  // A total paid the initiator entered stays, difference and all.
+  const charged = await initialize({ ...fields, mode: 'items', totalCents: 1300, receipt,
+    items: [item('Apples', 1000), item('Bread', 250)] });
+  assert.equal(charged.totalCents, 1300);
+  assert.equal(charged.receipt.totalCents, 1300);
 
   await initialize({ ...fields, mode: 'items', totalCents: null, receipt, items: [item('Free bag', 0)] }, 400);
   await initialize({ ...fields, mode: 'manual', totalCents: null, ownShareCents: 0, items: [] }, 400);
