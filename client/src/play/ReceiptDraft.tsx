@@ -908,7 +908,7 @@ export function ReceiptDraftForm({
                   <SegmentedControl
                     labelledBy={splitLegendId}
                     value={data.mode}
-                    onChange={(mode) => { setSharePortion(null); update({ mode, ownShareCents: 0 }); }}
+                    onChange={(mode) => { setSharePortion(null); setEnteringTotal(false); update({ mode, ownShareCents: 0 }); }}
                     options={[
                       {
                         value: "items",
