@@ -64,7 +64,7 @@ The complete raw analysis the receipt reader returned for a scanned receipt phot
 _Avoid_: OCR data, scan result.
 
 **Bill initiation**:
-The initiator's publication of a reviewed bill draft, making it visible to the group and opening it to its selected participants. For item-based bills, initiation does not itself confirm any item claims.
+The initiator's publication of a reviewed bill draft, making it visible to the group and opening it to its selected participants. In either split mode, initiation submits or confirms no shares or item claims.
 
 **Complete bill**:
 A finalized bill whose participants have all confirmed their shares and whose permitted difference is accounted for by an initiator adjustment; it cannot be reopened. Completion does not mean the group has finished repaying its debts.

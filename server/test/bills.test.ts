@@ -184,7 +184,6 @@ async function setup(all = true) {
     timeZone: "America/Toronto",
     notes: "Snacks",
     totalCents: 10000,
-    ownShareCents: 4000,
     participantIds: Object.values(ids),
   };
   return { group, ids, draft, path: `/groups/${group.id}/bills` };
@@ -206,20 +205,49 @@ async function submit(
     )
   ).bill;
 }
+test("direct creation leaves a solo bill incomplete until its initiator submits", async () => {
+  const { path, draft, ids } = await setup(false);
+  const bill = await billCreate(path, { ...draft, participantIds: [ids.Alice] });
+  assert.equal(bill.completedAt, null);
+  assert.equal(bill.adjustmentCents, null);
+  assert.equal(bill.confirmedCount, 0);
+  assert.equal(bill.submittedCents, 0);
+  assert.equal(bill.participants.length, 1);
+  assert.equal(bill.participants[0].amountCents, null);
+  assert.equal(bill.participants[0].confirmedAt, null);
+  assert.deepEqual(await readBill(bill.id), bill);
+  assert.equal((await json(await api(path))).bills[0].completedAt, null);
+
+  const done = await submit(bill.id, bill.totalCents, "alice-token");
+  assert.ok(done.completedAt);
+  assert.equal(done.confirmedCount, 1);
+  assert.equal(done.participants[0].amountCents, bill.totalCents);
+  assert.ok(done.participants[0].confirmedAt);
+  assert.equal(done.adjustmentCents, 0);
+  assert.deepEqual(await readBill(bill.id), done);
+});
+
 test("atomic creation, missing versus zero, immutable confirmations, and persistence", async () => {
   const { path, draft } = await setup();
-  const bill = await billCreate(path, { ...draft, ownShareCents: 10000 });
+  const bill = await billCreate(path, draft);
   assert.equal(bill.title, "Costco run");
-  assert.equal(bill.differenceCents, 0);
+  assert.equal(bill.differenceCents, 10000);
   assert.equal(bill.completedAt, null);
-  assert.equal(bill.confirmedCount, 1);
-  const first = bill.participants.find(
-    (p: { isCurrentUser: boolean }) => p.isCurrentUser,
-  );
+  assert.equal(bill.confirmedCount, 0);
+  assert.ok(bill.participants.every(
+    (p: { amountCents: number | null; confirmedAt: string | null }) =>
+      p.amountCents === null && p.confirmedAt === null,
+  ));
   const next = await submit(bill.id, 0);
   assert.equal(next.completedAt, null);
-  assert.equal(next.confirmedCount, 2);
-  const done = await submit(bill.id, 0, "carol-token");
+  assert.equal(next.confirmedCount, 1);
+  const first = next.participants.find(
+    (p: { isCurrentUser: boolean }) => p.isCurrentUser,
+  );
+  const waiting = await submit(bill.id, 0, "carol-token");
+  assert.equal(waiting.completedAt, null);
+  assert.equal(waiting.confirmedCount, 2);
+  const done = await submit(bill.id, 10000, "alice-token");
   assert.ok(done.completedAt);
   assert.equal(done.adjustmentCents, 0);
   assert.equal(
@@ -228,7 +256,7 @@ test("atomic creation, missing versus zero, immutable confirmations, and persist
     first.confirmedAt,
   );
   await submit(bill.id, 1, "bob-token", 409);
-  assert.deepEqual(await submit(bill.id, 0, "carol-token"), done);
+  assert.deepEqual(await submit(bill.id, 0, "carol-token"), await readBill(bill.id, "carol-token"));
   await stopServer();
   await startServer();
   assert.equal(
@@ -243,6 +271,7 @@ test("five-cent boundaries retain submitted shares and balance financial summari
       ...draft,
       requestId: crypto.randomUUID(),
     });
+    await submit(bill.id, 4000, "alice-token");
     const done = await submit(bill.id, 6000 - difference);
     assert.equal(Boolean(done.completedAt), Math.abs(difference) <= 5);
     assert.equal(done.differenceCents, difference);
@@ -269,7 +298,7 @@ test("five-cent boundaries retain submitted shares and balance financial summari
 });
 test("adjustment cannot make initiator cost negative; effective zero is valid", async () => {
   const { path, draft } = await setup();
-  for (const [ownShareCents, bob, carol, complete] of [
+  for (const [initiatorShareCents, bob, carol, complete] of [
     [0, 9999, 2, false],
     [1, 9999, 1, true],
     [0, 9999, 1, true],
@@ -277,8 +306,8 @@ test("adjustment cannot make initiator cost negative; effective zero is valid", 
     const bill = await billCreate(path, {
       ...draft,
       requestId: crypto.randomUUID(),
-      ownShareCents,
     });
+    await submit(bill.id, initiatorShareCents, "alice-token");
     await submit(bill.id, bob);
     assert.equal(
       Boolean((await submit(bill.id, carol, "carol-token")).completedAt),
@@ -294,6 +323,7 @@ test("simultaneous creation retries and first submissions produce one complete b
   assert.equal(new Set(created.map((b) => b.id)).size, 1);
   const bill = created[0];
   await Promise.all([
+    submit(bill.id, 4000, "alice-token"),
     submit(bill.id, 3000),
     submit(bill.id, 3000, "carol-token"),
     submit(bill.id, 3000),
@@ -370,8 +400,8 @@ test("amount, text, date, and participant validation rejects invalid requests wi
     null,
   ])
     await billCreate(path, { ...draft, totalCents }, 400);
-  for (const ownShareCents of [-1, 10001, 0.5, "1", null])
-    await billCreate(path, { ...draft, ownShareCents }, 400);
+  // Removed setup fields are not accepted by the current creation API.
+  await billCreate(path, { ...draft, ownShareCents: 0 }, 400);
   for (const change of [
     { title: " " },
     { title: "x".repeat(121) },
@@ -389,12 +419,12 @@ test("amount, text, date, and participant validation rejects invalid requests wi
   const bill = await billCreate(path, {
     ...draft,
     totalCents: 1000000,
-    ownShareCents: 0,
     title: "x".repeat(120),
     notes: "x".repeat(2000),
   });
   for (const amount of [-1, 1.5, 1000001, "0", null])
     await submit(bill.id, amount, "bob-token", 400);
+  await submit(bill.id, 0, "alice-token");
   const done = await submit(bill.id, 1000000);
   assert.ok(done.completedAt);
   for (const timeZone of ["Pacific/Kiritimati", "Pacific/Pago_Pago"]) {
@@ -434,17 +464,18 @@ test("a share insertion failure rolls back the entire creation and permits retry
 test("summary combines groups without including incomplete or nonparticipant bills", async () => {
   const first = await setup(false);
   const a = await billCreate(first.path, first.draft);
+  await submit(a.id, 4000, "alice-token");
   await submit(a.id, 6000);
   const second = await setup(false);
   const b = (
     await json(
       await api(second.path, "bob-token", "POST", {
         ...second.draft,
-        ownShareCents: 7000,
       }),
       201,
     )
   ).bill;
+  await submit(b.id, 7000, "bob-token");
   await submit(b.id, 3000, "alice-token");
   await billCreate(first.path, {
     ...first.draft,
@@ -464,10 +495,12 @@ test("the group list orders groups by the member's join time and carries their g
   const early = await create("carol-token");
   const first = await setup(false);
   const a = await billCreate(first.path, first.draft);
+  await submit(a.id, 4000, "alice-token");
   await submit(a.id, 6000);
   await billCreate(first.path, { ...first.draft, requestId: crypto.randomUUID() });
   const second = await setup(false);
-  const b = (await json(await api(second.path, "bob-token", "POST", { ...second.draft, ownShareCents: 7000 }), 201)).bill;
+  const b = (await json(await api(second.path, "bob-token", "POST", second.draft), 201)).bill;
+  await submit(b.id, 7000, "bob-token");
   await submit(b.id, 3000, "alice-token");
   await decide((await recordRepayment(second.group.id, second.ids.Bob, 1000, "alice-token")).id, "confirmed", "bob-token");
   const invite = await json(await api(`/groups/${early.id}/invitation`, "carol-token"));
@@ -505,6 +538,7 @@ test("the group list previews at most four members, earliest first", async () =>
 test("competing first amounts cannot overwrite each other", async () => {
   const { path, draft } = await setup(false);
   const bill = await billCreate(path, draft);
+  await submit(bill.id, 4000, "alice-token");
   await submit(bill.id, 10001, "bob-token", 400);
   const responses = await Promise.all(
     [5999, 6000].map((amountCents) =>
@@ -598,6 +632,7 @@ async function shareAt(
 test("incomplete bill corrections retain amounts, clear confirmations, and reconfirmation completes", async () => {
   const { path, draft } = await setup(false);
   const created = await billCreate(path, draft);
+  await submit(created.id, 4000, "alice-token");
   const before = await submit(created.id, 5900);
   assert.equal(before.completedAt, null);
   const open = (
@@ -649,6 +684,7 @@ test("incomplete bill corrections retain amounts, clear confirmations, and recon
 test("amount changes clear all confirmations and old requests never reconfirm a newer revision", async () => {
   const { path, draft } = await setup();
   const created = await billCreate(path, draft);
+  await submit(created.id, 4000, "alice-token");
   await submit(created.id, 3000);
   const changed = await shareAt(created.id, created.revision, 3000, 2999);
   assert.equal(changed.confirmedCount, 0);
@@ -673,6 +709,7 @@ test("amount changes clear all confirmations and old requests never reconfirm a 
 test("descriptive edits, participant replacement, removal permissions and cancellation", async () => {
   const { path, draft, ids, group } = await setup();
   const created = await billCreate(path, draft);
+  await submit(created.id, 4000, "alice-token");
   await submit(created.id, 3000);
   await submit(created.id, 2900, "carol-token");
   const before = await readBill(created.id);
@@ -792,13 +829,14 @@ test("bill mutation validation and permissions cannot alter other participants s
   await json(
     await api(`/bills/${bill.id}/share`, "alice-token", "POST", {
       revision: 1,
-      expectedAmountCents: 4000,
+      expectedAmountCents: null,
       amountCents: 0,
       userId: ids.Bob,
     }),
     400,
   );
   assert.deepEqual(await readBill(bill.id), bill);
+  await submit(bill.id, 4000, "alice-token");
   const done = await submit(bill.id, 6000);
   await action(bill.id, "cancel", done.revision, "alice-token", 409);
 });
@@ -806,6 +844,7 @@ test("bill mutation validation and permissions cannot alter other participants s
 test("concurrent initiator edits and share edits serialize and reject the losing revision", async () => {
   const { path, draft } = await setup();
   const bill = await billCreate(path, draft);
+  await submit(bill.id, 4000, "alice-token");
   await submit(bill.id, 3000);
   const responses = await Promise.all([
     api(
@@ -835,6 +874,7 @@ test("concurrent initiator edits and share edits serialize and reject the losing
 test("a confirmation racing with an edit cannot survive that edit", async () => {
   const { path, draft } = await setup(false);
   const created = await billCreate(path, draft);
+  await submit(created.id, 4000, "alice-token");
   await submit(created.id, 5900);
   const open = (
     await json(
@@ -870,6 +910,7 @@ test("a confirmation racing with an edit cannot survive that edit", async () => 
 test("competing first amounts on an incomplete bill require the original personal amount", async () => {
   const { path, draft } = await setup();
   const bill = await billCreate(path, draft);
+  await submit(bill.id, 4000, "alice-token");
   const responses = await Promise.all(
     [2999, 3000].map((amountCents) =>
       api(`/bills/${bill.id}/share`, "bob-token", "POST", {
@@ -886,6 +927,7 @@ test("competing first amounts on an incomplete bill require the original persona
 test("simultaneous unchanged reconfirmations and retries finish once and preserve confirmations", async () => {
   const { path, draft } = await setup(false);
   const bill = await billCreate(path, draft);
+  await submit(bill.id, 4000, "alice-token");
   await submit(bill.id, 5900);
   const open = (
     await json(
@@ -914,6 +956,7 @@ test("simultaneous unchanged reconfirmations and retries finish once and preserv
 test("completed bills reject direct edits, participant changes, cancellation and share changes", async () => {
   const { path, draft, ids } = await setup(false);
   const bill = await billCreate(path, draft);
+  await submit(bill.id, 4000, "alice-token");
   await submit(bill.id, 5997);
   const done = await readBill(bill.id);
   for (const changes of [
@@ -953,6 +996,7 @@ test("completion racing with edits or cancellation leaves one valid final state"
       ...draft,
       requestId: crypto.randomUUID(),
     });
+    await submit(bill.id, 4000, "alice-token");
     const [confirmation, change] = await Promise.all([
       api(`/bills/${bill.id}/share`, "bob-token", "POST", {
         revision: bill.revision,
@@ -995,12 +1039,14 @@ test("completion racing with edits or cancellation leaves one valid final state"
 
 test('group ledger nets complete bills across dates, includes adjustments and excludes unresolved bills', async () => {
   const { group, path, draft, ids } = await setup();
-  const first = await billCreate(path, { ...draft, totalCents: 2000, ownShareCents: 0, participantIds: [ids.Alice, ids.Bob] });
+  const first = await billCreate(path, { ...draft, totalCents: 2000, participantIds: [ids.Alice, ids.Bob] });
+  await submit(first.id, 0, "alice-token");
   await submit(first.id, 1997);
   const second = (await json(await api(path, 'carol-token', 'POST', {
     ...draft, requestId: crypto.randomUUID(), purchaseDate: '2026-02-01',
-    totalCents: 1997, ownShareCents: 0, participantIds: [ids.Bob, ids.Carol],
+    totalCents: 1997, participantIds: [ids.Bob, ids.Carol],
   }), 201)).bill;
+  await submit(second.id, 0, "carol-token");
   await submit(second.id, 1997);
   const incomplete = await billCreate(path, { ...draft, requestId: crypto.randomUUID() });
   const canceled = await billCreate(path, { ...draft, requestId: crypto.randomUUID() });
@@ -1041,8 +1087,9 @@ async function ledgerWithBalances(amounts: number[]) {
     const amount = Math.min(-remaining[i], remaining[j]);
     const bill = (await json(await api(path, tokens.get(ids[j]), 'POST', {
       requestId: crypto.randomUUID(), title: 'Shared purchase', purchaseDate: '2026-01-01', timeZone: 'UTC',
-      totalCents: amount, ownShareCents: 0, participantIds: [ids[i], ids[j]],
+      totalCents: amount, participantIds: [ids[i], ids[j]],
     }), 201)).bill;
+    await submit(bill.id, 0, tokens.get(ids[j]));
     await submit(bill.id, amount, tokens.get(ids[i]));
     remaining[i] += amount;
     remaining[j] -= amount;
@@ -1067,9 +1114,10 @@ test('transitive netting reaches every-member-zero without removing bills or blo
   const { group, ids, path, draft } = await setup();
   async function purchase(initiator: string, debtor: string, token: string, debtorToken: string) {
     const bill = (await json(await api(path, token, 'POST', {
-      ...draft, requestId: crypto.randomUUID(), totalCents: 2000, ownShareCents: 0,
+      ...draft, requestId: crypto.randomUUID(), totalCents: 2000,
       participantIds: [initiator, debtor],
     }), 201)).bill;
+    await submit(bill.id, 0, token);
     await submit(bill.id, 2000, debtorToken);
   }
   await purchase(ids.Bob, ids.Alice, 'bob-token', 'alice-token');
@@ -1095,7 +1143,8 @@ test('transitive netting reaches every-member-zero without removing bills or blo
 
 test('reads during completion see a whole ledger snapshot and retries create no bills', async () => {
   const { path, draft, ids } = await setup(false);
-  const bill = await billCreate(path, { ...draft, totalCents: 100, ownShareCents: 40 });
+  const bill = await billCreate(path, { ...draft, totalCents: 100 });
+  await submit(bill.id, 40, "alice-token");
   // Hold the write on the isolated test database to exercise the old committed state.
   const blocker = await pool.connect();
   try {
@@ -1146,6 +1195,7 @@ test('16 nonzero members receive a minimum plan within the measured API runtime'
 test("initiator amount correction confirms their share while others must reconfirm", async () => {
   const { path, draft } = await setup(false);
   const created = await billCreate(path, draft);
+  await submit(created.id, 4000, "alice-token");
   await submit(created.id, 5900);
   const changed = await shareAt(created.id, created.revision, 4000, 4100, "alice-token");
   assert.equal(changed.confirmedCount, 1);
@@ -1162,6 +1212,7 @@ test("initiator amount correction confirms their share while others must reconfi
 test("initiator-only correction completes immediately when the amount matches", async () => {
   const { path, draft, ids } = await setup(false);
   const created = await billCreate(path, { ...draft, participantIds: [ids.Alice] });
+  await submit(created.id, 4000, "alice-token");
   const changed = await shareAt(created.id, created.revision, 4000, 4100, "alice-token");
   assert.equal(changed.confirmedCount, 1);
   assert.equal(changed.completedAt, null);
@@ -1234,13 +1285,15 @@ test('SSE requires membership, isolates groups, and announces committed bills on
     assert.equal(isolated.frames.length, 1);
     const snapshot = await json(await api(path, 'bob-token'));
     assert.equal(snapshot.bills[0].id, bill.id);
-    await submit(bill.id, 6000);
+    await submit(bill.id, 4000, "alice-token");
     await eventually(() => watching.frames.length === 3);
+    await submit(bill.id, 6000);
+    await eventually(() => watching.frames.length === 4);
     const completed = await json(await api(path, 'bob-token'));
     assert.ok(completed.bills[0].completedAt);
     assert.equal(completed.ledger.members.find((m: { userId: string }) => m.userId === ids.Bob).netCents, -6000);
     await submit(bill.id, 6000); // Duplicate invalidation is safe; no duplicate financial effect.
-    await eventually(() => watching.frames.length === 4);
+    await eventually(() => watching.frames.length === 5);
     assert.deepEqual((await json(await api(path, 'bob-token'))).ledger, completed.ledger);
     assert.equal(isolated.frames.length, 1);
   } finally { await watching.close(); await isolated.close(); }
@@ -1265,6 +1318,7 @@ test('SSE heartbeats, bounded authentication lifetime, and reconnects do not wri
 test("actual partial repayments affect balances only after recipient confirmation", async () => {
   const { group, ids, path, draft } = await setup(false);
   const bill = await billCreate(path, draft);
+  await submit(bill.id, 4000, "alice-token");
   await submit(bill.id, 6000);
   const { repayment } = await json(await api(`/groups/${group.id}/repayments`, "bob-token", "POST", {
     requestId: crypto.randomUUID(), recipientId: ids.Alice, amountCents: 2000,
@@ -1322,6 +1376,7 @@ test('repayment permissions, strict amounts, and group isolation are enforced', 
 test('overpayments and transfers without suggestions create reverse balances and preserve records', async () => {
   const { group, ids, path, draft } = await setup();
   const bill = await billCreate(path, draft);
+  await submit(bill.id, 4000, "alice-token");
   await submit(bill.id, 6000);
   await submit(bill.id, 0, 'carol-token');
   const extra = await recordRepayment(group.id, ids.Alice, 7000);
@@ -1364,9 +1419,11 @@ test('record retries and competing decisions have one durable outcome', async ()
 test('confirmation uses recorded amounts after suggestions change; zero balances do not close a group', async () => {
   const { group, ids, path, draft } = await setup(false);
   const first = await billCreate(path, draft);
+  await submit(first.id, 4000, "alice-token");
   await submit(first.id, 6000);
   const record = await recordRepayment(group.id, ids.Alice, 6000);
   const second = await billCreate(path, { ...draft, requestId: crypto.randomUUID() });
+  await submit(second.id, 4000, "alice-token");
   await submit(second.id, 6000);
   await decide(record.id);
   assert.equal((await json(await api(path))).summary.netCents, 6000);
@@ -1377,6 +1434,7 @@ test('confirmation uses recorded amounts after suggestions change; zero balances
   assert.equal(zero.bills.length, 2);
   assert.equal(zero.repayments.length, 2);
   const next = await billCreate(path, { ...draft, requestId: crypto.randomUUID() });
+  await submit(next.id, 4000, "alice-token");
   await submit(next.id, 6000);
   const invite = await json(await api(`/groups/${group.id}/invitation`));
   await json(await api('/groups/join', 'carol-token', 'POST', { token: invite.path.split('/').at(-1) }));
@@ -1386,6 +1444,7 @@ test('confirmation uses recorded amounts after suggestions change; zero balances
 test('concurrent confirmations and bill completion yield consistent ledger snapshots', async () => {
   const { group, ids, path, draft } = await setup(false);
   const bill = await billCreate(path, draft);
+  await submit(bill.id, 4000, "alice-token");
   const records = await Promise.all([1000, 2000].map(n => recordRepayment(group.id, ids.Alice, n)));
   const mutations = Promise.all([
     submit(bill.id, 6000), ...records.flatMap(r => [decide(r.id), decide(r.id)]),
@@ -1418,6 +1477,7 @@ test('pending repayments leave bill corrections and invitation joins available',
   const { group, ids, path, draft } = await setup(false);
   await recordRepayment(group.id, ids.Alice, 100);
   const bill = await billCreate(path, draft);
+  await submit(bill.id, 4000, "alice-token");
   await shareAt(bill.id, bill.revision, 4000, 4100, 'alice-token');
   const invite = await json(await api(`/groups/${group.id}/invitation`));
   await json(await api('/groups/join', 'carol-token', 'POST', { token: invite.path.split('/').at(-1) }));
@@ -1443,6 +1503,7 @@ test('overview keeps confirmed repayment effects within each group including gro
 test('SSE repayment decisions publish after commit and refresh the complete financial snapshot', async () => {
   const { group, ids, path, draft } = await setup(false);
   const bill = await billCreate(path, draft);
+  await submit(bill.id, 4000, "alice-token");
   await submit(bill.id, 6000);
   const watching = await stream(group.id);
   try {
@@ -1497,6 +1558,7 @@ test('attention includes fallback but excludes processing, another owner, initia
   await fixture(fallback, group.id, ids.Alice, 'fallback');
   await fixture(processing, group.id, ids.Alice, 'processing');
   const initiatedBill = await billCreate(path, draft);
+  await submit(initiatedBill.id, 4000, 'alice-token');
   await fixture(crypto.randomUUID(), group.id, ids.Alice, 'ready', initiatedBill.id);
   await fixture(crypto.randomUUID(), group.id, ids.Bob, 'ready');
   await fixture(crypto.randomUUID(), other.id, ids.Alice, 'ready');
@@ -1512,6 +1574,11 @@ test('attention lists only the signed-in participant’s missing shares and reco
   const bill = await billCreate(path, draft);
   const attention = async (token: string) => (await json(await api('/attention', token))).actions;
   await json(await api('/attention', 'invalid-token'), 401);
+  assert.deepEqual(await attention('alice-token'), [{
+    kind: 'missing-share', billId: bill.id, groupId: bill.groupId,
+    groupName: 'Costco', title: 'Costco run', amountCents: null, mode: 'manual',
+  }]);
+  await submit(bill.id, 4000, "alice-token");
   assert.deepEqual(await attention('alice-token'), []);
   assert.deepEqual(await attention('bob-token'), [{
     kind: 'missing-share', billId: bill.id, groupId: bill.groupId,
@@ -1536,6 +1603,7 @@ test('attention lists only the signed-in participant’s missing shares and reco
 test('attention identifies item-based shares for the participant', async () => {
   const { path, draft } = await setup(false);
   const bill = await billCreate(path, draft);
+  await submit(bill.id, 4000, "alice-token");
   await pool.query(`UPDATE bills SET mode = 'items' WHERE id = $1`, [bill.id]);
   const [action] = (await json(await api('/attention', 'bob-token'))).actions;
   assert.equal(action.billId, bill.id);
@@ -1610,12 +1678,99 @@ test('attention drops canceled and completed bills and excludes group nonpartici
   const outsider = await create('carol-token');
   await billCreate(`/groups/${outsider.id}/bills`, draft, 404);
   assert.equal((await attention('bob-token')).length, 1);
+  await submit(bill.id, 4000, "alice-token");
   await submit(bill.id, 6000);
   assert.deepEqual(await attention('bob-token'), []);
   const canceled = await billCreate(path, { ...draft, requestId: crypto.randomUUID() });
   await json(await api(`/bills/${canceled.id}/cancel`, 'alice-token', 'POST', { revision: 1 }));
   assert.deepEqual(await attention('bob-token'), []);
   assert.deepEqual(await attention('carol-token'), []);
+});
+
+test('manual draft initiation submits no shares and solo completion waits for submission', async () => {
+  const { group, draft, ids } = await setup();
+  const { requestId: _requestId, ...fields } = draft;
+  for (const participantIds of [[ids.Alice], fields.participantIds]) {
+    const id = crypto.randomUUID();
+    const data = { ...fields, participantIds, mode: 'manual', items: [] };
+    const saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT',
+      { revision: 0, data }))).draft;
+    assert.equal('ownShareCents' in saved.data, false);
+    const bill = (await json(await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST',
+      { revision: saved.revision }))).bill;
+    assert.equal(bill.mode, 'manual');
+    assert.equal(bill.completedAt, null);
+    assert.equal(bill.adjustmentCents, null);
+    assert.equal(bill.confirmedCount, 0);
+    assert.equal(bill.submittedCents, 0);
+    assert.equal(bill.participants.length, participantIds.length);
+    assert.ok(bill.participants.every(
+      (p: { amountCents: number | null; confirmedAt: string | null }) =>
+        p.amountCents === null && p.confirmedAt === null,
+    ));
+    const read = await readBill(bill.id);
+    assert.equal(read.completedAt, null);
+    assert.ok(read.participants.every(
+      (p: { amountCents: number | null; confirmedAt: string | null }) =>
+        p.amountCents === null && p.confirmedAt === null,
+    ));
+    const retry = (await json(await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST',
+      { revision: saved.revision }))).bill;
+    assert.equal(retry.id, bill.id);
+    assert.equal(retry.completedAt, null);
+    assert.equal(retry.confirmedCount, 0);
+    if (participantIds.length > 1) {
+      await submit(bill.id, bill.totalCents, 'bob-token');
+      const waiting = await submit(bill.id, 0, 'carol-token');
+      assert.equal(waiting.differenceCents, 0);
+      assert.equal(waiting.completedAt, null, 'balancing shares cannot replace the initiator response');
+      assert.equal(waiting.confirmedCount, 2);
+    }
+    const done = await submit(bill.id, participantIds.length === 1 ? bill.totalCents : 0, 'alice-token');
+    assert.ok(done.completedAt);
+    assert.equal(done.confirmedCount, participantIds.length);
+    assert.equal(done.adjustmentCents, 0);
+  }
+});
+
+test('legacy stored manual drafts ignore ownShareCents when read, updated and initiated', async () => {
+  const { group, draft, ids } = await setup(false);
+  const { requestId: _requestId, ...fields } = draft;
+  for (const update of [false, true]) {
+    const id = crypto.randomUUID();
+    const legacy = { ...fields, participantIds: [ids.Alice], mode: 'manual', items: [], ownShareCents: fields.totalCents };
+    await pool.query(`INSERT INTO receipt_drafts (id, group_id, initiator_id, data)
+      VALUES ($1, $2, $3, $4)`, [id, group.id, ids.Alice, JSON.stringify(legacy)]);
+    let reopened = (await json(await api(`/receipt-drafts/${id}`))).draft;
+    assert.equal('ownShareCents' in reopened.data, false);
+    const listed = (await json(await api(`/groups/${group.id}/receipt-drafts`))).drafts
+      .find((entry: { id: string }) => entry.id === id);
+    assert.equal('ownShareCents' in listed.data, false);
+    assert.equal(reopened.data.totalCents, legacy.totalCents);
+    if (update) {
+      // Round trips from an older client must ignore the obsolete field too.
+      const data = { ...reopened.data, title: 'Reviewed legacy draft', ownShareCents: 'obsolete' };
+      await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT',
+        { revision: reopened.revision, data: { ...data, unsupportedField: true } }), 400);
+      reopened = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT',
+        { revision: reopened.revision, data }))).draft;
+      assert.equal(reopened.data.title, data.title);
+      assert.equal('ownShareCents' in reopened.data, false);
+      assert.equal('ownShareCents' in (await pool.query('SELECT data FROM receipt_drafts WHERE id = $1', [id])).rows[0].data, false);
+      const retry = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT',
+        { revision: reopened.revision - 1, data }))).draft;
+      assert.deepEqual(retry, reopened);
+    }
+    const bill = (await json(await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST',
+      { revision: reopened.revision }))).bill;
+    assert.equal(bill.completedAt, null);
+    assert.equal(bill.confirmedCount, 0);
+    assert.equal(bill.participants[0].amountCents, null);
+    assert.equal(bill.participants[0].confirmedAt, null);
+    const done = await submit(bill.id, bill.totalCents, 'alice-token');
+    assert.ok(done.completedAt);
+    assert.equal(done.adjustmentCents, 0);
+  }
 });
 
 test('receipt drafts preserve missing money and reject initialization until required amounts exist', async () => {
@@ -1677,7 +1832,7 @@ test('an item draft without a total paid initializes with the item total', async
   assert.equal(charged.receipt.totalCents, 1300);
 
   await initialize({ ...fields, mode: 'items', totalCents: null, receipt, items: [item('Free bag', 0)] }, 400);
-  await initialize({ ...fields, mode: 'manual', totalCents: null, ownShareCents: 0, items: [] }, 400);
+  await initialize({ ...fields, mode: 'manual', totalCents: null, items: [] }, 400);
 });
 
 async function markLegacyItemBill(billId: string) {
@@ -1968,7 +2123,7 @@ test('negative initiator cost blocks completion until corrected total and all re
   let current = await claimBill(bill.id, 'bob-token', [{ itemId: data.items[0]!.id, numerator: 1, denominator: 1 }]);
   assert.equal(current.completedAt, null);
   assert.equal(current.adjustmentCents, null);
-  const { requestId: _requestId, ownShareCents: _own, ...fields } = draft;
+  const { requestId: _requestId, ...fields } = draft;
   current = (await json(await api(`/bills/${bill.id}`, 'alice-token', 'PATCH', { ...fields, totalCents: 11000, revision: current.revision }))).bill;
   assert.ok(current.participants.every((p: { confirmedAt: string | null }) => p.confirmedAt === null));
   assert.equal(current.items[0].claims[0].confirmedAt, null);
@@ -2030,7 +2185,7 @@ test('item addition, deletion, names and participant changes follow their confir
   assert.equal(current.participants.find((p: { userId: string }) => p.userId === ids.Bob).confirmedAt, null);
   assert.equal(current.participants.find((p: { userId: string }) => p.userId === ids.Bob).amountCents, 0);
   current = await claimBill(bill.id, 'bob-token', [{ itemId: added.id, numerator: 1, denominator: 2 }]);
-  const { requestId: _requestId, ownShareCents: _own, ...fields } = draft;
+  const { requestId: _requestId, ...fields } = draft;
   current = (await json(await api(`/bills/${bill.id}`, 'alice-token', 'PATCH', { ...fields, revision: current.revision, participantIds: [ids.Alice, ids.Carol] }))).bill;
   assert.equal(current.items.flatMap((i: { claims: unknown[] }) => i.claims).length, 0);
   assert.ok(current.participants.every((p: { confirmedAt: string | null }) => p.confirmedAt === null));

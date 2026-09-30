@@ -20,6 +20,7 @@ import {
 import {
   checked,
   draftInput,
+  withoutLegacyShare,
   itemInput,
   revisionInput,
   type ReceiptDraftData,
@@ -51,7 +52,7 @@ export async function ownDraft(
   const [row] = await (lock ? query.for("update") : query);
   if (!row) throw new BillError(404, "Draft not found.");
   await requireMember(tx, row.groupId, userId);
-  return row;
+  return { ...row, data: withoutLegacyShare(row.data) };
 }
 export function editable(row: typeof receiptDrafts.$inferSelect, revision: number) {
   if (row.processingStatus === "processing")
@@ -142,11 +143,12 @@ export async function saveDraft(
         .where(eq(receiptPhotos.draftId, id));
       if (
         !old.billId &&
-        isDeepStrictEqual(old.data, input.data) &&
+        isDeepStrictEqual(withoutLegacyShare(old.data), input.data) &&
         (photo === undefined || oldPhoto?.base64 === photo.toString("base64"))
       )
         return {
           ...old,
+          data: withoutLegacyShare(old.data),
           photo: oldPhoto
             ? {
                 expiresAt: oldPhoto.expiresAt,
@@ -253,7 +255,7 @@ export async function listDrafts(groupId: string, userId: string) {
   await sweepStaleProcessingDrafts({ groupId, userId });
   return db.transaction(async (tx) => {
     await requireMember(tx, groupId, userId);
-    return tx
+    const drafts = await tx
       .select({
         id: receiptDrafts.id,
         data: receiptDrafts.data,
@@ -271,6 +273,7 @@ export async function listDrafts(groupId: string, userId: string) {
         ),
       )
       .orderBy(receiptDrafts.updatedAt);
+    return drafts.map((draft) => ({ ...draft, data: withoutLegacyShare(draft.data) }));
   });
 }
 export async function readDraft(id: string, userId: string) {
@@ -391,7 +394,6 @@ export async function initializeDraft(
         : [];
     const input = parseBill({
       ...data,
-      ownShareCents: mode === "items" ? 0 : data.ownShareCents,
       requestId: id,
     });
     if (!input.participantIds.includes(userId))
@@ -430,9 +432,8 @@ export async function initializeDraft(
       input.participantIds.map((uid) => ({
         billId: bill!.id,
         userId: uid,
-        amountCents:
-          mode === "manual" && uid === userId ? input.ownShareCents : null,
-        confirmedAt: mode === "manual" && uid === userId ? new Date() : null,
+        amountCents: null,
+        confirmedAt: null,
       })),
     );
     if (mode === "items")
@@ -454,18 +455,6 @@ export async function initializeDraft(
           };
         }),
       );
-    if (
-      mode === "manual" &&
-      input.participantIds.length === 1 &&
-      input.totalCents - input.ownShareCents <= 5
-    )
-      await tx
-        .update(bills)
-        .set({
-          completedAt: new Date(),
-          adjustmentCents: input.totalCents - input.ownShareCents,
-        })
-        .where(eq(bills.id, bill!.id));
     await tx
       .update(receiptDrafts)
       .set({ billId: bill!.id, revision: draft.revision + 1 })

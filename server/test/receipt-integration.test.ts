@@ -7,7 +7,7 @@ import { priceDraft } from "../src/receipt-pricing.js";
 import { applyReceiptModelResult, receiptModelEvidence } from "../src/receipt-processing.js";
 
 const draftFields = {
-  purchaseDate: "", timeZone: "", notes: "", ownShareCents: 0, participantIds: [],
+  purchaseDate: "", timeZone: "", notes: "", participantIds: [],
 };
 
 function scannedFixture(name: string, subtotalOverride?: number, extraSharedDiscount = false) {

@@ -64,7 +64,10 @@ export const draftItemInput = itemInput.omit({ taxCents: true, extraCents: true 
   finalCents: amount.nullable(),
   taxable: z.boolean().nullable().default(null),
 });
-export const draftInput = z
+export const draftInput = z.preprocess(
+  (value): unknown => value && typeof value === "object" && !Array.isArray(value)
+    ? withoutLegacyShare(value as ReceiptDraftData) : value,
+  z
   .object({
     receipt: z
       .object({
@@ -84,13 +87,18 @@ export const draftInput = z
     timeZone: z.string().max(100),
     notes: z.string().max(2000),
     totalCents: amount.nullable(),
-    ownShareCents: amount.default(0),
     participantIds: z.array(z.uuid()).max(16),
     mode: z.enum(["manual", "items"]),
     items: z.array(draftItemInput).max(200),
   })
-  .strict();
+  .strict(),
+);
 export type ReceiptDraftData = z.infer<typeof draftInput>;
+// Stored drafts and their round trips may still carry this retired setup field.
+export function withoutLegacyShare(data: ReceiptDraftData): ReceiptDraftData {
+  const { ownShareCents: _legacy, ...current } = data as ReceiptDraftData & { ownShareCents?: unknown };
+  return current;
+}
 export type DraftItemInput = z.infer<typeof draftItemInput>;
 export type ItemInput = z.infer<typeof itemInput>;
 export function checked<T>(schema: z.ZodType<T>, value: unknown): T {

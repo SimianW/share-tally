@@ -33,7 +33,7 @@ const receipt = (
 test("positive tax without a derived taxable positive-net item has an initiation error", () => {
   const data: ReceiptDraftData = {
     title: "Groceries", purchaseDate: "2026-01-01", timeZone: "America/Toronto",
-    notes: "", totalCents: 1125, ownShareCents: 0, participantIds: [], mode: "items",
+    notes: "", totalCents: 1125, participantIds: [], mode: "items",
     receipt: { subtotalCents: 1000, taxCents: 125, discountCents: 0, extraCents: 0, pricesIncludeTax: false },
     items: [{ id: crypto.randomUUID(), name: "Bread", originalText: "", quantity: "1",
       amountCents: 1000, discountCents: 0, finalCents: 1000, taxable: false, manualFinal: false }],
@@ -50,7 +50,7 @@ test("tax assignment rule distinguishes manual finals, inclusive or zero tax, an
   });
   const data: ReceiptDraftData = {
     title: "Groceries", purchaseDate: "2026-01-01", timeZone: "America/Toronto",
-    notes: "", totalCents: 2125, ownShareCents: 0, participantIds: [], mode: "items",
+    notes: "", totalCents: 2125, participantIds: [], mode: "items",
     receipt, items: [item(false)],
   };
   const message = "Receipt tax $1.25 isn't assigned to any item. Mark the taxable items or set final costs manually.";
