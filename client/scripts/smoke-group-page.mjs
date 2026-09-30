@@ -28,11 +28,14 @@ export async function checkGroupPage(pageFor, base, api) {
   assert.ok(ids.Alice && ids.Bob && ids.Carol && ids.Member, 'four real fixture identities joined');
   const route = `${base}#/group-bills/${groupId}`;
 
-  async function manual(initiator, title, totalCents, ownShareCents, names) {
-    return (await api(`/groups/${groupId}/bills`, `${initiator.toLowerCase()}-token`, 'POST', {
+  async function manual(initiator, title, totalCents, initiatorShareCents, names) {
+    const bill = (await api(`/groups/${groupId}/bills`, `${initiator.toLowerCase()}-token`, 'POST', {
       requestId: randomUUID(), title, purchaseDate: date, timeZone: 'America/Toronto',
-      notes: '', totalCents, ownShareCents, participantIds: names.map(name => ids[name]),
+      notes: '', totalCents, participantIds: names.map(name => ids[name]),
     })).bill;
+    assert.ok(bill.participants.every(participant => participant.amountCents === null && participant.confirmedAt === null),
+      'bill initiation leaves every participant unsubmitted and unconfirmed');
+    return share(bill, initiator, initiatorShareCents);
   }
   async function share(bill, person, amountCents) {
     return (await api(`/bills/${bill.id}/share`, `${person.toLowerCase()}-token`, 'POST', {
@@ -46,13 +49,15 @@ export async function checkGroupPage(pageFor, base, api) {
       revision: 0,
       data: {
         mode: 'items', title, purchaseDate: date, timeZone: 'America/Toronto', notes: '',
-        totalCents: 2000, ownShareCents: 0, participantIds: [ids.Alice, ids.Bob],
+        totalCents: 2000, participantIds: [ids.Alice, ids.Bob],
         receipt: { subtotalCents: 2000, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
         items: [{ id: itemId, name: 'Shared apples', originalText: 'APPLES', quantity: '1',
           amountCents: 2000, discountCents: 0, taxable: false, finalCents: 2000, manualFinal: false }],
       },
     });
     const { bill } = await api(`/receipt-drafts/${draftId}/initialize`, 'alice-token', 'POST', { revision: draft.revision });
+    assert.ok(bill.participants.every(participant => participant.amountCents === null && participant.confirmedAt === null),
+      'draft initiation leaves every participant unsubmitted and unconfirmed');
     return { bill, itemId };
   }
   async function repayment(sender, recipient, amountCents) {
@@ -116,7 +121,7 @@ export async function checkGroupPage(pageFor, base, api) {
     revision: 0,
     data: {
       mode: 'items', title: 'Receipt draft to review', purchaseDate: date,
-      timeZone: 'America/Toronto', notes: '', totalCents: 2400, ownShareCents: 0,
+      timeZone: 'America/Toronto', notes: '', totalCents: 2400,
       participantIds: [ids.Alice, ids.Bob],
       receipt: { subtotalCents: 2400, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
       items: [{ id: randomUUID(), name: 'Organic apples', originalText: 'APPLES', quantity: '1',
