@@ -188,11 +188,9 @@ export function ReceiptDrafts({
             </small>
           </div>
           <span className="draft-list-total">
-            {d.data.totalCents !== null
-              ? money(d.data.totalCents)
-              : d.data.mode === "items"
-                ? money(d.data.items.reduce((sum, i) => sum + (i.finalCents ?? 0), 0))
-                : "Total not entered"}
+            {d.data.totalCents === null
+              ? "Total not entered"
+              : money(d.data.totalCents)}
           </span>
           <Button variant="secondary" className="small" onClick={() => open(d.id)}>
             Continue <ArrowRight size={16} />
