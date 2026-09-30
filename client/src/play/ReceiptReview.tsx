@@ -170,7 +170,7 @@ export function ReceiptReconciliation({ data, openSummary, processing = false }:
     <ReceiptText size={21} aria-hidden="true" /><span>
       <strong>{processing ? `Printed items ${money(printed)}` : matches ? <><Check size={15} aria-hidden="true" /> Matches receipt</> : missing ? "Some item costs are missing" : difference === null ? "Total paid follows items" : `Off by ${money(difference)}`}</strong>
       <span>{processing ? `Receipt subtotal ${data.receipt?.subtotalCents == null ? "—" : money(data.receipt.subtotalCents)}` : <>Items {money(total)}{missing ? " so far" : ""} · Receipt {data.totalCents === null ? "—" : money(data.totalCents)}</>}</span>
-      <small>{processing ? "Tax and final costs appear after checking · View receipt summary" : `Receipt summary · ${matches ? "View or edit totals" : following ? "Add a receipt total only if you paid a different amount" : "You can still continue"}`}</small>
+      {!following && <small>{processing ? "Tax and final costs appear after checking · View receipt summary" : `Receipt summary · ${matches ? "View or edit totals" : "You can still continue"}`}</small>}
     </span><ChevronRight size={18} aria-hidden="true" />
   </button>;
 }
