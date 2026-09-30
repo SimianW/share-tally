@@ -1,4 +1,5 @@
 import { checkGroupPage } from './smoke-group-page.mjs';
+import { checkAmountPortion } from './smoke-amount-portion.mjs';
 import { checkAppearance, checkShareTicketPalettes } from './smoke-appearance.mjs';
 import { checkGroupRefresh } from './smoke-group-refresh.mjs';
 import { checkNavigation, groupNet, homeRow, homeGroupNames, openGroupSwitcher, switchGroup } from './smoke-navigation.mjs';
@@ -290,7 +291,7 @@ try {
   await expect(shareTicket(bob)).toContainText('Not submitted yet');
   await expect(shareTicket(bob).getByText('Needs your confirmation', { exact: true })).toBeVisible();
   await expect(shareTicket(bob)).toContainText('Enter what you owe, including tax, and confirm it.');
-  await expect(shareTicket(bob).getByLabel('My share · CAD', { exact: true })).toBeVisible();
+  await expect(shareTicket(bob).getByLabel('Your share (CAD)', { exact: true })).toBeVisible();
   await expect(bob.getByText('paid by Alice, in CAD', { exact: false })).toBeVisible();
   await expect(billPanel(bob)).toContainText('Waiting for you to confirm.');
   // Check the people rows on another member's desktop view.
@@ -308,7 +309,7 @@ try {
   await expect(bobAvatar).toHaveCSS('align-items', 'center');
   await expect(bobAvatar).toHaveCSS('justify-content', 'center');
   await bob.setViewportSize({ width: 390, height: 844 });
-  await bob.getByLabel('My share · CAD', { exact: true }).fill('59.97');
+  await bob.getByLabel('Your share (CAD)', { exact: true }).fill('59.97');
   let shareAttempts = 0;
   await bob.route('**/api/bills/*/share', async route => {
     const response = await route.fetch();
@@ -341,7 +342,7 @@ try {
   await carol.goto(billUrl);
   await expect(shareTicket(carol)).toContainText("You're not on this bill");
   await expect(shareTicket(carol).getByText('Viewing only', { exact: true })).toBeVisible();
-  await expect(carol.getByLabel('My share · CAD', { exact: true })).toHaveCount(0);
+  await expect(carol.getByLabel('Your share (CAD)', { exact: true })).toHaveCount(0);
   await expect(carol.getByRole('button', { name: 'Submit and confirm my share' })).toHaveCount(0);
   await alice.screenshot({ path: `${clientRoot}/test-results/bills-desktop.png`, fullPage: true });
   await bob.screenshot({ path: `${clientRoot}/test-results/bills-mobile.png`, fullPage: true });
@@ -426,7 +427,7 @@ try {
   await alice.goto(billUrl);
   await expect(billPanel(alice)).toContainText('Complete and final.');
   await expect(alice.getByRole('button', { name: 'Edit details & participants' })).toHaveCount(0);
-  await expect(alice.getByLabel('My share · CAD', { exact: true })).toHaveCount(0);
+  await expect(alice.getByLabel('Your share (CAD)', { exact: true })).toHaveCount(0);
   async function incompleteBill(title) {
     await alice.getByRole('link', { name: 'Group bills', exact: false }).click();
     await alice.getByRole('button', { name: 'New bill', exact: true }).click();
@@ -438,7 +439,7 @@ try {
     await alice.getByRole('button', { name: 'Share bill' }).click();
     await expect(alice.getByRole('heading', { name: title })).toBeVisible();
     await bobAgain.goto(alice.url());
-    await bobAgain.getByLabel('My share · CAD', { exact: true }).fill('59.00');
+    await bobAgain.getByLabel('Your share (CAD)', { exact: true }).fill('59.00');
     await bobAgain.getByRole('button', { name: 'Submit and confirm my share' }).click();
     await expect(billSummary(bobAgain)).toContainText('2 of 2 confirmed');
     await expect(billSummary(bobAgain).getByText('Needs correction', { exact: true })).toBeVisible();
@@ -449,7 +450,7 @@ try {
     await expect(correction).toContainText('within $0.05');
     await expect(correction.getByRole('button', { name: 'Dismiss notification' })).toHaveCount(0);
     await correction.getByRole('button', { name: 'Edit my share' }).click();
-    await expect(bobAgain.getByLabel('My share · CAD', { exact: true })).toBeFocused();
+    await expect(bobAgain.getByLabel('Your share (CAD)', { exact: true })).toBeFocused();
 
   }
   await incompleteBill('Correctable groceries');
@@ -472,17 +473,17 @@ try {
   await bobAgain.goto(base);
   await bobAgain.getByRole('region', { name: 'Needs your attention' }).getByRole('link', { name: /Confirm your share.*Correctable groceries/ }).click();
   await expect(bobAgain.getByRole('button', { name: 'Confirm my share', exact: true })).toBeVisible();
-  await bobAgain.getByLabel('My share · CAD', { exact: true }).fill('60.00');
+  await bobAgain.getByLabel('Your share (CAD)', { exact: true }).fill('60.00');
   await alice.getByRole('button', { name: 'Edit details & participants' }).click();
   await alice.getByRole('dialog').getByLabel('Notes').fill('Corrected purchase notes');
   await alice.getByRole('button', { name: 'Save & request confirmations' }).click();
   await expect(alice.getByRole('dialog')).toHaveCount(0);
   await expect(bobAgain.getByRole('alert').filter({ hasText: 'This bill changed' })).toBeVisible();
   await expect(bobAgain.getByRole('button', { name: 'Save changed amount', exact: true })).toBeDisabled();
-  await expect(bobAgain.getByLabel('My share · CAD', { exact: true })).toHaveValue('60.00');
+  await expect(bobAgain.getByLabel('Your share (CAD)', { exact: true })).toHaveValue('60.00');
   await bobAgain.getByRole('button', { name: 'Review latest bill' }).click();
   await expect(bobAgain.getByText('Corrected purchase notes', { exact: true })).toBeVisible();
-  await bobAgain.getByLabel('My share · CAD', { exact: true }).fill('60.00');
+  await bobAgain.getByLabel('Your share (CAD)', { exact: true }).fill('60.00');
   await bobAgain.getByRole('button', { name: 'Save changed amount' }).click();
   await expect(billSummary(bobAgain)).toContainText('0 of 2 confirmed');
   await bobAgain.getByRole('button', { name: 'Confirm my share', exact: true }).click();
@@ -501,7 +502,7 @@ try {
   await expect(billSummary(alice)).toContainText('0 of 1 confirmed');
   await bobAgain.reload();
   await expect(shareTicket(bobAgain)).toContainText("You're not on this bill");
-  await expect(bobAgain.getByLabel('My share · CAD', { exact: true })).toHaveCount(0);
+  await expect(bobAgain.getByLabel('Your share (CAD)', { exact: true })).toHaveCount(0);
   await alice.getByRole('button', { name: 'Cancel this bill', exact: true }).click();
   await alice.getByRole('button', { name: 'Yes, cancel bill' }).click();
   await expect(billSummary(alice).getByText('Canceled', { exact: true })).toBeVisible();
@@ -632,7 +633,7 @@ try {
   });
   await liveApi(`/bills/${negativeAdjustment.id}/share`, 'bob-token', 'POST', { revision: 1, expectedAmountCents: null, amountCents: 5000 });
   await carol.goto(`${base}#/bills/${negativeAdjustment.id}`);
-  await carol.getByLabel('My share · CAD', { exact: true }).fill('50.03');
+  await carol.getByLabel('Your share (CAD)', { exact: true }).fill('50.03');
   await carol.getByRole('button', { name: 'Submit and confirm my share' }).click();
   await expect(billSummary(carol)).toContainText('3 of 3 confirmed');
   // With nobody left to wait for, the panel still states the completion rule.
@@ -644,7 +645,7 @@ try {
   await expect(carol.locator('.notification-success')).toHaveCount(0);
   await expect(negativeWarning.getByRole('button', { name: 'Dismiss notification' })).toHaveCount(0);
   await negativeWarning.getByRole('button', { name: 'Edit my share' }).click();
-  await expect(carol.getByLabel('My share · CAD', { exact: true })).toBeFocused();
+  await expect(carol.getByLabel('Your share (CAD)', { exact: true })).toBeFocused();
   // Cancel the fixture so it does not affect subsequent attention checks.
   await liveApi(`/bills/${negativeAdjustment.id}/cancel`, 'alice-token', 'POST', { revision: 1 });
   // An item-based bill's initiator who confirms without claims sees the
@@ -806,6 +807,8 @@ try {
   await expect(alice.getByRole('region', { name: 'Needs your attention' })).toHaveCount(0);
   console.log('Attention smoke passed: mobile missing shares, reconfirmation links, refresh recovery, receipt decisions, stale links, and account isolation.');
   await checkGroupPage(pageFor, base, liveApi);
+  await checkAmountPortion(pageFor, base, liveApi, (page, name) =>
+    page.screenshot({ path: `${clientRoot}/test-results/${name}-${page.viewportSize().width > 700 ? 'desktop' : 'mobile'}.png`, fullPage: true, animations: 'disabled' }));
   }
   // Issue #76: creator-only deletion of a cleared group uses its own fixture.
   const deleteOwner = await pageFor('alice-token', { width: 1280, height: 900 });

@@ -196,6 +196,9 @@
 .claim-portion-caption { margin-top: calc(var(--space-3) * -1); color: var(--ink-secondary); font-size: var(--text-sm); }
 .claim-portion.is-over { background: var(--status-danger-bg); border-color: color-mix(in srgb, var(--status-danger) 35%, var(--line)); }
 .claim-over-text { color: var(--status-danger); font-size: var(--text-sm); font-weight: 600; line-height: 1.5; }
+/* By amount shares over the total are a warning, not an error: the pick itself is allowed. */
+.claim-portion.is-warn { background: var(--status-warning-bg); border-color: color-mix(in srgb, var(--status-warning) 35%, var(--line)); }
+.claim-warn-text { margin: 0; color: var(--status-warning); font-size: var(--text-sm); font-weight: 600; line-height: 1.5; }
 
 /* One segment per claimant in their avatar tint, then your pick, then free space. */
 .claim-bar { position: relative; display: block; }
@@ -230,6 +233,9 @@
 .claim-legend-chip.is-you { color: var(--ink); font-weight: 600; }
 .claim-legend-chip.is-you > i { background: var(--action); box-shadow: inset 0 0 0 1px var(--action-edge); }
 .claim-legend-chip.is-you.is-over { color: var(--status-danger); box-shadow: inset 0 0 0 1.5px var(--status-danger); }
+/* A participant who has not submitted a By amount share yet. */
+.claim-legend-chip.is-pending { color: var(--ink-subtle); }
+.claim-legend-chip.is-pending .avatar { opacity: .5; }
 .claim-take-left.button { width: 100%; }
 /* The pick that no longer fits stays marked, in red, until it is changed. */
 .claim-options:has(.claim-portion.is-over) .claim-portion-choices button[aria-pressed="true"] { opacity: 1; background: var(--status-danger); color: var(--ink-inverse); box-shadow: none; }
@@ -304,6 +310,10 @@
   .claim-portion-choices .claim-portion-custom:hover:not(:disabled):not([aria-pressed="true"]) { background: color-mix(in srgb, var(--action) 16%, transparent); }
 }
 .claim-portion-choices .claim-portion-custom[aria-pressed="true"] { border-color: var(--action-edge); }
+/* Even · 1/N carries a small tab on its top edge, so every choice keeps the same height. */
+.claim-portion-choices .claim-portion-tagged { position: relative; }
+.claim-portion-tag { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); padding: 1px 6px; border-radius: 999px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-strong); color: var(--ink-secondary); font: 800 9px / 1.3 var(--font-heading); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; pointer-events: none; }
+.claim-portion-choices button[aria-pressed="true"] .claim-portion-tag { background: var(--action); color: var(--ink-on-action); box-shadow: inset 0 0 0 1px var(--action-edge); }
 .claim-fraction { display: inline-flex; align-items: center; gap: 1px; line-height: 1; font-variant-numeric: lining-nums; }
 .claim-fraction sup, .claim-fraction sub { font-size: .72em; vertical-align: 0; }
 .claim-fraction sup { transform: translateY(-.28em); }
