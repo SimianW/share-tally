@@ -531,22 +531,24 @@ export function ReceiptDraftForm({
   const shareValid = !shareText.trim() || parseCents(shareText) !== null;
   // The portion of the total your share was last picked as, kept while the total is cleared, so a
   // corrected total can recalculate it. A typed share that matches a choice follows too.
-  const [follows, setFollows] = useState<Fraction | null>(null);
+  const [sharePortion, setSharePortion] = useState<Fraction | null>(null);
+  // The last Custom fraction picked, which a typed share can match as well as the fixed choices.
+  const [customPortion, setCustomPortion] = useState<Fraction | null>(null);
   function typeShare(text: string) {
     const cents = text.trim() ? parseCents(text) : 0;
     setShareInput({ value: cents ?? data.ownShareCents, text });
     if (cents === null || cents === data.ownShareCents) return;
-    setFollows(null);
+    setSharePortion(null);
     update({ ownShareCents: cents });
   }
   function changeTotal(totalCents: number | null) {
     if (data.mode !== "manual") { update({ totalCents }); return; }
     const previous = data.totalCents && data.totalCents > 0 ? data.totalCents : null;
     const share = parseCents(shareText);
-    const linked = previous === null ? follows
-      : follows && cost(previous, follows) === share ? follows
-        : pressedChoice(amountChoices(data.participantIds.length), previous, share, null)?.fraction ?? null;
-    setFollows(linked);
+    const linked = previous === null ? sharePortion
+      : sharePortion && cost(previous, sharePortion) === share ? sharePortion
+        : pressedChoice(amountChoices(data.participantIds.length), previous, share, customPortion)?.fraction ?? null;
+    setSharePortion(linked);
     update(linked && totalCents && totalCents > 0 ? { totalCents, ownShareCents: cost(totalCents, linked) } : { totalCents });
   }
   const valid =
@@ -898,7 +900,7 @@ export function ReceiptDraftForm({
                   <SegmentedControl
                     labelledBy={splitLegendId}
                     value={data.mode}
-                    onChange={(mode) => { setFollows(null); update({ mode, ownShareCents: 0 }); }}
+                    onChange={(mode) => { setSharePortion(null); update({ mode, ownShareCents: 0 }); }}
                     options={[
                       {
                         value: "items",
@@ -934,7 +936,10 @@ export function ReceiptDraftForm({
                       others={[]}
                       amount={shareText}
                       setAmount={typeShare}
-                      onPick={setFollows}
+                      onPick={(portion, custom) => {
+                        setSharePortion(portion);
+                        if (custom) setCustomPortion(portion);
+                      }}
                     />
                   )}
                   {data.mode === "items" && (

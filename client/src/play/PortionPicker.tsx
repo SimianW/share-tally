@@ -165,6 +165,7 @@ export function PortionChoices({ label, totalCents, choices, pressed, custom, cu
     setCustomOpen(false);
   }
   function saveCustom() {
+    if (disabled) return;
     const value = parse(customText);
     if (!value) { setCustomError("Use a positive fraction up to 1, with numerator and denominator at most 10,000."); return; }
     if (cap && !lessOrEqual(value, cap)) { setCustomError(`Only ${text(cap)} is available to you.`); return; }
@@ -193,11 +194,11 @@ export function PortionChoices({ label, totalCents, choices, pressed, custom, cu
     {takeLeft && <Button variant="secondary" className="claim-take-left" disabled={disabled} onClick={() => pick(takeLeft.fraction, false)}>
       {takeLeft.label}
     </Button>}
-    {customOpen && <div className="claim-custom"><label>Custom fraction<input autoFocus aria-label="Custom fraction" placeholder="4/5" value={customText}
+    {customOpen && <div className="claim-custom"><label>Custom fraction<input autoFocus aria-label="Custom fraction" placeholder="4/5" value={customText} readOnly={disabled}
       onChange={(event) => setCustomText(event.target.value)}
       // Inside a share form, Enter would otherwise submit the whole form.
       onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); saveCustom(); } }} /></label>
-      <Button onClick={saveCustom}>Use custom fraction</Button>{customError && <p role="alert">{customError}</p>}</div>}
+      <Button disabled={disabled} onClick={saveCustom}>Use custom fraction</Button>{customError && <p role="alert">{customError}</p>}</div>}
   </>;
 }
 

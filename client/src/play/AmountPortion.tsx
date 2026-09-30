@@ -23,8 +23,8 @@ export function AmountPortion({ totalCents, count, others, amount, setAmount, on
   /** The amount as typed. */
   amount: string;
   setAmount: (amount: string) => void;
-  /** Called after a choice fills in the amount, with the portion it was. */
-  onPick?: (portion: Fraction) => void;
+  /** Called after a choice fills in the amount, with the portion it was and whether it was Custom. */
+  onPick?: (portion: Fraction, custom: boolean) => void;
   inputId?: string;
   required?: boolean;
   readOnly?: boolean;
@@ -75,7 +75,7 @@ export function AmountPortion({ totalCents, count, others, amount, setAmount, on
         if (total === null) return;
         if (isCustom) setCustom(value);
         setAmount(amountText(cost(total, value)));
-        onPick?.(value);
+        onPick?.(value, isCustom);
       }} />
     {total === null && <p className="amount-portion-hint">Enter the total paid to pick a portion</p>}
   </div>;

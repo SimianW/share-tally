@@ -70,6 +70,21 @@ export async function checkAmountPortion(pageFor, base, api, screenshots) {
   await alice.reload();
   await expect(shareInput(alice)).toHaveValue('40.00');
   await expect(card(alice)).toContainText('of $100.00 total');
+  // A typed share that matches the custom fraction follows the total like a pick.
+  await choice(alice, 'Custom').click();
+  await alice.getByLabel('Custom fraction', { exact: true }).fill('2/5');
+  await alice.getByRole('button', { name: 'Use custom fraction', exact: true }).click();
+  await shareInput(alice).fill('39.00');
+  await shareInput(alice).fill('40.00');
+  assert.deepEqual(await pressedNames(alice), ['Custom · 2/5 · $40.00']);
+  await totalPaid(alice).fill('120.00');
+  await expect(shareInput(alice)).toHaveValue('48.00');
+  // An open Custom input is disabled too once the total is cleared.
+  await choice(alice, 'Custom · 2/5 · $48.00').click();
+  await totalPaid(alice).fill('');
+  await expect(alice.getByRole('button', { name: 'Use custom fraction', exact: true })).toBeDisabled();
+  await totalPaid(alice).fill('100.00');
+  await expect(shareInput(alice)).toHaveValue('40.00');
   // A share over the total paid is an error that blocks sharing.
   await shareInput(alice).fill('120.00');
   await expect(card(alice).getByRole('alert')).toHaveText("Your share can't be more than the total paid.");
