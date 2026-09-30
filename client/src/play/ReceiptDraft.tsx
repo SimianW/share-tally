@@ -188,9 +188,11 @@ export function ReceiptDrafts({
             </small>
           </div>
           <span className="draft-list-total">
-            {d.data.totalCents === null
-              ? "Total not entered"
-              : money(d.data.totalCents)}
+            {d.data.totalCents !== null
+              ? money(d.data.totalCents)
+              : d.data.mode === "items"
+                ? money(d.data.items.reduce((sum, i) => sum + (i.finalCents ?? 0), 0))
+                : "Total not entered"}
           </span>
           <Button variant="secondary" className="small" onClick={() => open(d.id)}>
             Continue <ArrowRight size={16} />
@@ -345,6 +347,8 @@ export function ReceiptDraftForm({
   const [warnings, setWarnings] = useState<string[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
+  // Split by item, an empty total paid follows the items; this shows its input anyway.
+  const [enteringTotal, setEnteringTotal] = useState(false);
   const [replace, setReplace] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [syncError, setSyncError] = useState("");
@@ -446,7 +450,7 @@ export function ReceiptDraftForm({
       const data = { ...d.data, ...patch };
       return { ...d, data: data.mode === "items" ? { ...data, items: deriveReceiptItems(data) } : data };
     });
-    setNotice("Unsaved changes");
+    setNotice("");
   }
   async function run(label: string, action: () => Promise<void>) {
     if (pending.current) return;
@@ -555,18 +559,20 @@ export function ReceiptDraftForm({
     setShareInput({ value: ownShareCents, text: amountText(ownShareCents) });
     update({ totalCents, ownShareCents });
   }
+  // Initialization makes a followed total the item total.
+  const paidCents = data.mode === "items" ? data.totalCents ?? itemTotal : data.totalCents;
   const valid =
-    data.totalCents !== null &&
-    data.totalCents > 0 &&
+    paidCents !== null &&
+    paidCents > 0 &&
     data.title.trim() &&
     (data.mode === "manual"
-      ? data.ownShareCents <= data.totalCents && shareValid
+      ? data.ownShareCents <= paidCents && shareValid
       : itemsComplete(data));
   const canSplitByItem = itemsReady({ ...data, mode: "items" });
   const splitLegendId = useId();
   const missing = [
     !data.title.trim() && "a bill title",
-    !(data.totalCents !== null && data.totalCents > 0) && "the total paid",
+    !(paidCents !== null && paidCents > 0) && "the total paid",
     data.mode === "items" && !itemsComplete(data) && "item names and prices",
     data.mode === "manual" && !shareValid && "a valid share",
   ].filter(Boolean);
@@ -925,13 +931,17 @@ export function ReceiptDraftForm({
                       <span> Add items first to split by item.</span>
                     )}
                   </p>
-                  <div className="split-amounts">
-                    <ReceiptAmount
-                      label="Total paid (CAD)"
-                      value={data.totalCents}
-                      change={changeTotal}
-                    />
-                  </div>
+                  {(data.mode === "manual" || data.totalCents !== null || enteringTotal) && (
+                    <div className="split-amounts">
+                      <ReceiptAmount
+                        label="Total paid (CAD)"
+                        value={data.totalCents}
+                        change={changeTotal}
+                        required={data.mode === "manual"}
+                        autoFocus={data.mode === "items" && enteringTotal}
+                      />
+                    </div>
+                  )}
                   {data.mode === "manual" && (
                     <AmountPortion
                       totalCents={data.totalCents}
@@ -947,6 +957,9 @@ export function ReceiptDraftForm({
                   )}
                   {data.mode === "items" && (
                     <div className="split-items">
+                      {data.totalCents === null ? (
+                        <p>Total paid <strong>{money(itemTotal)}</strong> · from items</p>
+                      ) : (
                       <p>
                         {/* Claims round per person, so the final initiator adjustment
                             can differ from this draft-time difference by a few cents. */}
@@ -959,9 +972,23 @@ export function ReceiptDraftForm({
                         {data.totalCents !== null && data.totalCents !== itemTotal &&
                           " Any difference left after everyone claims goes to you."}
                       </p>
-                      <Button variant="text" onClick={() => setStep(1)}>
-                        Edit {data.items.length} items <ArrowRight size={16} aria-hidden="true" />
-                      </Button>
+                      )}
+                      <div className="split-items-actions">
+                        {/* One button swaps its action, so focus stays put when the input goes away. */}
+                        <Button
+                          variant="text"
+                          onClick={() => {
+                            if (data.totalCents === null && !enteringTotal) { setEnteringTotal(true); return; }
+                            setEnteringTotal(false);
+                            update({ totalCents: null });
+                          }}
+                        >
+                          {data.totalCents === null && !enteringTotal ? "Paid a different amount?" : "Use item total"}
+                        </Button>
+                        <Button variant="text" onClick={() => setStep(1)}>
+                          Edit {data.items.length} items <ArrowRight size={16} aria-hidden="true" />
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </fieldset>
@@ -1002,7 +1029,7 @@ export function ReceiptDraftForm({
                   photo: { expiresAt: "", expired: false },
                 };
                 setDraft(next);
-                setNotice("Unsaved changes");
+                setNotice("");
                 setFile(null);
                 void run("Reading receipt…", () => scan(next));
               }}

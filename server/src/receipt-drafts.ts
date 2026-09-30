@@ -358,6 +358,10 @@ export async function initializeDraft(
     if (taxError) throw new BillError(400, taxError);
     const { mode, items: _draftItems, receipt: _receipt, ...data } = reviewed;
     const priced = mode === "items" ? priceDraft(reviewed).items : [];
+    // An item draft without a total paid follows its items; complete items
+    // make that the bill total, so the initiator starts with no difference.
+    if (mode === "items" && data.totalCents === null && priced.every((i) => i.finalCents !== null))
+      data.totalCents = reviewed.totalCents = priced.reduce((sum, i) => sum + i.finalCents!, 0);
     const bases = frozenBases({ ...reviewed, items: priced });
     const printed = printedTax(reviewed.receipt?.evidence);
     const receipt = mode === "items" ? {
