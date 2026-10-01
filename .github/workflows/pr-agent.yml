@@ -33,7 +33,8 @@ jobs:
       group: pr-agent-${{ github.event.pull_request.number || github.event.issue.number }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Maximum-effort reviews of large diffs can stream for over 20 minutes.
+    timeout-minutes: 40
     steps:
       # PR-Agent reads changes through the GitHub API; no checkout is needed.
       - name: Review with Z.ai

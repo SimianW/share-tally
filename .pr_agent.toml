@@ -8,7 +8,7 @@ temperature = 1.0
 response_language = "en-US"
 # Allow substantial diffs and reserve output space for maximum-effort reasoning.
 max_model_tokens = 128000
-max_output_tokens = 32768
+max_output_tokens = 65536
 ai_timeout = 180
 retry_same_model_on_timeout = false
 num_retries = 0
