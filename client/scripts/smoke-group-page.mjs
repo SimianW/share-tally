@@ -378,6 +378,8 @@ export async function checkGroupPage(pageFor, base, api) {
     }
   }
   await checkTransferTrace(pageFor, base, api);
+  await checkLongLedger(pageFor, base, api);
+  await checkWideLedger(pageFor, base, api);
 }
 
 const signedCurrency = cents => `${cents > 0 ? '+' : cents < 0 ? '−' : ''}${currency(Math.abs(cents))}`;
@@ -421,6 +423,11 @@ async function checkLedgerTrace(page, audit, state) {
   await expect(traced).toHaveCount(1);
   await expect(trace).toContainText("Reading down Bob's column");
   await expect(trace.getByRole('button', { name: 'Unpin' })).toBeVisible();
+
+  // The seven-entry Costco fixture needs neither an earlier subtotal nor Show all.
+  assert.equal(state.ledger.entries.length, 7);
+  await expect(table.getByRole('rowheader', { name: /^Earlier bills and repayments/ })).toHaveCount(0);
+  await expect(table.getByRole('button', { name: 'Show all', exact: true })).toHaveCount(0);
 
   // One row per counted entry, bill rows linking to their bills, then the Balance footer.
   await expect(table.getByRole('row').filter({ has: page.getByRole('rowheader') })).toHaveCount(state.ledger.entries.length + 1);
@@ -507,10 +514,10 @@ async function fixtureGroup(api, name, tokens) {
   return {
     id: created.id, ids,
     // A complete manual bill: the initiator comes first in `shares`, each share in cents.
-    async bill(title, shares) {
+    async bill(title, shares, { purchaseDate = date } = {}) {
       const [initiator] = shares[0];
       let { bill } = await api(`/groups/${created.id}/bills`, tokenOf[initiator], 'POST', {
-        requestId: randomUUID(), title, purchaseDate: date, timeZone: 'America/Toronto', notes: '',
+        requestId: randomUUID(), title, purchaseDate, timeZone: 'America/Toronto', notes: '',
         totalCents: shares.reduce((sum, [, cents]) => sum + cents, 0), participantIds: shares.map(([person]) => ids[person]),
       });
       for (const [person, amountCents] of shares)
@@ -681,4 +688,226 @@ async function checkTransferTrace(pageFor, base, api) {
   await expect(ui.sum).toHaveText('Between them directly: $30.00 − $10.00 sent elsewhere = $20.00. '
     + 'Member owed Carol $10.00. Bob pays that to Carol instead, so Member receives $10.00 less here.');
   await ui.page.context().close();
+}
+
+// Long histories (#175): the earlier subtotal keeps every column additive,
+// while completion time, not purchase date, decides which ten entries remain.
+async function checkLongLedger(pageFor, base, api) {
+  const trio = await fixtureGroup(api, 'Long ledger trio', ['bob-token', 'carol-token']);
+  const hiddenDebt = await trio.bill('Early shared groceries', [['Alice', 1000], ['Bob', 1840]]);
+  const hiddenSolo = await trio.bill('Early solo pantry', [['Alice', 725]]);
+  const recentDebt = await trio.bill('Recent Carol groceries', [['Carol', 1000], ['Bob', 2300]]);
+  for (let i = 1; i <= 8; i++) await trio.bill(`Recent solo purchase ${i}`, [['Alice', 500 + i]]);
+  const oldPurchase = await trio.bill('Completed last, bought long ago', [['Alice', 900]], { purchaseDate: '2025-01-15' });
+  const state = await api(`/groups/${trio.id}/bills`);
+  assert.equal(state.ledger.entries.length, 12);
+  const hidden = state.ledger.entries.slice(0, -10);
+  const recent = state.ledger.entries.slice(-10);
+  assert.deepEqual(hidden.map(entry => entry.id), [hiddenDebt.id, hiddenSolo.id]);
+  assert.equal(recent.at(-1).id, oldPurchase.id, 'the old purchase completed last');
+  const hiddenIds = new Set(hidden.map(entry => entry.id));
+  const suggestion = recipient => {
+    const s = state.ledger.suggestions.find(s => s.fromUserId === trio.ids.Bob && s.toUserId === trio.ids[recipient]);
+    assert.ok(s, `Bob has a suggested transfer to ${recipient}`);
+    assert.equal(s.explanation.directLines.reduce((sum, line) => sum + line.cents, 0), s.explanation.directCents);
+    assert.equal(s.explanation.directCents + s.explanation.passedAlongCents, s.amountCents);
+    return s;
+  };
+  const toAlice = suggestion('Alice');
+  const toCarol = suggestion('Carol');
+  assert.deepEqual(toAlice.explanation.directLines, [{ entryId: hiddenDebt.id, cents: 1840 }]);
+  assert.deepEqual(toCarol.explanation.directLines, [{ entryId: recentDebt.id, cents: 2300 }]);
+  const hiddenDirect = toAlice.explanation.directLines.filter(line => hiddenIds.has(line.entryId))
+    .reduce((sum, line) => sum + line.cents, 0);
+  assert.equal(hiddenDirect, 1840);
+  assert.ok(toCarol.explanation.directLines.every(line => !hiddenIds.has(line.entryId)));
+  const hiddenCents = { Alice: 1840, Bob: -1840, Carol: null };
+  for (const member of state.ledger.members) {
+    const effects = hidden.flatMap(entry => entry.effects.filter(effect => effect.userId === member.userId));
+    assert.equal(effects.length ? effects.reduce((sum, effect) => sum + effect.netCents, 0) : null,
+      hiddenCents[member.displayName], 'worked hidden effects agree with the HTTP ledger');
+  }
+
+  const page = await pageFor('alice-token', { width: 1280, height: 900 });
+  await page.goto(`${base}#/group-bills/${trio.id}`);
+  const audit = page.getByRole('region', { name: 'Group balances and repayments' });
+  const trace = audit.getByRole('region', { name: 'How the numbers add up' });
+  const toggle = trace.getByRole('button', { name: 'How the numbers add up' });
+  const table = ledgerTable(audit);
+  const earlier = table.getByRole('row').filter({ has: page.getByRole('rowheader', { name: /^Earlier bills and repayments/ }) });
+  const showAll = table.getByRole('button', { name: 'Show all', exact: true });
+  const rows = table.getByRole('row').filter({ has: page.getByRole('rowheader') })
+    .filter({ hasNot: page.getByRole('rowheader', { name: 'Balance', exact: true }) });
+  const directRows = table.getByRole('rowheader', { name: /, directly between them$/ });
+  await toggle.click();
+  await expect(table).toBeVisible();
+  await mkdir('/tmp/st-175', { recursive: true });
+  await trace.screenshot({ path: '/tmp/st-175/long.png', animations: 'disabled' });
+
+  async function expectRecent() {
+    await expect(earlier).toBeVisible();
+    await expect(rows).toHaveCount(11);
+    await expect(rows.first().getByRole('rowheader')).toHaveAccessibleName(/^Earlier bills and repayments/);
+    await expect(earlier.getByRole('rowheader')).toContainText('2 entries');
+    await expect(earlier.getByRole('cell')).toHaveText(state.ledger.members.map(member =>
+      hiddenCents[member.displayName] === null ? '—Not involved' : signedCurrency(hiddenCents[member.displayName])));
+    await expect(showAll).toBeVisible();
+    assert.deepEqual(await table.getByRole('link').evaluateAll(links => links.map(link => link.getAttribute('href'))),
+      recent.map(entry => `#/bills/${entry.id}`), 'only the last ten entries are visible, oldest to newest');
+    await expect(table.getByRole('rowheader', { name: /^Completed last, bought long ago/ })).toContainText('bought Jan 15');
+    await expectColumnSums(audit, state);
+  }
+  await expectRecent();
+  await showAll.click();
+  await expect(earlier).toHaveCount(0);
+  await expect(showAll).toHaveCount(0);
+  await expect(rows).toHaveCount(12);
+  assert.deepEqual(await table.getByRole('link').evaluateAll(links => links.map(link => link.getAttribute('href'))),
+    state.ledger.entries.map(entry => `#/bills/${entry.id}`), 'Show all restores every entry in server order');
+  await expectColumnSums(audit, state);
+  await toggle.click();
+  await expect(table).toHaveCount(0);
+  await toggle.click();
+  await expectRecent();
+
+  const transfer = (recipient, s) => audit.getByRole('region', { name: 'Suggested transfers' })
+    .getByRole('button', { name: `Bob pays ${recipient}, ${currency(s.amountCents)}`, exact: true });
+  await transfer('Alice', toAlice).click();
+  await expect(earlier).not.toHaveClass(/\bledger-row-faded\b/);
+  await expect(earlier.getByRole('rowheader')).toContainText(`includes ${currency(hiddenDirect)} direct between Bob and you`);
+  await expect(earlier.getByRole('rowheader')).not.toHaveAccessibleName(/, directly between them$/);
+  await expect(directRows).toHaveCount(0);
+  await showAll.click();
+  await expect(directRows).toHaveCount(toAlice.explanation.directLines.length);
+  await expect(directRows).toContainText('Early shared groceries');
+  await toggle.click();
+  await toggle.click();
+  await transfer('Carol', toCarol).click();
+  await expect(earlier).toHaveClass(/\bledger-row-faded\b/);
+  await expect(earlier.getByRole('rowheader')).not.toContainText('includes');
+  await expect(directRows).toHaveCount(toCarol.explanation.directLines.length);
+  await expect(directRows).toContainText('Recent Carol groceries');
+
+  const balances = audit.getByRole('region', { name: "Everyone's balance" });
+  await balances.getByRole('button', { name: /^Bob's balance, / }).click();
+  await expect(table.getByRole('columnheader', { name: 'Bob Balance', exact: true })).toBeVisible();
+  await expect(earlier).not.toHaveClass(/\bledger-row-faded\b/);
+  await expect(earlier.getByRole('rowheader')).not.toContainText('includes');
+  await balances.getByRole('button', { name: /^Carol's balance, / }).click();
+  await expect(table.getByRole('columnheader', { name: 'Carol Balance', exact: true })).toBeVisible();
+  await expect(earlier).toHaveClass(/\bledger-row-faded\b/);
+  await page.context().close();
+}
+
+// Sum the actual displayed cells (including the earlier row), not a client
+// helper. Both the Balance footer and the figures above must match the server.
+async function expectColumnSums(audit, state) {
+  const page = audit.page();
+  const table = ledgerTable(audit);
+  const rows = table.getByRole('row').filter({ has: page.getByRole('rowheader') })
+    .filter({ hasNot: page.getByRole('rowheader', { name: 'Balance', exact: true }) });
+  const sums = state.ledger.members.map(() => 0);
+  for (const row of await rows.all()) {
+    const texts = await row.getByRole('cell').allTextContents();
+    assert.equal(texts.length, sums.length);
+    for (const [i, text] of texts.entries()) {
+      if (text === '—Not involved') continue;
+      assert.match(text, /^[+−]?\$\d+\.\d{2}$/);
+      const cents = Number(text.replace(/[+−$.]/g, '')) * (text.startsWith('−') ? -1 : 1);
+      sums[i] += cents;
+    }
+  }
+  assert.deepEqual(sums, state.ledger.members.map(member => member.netCents),
+    'earlier subtotal plus visible entry effects equals every server balance');
+  await expectFooterMatchesList(audit, state);
+}
+
+// A full 16-member table stays keyboard-scrollable, with readable equal member
+// columns and a sticky bill column. Rules remain real, adjacent table cells.
+async function checkWideLedger(pageFor, base, api) {
+  const group = await fixtureGroup(api, 'Wide ledger sixteen', [
+    'bob-token', 'carol-token', ...Array.from({ length: 13 }, (_, i) => `member-${i + 1}-token`),
+  ]);
+  const bill = await group.bill('Wide shared groceries', [['Alice', 1000], ['Bob', 1840], ['Carol', 2300]]);
+  const state = await api(`/groups/${group.id}/bills`);
+  assert.equal(state.ledger.members.length, 16);
+  assert.equal(state.ledger.members.filter(member => member.displayName === 'Member').length, 13,
+    'member-1 through member-13 have the same test display name; locate columns in server order');
+  assert.deepEqual(state.ledger.entries.map(entry => entry.id), [bill.id]);
+  const page = await pageFor('alice-token', { width: 1280, height: 900 });
+  await page.goto(`${base}#/group-bills/${group.id}`);
+  const audit = page.getByRole('region', { name: 'Group balances and repayments' });
+  const trace = audit.getByRole('region', { name: 'How the numbers add up' });
+  await trace.getByRole('button', { name: 'How the numbers add up' }).click();
+  const table = ledgerTable(audit);
+  await expect(table).toBeVisible();
+  await mkdir('/tmp/st-175', { recursive: true });
+  await trace.screenshot({ path: '/tmp/st-175/wide.png', animations: 'disabled' });
+  const scroll = trace.getByRole('region', { name: 'Ledger table', exact: true });
+  await expect(scroll).toBeVisible();
+  await expect(scroll).toHaveAttribute('tabindex', '0');
+  await scroll.focus();
+  await expect(scroll).toBeFocused();
+  const viewport = await scroll.evaluate(node => {
+    const rect = node.getBoundingClientRect();
+    return { left: rect.left, right: rect.right, clientWidth: node.clientWidth, scrollWidth: node.scrollWidth };
+  });
+  assert.ok(viewport.scrollWidth > viewport.clientWidth, 'sixteen readable member columns overflow their wrapper');
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true,
+    'wide ledger scrolls within its wrapper, not the whole page');
+  const headers = table.getByRole('columnheader');
+  await expect(headers).toHaveText(['Bill or repayment', ...state.ledger.members.map(member =>
+    member.userId === group.ids.Alice ? 'You' : member.displayName)]);
+  const widths = await headers.evaluateAll(nodes => nodes.slice(1).map(node => node.getBoundingClientRect().width));
+  assert.ok(widths.every(width => width >= 116), `member columns are at least 116px: ${widths}`);
+  assert.ok(Math.max(...widths) - Math.min(...widths) <= 1, `member columns have equal widths: ${widths}`);
+  await expectFooterMatchesList(audit, state);
+  const fixed = table.getByRole('columnheader', { name: 'Bill or repayment', exact: true }).or(table.getByRole('rowheader'));
+  const before = await fixed.evaluateAll(nodes => nodes.map(node => {
+    const style = getComputedStyle(node);
+    return { x: node.getBoundingClientRect().x, position: style.position, left: style.left };
+  }));
+  for (const cell of before) {
+    assert.equal(cell.position, 'sticky', 'the first-column header and every rowheader are sticky');
+    assert.equal(cell.left, '0px');
+  }
+  const footer = table.getByRole('row').filter({ has: page.getByRole('rowheader', { name: 'Balance', exact: true }) });
+  async function footerRule(scrolled) {
+    const cells = await footer.getByRole('rowheader').or(footer.getByRole('cell')).evaluateAll(nodes => nodes.map(node => {
+      const rect = node.getBoundingClientRect();
+      const style = getComputedStyle(node);
+      return { left: rect.left, right: rect.right, borderWidth: style.borderTopWidth, borderStyle: style.borderTopStyle };
+    }));
+    assert.equal(cells.length, 17);
+    for (const cell of cells) {
+      assert.equal(cell.borderWidth, '2px', 'each footer cell keeps its 2px top rule');
+      assert.equal(cell.borderStyle, 'solid');
+    }
+    // Once scrolled, the first td moves behind the sticky th; member cells
+    // still abut each other, and their clipped visible rules meet the th edge.
+    for (let i = scrolled ? 2 : 1; i < cells.length; i++)
+      assert.ok(Math.abs(cells[i].left - cells[i - 1].right) <= 1, 'adjacent footer rules abut');
+    let covered = cells[0].right;
+    for (const cell of cells.slice(1).filter(cell => cell.right > covered && cell.left < viewport.right)) {
+      const left = Math.max(cell.left, cells[0].right);
+      assert.ok(left <= covered + 1, 'visible Balance rule has no gap at the sticky edge or between member cells');
+      covered = Math.max(covered, Math.min(cell.right, viewport.right));
+    }
+    assert.ok(covered >= viewport.right - 1, 'visible Balance rule reaches the wrapper right edge');
+  }
+  await footerRule(false);
+  await scroll.evaluate(async node => {
+    node.scrollLeft = node.scrollWidth - node.clientWidth;
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  });
+  assert.ok(await scroll.evaluate(node => node.scrollLeft > 0), 'wrapper actually scrolls');
+  const after = await fixed.evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().x));
+  assert.equal(after.length, before.length);
+  for (const [i, x] of after.entries()) assert.ok(Math.abs(x - before[i].x) <= 1, 'first-column headers stay fixed after scrolling');
+  const last = await headers.last().boundingBox();
+  assert.ok(last && last.x >= viewport.left - 1 && last.x + last.width <= viewport.right + 1,
+    'the last member header is visible at maximum scroll');
+  await footerRule(true);
+  await trace.screenshot({ path: '/tmp/st-175/wide.png', animations: 'disabled' });
+  await page.context().close();
 }
