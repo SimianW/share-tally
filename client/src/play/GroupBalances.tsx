@@ -1,11 +1,19 @@
-import { useId, useState, useSyncExternalStore } from 'react';
+import { useId, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { AnimatedMoney } from './AnimatedMoney';
-import { money, type LedgerEntry } from './bill-api';
+import { money, type GroupLedger, type LedgerEntry } from './bill-api';
 import type { GroupPageData, GroupView } from './group-view';
+import { transferReason, wording } from './transfer-reason';
 import { Icon } from './ui';
 
-// A figure in the lists that the ledger table can trace.
-type Subject = { kind: 'member'; userId: string };
+// A figure in the lists that the ledger table can trace. A transfer is the pair
+// it is between; its amount is only what the figure showed when it was chosen.
+type Subject = { kind: 'member'; userId: string } | { kind: 'transfer'; fromId: string; toId: string; amountCents: number };
+type Suggestion = GroupLedger['suggestions'][number];
+// What the table highlights: a member, or the current suggestion for a traced pair.
+type Trace = { kind: 'member'; userId: string } | { kind: 'transfer'; suggestion: Suggestion };
+const same = (a: Subject | null, b: Subject) => a?.kind === b.kind
+  && (a.kind === 'member' ? b.kind === 'member' && a.userId === b.userId
+    : b.kind === 'transfer' && a.fromId === b.fromId && a.toId === b.toId);
 
 // The group page's mobile breakpoint; tracing figures is a desktop feature.
 const narrowQuery = '(max-width: 640px)';
@@ -17,6 +25,7 @@ function useNarrow() {
   }, () => window.matchMedia(narrowQuery).matches);
 }
 
+const minus = (cents: number) => `${cents < 0 ? '−' : ''}${money(Math.abs(cents))}`;
 const signed = (cents: number) => `${cents > 0 ? '+' : cents < 0 ? '−' : ''}${money(Math.abs(cents))}`;
 const tone = (cents: number) => cents > 0 ? 'group-tone-owed' : cents < 0 ? 'group-tone-owe' : '';
 const shortDate = (date: Date) => date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
@@ -29,22 +38,40 @@ function entryDate(entry: LedgerEntry) {
 }
 
 // "Everyone's balance" and "Suggested transfers", plus on desktop a collapsible
-// table of the server's ledger entries that shows how each balance adds up.
+// table of the server's ledger entries that shows how each balance and transfer adds up.
 // Every figure comes from the server; this only arranges and highlights them.
 export function GroupBalances({ data, view }: { data: GroupPageData; view: GroupView }) {
   const traceable = !useNarrow();
   const [expanded, setExpanded] = useState(false);
   const [pinned, setPinned] = useState<Subject | null>(null);
   const [hover, setHover] = useState<Subject | null>(null);
+  // A live update can remove a suggested transfer; a pin or hover on it is cleared.
+  const suggestionFor = (subject: Subject | null) => subject?.kind === 'transfer'
+    ? view.suggestions.find(s => s.fromUserId === subject.fromId && s.toUserId === subject.toId) : undefined;
+  if (pinned?.kind === 'transfer' && !suggestionFor(pinned)) setPinned(null);
+  if (hover?.kind === 'transfer' && !suggestionFor(hover)) setHover(null);
   // Hover traces only while expanded, so the section never jumps open under the pointer.
   const active = traceable && expanded ? pinned ?? hover : null;
+  const transfer = suggestionFor(active);
+  const trace: Trace | null = active?.kind === 'member' ? active : transfer ? { kind: 'transfer', suggestion: transfer } : null;
   const sectionId = useId();
   const headingId = useId();
   const pin = (subject: Subject) => {
     if (!expanded) { setExpanded(true); setPinned(subject); return; }
-    setPinned(current => current?.userId === subject.userId ? null : subject);
+    setPinned(current => same(current, subject) ? null : subject);
   };
   const toggle = () => { setExpanded(value => !value); setPinned(null); };
+  const { subject: who, object: whom, verb } = wording(view);
+  // Accessible names use display names, as balance figures do: "Bob pays Carol, $12.00".
+  const displayName = (id: string) => view.members.find(member => member.userId === id)?.displayName ?? view.name(id);
+  // Figures stay as they are; on desktop they become buttons that trace them.
+  const traceButton = (subject: Subject, label: string, figure: ReactNode) => <button type="button"
+    className="group-ledger-figure" aria-label={label}
+    aria-pressed={same(pinned, subject)} aria-controls={sectionId}
+    title={expanded ? undefined : 'Show how this adds up'}
+    onMouseEnter={() => setHover(subject)} onMouseLeave={() => setHover(null)}
+    onFocus={() => setHover(subject)} onBlur={() => setHover(null)}
+    onClick={() => pin(subject)}>{figure}</button>;
 
   return <>
     <div className="group-audit-columns">
@@ -56,15 +83,9 @@ export function GroupBalances({ data, view }: { data: GroupPageData; view: Group
             const figure = <strong className={tone(member.netCents)}>
               {member.netCents > 0 ? '+' : member.netCents < 0 ? '−' : ''}<AnimatedMoney cents={member.netCents} />
             </strong>;
-            return <li key={member.userId} className={active?.userId === member.userId ? 'group-ledger-traced' : undefined}>
+            return <li key={member.userId} className={same(active, subject) ? 'group-ledger-traced' : undefined}>
               <span>{member.displayName}{member.userId === view.me.id && ' (you)'}</span>
-              {traceable ? <button type="button" className="group-ledger-figure"
-                aria-label={`${member.displayName}'s balance, ${signed(member.netCents)}`}
-                aria-pressed={pinned?.userId === member.userId} aria-controls={sectionId}
-                title={expanded ? undefined : 'Show how this adds up'}
-                onMouseEnter={() => setHover(subject)} onMouseLeave={() => setHover(null)}
-                onFocus={() => setHover(subject)} onBlur={() => setHover(null)}
-                onClick={() => pin(subject)}>{figure}</button> : figure}
+              {traceable ? traceButton(subject, `${member.displayName}'s balance, ${signed(member.netCents)}`, figure) : figure}
             </li>;
           })}
         </ul>
@@ -72,15 +93,20 @@ export function GroupBalances({ data, view }: { data: GroupPageData; view: Group
       <section aria-label="Suggested transfers">
         <h3>Suggested transfers</h3>
         {view.suggestions.length ? <ul className="group-ledger-rows">
-          {view.suggestions.map(suggestion => <li key={`${suggestion.fromUserId}:${suggestion.toUserId}`}>
-            <span>{view.name(suggestion.fromUserId)} → {view.name(suggestion.toUserId)}</span>
-            <strong>{money(suggestion.amountCents)}</strong>
-          </li>)}
+          {view.suggestions.map(suggestion => {
+            const { fromUserId: fromId, toUserId: toId, amountCents } = suggestion;
+            const subject: Subject = { kind: 'transfer', fromId, toId, amountCents };
+            const figure = <strong>{money(amountCents)}</strong>;
+            return <li key={`${fromId}:${toId}`} className={same(active, subject) ? 'group-ledger-traced' : undefined}>
+              <span>{view.name(fromId)} → {view.name(toId)}</span>
+              {traceable ? traceButton(subject, `${displayName(fromId)} pays ${displayName(toId)}, ${money(amountCents)}`, figure) : figure}
+            </li>;
+          })}
         </ul> : <p className="group-empty">No transfers needed.</p>}
       </section>
     </div>
     {traceable && <section id={sectionId} aria-labelledby={headingId}
-      className={`ledger-trace${expanded ? ' ledger-trace-open' : ''}${active ? ' ledger-trace-active' : ''}`}>
+      className={`ledger-trace${expanded ? ' ledger-trace-open' : ''}${trace ? ' ledger-trace-active' : ''}`}>
       <h3 id={headingId}>
         <button type="button" aria-expanded={expanded} onClick={toggle}>
           How the numbers add up<Icon name="down" size={16} className="ledger-trace-chevron" />
@@ -88,38 +114,47 @@ export function GroupBalances({ data, view }: { data: GroupPageData; view: Group
       </h3>
       {expanded && <>
         <p className="ledger-trace-hint">
-          {active ? <>Reading down <b>{active.userId === view.me.id ? 'your' : `${view.name(active.userId)}'s`}</b> column:
+          {trace?.kind === 'member' ? <>Reading down <b>{trace.userId === view.me.id ? 'your' : `${view.name(trace.userId)}'s`}</b> column:
             each bill adds what they paid and subtracts their share and any initiator adjustment; each confirmed repayment
             adds what they sent and subtracts what they received.</>
-            : 'Hover over a balance above to trace it, or click it to keep it highlighted.'}
+            : trace ? <><b>{who(trace.suggestion.fromUserId)}</b> {verb(trace.suggestion.fromUserId, 'pay')} <b>{whom(trace.suggestion.toUserId)}</b>
+              {' '}{money(trace.suggestion.amountCents)}. {trace.suggestion.explanation.directLines.length
+                ? 'Highlighted rows are the bills and repayments directly between them.'
+                : 'No bill or repayment is directly between them.'}</>
+            : 'Hover over a balance or transfer above to trace it, or click it to keep it highlighted.'}
           {pinned && <button type="button" className="ledger-trace-unpin" onClick={() => setPinned(null)}>Unpin</button>}
         </p>
-        <LedgerTable data={data} view={view} active={active} />
+        <LedgerTable data={data} view={view} trace={trace} />
       </>}
     </section>}
   </>;
 }
 
-function LedgerTable({ data, view, active }: { data: GroupPageData; view: GroupView; active: Subject | null }) {
-  const traced = (userId: string) => active?.userId === userId;
+function LedgerTable({ data, view, trace }: { data: GroupPageData; view: GroupView; trace: Trace | null }) {
+  const transfer = trace?.kind === 'transfer' ? trace.suggestion : null;
+  // A traced column's role, shown as text in its header.
+  const role = (userId: string) => trace?.kind === 'member' ? trace.userId === userId && 'Balance'
+    : transfer?.fromUserId === userId ? 'Pays' : transfer?.toUserId === userId && 'Receives';
+  const traced = (userId: string) => !!role(userId);
   const column = (userId: string, className = '') => `${className}${traced(userId) ? ' ledger-traced' : ''}`.trim() || undefined;
+  const direct = new Set(transfer?.explanation.directLines.map(line => line.entryId));
   const open = data.bills.filter(bill => data.ledger.incompleteBillIds.includes(bill.id));
   return <>
     <div className="ledger-table-scroll">
-      <table className={`ledger-table${active ? ' ledger-table-active' : ''}`} aria-label="Bills and repayments by member">
+      <table className={`ledger-table${trace ? ' ledger-table-active' : ''}`} aria-label="Bills and repayments by member">
         <thead>
           <tr>
             <th scope="col"><span>Bill or repayment</span></th>
             {view.members.map(member => <th scope="col" key={member.userId} className={column(member.userId)}>
               <span className="ledger-column-head">{view.name(member.userId)}
-                {traced(member.userId) && <small>Balance</small>}</span>
+                {traced(member.userId) && <small>{role(member.userId)}</small>}</span>
             </th>)}
           </tr>
         </thead>
         <tbody>
           {data.ledger.entries.map(entry => {
             const effects = new Map(entry.effects.map(effect => [effect.userId, effect.netCents]));
-            const involved = !active || effects.has(active.userId);
+            const involved = !trace || (trace.kind === 'member' ? effects.has(trace.userId) : direct.has(entry.id));
             const initiator = entry.kind === 'bill' ? view.name(entry.initiatorId) : '';
             return <tr key={entry.id} className={involved ? undefined : 'ledger-row-faded'}>
               <th scope="row">
@@ -128,6 +163,7 @@ function LedgerTable({ data, view, active }: { data: GroupPageData; view: GroupV
                     : <span>Repayment · {view.name(entry.senderId)} → {view.name(entry.recipientId)}</span>}
                   <small>{entryDate(entry)}{entry.kind === 'bill'
                     && ` · paid by ${initiator === 'You' ? 'you' : initiator} · ${money(entry.totalCents)}`}</small>
+                  {transfer && direct.has(entry.id) && <span className="sr-only">, directly between them</span>}
                 </span>
               </th>
               {view.members.map(member => {
@@ -153,8 +189,20 @@ function LedgerTable({ data, view, active }: { data: GroupPageData; view: GroupV
         </tfoot>
       </table>
     </div>
+    {transfer && <TransferSum suggestion={transfer} directDebts={data.ledger.directDebts} view={view} />}
     {open.length > 0 && <p className="ledger-trace-note">
       <Icon name="clock" size={13} />Not counted yet: {open.map(bill => bill.title).join(', ')} (still open)
     </p>}
   </>;
+}
+
+// "Between them directly: $60.79 + $19.92 passed along = $80.71." and the reason.
+function TransferSum({ suggestion, directDebts, view }: { suggestion: Suggestion; directDebts: GroupLedger['directDebts']; view: GroupView }) {
+  const { directCents, passedAlongCents: passed } = suggestion.explanation;
+  const reason = transferReason(suggestion, directDebts, view);
+  return <p className="ledger-trace-transfer">
+    Between them directly: <b>{minus(directCents)}</b>
+    {passed > 0 ? <> + <b>{money(passed)}</b> passed along</> : passed < 0 ? <> − <b>{money(-passed)}</b> sent elsewhere</> : null}
+    {' '}= <b>{money(suggestion.amountCents)}</b>.{reason && ` ${reason}`}
+  </p>;
 }
