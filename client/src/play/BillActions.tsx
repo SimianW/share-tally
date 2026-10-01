@@ -134,7 +134,6 @@ function ShareEditor({ bill, api, saved, refresh }: Props) {
   } catch {
     /* Show validation on submit. */
   }
-  const isInitiator = own.userId === bill.initiatorId;
   const changed = own.amountCents !== null && parsedAmount !== own.amountCents;
   return (
     <form
@@ -188,13 +187,11 @@ function ShareEditor({ bill, api, saved, refresh }: Props) {
         {review.terminal
           ? "This bill is final. Your share can no longer be changed."
           : changed
-          ? isInitiator
-            ? "Saving confirms your new amount. Other participants will need to confirm again."
-            : "Changing your amount clears everyone’s confirmation, including yours. Review and confirm again after saving."
+          ? "Saving confirms your new amount. Everyone else’s confirmation stays."
           : own.amountCents === null
             ? "Include your tax, discounts, and rounding. Enter 0 if you have no cost."
             : own.confirmedAt
-              ? "You can still edit your amount above. Saving a change will require renewed confirmations."
+              ? "You can still edit your amount above. Saving a change confirms it and keeps everyone else’s confirmation."
               : "Confirming the same amount keeps everyone else’s confirmation."}
       </p>
       {validation && (
@@ -328,6 +325,12 @@ function EditBill({
   const [validation, setValidation] = useState("");
   const mutation = useMutation(saved);
   const review = useDraftReview(bill, String(bill.revision), mutation);
+  let totalChanged = true;
+  try {
+    totalChanged = parseMoney(total) !== bill.totalCents;
+  } catch {
+    /* Show validation on submit. */
+  }
   useEffect(() => {
     const controller = new AbortController();
     groups
@@ -377,10 +380,19 @@ function EditBill({
           void mutation.run(() => api.edit(bill.id, input));
         }}
       >
-        <Notification tone="warning" title="Everyone will need to confirm again">
-          Saving any edit clears everyone’s confirmation, even if you only
-          change its description. Existing amounts stay.
-        </Notification>
+        {bill.mode === "items" ? (
+          <Notification tone="warning" title="Everyone will need to confirm again">
+            Saving any edit clears everyone’s confirmation, even if you only
+            change its description. Existing amounts stay.
+          </Notification>
+        ) : totalChanged ? (
+          <Notification tone="warning" title="Everyone will need to confirm again">
+            Changing the total clears everyone’s confirmation, including yours.
+            Existing amounts stay.
+          </Notification>
+        ) : (
+          <p>Confirmations stay when you change only the title, date, notes or participants.</p>
+        )}
         <fieldset disabled={mutation.busy}>
           <label>
             Title

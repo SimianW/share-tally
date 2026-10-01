@@ -329,7 +329,9 @@ export async function changeBill(
         if (!shares.some((s) => s.userId === userId))
           await tx.insert(billShares).values({ billId: id, userId });
     }
-    await clearConfirmations(tx, id);
+    // Manual confirmations cover only their owner's share, so only a new total voids them (ADR-0015).
+    const keepConfirmations = bill.mode !== 'items' && input?.totalCents === bill.totalCents;
+    if (!keepConfirmations) await clearConfirmations(tx, id);
     await tx
       .update(bills)
       .set({
@@ -347,6 +349,7 @@ export async function changeBill(
       })
       .where(eq(bills.id, id));
     if (bill.mode === 'items') await recalculateItemBill(tx, { ...bill, totalCents: input?.totalCents ?? bill.totalCents, completedAt: null });
+    if (keepConfirmations) await complete(tx, bill);
     return bill.groupId;
   });
   notifyGroupChanged(groupId);
@@ -382,27 +385,12 @@ export async function submitShare(
         409,
         "Completed bills are final and cannot be changed.",
       );
-    const changed =
-      share.amountCents !== null && share.amountCents !== input.amount;
-    if (changed) {
-      await clearConfirmations(tx, id);
-      await tx
-        .update(bills)
-        .set({
-          revision: bill.revision + 1,
-          adjustmentCents: null,
-          completedAt: null,
-        })
-        .where(eq(bills.id, id));
-    }
+    // A share is its owner's debt alone, so saving confirms it without touching other confirmations (ADR-0015).
     await tx
       .update(billShares)
-      .set({
-        amountCents: input.amount,
-        confirmedAt: changed && userId !== bill.initiatorId ? null : new Date(),
-      })
+      .set({ amountCents: input.amount, confirmedAt: new Date() })
       .where(and(eq(billShares.billId, id), eq(billShares.userId, userId)));
-    if (!changed || userId === bill.initiatorId) await complete(tx, bill);
+    await complete(tx, bill);
     return bill.groupId;
   });
   notifyGroupChanged(groupId);
