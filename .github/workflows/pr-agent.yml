@@ -11,10 +11,6 @@ permissions:
   pull-requests: write
   issues: write
 
-concurrency:
-  group: pr-agent-${{ github.event.pull_request.number || github.event.issue.number }}
-  cancel-in-progress: true
-
 jobs:
   review:
     # Limit API usage to repository collaborators and PRs from this repository.
@@ -33,6 +29,9 @@ jobs:
           startsWith(github.event.comment.body, '/describe') ||
           startsWith(github.event.comment.body, '/ask')))
       )
+    concurrency:
+      group: pr-agent-${{ github.event.pull_request.number || github.event.issue.number }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
