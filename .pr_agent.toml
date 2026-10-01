@@ -3,12 +3,13 @@ model = "zai/glm-5.3-flash"
 model_weak = "zai/glm-5.3-flash"
 model_reasoning = "zai/glm-5.3-flash"
 fallback_models = []
-reasoning_effort = "max"
+reasoning_effort = "high"
 temperature = 1.0
 response_language = "en-US"
-# Allow substantial diffs and reserve output space for maximum-effort reasoning.
+# Allow substantial diffs. Reasoning and the review share one output cap, so
+# high effort leaves room for the review on large diffs.
 max_model_tokens = 128000
-max_output_tokens = 65536
+max_output_tokens = 32768
 ai_timeout = 180
 retry_same_model_on_timeout = false
 num_retries = 0
@@ -19,7 +20,7 @@ publish_output_progress = false
 repo_context_files = ["AGENTS.md", "CONTEXT.md", "docs/project-brief.md"]
 
 [litellm]
-# Stream maximum-effort reasoning so long generations do not hit a read timeout.
+# Stream long reasoning so generations do not hit a read timeout.
 custom_llm_provider = "zai"
 force_streaming_custom_llm_provider = "zai"
 force_streaming_api_base_substrings = ["api.z.ai/api/paas/v4"]
