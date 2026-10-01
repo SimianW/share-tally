@@ -1,6 +1,6 @@
 import { useId, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { AnimatedMoney } from './AnimatedMoney';
-import { BalanceSheet } from './BalanceSheet';
+import { BalanceSheet, OpenBillsNote } from './BalanceSheet';
 import { money, type GroupLedger } from './bill-api';
 import type { GroupPageData, GroupView } from './group-view';
 import { entryCount, entryDate, minus, recentLines, signed, tone, type Suggestion, type Trace } from './ledger-trace';
@@ -148,7 +148,6 @@ function LedgerTable({ data, view, trace }: { data: GroupPageData; view: GroupVi
   const traced = (userId: string) => !!role(userId);
   const column = (userId: string, className = '') => `${className}${traced(userId) ? ' ledger-traced' : ''}`.trim() || undefined;
   const direct = new Set(transfer?.explanation.directLines.map(line => line.entryId));
-  const open = data.bills.filter(bill => data.ledger.incompleteBillIds.includes(bill.id));
   const { entries } = data.ledger;
   const { hidden, shown } = recentLines(entries, showAll);
   // Each member's subtotal of the hidden entries; absent when none of them involve the member.
@@ -219,9 +218,7 @@ function LedgerTable({ data, view, trace }: { data: GroupPageData; view: GroupVi
       </table>
     </div>
     {transfer && <TransferSum suggestion={transfer} ledger={data.ledger} view={view} />}
-    {open.length > 0 && <p className="ledger-trace-note">
-      <Icon name="clock" size={13} />Not counted yet: {open.map(bill => bill.title).join(', ')} (still open)
-    </p>}
+    <OpenBillsNote data={data} />
   </>;
 }
 

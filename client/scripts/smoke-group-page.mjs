@@ -990,7 +990,7 @@ async function expectSheetEntry(row, entry, cents, effect) {
   }
   if (effect.adjustmentCents !== 0) {
     await expect(header).toContainText(/adjustment/i);
-    await expect(header).toContainText(signedCurrency(-effect.adjustmentCents));
+    await expect(header).toContainText(signedCurrency(effect.adjustmentCents));
   }
 }
 

@@ -32,7 +32,16 @@ export function BalanceSheet({ data, view, trace, close }: Props & { trace: Trac
     closeLabel="Close explanation" closeOnOutsideClick close={close}>
     {trace.kind === 'member' ? <MemberReceipt data={data} view={view} userId={trace.userId} />
       : <TransferReceipt data={data} view={view} suggestion={trace.suggestion} />}
+    <OpenBillsNote data={data} />
   </Dialog>;
+}
+
+// Incomplete bills are left out of every balance and transfer until they complete.
+export function OpenBillsNote({ data }: { data: GroupPageData }) {
+  const open = data.bills.filter(bill => data.ledger.incompleteBillIds.includes(bill.id));
+  return open.length > 0 && <p className="ledger-trace-note">
+    <Icon name="clock" size={13} />Not counted yet: {open.map(bill => bill.title).join(', ')} (still open)
+  </p>;
 }
 
 // Every entry with an effect on the member: what they paid, their share and any
@@ -49,13 +58,12 @@ function MemberReceipt({ data, view, userId }: Props & { userId: string }) {
     const effect = entry.effects.find(effect => effect.userId === userId);
     if (!effect) return [];
     const { paidCents, shareCents, adjustmentCents } = effect;
-    // An adjustment raises the initiator's cost, so its effect is its negation.
+    // Shown with its own sign: like the share, it is subtracted from what was paid.
     const detail = paidCents
-      ? [`Paid ${money(paidCents)}`, `share ${money(shareCents)}`, ...adjustmentCents ? [`initiator adjustment ${signed(-adjustmentCents)}`] : []]
+      ? [`Paid ${money(paidCents)}`, `share ${money(shareCents)}`, ...adjustmentCents ? [`initiator adjustment ${signed(adjustmentCents)}`] : []]
       : [`Share ${money(shareCents)} of ${whose(entry.initiatorId)} ${money(entry.totalCents)} bill`];
     return [{ entry, cents: effect.netCents, detail }];
   });
-  const open = data.bills.filter(bill => data.ledger.incompleteBillIds.includes(bill.id));
   const they = self ? 'you' : view.name(userId);
   const net = member?.netCents ?? 0;
   return <>
@@ -72,9 +80,6 @@ function MemberReceipt({ data, view, userId }: Props & { userId: string }) {
         </tr>
       </tfoot>
     </table>
-    {open.length > 0 && <p className="ledger-trace-note">
-      <Icon name="clock" size={13} />Not counted yet: {open.map(bill => bill.title).join(', ')} (still open)
-    </p>}
   </>;
 }
 
