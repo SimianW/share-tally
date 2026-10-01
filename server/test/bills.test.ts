@@ -681,29 +681,63 @@ test("incomplete bill corrections retain amounts, clear confirmations, and recon
   assert.equal((await json(await api("/summary"))).summary.netCents, 5900);
 });
 
-test("amount changes clear all confirmations and old requests never reconfirm a newer revision", async () => {
+test("a share change keeps other confirmations, confirms the changer, and keeps the revision", async () => {
   const { path, draft } = await setup();
   const created = await billCreate(path, draft);
   await submit(created.id, 4000, "alice-token");
   await submit(created.id, 3000);
   const changed = await shareAt(created.id, created.revision, 3000, 2999);
-  assert.equal(changed.confirmedCount, 0);
-  assert.equal(changed.revision, created.revision + 1);
-  await shareAt(created.id, created.revision, 3000, 2999, "bob-token", 409);
-  await shareAt(created.id, created.revision, null, 3001, "carol-token", 409);
-  await shareAt(created.id, changed.revision, null, 3001, "carol-token");
-  const one = await readBill(created.id);
-  assert.equal(one.confirmedCount, 1);
-  await shareAt(created.id, changed.revision, 2999, 2999);
-  const done = await shareAt(
-    created.id,
-    changed.revision,
-    4000,
-    4000,
-    "alice-token",
+  assert.equal(changed.revision, created.revision);
+  assert.equal(changed.confirmedCount, 2);
+  assert.ok(
+    changed.participants.find((p: { displayName: string }) => p.displayName === "Bob").confirmedAt,
   );
+  // A request built on Bob's earlier amount never overwrites the newer one.
+  await shareAt(created.id, created.revision, 3000, 2998, "bob-token", 409);
+  const done = await shareAt(created.id, created.revision, null, 3001, "carol-token");
   assert.ok(done.completedAt);
   assert.equal(done.differenceCents, 0);
+});
+
+test("a share change completes the bill once every confirmed share matches the total", async () => {
+  const { path, draft } = await setup();
+  const created = await billCreate(path, draft);
+  await submit(created.id, 4000, "alice-token");
+  await submit(created.id, 3000);
+  const all = await submit(created.id, 2900, "carol-token");
+  assert.equal(all.confirmedCount, 3);
+  assert.equal(all.completedAt, null);
+  const bobTime = all.participants.find((p: { displayName: string }) => p.displayName === "Bob").confirmedAt;
+  const wider = await shareAt(created.id, created.revision, 2900, 2800, "carol-token");
+  assert.equal(wider.confirmedCount, 3);
+  assert.equal(wider.completedAt, null);
+  const initiator = await shareAt(created.id, created.revision, 4000, 4100, "alice-token");
+  assert.equal(initiator.confirmedCount, 3);
+  assert.equal(initiator.completedAt, null);
+  const done = await shareAt(created.id, created.revision, 2800, 2898, "carol-token");
+  assert.ok(done.completedAt);
+  assert.equal(done.adjustmentCents, 2);
+  assert.equal(
+    done.participants.find((p: { displayName: string }) => p.displayName === "Bob").confirmedAt,
+    bobTime,
+  );
+  await shareAt(created.id, created.revision, 2898, 2900, "carol-token", 409);
+});
+
+test("concurrent share changes both persist and complete the bill", async () => {
+  const { path, draft } = await setup();
+  const created = await billCreate(path, draft);
+  await submit(created.id, 4000, "alice-token");
+  await submit(created.id, 3000);
+  await submit(created.id, 2900, "carol-token");
+  await Promise.all([
+    shareAt(created.id, created.revision, 3000, 3050),
+    shareAt(created.id, created.revision, 2900, 2950, "carol-token"),
+  ]);
+  const done = await readBill(created.id);
+  assert.ok(done.completedAt);
+  assert.equal(done.submittedCents, 10000);
+  assert.equal(done.confirmedCount, 3);
 });
 
 test("descriptive edits, participant replacement, removal permissions and cancellation", async () => {
@@ -724,9 +758,12 @@ test("descriptive edits, participant replacement, removal permissions and cancel
     )
   ).bill;
   assert.equal(changed.notes, "Corrected note");
-  assert.equal(changed.confirmedCount, 0);
+  assert.equal(changed.confirmedCount, 3);
+  assert.equal(changed.revision, before.revision + 1);
   assert.equal(changed.completedAt, null);
   assert.equal(changed.submittedCents, 9900);
+  // A confirmation built on the earlier revision is sent back for review.
+  await shareAt(created.id, before.revision, 2900, 2950, "carol-token", 409);
   const removed = (
     await json(
       await api(
@@ -737,6 +774,7 @@ test("descriptive edits, participant replacement, removal permissions and cancel
       ),
     )
   ).bill;
+  assert.equal(removed.confirmedCount, 2);
   await shareAt(created.id, removed.revision, 3000, 3000, "carol-token", 403);
   assert.equal(
     (await json(await api(`/groups/${group.id}`, "carol-token"))).group.members
@@ -759,6 +797,8 @@ test("descriptive edits, participant replacement, removal permissions and cancel
     ).amountCents,
     null,
   );
+  assert.equal(added.confirmedCount, 2);
+  assert.equal(added.completedAt, null);
   await action(created.id, "cancel", added.revision, "bob-token", 403);
   const canceled = await action(created.id, "cancel", added.revision);
   assert.ok(canceled.canceledAt);
@@ -775,6 +815,26 @@ test("descriptive edits, participant replacement, removal permissions and cancel
   );
   assert.equal((await json(await api(path))).bills.length, 1);
   assert.equal((await json(await api(path))).summary.netCents, 0);
+});
+
+test("removing a participant who has not submitted completes a bill that now matches", async () => {
+  const { path, draft, ids } = await setup();
+  const created = await billCreate(path, draft);
+  await submit(created.id, 4000, "alice-token");
+  const waiting = await submit(created.id, 6000);
+  assert.equal(waiting.completedAt, null);
+  const done = (
+    await json(
+      await api(
+        `/bills/${created.id}`,
+        "alice-token",
+        "PATCH",
+        editBody(waiting, { participantIds: [ids.Alice, ids.Bob] }),
+      ),
+    )
+  ).bill;
+  assert.ok(done.completedAt);
+  assert.equal(done.adjustmentCents, 0);
 });
 
 test("bill mutation validation and permissions cannot alter other participants shares or remove initiator", async () => {
@@ -865,10 +925,17 @@ test("concurrent initiator edits and share edits serialize and reject the losing
       amountCents: 2999,
     }),
   ]);
-  assert.deepEqual(responses.map((r) => r.status).sort(), [200, 409, 409]);
+  const [first, second, share] = responses.map((r) => r.status);
+  assert.deepEqual([first, second].sort(), [200, 409]);
+  // A share change keeps the revision, so it succeeds only if it lands before the edit.
+  assert.ok([200, 409].includes(share));
   const after = await readBill(bill.id);
   assert.equal(after.revision, bill.revision + 1);
-  assert.equal(after.confirmedCount, 0);
+  assert.equal(after.confirmedCount, 2);
+  assert.equal(
+    after.participants.find((p: { displayName: string }) => p.displayName === "Bob").amountCents,
+    share === 200 ? 2999 : 3000,
+  );
 });
 
 test("a confirmation racing with an edit cannot survive that edit", async () => {
@@ -891,7 +958,7 @@ test("a confirmation racing with an edit cannot survive that edit", async () => 
       `/bills/${open.id}`,
       "alice-token",
       "PATCH",
-      editBody(open, { notes: "New context" }),
+      editBody(open, { notes: "New context", totalCents: 9800 }),
     ),
     api(`/bills/${open.id}/share`, "bob-token", "POST", {
       revision: open.revision,
@@ -1192,21 +1259,18 @@ test('16 nonzero members receive a minimum plan within the measured API runtime'
 });
 
 
-test("initiator amount correction confirms their share while others must reconfirm", async () => {
+test("initiator amount correction keeps other confirmations and completes a matching bill", async () => {
   const { path, draft } = await setup(false);
   const created = await billCreate(path, draft);
   await submit(created.id, 4000, "alice-token");
-  await submit(created.id, 5900);
-  const changed = await shareAt(created.id, created.revision, 4000, 4100, "alice-token");
-  assert.equal(changed.confirmedCount, 1);
-  assert.ok(changed.participants.find((p: { isCurrentUser: boolean }) => p.isCurrentUser).confirmedAt);
-  assert.equal(changed.participants.find((p: { displayName: string }) => p.displayName === "Bob").confirmedAt, null);
-  assert.equal(changed.revision, created.revision + 1);
-  assert.equal(changed.completedAt, null);
-  await shareAt(created.id, created.revision, 4000, 4100, "alice-token", 409);
-  const done = await shareAt(created.id, changed.revision, 5900, 5900);
+  const before = await submit(created.id, 5900);
+  const bobTime = before.participants.find((p: { displayName: string }) => p.displayName === "Bob").confirmedAt;
+  const done = await shareAt(created.id, created.revision, 4000, 4100, "alice-token");
+  assert.equal(done.revision, created.revision);
   assert.ok(done.completedAt);
   assert.equal(done.adjustmentCents, 0);
+  assert.equal(done.participants.find((p: { displayName: string }) => p.displayName === "Bob").confirmedAt, bobTime);
+  await shareAt(created.id, created.revision, 4100, 4200, "alice-token", 409);
 });
 
 test("initiator-only correction completes immediately when the amount matches", async () => {
@@ -1484,7 +1548,7 @@ test('pending repayments leave bill corrections and invitation joins available',
   const view = await json(await api(path));
   assert.equal(view.repayments[0].status, 'pending');
   assert.equal(view.ledger.members.length, 3);
-  assert.equal(view.bills[0].revision, 2);
+  assert.equal(view.bills[0].submittedCents, 4100);
   assert.equal(view.summary.netCents, 0);
 });
 
@@ -1587,6 +1651,9 @@ test('attention lists only the signed-in participant’s missing shares and reco
   await submit(bill.id, 0);
   assert.deepEqual(await attention('bob-token'), []);
   await submit(bill.id, 5000, 'alice-token');
+  assert.deepEqual(await attention('bob-token'), []);
+  const confirmed = (await json(await api(`/bills/${bill.id}`))).bill;
+  await json(await api(`/bills/${bill.id}`, 'alice-token', 'PATCH', editBody(confirmed, { totalCents: 9000 })));
   assert.deepEqual(await attention('bob-token'), [{
     kind: 'confirm-share', billId: bill.id, groupId: bill.groupId,
     groupName: 'Costco', title: 'Costco run', amountCents: 0, mode: 'manual',
@@ -1611,7 +1678,8 @@ test('attention identifies item-based shares for the participant', async () => {
   assert.equal(action.kind, 'missing-share');
   await pool.query(`UPDATE bills SET mode = 'manual' WHERE id = $1`, [bill.id]);
   await submit(bill.id, 0);
-  await submit(bill.id, 5000, 'alice-token');
+  const confirmed = (await json(await api(`/bills/${bill.id}`))).bill;
+  await json(await api(`/bills/${bill.id}`, 'alice-token', 'PATCH', editBody(confirmed, { totalCents: 9000 })));
   await pool.query(`UPDATE bills SET mode = 'items' WHERE id = $1`, [bill.id]);
   const [confirmation] = (await json(await api('/attention', 'bob-token'))).actions;
   assert.equal(confirmation.mode, 'items');

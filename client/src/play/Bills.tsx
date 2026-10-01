@@ -134,11 +134,9 @@ export function BillDetails({ id }: { id: string }) {
         : updated.completedAt
           ? "Everyone confirmed. The bill completed automatically."
           : updated.mode === 'items' ? 'Saved. Item confirmations and reservations are shown below.' : updated.revision !== bill!.revision
-            ? updated.participants.some((p) => p.isCurrentUser && p.confirmedAt)
-              ? updated.participants.length > 1
-                ? "Your share is confirmed. Other participants need to confirm again."
-                : "Your share is confirmed."
-              : "Amounts retained. Everyone needs to confirm again."
+            ? updated.totalCents !== bill!.totalCents
+              ? "Amounts retained. Everyone needs to confirm again."
+              : "Bill details saved. Confirmations were kept."
             : "Your share is confirmed.",
     );
     heading.current?.focus();
@@ -176,8 +174,7 @@ export function BillDetails({ id }: { id: string }) {
               {adjustmentWouldBeNegative && " The difference would reduce the initiator’s final cost below $0.00, so the shares need correcting even within that tolerance."}
             </p>
             <p>
-              Changing a saved amount requires everyone to confirm again.
-              The initiator’s new amount is confirmed when saved.
+              Saving a changed amount confirms it and keeps everyone else’s confirmation.
               Confirming unchanged amounts will not fix the difference.
             </p>
             {own && (

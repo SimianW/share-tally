@@ -26,7 +26,7 @@ A participant's portion of a bill's total cost, including the initiator's own po
 _Avoid_: Payment, which refers to money actually transferred.
 
 **Share confirmation**:
-A participant's acknowledgment of their submitted share. Manual bills require confirmation for the current bill revision; item-based bills also track confirmations of individual item claims.
+A participant's acknowledgment of their submitted share. In a manual bill it stays valid until that participant's share or the bill total changes; other participants' share changes do not affect it. Item-based bills also track confirmations of individual item claims.
 _Avoid_: Payment confirmation, which acknowledges received money.
 
 **Bill item**:
