@@ -1,0 +1,25 @@
+[config]
+model = "zai/glm-5.3-flash"
+model_weak = "zai/glm-5.3-flash"
+model_reasoning = "zai/glm-5.3-flash"
+fallback_models = []
+reasoning_effort = "max"
+temperature = 1.0
+response_language = "en-US"
+# Allow substantial diffs and reserve output space for maximum-effort reasoning.
+max_model_tokens = 128000
+max_output_tokens = 32768
+ai_timeout = 180
+retry_same_model_on_timeout = false
+log_level = "INFO"
+publish_output_progress = false
+repo_context_files = ["AGENTS.md", "CONTEXT.md", "docs/project-brief.md"]
+
+[pr_reviewer]
+extra_instructions = """
+Focus on concrete correctness defects, authorization and group isolation,
+exact CAD arithmetic, transaction races, idempotency, and completed-bill
+immutability. Use the supplied project context. Do not infer current product
+requirements from research notes or obsolete decisions. Give actionable
+findings with a failure scenario; avoid cosmetic suggestions.
+"""
