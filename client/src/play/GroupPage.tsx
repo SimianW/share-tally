@@ -4,6 +4,7 @@ import { money, type Bill, type BillApi, type RepaymentPrefill } from './bill-ap
 import { groupView, type DashboardRow, type GroupPageData, type GroupView, type OpenBill } from './group-view';
 import { RecordRepayment, Repayments } from './Repayments';
 import { Avatar, Button, Icon } from './ui';
+import { BalanceBreakdownPrototype } from './prototype/BalanceBreakdownPrototype';
 
 export function GroupPage({ data, title, drafts, api, refresh, openMembers, selectedRepaymentId }: {
   data: GroupPageData;
@@ -68,7 +69,8 @@ export function GroupPage({ data, title, drafts, api, refresh, openMembers, sele
 
     <section className="group-card group-audit" aria-label="Group balances and repayments">
       <h2>Group balances &amp; repayments</h2>
-      <div className="group-audit-columns">
+      {/* PROTOTYPE (throwaway): balance breakdown variants replace the two lists in dev builds. */}
+      {import.meta.env.DEV ? <BalanceBreakdownPrototype data={data} view={view} /> : <div className="group-audit-columns">
         <section aria-label="Everyone's balance">
           <h3>Everyone's balance</h3>
           <ul className="group-ledger-rows">
@@ -89,7 +91,7 @@ export function GroupPage({ data, title, drafts, api, refresh, openMembers, sele
             </li>)}
           </ul> : <p className="group-empty">No transfers needed.</p>}
         </section>
-      </div>
+      </div>}
       <Repayments key={`${data.group.id}:${selectedRepaymentId ?? ''}`} selectedId={selectedRepaymentId} group={data.group} records={view.repayments} api={api} refresh={refresh} />
     </section>
     {prefill && <RecordRepayment group={data.group} api={api} initial={prefill} close={() => setPrefill(null)} saved={() => { setPrefill(null); refresh(); }} />}
