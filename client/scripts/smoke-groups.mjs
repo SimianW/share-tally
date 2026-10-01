@@ -475,8 +475,9 @@ try {
   assert.ok(summaryBox.y + summaryBox.height <= ticketBox.y, 'Mobile bill summary precedes the Your share card');
   assert.equal(await bobAgain.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'Bill page overflows at 390px');
   await bobAgain.screenshot({ path: `${clientRoot}/test-results/bill-correction-mobile.png`, fullPage: true });
-  // Clear confirmations, then preserve Bob's draft while a new revision arrives.
+  // Only a total change clears confirmations (ADR-0015); preserve Bob's draft on the next revision.
   await alice.getByRole('button', { name: 'Edit details & participants' }).click();
+  await alice.getByRole('dialog').getByLabel('Total · CAD', { exact: true }).fill('101.00');
   await alice.getByRole('dialog').getByLabel('Notes').fill('Initial correction');
   await alice.getByRole('button', { name: 'Save & request confirmations' }).click();
   await expect(alice.getByRole('dialog')).toHaveCount(0);
@@ -485,6 +486,8 @@ try {
   await expect(bobAgain.getByRole('button', { name: 'Confirm my share', exact: true })).toBeVisible();
   await bobAgain.getByLabel('Your share (CAD)', { exact: true }).fill('60.00');
   await alice.getByRole('button', { name: 'Edit details & participants' }).click();
+  // Restore the final total so Alice's $40 and Bob's $60 keep the later ledger figures unchanged.
+  await alice.getByRole('dialog').getByLabel('Total · CAD', { exact: true }).fill('100.00');
   await alice.getByRole('dialog').getByLabel('Notes').fill('Corrected purchase notes');
   await alice.getByRole('button', { name: 'Save & request confirmations' }).click();
   await expect(alice.getByRole('dialog')).toHaveCount(0);
@@ -495,11 +498,10 @@ try {
   await expect(bobAgain.getByText('Corrected purchase notes', { exact: true })).toBeVisible();
   await bobAgain.getByLabel('Your share (CAD)', { exact: true }).fill('60.00');
   await bobAgain.getByRole('button', { name: 'Save changed amount' }).click();
-  await expect(billSummary(bobAgain)).toContainText('0 of 2 confirmed');
-  await bobAgain.getByRole('button', { name: 'Confirm my share', exact: true }).click();
+  // Saving the changed share confirms Bob immediately (ADR-0015).
   await expect(billSummary(bobAgain)).toContainText('1 of 2 confirmed');
 
-  await alice.getByRole('button', { name: 'Review latest bill' }).click();
+  // Bob's share save does not advance the revision, so Alice can confirm without another review (ADR-0015).
   await alice.getByRole('button', { name: 'Confirm my share', exact: true }).click();
   await expect(billSummary(alice).getByText('Complete', { exact: true })).toBeVisible();
   await alice.screenshot({ path: `${clientRoot}/test-results/bill-corrected-desktop.png`, fullPage: true });
@@ -509,7 +511,8 @@ try {
   await expect(alice.getByRole('dialog').getByRole('checkbox', { name: 'You', exact: true })).toBeDisabled();
   await alice.getByRole('dialog').getByRole('checkbox', { name: 'Bob', exact: true }).uncheck();
   await alice.getByRole('button', { name: 'Save & request confirmations' }).click();
-  await expect(billSummary(alice)).toContainText('0 of 1 confirmed');
+  // Removing Bob leaves Alice's unchanged share confirmation intact (ADR-0015).
+  await expect(billSummary(alice)).toContainText('1 of 1 confirmed');
   await bobAgain.reload();
   await expect(shareTicket(bobAgain)).toContainText("You're not on this bill");
   await expect(bobAgain.getByLabel('Your share (CAD)', { exact: true })).toHaveCount(0);

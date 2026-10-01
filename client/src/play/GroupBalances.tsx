@@ -189,7 +189,7 @@ function LedgerTable({ data, view, trace }: { data: GroupPageData; view: GroupVi
         </tfoot>
       </table>
     </div>
-    {transfer && <TransferSum suggestion={transfer} directDebts={data.ledger.directDebts} view={view} />}
+    {transfer && <TransferSum suggestion={transfer} ledger={data.ledger} view={view} />}
     {open.length > 0 && <p className="ledger-trace-note">
       <Icon name="clock" size={13} />Not counted yet: {open.map(bill => bill.title).join(', ')} (still open)
     </p>}
@@ -197,9 +197,9 @@ function LedgerTable({ data, view, trace }: { data: GroupPageData; view: GroupVi
 }
 
 // "Between them directly: $60.79 + $19.92 passed along = $80.71." and the reason.
-function TransferSum({ suggestion, directDebts, view }: { suggestion: Suggestion; directDebts: GroupLedger['directDebts']; view: GroupView }) {
+function TransferSum({ suggestion, ledger, view }: { suggestion: Suggestion; ledger: GroupLedger; view: GroupView }) {
   const { directCents, passedAlongCents: passed } = suggestion.explanation;
-  const reason = transferReason(suggestion, directDebts, view);
+  const reason = transferReason(suggestion, ledger, view);
   return <p className="ledger-trace-transfer">
     Between them directly: <b>{minus(directCents)}</b>
     {passed > 0 ? <> + <b>{money(passed)}</b> passed along</> : passed < 0 ? <> − <b>{money(-passed)}</b> sent elsewhere</> : null}

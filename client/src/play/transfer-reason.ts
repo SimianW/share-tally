@@ -16,7 +16,8 @@ export function wording({ me, name }: People) {
 // One sentence on why a suggested transfer differs from what its payer directly
 // owes its recipient, or null when nothing is passed along. A person is named
 // only together with their actual direct debt; otherwise the reason stays generic.
-export function transferReason(suggestion: Suggestion, directDebts: GroupLedger['directDebts'], people: People) {
+export function transferReason(suggestion: Suggestion, ledger: Pick<GroupLedger, 'suggestions' | 'directDebts'>, people: People) {
+  const { directDebts, suggestions } = ledger;
   const { fromUserId: payer, toUserId: recipient } = suggestion;
   const passed = suggestion.explanation.passedAlongCents;
   if (!passed) return null;
@@ -36,7 +37,10 @@ export function transferReason(suggestion: Suggestion, directDebts: GroupLedger[
     }
     return `${n} of other debts is passed along to ${object(recipient)} so the group needs fewer transfers.`;
   }
-  const via = others.find(id => debt(recipient, id) === -passed);
+  // "Pays that to X instead" must describe a real suggested transfer: in a debt
+  // cycle the recipient's debt to X can be cancelled out rather than paid.
+  const via = others.find(id => debt(recipient, id) === -passed
+    && suggestions.some(other => other.fromUserId === payer && other.toUserId === id && other.amountCents >= -passed));
   if (via) return `${subject(recipient)} owed ${object(via)} ${n}. ${subject(payer)} ${verb(payer, 'pay')} that to ${object(via)} instead, `
     + `so ${object(recipient)} ${verb(recipient, 'receive')} ${n} less here.`;
   return `${n} is sent elsewhere so the group needs fewer transfers.`;
