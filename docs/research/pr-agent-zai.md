@@ -1,0 +1,31 @@
+# PR-Agent with Z.ai: setup and verified references
+
+Checked 2026-09-30 against [PR-Agent v0.46.0](https://github.com/The-PR-Agent/pr-agent/releases/tag/v0.46.0) (source commit [`1d01f24`](https://github.com/The-PR-Agent/pr-agent/tree/1d01f24f455bb879c1d9c557ad7de3d72dcc7975)) and first-party Z.ai documentation.
+
+## Project setup
+
+This repository uses [`.github/workflows/pr-agent.yml`](../../.github/workflows/pr-agent.yml) and [`.pr_agent.toml`](../../.pr_agent.toml). The intended configuration is:
+
+- Automatic **review only** when an eligible PR is opened, reopened, marked ready, or synchronized with new commits. Automatic description and improvement suggestions are disabled. Authorized collaborators can request `/review`, `/improve`, `/describe`, or `/ask` in a PR comment. The workflow uses `pull_request_target`, checks the PR/comment actor, and does not check out PR code. PR-Agent obtains changes through the GitHub API. See the [GitHub Action guide](https://github.com/The-PR-Agent/pr-agent/blob/v0.46.0/docs/docs/installation/github.md#run-as-a-github-action) and [automation settings](https://github.com/The-PR-Agent/pr-agent/blob/v0.46.0/docs/docs/usage-guide/automations_and_usage.md#github-action).
+- Model `zai/glm-5.3-flash`, `config.reasoning_effort = "max"`, temperature `1`, English output, no fallback model, a 128,000-token PR-Agent context cap, and a 32,768-token output cap. The `max` level is an API parameter, **not** a `-max` model suffix. Z.ai lists `glm-5.3-flash` as the model ID and recommends `temperature: 1`, `top_p: 0.95`, and `reasoning_effort: max`; its API supports `low`, `high`, and `max` for this model. See the [model guide](https://docs.z.ai/guides/vlm/glm-5.3-flash.md) and [Chat Completion schema](https://docs.z.ai/api-reference/llm/chat-completion.md).
+- The GitHub Action passes `${{ secrets.ZAI_API_KEY }}` into PR-Agent's `ZAI.KEY` setting and selects the standard Z.ai base URL `https://api.z.ai/api/paas/v4`. PR-Agent's [Z.ai provider mapping](https://github.com/The-PR-Agent/pr-agent/blob/v0.46.0/pr_agent/algo/ai_handlers/litellm_ai_handler.py) and [environment mapping](https://github.com/The-PR-Agent/pr-agent/blob/v0.46.0/pr_agent/algo/ai_handlers/cloud_auth.py) support these values. The [official Z.ai OpenAI-compatible guide](https://docs.z.ai/guides/develop/openai/python.md) confirms the endpoint.
+- The Action image is pinned to the `0.46.0-github_action` image digest. PR-Agent [documents versioned Docker images and digest pinning](https://github.com/The-PR-Agent/pr-agent/blob/v0.46.0/docs/docs/installation/github.md#using-a-specific-release); the source Action's [Dockerfile](https://github.com/The-PR-Agent/pr-agent/blob/v0.46.0/Dockerfile.github_action_dockerhub) references the moving `github_action` tag.
+
+PR-Agent v0.46.0 locks LiteLLM 1.101.0; [that version's model metadata](https://github.com/BerriAI/litellm/blob/v1.101.0/model_prices_and_context_window.json) includes `zai/glm-5.3-flash`, `supports_reasoning: true`, and a 1,048,576-token input capacity. PR-Agent's [reasoning code](https://github.com/The-PR-Agent/pr-agent/blob/v0.46.0/pr_agent/algo/ai_handlers/litellm_ai_handler.py) forwards `config.reasoning_effort` for supported models and allows that parameter through LiteLLM when necessary. Its [token-budget code](https://github.com/The-PR-Agent/pr-agent/blob/v0.46.0/pr_agent/algo/token_budget.py) clamps context to `config.max_model_tokens`. `config.max_output_tokens` separately limits completion length; neither token setting selects the reasoning level. No custom model capacity or additional reasoning model registration is required.
+
+## API endpoint and key
+
+| Account/quota | OpenAI Chat Completions base URL | Source |
+| --- | --- | --- |
+| Z.ai standard API | `https://api.z.ai/api/paas/v4` | [Z.ai API guide](https://docs.z.ai/guides/develop/openai/python.md) |
+| Z.ai Coding Plan | `https://api.z.ai/api/coding/paas/v4` | [Z.ai Coding Plan guide](https://docs.z.ai/devpack/quick-start.md) |
+| BigModel China standard API | `https://open.bigmodel.cn/api/paas/v4` | [BigModel API guide](https://docs.bigmodel.cn/cn/guide/develop/openai/introduction.md) |
+| BigModel China Coding Plan | `https://open.bigmodel.cn/api/coding/paas/v4` | [BigModel Coding Plan guide](https://docs.bigmodel.cn/cn/coding-plan/quick-start.md) |
+
+The account and quota must match the endpoint. Z.ai's [Coding Plan supported-tool policy](https://docs.z.ai/devpack/tool/others.md) limits plan benefits to listed tools and environments; PR-Agent is not listed, so use a standard API key/quota for this workflow. The existing `ZAI_API_KEY` repository secret's **value cannot be read or verified** from its name.
+
+To activate the workflow, put the matching standard API key in the repository Actions secret, then merge the configuration into the default branch. An interactive command avoids putting the key in shell history or the repository: `gh secret set ZAI_API_KEY --repo SimianW/share-tally` (paste the value when prompted). Since a key was shared in chat, rotate it after testing and save the replacement as the secret. GitHub creates `GITHUB_TOKEN` for the workflow; see the [PR-Agent GitHub Action installation instructions](https://github.com/The-PR-Agent/pr-agent/blob/v0.46.0/docs/docs/installation/github.md#run-as-a-github-action).
+
+## Verification boundary
+
+The supplied key was tested against the standard Z.ai API with `glm-5.3-flash` and `reasoning_effort: max`: the request returned HTTP 200, content `OK`, 32 reasoning tokens, and 52 total tokens. A second live test loaded this repository's TOML into the PR-Agent v0.46.0 AI handler with LiteLLM 1.101.0. Inspection of the outgoing HTTP request confirmed model `glm-5.3-flash`, effort `max`, temperature `1`, and output cap `32768`; it returned an English review correctly identifying a cents-to-dollars conversion bug. Workflow validation with `actionlint` and TOML/YAML parsing also passed. These checks do **not** verify the current GitHub secret value or an end-to-end GitHub PR review; that requires a workflow run after the files reach the default branch.
