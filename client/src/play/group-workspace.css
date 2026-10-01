@@ -70,8 +70,9 @@
 .group-ledger-figure:hover strong, .group-ledger-figure[aria-pressed="true"] strong { text-decoration-color: currentColor; }
 .group-ledger-figure:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .group-ledger-rows li.group-ledger-traced { margin-inline: -8px; padding-inline: 8px; border-radius: var(--radius-sm); background: var(--surface-selected); box-shadow: inset 3px 0 0 var(--action); }
-.ledger-trace { margin: 4px 0 20px; padding: 14px 16px; border: 1px dashed var(--line-strong); border-radius: var(--radius-md); background: var(--surface-soft); transition: border-color .15s, background-color .15s; }
-.ledger-trace-active { border-style: solid; border-color: var(--line-accent); background: var(--surface); }
+/* --ledger-card is the card's fill, which the table's sticky column repeats. */
+.ledger-trace { --ledger-card: var(--surface-soft); margin: 4px 0 20px; padding: 14px 16px; border: 1px dashed var(--line-strong); border-radius: var(--radius-md); background: var(--ledger-card); transition: border-color .15s, background-color .15s; }
+.ledger-trace-active { --ledger-card: var(--surface); border-style: solid; border-color: var(--line-accent); }
 .group-audit .ledger-trace h3 { margin: 0; }
 .ledger-trace h3 button { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 0; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
 .ledger-trace h3 button:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: var(--radius-sm); }
@@ -79,10 +80,18 @@
 .ledger-trace-open .ledger-trace-chevron { transform: rotate(180deg); }
 .ledger-trace-hint { margin: 8px 0 10px; color: var(--ink-muted); font-size: 12.5px; line-height: 1.45; }
 .ledger-trace-unpin { margin-left: 8px; padding: 0; border: 0; background: none; color: var(--ink); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
-.ledger-table-scroll { overflow-x: auto; }
-.ledger-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+/* Positioned, so screen-reader-only text in scrolled-away cells is clipped
+   with them instead of widening the page. */
+.ledger-table-scroll { position: relative; overflow-x: auto; }
+.ledger-table-scroll:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
+/* Separate borders travel with sticky cells; rules sit on the cells. */
+.ledger-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; font-variant-numeric: tabular-nums; }
 .ledger-table th, .ledger-table td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: right; transition: background-color .12s; }
-.ledger-table th:first-child { text-align: left; }
+.ledger-table tbody tr:last-child > * { border-bottom: 0; }
+/* The bill column stays put while wide groups scroll: it takes the remaining
+   width but never less than its minimum, and wraps long titles. Its fill is
+   the card's, and an inset edge keeps the Balance rule whole. */
+.ledger-table tr > th:first-child { position: sticky; left: 0; z-index: 1; min-width: 220px; background: var(--ledger-card); box-shadow: inset -1px 0 0 var(--line); text-align: left; transition: background-color .15s; }
 .ledger-table th[scope="row"] { font-weight: 600; }
 /* Member columns share one fixed width, so highlight bands stay even and each
    name sits above its right-aligned, decimal-aligned amounts. */
@@ -90,12 +99,19 @@
 .ledger-table thead th { color: var(--ink-secondary); font-size: 12px; vertical-align: bottom; }
 .ledger-column-head { display: inline-grid; justify-items: end; overflow-wrap: anywhere; }
 .ledger-column-head small { font-size: 10px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
-.ledger-row-label { display: grid; }
+.ledger-row-label { display: grid; overflow-wrap: anywhere; }
 .ledger-row-label a { color: var(--ink); text-decoration: none; }
 .ledger-row-label a:hover { text-decoration: underline; }
 .ledger-row-label small { color: var(--ink-muted); font-size: 11px; font-weight: 400; }
 .ledger-table tfoot th, .ledger-table tfoot td { border-top: 2px solid var(--ink); border-bottom: 0; font-weight: 800; }
 .ledger-table td.ledger-table-empty { width: auto; color: var(--ink-muted); text-align: left; }
+/* The earlier row sums hidden entries: a quiet band above a dashed fold. */
+.ledger-table tr.ledger-earlier > :not(.ledger-traced) { background: color-mix(in srgb, var(--line) 45%, var(--ledger-card)); }
+.ledger-table .ledger-earlier > * { border-bottom: 1px dashed var(--line-strong); }
+.ledger-earlier .ledger-row-label > span { color: var(--ink-secondary); }
+.ledger-earlier .ledger-row-label b { color: var(--ink); font-weight: 700; white-space: nowrap; }
+.ledger-show-all { padding: 0; border: 0; background: none; color: var(--ink); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+.ledger-show-all:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 /* A traced member: filled header and tinted column. Other columns and rows the
    member is not part of fade back. Contents fade, not cells, so rules stay solid. */
 .ledger-table .ledger-traced { background: var(--surface-selected); font-weight: 700; }

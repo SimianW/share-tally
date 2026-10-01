@@ -1,4 +1,4 @@
-import { useId, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useId, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { AnimatedMoney } from './AnimatedMoney';
 import { money, type GroupLedger, type LedgerEntry } from './bill-api';
 import type { GroupPageData, GroupView } from './group-view';
@@ -130,7 +130,12 @@ export function GroupBalances({ data, view }: { data: GroupPageData; view: Group
   </>;
 }
 
+// Long histories show this many recent entries, with the earlier ones summed in one row.
+const RECENT_ENTRIES = 10;
+
 function LedgerTable({ data, view, trace }: { data: GroupPageData; view: GroupView; trace: Trace | null }) {
+  const [showAll, setShowAll] = useState(false);
+  const scroll = useRef<HTMLDivElement>(null);
   const transfer = trace?.kind === 'transfer' ? trace.suggestion : null;
   // A traced column's role, shown as text in its header.
   const role = (userId: string) => trace?.kind === 'member' ? trace.userId === userId && 'Balance'
@@ -139,8 +144,22 @@ function LedgerTable({ data, view, trace }: { data: GroupPageData; view: GroupVi
   const column = (userId: string, className = '') => `${className}${traced(userId) ? ' ledger-traced' : ''}`.trim() || undefined;
   const direct = new Set(transfer?.explanation.directLines.map(line => line.entryId));
   const open = data.bills.filter(bill => data.ledger.incompleteBillIds.includes(bill.id));
+  const { entries } = data.ledger;
+  const hidden = showAll ? [] : entries.slice(0, Math.max(0, entries.length - RECENT_ENTRIES));
+  // Each member's subtotal of the hidden entries; absent when none of them involve the member.
+  const earlier = new Map<string, number>();
+  for (const { effects } of hidden) for (const { userId, netCents } of effects) earlier.set(userId, (earlier.get(userId) ?? 0) + netCents);
+  const hiddenIds = new Set(hidden.map(entry => entry.id));
+  const hiddenDirect = transfer?.explanation.directLines.filter(line => hiddenIds.has(line.entryId)) ?? [];
+  const earlierInvolved = !trace || (trace.kind === 'member' ? earlier.has(trace.userId) : hiddenDirect.length > 0);
+  const { object: whom } = wording(view);
+  const cell = (userId: string, cents: number | undefined) => <td key={userId} className={column(userId, cents === undefined ? '' : tone(cents))}>
+    {cents === undefined ? <span><span aria-hidden="true">—</span><span className="sr-only">Not involved</span></span>
+      : <span>{signed(cents)}</span>}
+  </td>;
+  const reveal = () => { setShowAll(true); scroll.current?.focus({ preventScroll: true }); };
   return <>
-    <div className="ledger-table-scroll">
+    <div ref={scroll} className="ledger-table-scroll" role="region" aria-label="Ledger table" tabIndex={0}>
       <table className={`ledger-table${trace ? ' ledger-table-active' : ''}`} aria-label="Bills and repayments by member">
         <thead>
           <tr>
@@ -152,7 +171,18 @@ function LedgerTable({ data, view, trace }: { data: GroupPageData; view: GroupVi
           </tr>
         </thead>
         <tbody>
-          {data.ledger.entries.map(entry => {
+          {hidden.length > 0 && <tr className={`ledger-earlier${earlierInvolved ? '' : ' ledger-row-faded'}`}>
+            <th scope="row">
+              <span className="ledger-row-label">
+                <span>Earlier bills and repayments</span>
+                <small>{hidden.length} {hidden.length === 1 ? 'entry' : 'entries'} · <button type="button" className="ledger-show-all" onClick={reveal}>Show all</button>
+                  {transfer && hiddenDirect.length > 0 && <> · includes <b>{minus(hiddenDirect.reduce((sum, line) => sum + line.cents, 0))}</b>
+                    {' '}direct between {whom(transfer.fromUserId)} and {whom(transfer.toUserId)}</>}</small>
+              </span>
+            </th>
+            {view.members.map(member => cell(member.userId, earlier.get(member.userId)))}
+          </tr>}
+          {entries.slice(hidden.length).map(entry => {
             const effects = new Map(entry.effects.map(effect => [effect.userId, effect.netCents]));
             const involved = !trace || (trace.kind === 'member' ? effects.has(trace.userId) : direct.has(entry.id));
             const initiator = entry.kind === 'bill' ? view.name(entry.initiatorId) : '';
@@ -166,16 +196,10 @@ function LedgerTable({ data, view, trace }: { data: GroupPageData; view: GroupVi
                   {transfer && direct.has(entry.id) && <span className="sr-only">, directly between them</span>}
                 </span>
               </th>
-              {view.members.map(member => {
-                const cents = effects.get(member.userId);
-                return <td key={member.userId} className={column(member.userId, cents === undefined ? '' : tone(cents))}>
-                  {cents === undefined ? <span><span aria-hidden="true">—</span><span className="sr-only">Not involved</span></span>
-                    : <span>{signed(cents)}</span>}
-                </td>;
-              })}
+              {view.members.map(member => cell(member.userId, effects.get(member.userId)))}
             </tr>;
           })}
-          {!data.ledger.entries.length && <tr>
+          {!entries.length && <tr>
             <td colSpan={view.members.length + 1} className="ledger-table-empty"><span>No complete bills or confirmed repayments yet.</span></td>
           </tr>}
         </tbody>
