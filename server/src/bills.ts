@@ -4,11 +4,10 @@ import { selectFrozenTaxRate } from './frozen-receipt-pricing.js';
 import { notifyGroupChanged } from './group-events.js';
 import { cents, isUuid } from "./input-validation.js";
 export { isUuid } from "./input-validation.js";
-import { confirmedRepaymentEntries } from "./repayment-accounting.js";
 import { readRepayments, type Repayment } from './repayments.js';
 import { and, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { safeCents } from "./money.js";
-import { groupLedger } from "./group-ledger.js";
+import { billEffects, counted, groupLedger, repaymentEffects, type BalanceBill } from "./group-ledger.js";
 import { db } from "./db/index.js";
 import { bills, billShares, groupMembers, groups, users, billItems, itemClaims } from "./db/schema.js";
 
@@ -487,28 +486,17 @@ export async function readSummary(userId: string) {
     return summarize(rows, userId, repayments);
   }, { isolationLevel: "repeatable read", accessMode: "read only" });
 }
-// The fields of a bill that decide a member's balance.
-type BalanceBill = Pick<typeof bills.$inferSelect,
-  'groupId' | 'initiatorId' | 'totalCents' | 'adjustmentCents' | 'completedAt' | 'canceledAt'> & {
-  participants: { userId: string; amountCents: number | null }[];
-};
-
-// The member's net balance in each group, from completed bills and confirmed
-// repayments. The group page and the group list both use this arithmetic.
-function memberBalances(rows: BalanceBill[], userId: string, repayments: Repayment[]) {
+// The member's net balance in each group, from the same per-entry effects as
+// the group ledger. The group page and the group list both use this arithmetic.
+function memberBalances(rows: (BalanceBill & Pick<typeof bills.$inferSelect, 'groupId' | 'completedAt' | 'canceledAt'>)[],
+  userId: string, repayments: Repayment[]) {
   const balances = new Map<string, bigint>();
-  const add = (groupId: string, amount: bigint) => balances.set(groupId, (balances.get(groupId) ?? 0n) + amount);
-  for (const bill of rows) {
-    if (!bill.completedAt || bill.canceledAt) continue;
-    const own = bill.participants.find(p => p.userId === userId);
-    if (!own) continue;
-    add(bill.groupId, bill.initiatorId === userId
-      ? BigInt(bill.totalCents) - BigInt(own.amountCents!) - BigInt(bill.adjustmentCents!)
-      : -BigInt(own.amountCents!));
-  }
-  for (const entry of confirmedRepaymentEntries(repayments)) {
-    if (entry.userId === userId) add(entry.groupId, entry.amountCents);
-  }
+  const add = (groupId: string, effects: { userId: string; netCents: number }[]) => {
+    for (const effect of effects)
+      if (effect.userId === userId) balances.set(groupId, (balances.get(groupId) ?? 0n) + BigInt(effect.netCents));
+  };
+  for (const bill of rows) if (counted(bill)) add(bill.groupId, billEffects(bill));
+  for (const record of repayments) add(record.groupId, repaymentEffects(record));
   return balances;
 }
 

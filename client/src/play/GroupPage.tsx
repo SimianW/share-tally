@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { AnimatedMoney } from './AnimatedMoney';
+import { GroupBalances } from './GroupBalances';
 import { money, type Bill, type BillApi, type RepaymentPrefill } from './bill-api';
 import { groupView, type DashboardRow, type GroupPageData, type GroupView, type OpenBill } from './group-view';
 import { RecordRepayment, Repayments } from './Repayments';
@@ -68,28 +69,7 @@ export function GroupPage({ data, title, drafts, api, refresh, openMembers, sele
 
     <section className="group-card group-audit" aria-label="Group balances and repayments">
       <h2>Group balances &amp; repayments</h2>
-      <div className="group-audit-columns">
-        <section aria-label="Everyone's balance">
-          <h3>Everyone's balance</h3>
-          <ul className="group-ledger-rows">
-            {view.members.map(member => <li key={member.userId}>
-              <span>{member.displayName}{member.userId === view.me.id && ' (you)'}</span>
-              <strong className={member.netCents > 0 ? 'group-tone-owed' : member.netCents < 0 ? 'group-tone-owe' : ''}>
-                {member.netCents > 0 ? '+' : member.netCents < 0 ? '−' : ''}<AnimatedMoney cents={member.netCents} />
-              </strong>
-            </li>)}
-          </ul>
-        </section>
-        <section aria-label="Suggested transfers">
-          <h3>Suggested transfers</h3>
-          {view.suggestions.length ? <ul className="group-ledger-rows">
-            {view.suggestions.map(suggestion => <li key={`${suggestion.fromUserId}:${suggestion.toUserId}`}>
-              <span>{view.name(suggestion.fromUserId)} → {view.name(suggestion.toUserId)}</span>
-              <strong>{money(suggestion.amountCents)}</strong>
-            </li>)}
-          </ul> : <p className="group-empty">No transfers needed.</p>}
-        </section>
-      </div>
+      <GroupBalances data={data} view={view} />
       <Repayments key={`${data.group.id}:${selectedRepaymentId ?? ''}`} selectedId={selectedRepaymentId} group={data.group} records={view.repayments} api={api} refresh={refresh} />
     </section>
     {prefill && <RecordRepayment group={data.group} api={api} initial={prefill} close={() => setPrefill(null)} saved={() => { setPrefill(null); refresh(); }} />}
