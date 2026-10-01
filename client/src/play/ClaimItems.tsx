@@ -5,7 +5,8 @@ import type { BillItem } from "./receipt-api";
 import { claimable, fraction, one, sum, subtract, text, shortText, parse, lessOrEqual, cost, share, signed, zero, type Fraction } from "./claim-fractions";
 import { needsReview, type Blocker, type ClaimReview, type ItemAttention, type RemovedItem } from "./claim-review";
 import { ClaimPortion, ItemPortionBar } from "./ClaimPortion";
-import { PortionChoices, type PortionChoice } from "./PortionPicker";
+import { PortionChoices } from "./PortionPicker";
+import { amountChoices } from "./amount-portion";
 import { useClaimChanges } from "./claim-changes";
 import Dialog from "./Dialog";
 import { ReceiptItemRow } from "./ReceiptItemRow";
@@ -18,8 +19,7 @@ const ADVANCE_DELAY_MS = 600;
 
 const plural = (count: number, singular: string, many: string) => `${count} ${count === 1 ? singular : many}`;
 
-const itemChoices: PortionChoice[] = ([["1", "All of it"], ["1/2", "1/2"], ["1/3", "1/3"], ["1/4", "1/4"], ["1/5", "1/5"], ["1/6", "1/6"]] as const)
-  .map(([key, name]) => ({ key, name, fraction: parse(key)! }));
+const itemChoices = (count: number) => amountChoices(count, "All of it");
 
 export function ClaimItems({ bill, selection, review, change, acknowledge, dismissRemoved, busy, terminal, confirmAction, error }: {
   bill: Bill; selection: Record<string, string>; review: ClaimReview;
@@ -30,6 +30,7 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
   busy: boolean; terminal: boolean; confirmAction: ReactNode; error: string;
 }) {
   const items = bill.items ?? [];
+  const choices = itemChoices(bill.participants.length);
   const own = bill.participants.find((p) => p.isCurrentUser);
   const changes = useClaimChanges(items, own?.userId);
   // Attention only applies to a participant who can still confirm.
@@ -283,9 +284,11 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
             changes={changes} over={activeOver ?? null} />
           {(() => {
             const picked = parse(selection[active.id] ?? "");
-            const pressed = selectedCustom[active.id] ? "custom"
-              : itemChoices.find((choice) => picked?.n === choice.fraction.n && picked?.d === choice.fraction.d)?.key ?? null;
-            return <PortionChoices label="Your portion" totalCents={active.finalCents} choices={itemChoices} pressed={pressed}
+            const even = choices[0];
+            const isEven = picked?.n === even.fraction.n && picked?.d === even.fraction.d;
+            const pressed = selectedCustom[active.id] ? (isEven ? even.key : "custom")
+              : choices.find((choice) => picked?.n === choice.fraction.n && picked?.d === choice.fraction.d)?.key ?? null;
+            return <PortionChoices label="Your portion" totalCents={active.finalCents} choices={choices} pressed={pressed}
               custom={customChoices[active.id] ? parse(customChoices[active.id]) : null}
               customStart={customChoices[active.id] || selection[active.id] || ""} customOpen={customOpen} setCustomOpen={setCustomOpen}
               cap={room(active)} disabled={busy}

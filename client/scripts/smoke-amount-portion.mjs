@@ -1,5 +1,5 @@
-// Issue #162: picking a portion of the total on a By amount bill, in the initiator's
-// draft setup and on each participant's share form. The caller owns the server,
+// Issues #162 and #166: picking a portion after a By amount bill is initiated.
+// Setup submits no shares. The caller owns the server,
 // browser, and test identities; this creates its own group so other checks are unaffected.
 import assert from 'node:assert/strict';
 import { expect } from '@playwright/test';
@@ -19,7 +19,7 @@ export async function checkAmountPortion(pageFor, base, api, screenshots) {
   const ids = Object.fromEntries((await api(`/groups/${group.id}`)).group.members.map(member => [member.displayName, member.id]));
   const amounts = async billId => Object.fromEntries((await api(`/bills/${billId}`)).bill.participants.map(p => [p.displayName, p.amountCents]));
 
-  // Draft setup: the initiator's own share.
+  // Setup covers only the bill, not the initiator's share.
   const alice = await pageFor('alice-token', { width: 1280, height: 900 });
   await alice.goto(`${base}#/group-bills/${group.id}`);
   await alice.getByRole('button', { name: 'New bill', exact: true }).click();
@@ -29,84 +29,40 @@ export async function checkAmountPortion(pageFor, base, api, screenshots) {
   if (await splitByAmounts.count()) await splitByAmounts.click();
   await alice.getByLabel('Bill title', { exact: true }).fill('Split three ways');
   await alice.getByRole('button', { name: 'Everyone', exact: true }).click();
-  // Without a total paid there is nothing to take a portion of.
-  await expect(alice.getByText('Enter the total paid to pick a portion', { exact: true })).toBeVisible();
-  assert.deepEqual(await choiceNames(alice), ['Even · 1/3', 'All', '1/2', '1/4', '1/5', '1/6', 'Custom']);
-  for (const button of await choices(alice).getByRole('button').all()) await expect(button).toBeDisabled();
-  await totalPaid(alice).fill('100.00');
-  await expect(alice.getByText('Enter the total paid to pick a portion', { exact: true })).toHaveCount(0);
-  await expect(card(alice)).toContainText('Pick a portion of $100.00 or type an amount');
-  // N = 3, then 1 and 2: the fixed choice equal to Even is left out.
-  assert.deepEqual(await choiceNames(alice),
-    ['Even · 1/3 · $33.33', 'All · $100.00', '1/2 · $50.00', '1/4 · $25.00', '1/5 · $20.00', '1/6 · $16.67', 'Custom']);
-  await alice.getByRole('button', { name: 'Just me', exact: true }).click();
-  assert.deepEqual(await choiceNames(alice),
-    ['Even · All · $100.00', '1/2 · $50.00', '1/3 · $33.33', '1/4 · $25.00', '1/5 · $20.00', '1/6 · $16.67', 'Custom']);
-  await alice.getByRole('checkbox', { name: 'Bob', exact: true }).check();
-  assert.deepEqual(await choiceNames(alice),
-    ['Even · 1/2 · $50.00', 'All · $100.00', '1/3 · $33.33', '1/4 · $25.00', '1/5 · $20.00', '1/6 · $16.67', 'Custom']);
-  await alice.getByRole('checkbox', { name: 'Carol', exact: true }).check();
-  // A picked portion follows a corrected total, even through an empty total.
-  await choice(alice, 'Even · 1/3 · $33.33').click();
-  await expect(shareInput(alice)).toHaveValue('33.33');
-  assert.deepEqual(await pressedNames(alice), ['Even · 1/3 · $33.33']);
-  await expect(card(alice)).toContainText('1/3 of $100.00');
-  await totalPaid(alice).fill('90.00');
-  await expect(shareInput(alice)).toHaveValue('30.00');
-  assert.deepEqual(await pressedNames(alice), ['Even · 1/3 · $30.00']);
-  await totalPaid(alice).fill('');
-  await expect(choice(alice, 'Even · 1/3')).toBeDisabled();
-  await totalPaid(alice).fill('87.43');
-  await expect(shareInput(alice)).toHaveValue('29.14');
-  // A typed share is left alone and clears the highlight.
-  await shareInput(alice).fill('40');
-  await shareInput(alice).blur();
-  await expect(shareInput(alice)).toHaveValue('40.00');
-  assert.deepEqual(await pressedNames(alice), []);
-  await expect(card(alice)).toContainText('of $87.43 total');
-  await totalPaid(alice).fill('100.00');
-  await expect(shareInput(alice)).toHaveValue('40.00');
-  // A reloaded draft shows the share it restored.
-  await alice.reload();
-  await expect(shareInput(alice)).toHaveValue('40.00');
-  await expect(card(alice)).toContainText('of $100.00 total');
-  // A typed share that matches the custom fraction follows the total like a pick.
-  await choice(alice, 'Custom').click();
-  await alice.getByLabel('Custom fraction', { exact: true }).fill('2/5');
-  await alice.getByRole('button', { name: 'Use custom fraction', exact: true }).click();
-  await shareInput(alice).fill('39.00');
-  await shareInput(alice).fill('40.00');
-  assert.deepEqual(await pressedNames(alice), ['Custom · 2/5 · $40.00']);
-  await totalPaid(alice).fill('120.00');
-  await expect(shareInput(alice)).toHaveValue('48.00');
-  // An open Custom input is disabled too once the total is cleared.
-  await choice(alice, 'Custom · 2/5 · $48.00').click();
-  await totalPaid(alice).fill('');
-  await expect(alice.getByRole('button', { name: 'Use custom fraction', exact: true })).toBeDisabled();
-  await totalPaid(alice).fill('100.00');
-  await expect(shareInput(alice)).toHaveValue('40.00');
-  // A portion that rounds to $0.00 for one total still follows the next.
-  await alice.getByLabel('Custom fraction', { exact: true }).fill('1/10000');
-  await alice.getByRole('button', { name: 'Use custom fraction', exact: true }).click();
-  await expect(shareInput(alice)).toHaveValue('0.01');
-  await totalPaid(alice).fill('40.00');
-  await expect(shareInput(alice)).toHaveValue('0.00');
-  await totalPaid(alice).fill('100.00');
-  await expect(shareInput(alice)).toHaveValue('0.01');
-  // A share over the total paid is an error that blocks sharing.
-  await shareInput(alice).fill('120.00');
-  await expect(card(alice).getByRole('alert')).toHaveText("Your share can't be more than the total paid.");
+  await expect(shareInput(alice)).toHaveCount(0);
+  await expect(choices(alice)).toHaveCount(0);
   await expect(alice.getByRole('button', { name: 'Share bill' })).toBeDisabled();
-  // Picking a portion by keyboard works too.
-  await choice(alice, 'Even · 1/3 · $33.33').focus();
-  await alice.keyboard.press('Enter');
-  await expect(shareInput(alice)).toHaveValue('33.33');
-  await expect(card(alice).getByRole('alert')).toHaveCount(0);
-  await expect(card(alice).locator('[data-segment="over"]')).toHaveCount(0);
+  await totalPaid(alice).fill('100.00');
+  await expect(alice.getByRole('button', { name: 'Share bill' })).toBeEnabled();
+  // Old local drafts can carry a share; it no longer belongs to setup.
+  await alice.evaluate(() => {
+    for (const key of Object.keys(sessionStorage).filter(key => key.startsWith('receipt-draft:'))) {
+      const draft = JSON.parse(sessionStorage.getItem(key));
+      draft.data.ownShareCents = 12000;
+      sessionStorage.setItem(key, JSON.stringify(draft));
+    }
+  });
+  await alice.reload();
+  await expect(totalPaid(alice)).toHaveValue('100.00');
+  await expect(shareInput(alice)).toHaveCount(0);
   await screenshots(alice, 'amount-portion-draft');
   await alice.getByRole('button', { name: 'Share bill' }).click();
   await expect(alice.getByRole('heading', { name: 'Split three ways' })).toBeVisible();
   const billId = alice.url().split('/').pop();
+  assert.deepEqual(await amounts(billId), { Alice: null, Bob: null, Carol: null });
+  assert.ok((await api(`/bills/${billId}`)).bill.participants.every(p => p.confirmedAt === null));
+
+  // The initiator uses the same share form as everyone else, after initiation.
+  await expect(card(alice)).toContainText('Pick a portion of $100.00 or type an amount');
+  assert.deepEqual(await choiceNames(alice),
+    ['Even · 1/3 · $33.33', 'All · $100.00', '1/2 · $50.00', '1/4 · $25.00', '1/5 · $20.00', '1/6 · $16.67', 'Custom']);
+  await choice(alice, 'Even · 1/3 · $33.33').focus();
+  await alice.keyboard.press('Enter');
+  await expect(shareInput(alice)).toHaveValue('33.33');
+  assert.deepEqual(await pressedNames(alice), ['Even · 1/3 · $33.33']);
+  await expect(card(alice)).toContainText('1/3 of $100.00');
+  await alice.getByRole('button', { name: 'Submit and confirm my share' }).click();
+  await expect(alice.getByRole('heading', { name: 'Your share is confirmed.' })).toBeVisible();
   assert.deepEqual(await amounts(billId), { Alice: 3333, Bob: null, Carol: null });
 
   // Participant form: Bob picks Even, edits by hand, then uses a custom fraction.
@@ -150,9 +106,10 @@ export async function checkAmountPortion(pageFor, base, api, screenshots) {
   // Shares over the total only warn; a share over the total itself is still blocked.
   const { bill: over } = await api(`/groups/${group.id}/bills`, 'alice-token', 'POST', {
     requestId: crypto.randomUUID(), title: 'Too much claimed', purchaseDate: '2026-01-01',
-    timeZone: 'America/Toronto', notes: '', totalCents: 10000, ownShareCents: 5000,
+    timeZone: 'America/Toronto', notes: '', totalCents: 10000,
     participantIds: [ids.Alice, ids.Bob, ids.Carol],
   });
+  await api(`/bills/${over.id}/share`, 'alice-token', 'POST', { revision: 1, expectedAmountCents: null, amountCents: 5000 });
   await api(`/bills/${over.id}/share`, 'bob-token', 'POST', { revision: 1, expectedAmountCents: null, amountCents: 4000 });
   await carol.goto(`${base}#/bills/${over.id}`);
   await choice(carol, '1/2 · $50.00').click();
@@ -180,6 +137,28 @@ export async function checkAmountPortion(pageFor, base, api, screenshots) {
   await expect(choice(carol, 'Even · 1/3 · $40.00')).toBeVisible();
   await expect(choice(carol, '1/2 · $60.00')).toHaveAttribute('aria-pressed', 'false');
   assert.equal((await amounts(over.id)).Carol, 5000);
+  // N = 1 and 2 on the bill page: no duplicate Even, and a solo bill waits for submission.
+  for (const names of [['Alice'], ['Alice', 'Bob']]) {
+    const { bill } = await api(`/groups/${group.id}/bills`, 'alice-token', 'POST', {
+      requestId: crypto.randomUUID(), title: `Portion for ${names.length}`, purchaseDate: '2026-01-01',
+      timeZone: 'America/Toronto', notes: '', totalCents: 10000, participantIds: names.map(name => ids[name]),
+    });
+    assert.equal(bill.completedAt, null);
+    await alice.goto(`${base}#/bills/${bill.id}`);
+    await expect(card(alice)).toContainText('Pick a portion of $100.00 or type an amount');
+    const even = names.length === 1 ? 'Even · All · $100.00' : 'Even · 1/2 · $50.00';
+    assert.deepEqual(await choiceNames(alice), names.length === 1
+      ? [even, '1/2 · $50.00', '1/3 · $33.33', '1/4 · $25.00', '1/5 · $20.00', '1/6 · $16.67', 'Custom']
+      : [even, 'All · $100.00', '1/3 · $33.33', '1/4 · $25.00', '1/5 · $20.00', '1/6 · $16.67', 'Custom']);
+    await choice(alice, even).click();
+    await alice.getByRole('button', { name: 'Submit and confirm my share' }).click();
+    if (names.length === 1) {
+      await expect(alice.getByRole('region', { name: 'Bill summary', exact: true }).getByText('Complete', { exact: true })).toBeVisible();
+      assert.equal((await amounts(bill.id)).Alice, 10000);
+    } else {
+      await expect(alice.getByRole('heading', { name: 'Your share is confirmed.' })).toBeVisible();
+    }
+  }
   for (const page of [alice, bob, carol]) await page.context().close();
-  console.log('Amount portion smoke passed: draft choices for 1 to 3 people, disabled without a total, following a corrected total, typed shares, custom fractions, taking what is left, over-total warning, own-share error, and reopened bills.');
+  console.log('Amount portion smoke passed: no setup share, unsubmitted initiation, initiator submission, choices for 1 to 3 people, solo completion after submission, typed shares, custom fractions, taking what is left, over-total warning, own-share error, and reopened bills.');
 }

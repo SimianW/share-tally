@@ -100,7 +100,6 @@ export type ReceiptData = {
   timeZone: string;
   notes: string;
   totalCents: number | null;
-  ownShareCents: number;
   participantIds: string[];
   items: ReceiptDraftItem[];
 };

@@ -90,7 +90,6 @@ export function extractionDefaults(data: ExtractedReceipt) {
     purchaseDate: "",
     timeZone: "",
     totalCents: null,
-    ownShareCents: 0,
     participantIds: [],
   });
   return {

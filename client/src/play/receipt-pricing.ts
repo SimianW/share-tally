@@ -70,8 +70,10 @@ export function unassignedReceiptTaxMessage(data: ReceiptData): string | null {
 export function recoverReceiptData(data: ReceiptData): ReceiptData {
   const legacy = data.items as (ReceiptDraftItem & { taxCents?: number; extraCents?: number })[];
   const preserve = legacy.some((item) => (item.taxCents != null && item.taxCents !== (item.allocatedTaxCents ?? 0)) || !!item.extraCents);
+  const cleanData = { ...data } as ReceiptData & { ownShareCents?: unknown };
+  delete cleanData.ownShareCents;
   return {
-    ...data,
+    ...cleanData,
     items: legacy.map((item) => {
       const clean = { ...item };
       delete clean.taxCents;

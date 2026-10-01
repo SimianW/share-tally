@@ -49,7 +49,6 @@ test("tax allocation preserves cents and included tax is not charged twice", () 
     purchaseDate: "2026-09-16",
     timeZone: "America/Toronto",
     totalCents: exclusive.totalCents,
-    ownShareCents: 0,
     participantIds: [],
     receipt: exclusive.receipt,
     items: exclusive.items,

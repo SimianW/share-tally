@@ -224,7 +224,7 @@ try {
   await alice.getByLabel('Bill title', { exact: true }).fill('Weekend groceries');
   await alice.getByLabel('Total paid (CAD)', { exact: true }).fill('100.00');
   await alice.getByLabel('Total paid (CAD)', { exact: true }).fill('100.001');
-  await alice.getByLabel('Your share (CAD)', { exact: true }).fill('40.00');
+  await expect(alice.getByLabel('Your share (CAD)', { exact: true })).toHaveCount(0);
   await alice.getByRole('checkbox', { name: 'Bob', exact: true }).check();
   await alice.getByRole('button', { name: 'Share bill' }).click();
   assert.equal(await alice.getByLabel('Total paid (CAD)', { exact: true }).evaluate(el => el.validity.valid), false);
@@ -250,6 +250,12 @@ try {
   await expect(alice.getByText('paid by you, in CAD', { exact: false })).toBeVisible();
   await expect(billSummary(alice).getByText('In progress', { exact: true })).toBeVisible();
   await expect(billSummary(alice)).toContainText(/Total\s*\$100\.00/);
+  await expect(billSummary(alice)).toContainText(/Left to match\s*\$100\.00/);
+  await expect(billSummary(alice)).toContainText('0 of 2 confirmed');
+  await expect(shareTicket(alice)).toContainText('Not submitted yet');
+  await expect(shareTicket(alice).getByText('Needs your confirmation', { exact: true })).toBeVisible();
+  await alice.getByLabel('Your share (CAD)', { exact: true }).fill('40.00');
+  await alice.getByRole('button', { name: 'Submit and confirm my share' }).click();
   await expect(billSummary(alice)).toContainText(/Left to match\s*\$60\.00/);
   await expect(billSummary(alice)).toContainText('1 of 2 confirmed');
   await expect(shareTicket(alice)).toContainText('$40.00');
@@ -434,10 +440,14 @@ try {
   await alice.getByRole('button', { name: 'Split by amount instead', exact: true }).click();
     await alice.getByLabel('Bill title', { exact: true }).fill(title);
     await alice.getByLabel('Total paid (CAD)', { exact: true }).fill('100.00');
-    await alice.getByLabel('Your share (CAD)', { exact: true }).fill('40.00');
+    await expect(alice.getByLabel('Your share (CAD)', { exact: true })).toHaveCount(0);
     await alice.getByRole('checkbox', { name: 'Bob', exact: true }).check();
     await alice.getByRole('button', { name: 'Share bill' }).click();
     await expect(alice.getByRole('heading', { name: title })).toBeVisible();
+    await expect(shareTicket(alice)).toContainText('Not submitted yet');
+    await alice.getByLabel('Your share (CAD)', { exact: true }).fill('40.00');
+    await alice.getByRole('button', { name: 'Submit and confirm my share' }).click();
+    await expect(billSummary(alice)).toContainText('1 of 2 confirmed');
     await bobAgain.goto(alice.url());
     await bobAgain.getByLabel('Your share (CAD)', { exact: true }).fill('59.00');
     await bobAgain.getByRole('button', { name: 'Submit and confirm my share' }).click();
@@ -589,13 +599,17 @@ try {
   await bobAgain.reload();
   assert.equal(await bobAgain.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await bobAgain.screenshot({ path: `${clientRoot}/test-results/repayments-mobile.png`, fullPage: true });
-  // A new bill remains available after repayment decisions. It completes immediately.
+  // A solo bill remains open at initiation and completes after its explicit share submission.
   await alice.getByRole('button', { name: 'New bill', exact: true }).click();
   await alice.getByRole('button', { name: 'Split by amount instead', exact: true }).click();
   await alice.getByLabel('Bill title', { exact: true }).fill('After repayment');
   await alice.getByLabel('Total paid (CAD)', { exact: true }).fill('10.00');
-  await alice.getByLabel('Your share (CAD)', { exact: true }).fill('10.00');
+  await expect(alice.getByLabel('Your share (CAD)', { exact: true })).toHaveCount(0);
   await alice.getByRole('button', { name: 'Share bill' }).click();
+  await expect(billSummary(alice).getByText('In progress', { exact: true })).toBeVisible();
+  await expect(shareTicket(alice)).toContainText('Not submitted yet');
+  await alice.getByLabel('Your share (CAD)', { exact: true }).fill('10.00');
+  await alice.getByRole('button', { name: 'Submit and confirm my share' }).click();
   await expect(billSummary(alice).getByText('Complete', { exact: true })).toBeVisible();
   await alice.getByRole('link', { name: 'Group bills', exact: false }).click();
   await expect(groupNet(alice)).toContainText('$99.97');
@@ -628,9 +642,10 @@ try {
   // Even an overage within tolerance cannot make the initiator's cost negative.
   const { bill: negativeAdjustment } = await liveApi(`/groups/${liveGroupId}/bills`, 'alice-token', 'POST', {
     requestId: crypto.randomUUID(), title: 'Small overage', purchaseDate: '2026-01-01',
-    timeZone: 'America/Toronto', notes: '', totalCents: 10000, ownShareCents: 0,
+    timeZone: 'America/Toronto', notes: '', totalCents: 10000,
     participantIds: [liveIds.Alice, liveIds.Bob, liveIds.Carol],
   });
+  await liveApi(`/bills/${negativeAdjustment.id}/share`, 'alice-token', 'POST', { revision: 1, expectedAmountCents: null, amountCents: 0 });
   await liveApi(`/bills/${negativeAdjustment.id}/share`, 'bob-token', 'POST', { revision: 1, expectedAmountCents: null, amountCents: 5000 });
   await carol.goto(`${base}#/bills/${negativeAdjustment.id}`);
   await carol.getByLabel('Your share (CAD)', { exact: true }).fill('50.03');
@@ -655,7 +670,7 @@ try {
     revision: 0,
     data: {
       mode: 'items', title: 'Unclaimed apples', purchaseDate: '2026-01-01', timeZone: 'America/Toronto', notes: '',
-      totalCents: 2000, ownShareCents: 0, participantIds: [liveIds.Alice, liveIds.Bob],
+      totalCents: 2000, participantIds: [liveIds.Alice, liveIds.Bob],
       receipt: { subtotalCents: 2000, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false },
       items: [{ id: crypto.randomUUID(), name: 'Shared apples', originalText: 'APPLES', quantity: '1',
         amountCents: 2000, discountCents: 0, taxable: false, finalCents: 2000, manualFinal: false }],
@@ -676,9 +691,10 @@ try {
   await liveApi(`/bills/${itemBill.id}/cancel`, 'alice-token', 'POST', { revision: (await liveApi(`/bills/${itemBill.id}`)).bill.revision });
   const { bill: liveBill } = await liveApi(`/groups/${liveGroupId}/bills`, 'alice-token', 'POST', {
     requestId: crypto.randomUUID(), title: 'Live draft protection', purchaseDate: '2026-01-01',
-    timeZone: 'America/Toronto', notes: '', totalCents: 10000, ownShareCents: 4000,
+    timeZone: 'America/Toronto', notes: '', totalCents: 10000,
     participantIds: [liveIds.Alice, liveIds.Bob, liveIds.Carol],
   });
+  await liveApi(`/bills/${liveBill.id}/share`, 'alice-token', 'POST', { revision: 1, expectedAmountCents: null, amountCents: 4000 });
   await alice.goto(`${base}#/bills/${liveBill.id}`);
   await alice.getByRole('button', { name: 'Edit details & participants' }).click();
   await alice.getByRole('dialog').getByLabel('Title', { exact: true }).fill('Keep this unsent title');
@@ -834,7 +850,7 @@ try {
   const blockedBill = await fetch(`http://127.0.0.1:${port}/api/groups/${deletionId}/bills`, {
     method: 'POST', headers: { Authorization: 'Bearer alice-token', 'Content-Type': 'application/json' },
     body: JSON.stringify({ requestId: crypto.randomUUID(), title: 'Not settled', purchaseDate: '2026-01-01',
-      timeZone: 'America/Toronto', notes: '', totalCents: 100, ownShareCents: 40,
+      timeZone: 'America/Toronto', notes: '', totalCents: 100,
       participantIds: deleteMembers }),
   });
   assert.equal(blockedBill.status, 201, await blockedBill.clone().text());

@@ -78,10 +78,9 @@ export type BillDraft = {
   timeZone: string;
   notes: string;
   totalCents: number;
-  ownShareCents: number;
   participantIds: string[];
 };
-export type BillEdit = Omit<BillDraft, "requestId" | "ownShareCents"> & {
+export type BillEdit = Omit<BillDraft, "requestId"> & {
   revision: number;
 };
 export type ShareInput = {

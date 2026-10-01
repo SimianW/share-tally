@@ -56,14 +56,9 @@ export function parseEdit(value: unknown) {
   const { revision: _, ...details } = body;
   if ("requestId" in details || "ownShareCents" in details)
     throw new BillError(400, "Bill edits cannot change participant amounts.");
-  const {
-    requestId: _request,
-    ownShareCents: _share,
-    ...input
-  } = parseBill({
+  const { requestId: _request, ...input } = parseBill({
     ...details,
     requestId: "00000000-0000-4000-8000-000000000000",
-    ownShareCents: 0,
   });
   return { ...input, revision };
 }
@@ -76,7 +71,6 @@ export function parseBill(value: unknown) {
     "timeZone",
     "notes",
     "totalCents",
-    "ownShareCents",
     "participantIds",
   ];
   if (Object.keys(body).some((key) => !allowed.includes(key)))
@@ -142,7 +136,6 @@ export function parseBill(value: unknown) {
     purchaseDate: body.purchaseDate,
     notes,
     totalCents,
-    ownShareCents: cents(body.ownShareCents, totalCents),
     participantIds,
   };
 }
@@ -232,11 +225,10 @@ export async function createBill(
       input.participantIds.map((id) => ({
         billId: bill.id,
         userId: id,
-        amountCents: id === userId ? input.ownShareCents : null,
-        confirmedAt: id === userId ? new Date() : null,
+        amountCents: null,
+        confirmedAt: null,
       })),
     );
-    await complete(tx, bill);
     return bill.id;
   });
   notifyGroupChanged(groupId);

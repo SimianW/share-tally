@@ -314,7 +314,7 @@ async function inviteMember(groupId: string, token = 'bob-token') {
 async function groupBill(groupId: string, aliceId: string, bobId: string) {
   return (await json(await api(`/groups/${groupId}/bills`, 'alice-token', 'POST', {
     requestId: crypto.randomUUID(), title: 'Shared lunch', purchaseDate: '2026-01-01',
-    timeZone: 'America/Toronto', notes: '', totalCents: 1000, ownShareCents: 400,
+    timeZone: 'America/Toronto', notes: '', totalCents: 1000,
     participantIds: [aliceId, bobId],
   }), 201)).bill;
 }
@@ -352,7 +352,7 @@ test('only a creator can delete a cleared group; deletion hides every entry poin
   await json(await api('/groups/join', 'carol-token', 'POST', { token: invitationToken }), 404);
   await json(await api(`/groups/${group.id}/bills`, 'alice-token', 'POST', {
     requestId: crypto.randomUUID(), title: 'No more bills', purchaseDate: '2026-01-01',
-    timeZone: 'America/Toronto', notes: '', totalCents: 100, ownShareCents: 100,
+    timeZone: 'America/Toronto', notes: '', totalCents: 100,
     participantIds: [group.createdBy],
   }), 404);
   await json(await api(`/groups/${group.id}/repayments`, 'bob-token', 'POST', {
@@ -415,6 +415,9 @@ test('completed bills and confirmed repayments remain stored after a cleared gro
   const bobId = (await json(await api(`/groups/${group.id}`))).group.members
     .find((m: { displayName: string }) => m.displayName === 'Bob').id;
   const bill = await groupBill(group.id, group.createdBy, bobId);
+  await json(await api(`/bills/${bill.id}/share`, 'alice-token', 'POST', {
+    amountCents: 400, revision: bill.revision, expectedAmountCents: null,
+  }));
   const completed = (await json(await api(`/bills/${bill.id}/share`, 'bob-token', 'POST', {
     amountCents: 600, revision: bill.revision, expectedAmountCents: null,
   }))).bill;
@@ -473,7 +476,7 @@ test('a receipt draft does not block deletion and becomes inaccessible afterward
   await json(await api(`/receipt-drafts/${draftId}`), 404);
   await json(await api(`/groups/${group.id}/receipt-drafts/${draftId}`, 'alice-token', 'PUT', {
     revision: 1, data: { mode: 'manual', title: 'Unfinished', purchaseDate: '2026-01-01', timeZone: 'America/Toronto',
-      notes: '', totalCents: 100, ownShareCents: 100, participantIds: [group.createdBy], items: [] },
+      notes: '', totalCents: 100, participantIds: [group.createdBy], items: [] },
   }), 404);
   await json(await api(`/receipt-drafts/${draftId}/initialize`, 'alice-token', 'POST', { revision: 1 }), 404);
   await json(await api(`/groups/${group.id}/receipt-drafts`), 404);
@@ -533,7 +536,7 @@ test('deleting a group while receipt interpretation is held discards late comple
   const id = crypto.randomUUID();
   const itemId = crypto.randomUUID();
   const data = { mode: 'items', title: 'Scanning', purchaseDate: '2026-01-01', timeZone: 'America/Toronto',
-    notes: '', totalCents: 300, ownShareCents: 0, participantIds: [group.createdBy],
+    notes: '', totalCents: 300, participantIds: [group.createdBy],
     items: [{ id: itemId, name: 'Apple', originalText: 'APPLE', quantity: '1', amountCents: 300,
       discountCents: 0, finalCents: 300, taxable: null, manualFinal: false }] };
   const sharp = (await import('sharp')).default;
@@ -598,7 +601,7 @@ test('bill and repayment creation waiting behind deletion cannot create records'
     }
     bill = api(`/groups/${group.id}/bills`, 'alice-token', 'POST', {
       requestId: crypto.randomUUID(), title: 'Late bill', purchaseDate: '2026-01-01',
-      timeZone: 'America/Toronto', notes: '', totalCents: 100, ownShareCents: 100,
+      timeZone: 'America/Toronto', notes: '', totalCents: 100,
       participantIds: [group.createdBy],
     });
     repayment = api(`/groups/${group.id}/repayments`, 'bob-token', 'POST', {
