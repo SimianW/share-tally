@@ -70,6 +70,45 @@ function ledgerEntries(bills: Awaited<ReturnType<typeof readBills>>, repayments:
     .map(item => item.entry);
 }
 
+type PairDebt = {
+  fromUserId: string;
+  toUserId: string;
+  cents: bigint;
+  lines: { entryId: string; cents: bigint }[];
+};
+
+const pairKey = (a: string, b: string) => a < b ? `${a}:${b}` : `${b}:${a}`;
+
+// Index each unordered pair once in entry order. A positive amount means the
+// lower-ID member owes the higher-ID member; reverse views negate its lines.
+function pairDebts(entries: LedgerEntry[]) {
+  const pairs = new Map<string, PairDebt>();
+  function add(fromUserId: string, toUserId: string, entryId: string, cents: bigint) {
+    if (cents === 0n) return;
+    const key = pairKey(fromUserId, toUserId);
+    const forward = fromUserId < toUserId;
+    let pair = pairs.get(key);
+    if (!pair) {
+      pair = { fromUserId: forward ? fromUserId : toUserId, toUserId: forward ? toUserId : fromUserId, cents: 0n, lines: [] };
+      pairs.set(key, pair);
+    }
+    const signedCents = forward ? cents : -cents;
+    pair.cents += signedCents;
+    pair.lines.push({ entryId, cents: signedCents });
+  }
+  for (const entry of entries) {
+    if (entry.kind === 'bill') {
+      for (const effect of entry.effects) {
+        if (effect.userId !== entry.initiatorId)
+          add(effect.userId, entry.initiatorId, entry.id, BigInt(effect.shareCents));
+      }
+    } else {
+      add(entry.senderId, entry.recipientId, entry.id, -BigInt(entry.amountCents));
+    }
+  }
+  return pairs;
+}
+
 export function groupLedger(
   bills: Awaited<ReturnType<typeof readBills>>,
   members: { userId: string; displayName: string | null }[],
@@ -83,9 +122,35 @@ export function groupLedger(
     const netCents = safeCents(balances.get(member.userId)!);
     return { userId: member.userId, displayName: member.displayName ?? 'Member', netCents };
   });
+  const pairs = pairDebts(entries);
+  const directDebts: Suggestion[] = [];
+  for (const pair of pairs.values()) {
+    if (pair.cents === 0n) continue;
+    const forward = pair.cents > 0n;
+    directDebts.push({
+      fromUserId: forward ? pair.fromUserId : pair.toUserId,
+      toUserId: forward ? pair.toUserId : pair.fromUserId,
+      amountCents: safeCents(forward ? pair.cents : -pair.cents),
+    });
+  }
+  directDebts.sort((a, b) => a.fromUserId < b.fromUserId ? -1 : a.fromUserId > b.fromUserId ? 1 : a.toUserId < b.toUserId ? -1 : a.toUserId > b.toUserId ? 1 : 0);
+  const suggestions = minimumRepayments(result).map(suggestion => {
+    const pair = pairs.get(pairKey(suggestion.fromUserId, suggestion.toUserId));
+    const sign = pair?.fromUserId === suggestion.fromUserId ? 1n : -1n;
+    const direct = (pair?.cents ?? 0n) * sign;
+    return {
+      ...suggestion,
+      explanation: {
+        directCents: safeCents(direct),
+        directLines: (pair?.lines ?? []).map(line => ({ entryId: line.entryId, cents: safeCents(line.cents * sign) })),
+        passedAlongCents: safeCents(BigInt(suggestion.amountCents) - direct),
+      },
+    };
+  });
   return {
     members: result,
-    suggestions: minimumRepayments(result),
+    suggestions,
+    directDebts,
     incompleteBillIds: bills.filter(bill => !bill.completedAt && !bill.canceledAt).map(bill => bill.id),
     entries,
   };

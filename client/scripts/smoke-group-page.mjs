@@ -90,7 +90,8 @@ export async function checkGroupPage(pageFor, base, api) {
     assert.ok(bobBill.completedAt);
   }
   const missing = await manual('Bob', openName, 5400, 2100, ['Alice', 'Bob', 'Carol']);
-  let unconfirmed = await manual('Alice', confirmName, 7600, 0, ['Alice', 'Bob', 'Member']);
+  // Only a new total voids manual confirmations (ADR-0015), so the receipt correction changes it.
+  let unconfirmed = await manual('Alice', confirmName, 7500, 0, ['Alice', 'Bob', 'Member']);
   unconfirmed = (await api(`/bills/${unconfirmed.id}`, 'alice-token', 'PATCH', {
     revision: unconfirmed.revision, title: confirmName, purchaseDate: date,
     timeZone: 'America/Toronto', notes: 'Corrected receipt', totalCents: 7600,
@@ -376,6 +377,7 @@ export async function checkGroupPage(pageFor, base, api) {
       await page.context().close();
     }
   }
+  await checkTransferTrace(pageFor, base, api);
 }
 
 const signedCurrency = cents => `${cents > 0 ? '+' : cents < 0 ? '−' : ''}${currency(Math.abs(cents))}`;
@@ -437,6 +439,13 @@ async function checkLedgerTrace(page, audit, state) {
   const repaymentCells = state.ledger.members.map(member => member.userId === confirmed.senderId ? signedCurrency(confirmed.amountCents)
     : member.userId === confirmed.recipientId ? signedCurrency(-confirmed.amountCents) : '—Not involved');
   await expect(table.getByRole('row').filter({ hasText: 'Repayment · Bob → You' }).getByRole('cell')).toHaveText(repaymentCells);
+  // Every suggested transfer is traceable too, named by its payer and recipient.
+  const displayName = id => state.ledger.members.find(member => member.userId === id).displayName;
+  await expect(audit.getByRole('region', { name: 'Suggested transfers' }).getByRole('button'))
+    .toHaveText(state.ledger.suggestions.map(s => currency(s.amountCents)));
+  for (const s of state.ledger.suggestions)
+    await expect(audit.getByRole('button', { name: `${displayName(s.fromUserId)} pays ${displayName(s.toUserId)}, ${currency(s.amountCents)}`, exact: true }))
+      .toHaveAttribute('aria-pressed', 'false');
   await expectFooterMatchesList(audit, state);
   for (const bill of state.bills.filter(bill => state.ledger.incompleteBillIds.includes(bill.id)))
     await expect(trace.getByText(/^Not counted yet: .* \(still open\)$/)).toContainText(bill.title);
@@ -450,7 +459,7 @@ async function checkLedgerTrace(page, audit, state) {
   await expect(trace.getByRole('button', { name: 'Unpin' })).toHaveCount(0);
   await away();
   await expect(traced).toHaveCount(0);
-  await expect(trace).toContainText('Hover over a balance above to trace it');
+  await expect(trace).toContainText('Hover over a balance or transfer above to trace it');
   await figure('Carol').hover();
   await expect(tracing('Carol')).toBeVisible();
   await away();
@@ -483,4 +492,193 @@ async function checkLedgerTrace(page, audit, state) {
   await expect(figure('Carol')).toHaveAttribute('aria-pressed', 'false');
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+}
+
+// A small group whose members are Alice and the given other identities.
+async function fixtureGroup(api, name, tokens) {
+  const { group: created } = await api('/groups', 'alice-token', 'POST', { name, icon: { type: 'unicode', value: '🧾' } });
+  const invitation = await api(`/groups/${created.id}/invitation`);
+  for (const token of tokens) await api('/groups/join', token, 'POST', { token: invitation.path.split('/').at(-1) });
+  const { group } = await api(`/groups/${created.id}`);
+  const ids = Object.fromEntries(group.members.map(member => [member.displayName, member.id]));
+  const names = { 'alice-token': 'Alice', 'bob-token': 'Bob', 'carol-token': 'Carol', 'member-1-token': 'Member' };
+  const tokenOf = Object.fromEntries(['alice-token', ...tokens].map(token => [names[token], token]));
+  assert.equal(group.members.length, tokens.length + 1);
+  return {
+    id: created.id, ids,
+    // A complete manual bill: the initiator comes first in `shares`, each share in cents.
+    async bill(title, shares) {
+      const [initiator] = shares[0];
+      let { bill } = await api(`/groups/${created.id}/bills`, tokenOf[initiator], 'POST', {
+        requestId: randomUUID(), title, purchaseDate: date, timeZone: 'America/Toronto', notes: '',
+        totalCents: shares.reduce((sum, [, cents]) => sum + cents, 0), participantIds: shares.map(([person]) => ids[person]),
+      });
+      for (const [person, amountCents] of shares)
+        ({ bill } = await api(`/bills/${bill.id}/share`, tokenOf[person], 'POST', { revision: bill.revision, expectedAmountCents: null, amountCents }));
+      assert.ok(bill.completedAt, `${title} completes`);
+      return bill;
+    },
+    async repay(sender, recipient, amountCents) {
+      const { repayment } = await api(`/groups/${created.id}/repayments`, tokenOf[sender], 'POST', {
+        requestId: randomUUID(), recipientId: ids[recipient], amountCents,
+      });
+      await api(`/repayments/${repayment.id}/decision`, tokenOf[recipient], 'POST', { decision: 'confirmed' });
+    },
+  };
+}
+
+// Desktop transfer tracing (#174): a transfer figure pins the payer's and the
+// recipient's columns, emphasizes the rows directly between them, and states
+// direct + passed along = total with a reason that names a person only with
+// that person's actual direct debt.
+async function checkTransferTrace(pageFor, base, api) {
+  const explanation = (state, from, to) => {
+    const s = state.ledger.suggestions.find(s => s.fromUserId === from && s.toUserId === to);
+    assert.ok(s, 'expected suggestion exists');
+    assert.equal(s.explanation.directCents + s.explanation.passedAlongCents, s.amountCents);
+    assert.equal(s.explanation.directLines.reduce((sum, line) => sum + line.cents, 0), s.explanation.directCents);
+    return [s.amountCents, s.explanation.directCents, s.explanation.passedAlongCents, s.explanation.directLines.map(line => line.entryId)];
+  };
+  async function open(groupId) {
+    const page = await pageFor('alice-token', { width: 1280, height: 900 });
+    await page.goto(`${base}#/group-bills/${groupId}`);
+    await expect(page.getByRole('region', { name: 'Where you stand' })).toBeVisible();
+    const audit = page.getByRole('region', { name: 'Group balances and repayments' });
+    const trace = audit.getByRole('region', { name: 'How the numbers add up' });
+    const table = ledgerTable(audit);
+    const suggestions = audit.getByRole('region', { name: 'Suggested transfers' });
+    return {
+      page, audit, trace, table, suggestions,
+      toggle: trace.getByRole('button', { name: 'How the numbers add up' }),
+      transfer: (from, to) => suggestions.getByRole('button', { name: new RegExp(`^${from} pays ${to}, `) }),
+      column: (name, role) => table.getByRole('columnheader', { name: `${name} ${role}`, exact: true }),
+      roles: table.getByRole('columnheader', { name: / (?:Pays|Receives|Balance)$/ }),
+      directRows: table.getByRole('rowheader', { name: /, directly between them$/ }),
+      sum: trace.getByText(/^Between them directly:/),
+      away: () => page.mouse.move(0, 0),
+    };
+  }
+
+  // The prototype's figures: Bob owes Carol $60.79 directly, Alice owed Carol
+  // $19.92 and Bob owes Alice $28.50, so Bob pays Carol $80.71 and Alice $8.58.
+  const trio = await fixtureGroup(api, 'Cabin trio', ['bob-token', 'carol-token']);
+  const cabin = await trio.bill('Cabin groceries', [['Carol', 1000], ['Bob', 6079], ['Alice', 1992]]);
+  await trio.bill('Ski rental', [['Alice', 1000], ['Bob', 2850]]);
+  let state = await api(`/groups/${trio.id}/bills`);
+  assert.deepEqual(explanation(state, trio.ids.Bob, trio.ids.Carol), [8071, 6079, 1992, [cabin.id]]);
+  assert.deepEqual(explanation(state, trio.ids.Bob, trio.ids.Alice)?.slice(0, 3), [858, 2850, -1992]);
+  let ui = await open(trio.id);
+  const { page, trace, table, toggle, transfer, column, roles, directRows, sum, away, suggestions } = ui;
+
+  await expect(transfer('Bob', 'Carol')).toHaveAccessibleName('Bob pays Carol, $80.71');
+  await expect(transfer('Bob', 'Carol')).toHaveText('$80.71');
+  await expect(transfer('Bob', 'Carol')).toHaveAttribute('title', 'Show how this adds up');
+  await transfer('Bob', 'Carol').hover();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(table).toHaveCount(0);
+
+  await transfer('Bob', 'Carol').click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(transfer('Bob', 'Carol')).toHaveAttribute('aria-pressed', 'true');
+  await expect(column('Bob', 'Pays')).toBeVisible();
+  await expect(column('Carol', 'Receives')).toBeVisible();
+  await expect(roles).toHaveCount(2);
+  await expect(directRows).toHaveCount(1);
+  await expect(directRows).toContainText('Cabin groceries');
+  await expect(trace).toContainText('Bob pays Carol $80.71. Highlighted rows are the bills and repayments directly between them.');
+  await expect(sum).toHaveText('Between them directly: $60.79 + $19.92 passed along = $80.71. '
+    + 'You owed Carol $19.92. Bob owes you more than that, so Bob pays it to Carol directly — one fewer transfer.');
+  await mkdir('/tmp/st-174', { recursive: true });
+  for (const colorScheme of ['light', 'dark']) {
+    await page.emulateMedia({ colorScheme });
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.scheme)).toBe(colorScheme);
+    await away();
+    await ui.audit.screenshot({ path: `/tmp/st-174/transfer-trace-${colorScheme}.png`, animations: 'disabled' });
+  }
+  await page.emulateMedia({ colorScheme: 'light' });
+
+  // Hovering another transfer leaves the pin; once released, hover traces it.
+  await transfer('Bob', 'Alice').hover();
+  await expect(column('Carol', 'Receives')).toBeVisible();
+  await transfer('Bob', 'Carol').click();
+  await expect(transfer('Bob', 'Carol')).toHaveAttribute('aria-pressed', 'false');
+  await away();
+  await expect(roles).toHaveCount(0);
+  await expect(sum).toHaveCount(0);
+  await transfer('Bob', 'Alice').hover();
+  await expect(column('Bob', 'Pays')).toBeVisible();
+  await expect(column('You', 'Receives')).toBeVisible();
+  await expect(directRows).toHaveCount(1);
+  await expect(directRows).toContainText('Ski rental');
+  await expect(sum).toHaveText('Between them directly: $28.50 − $19.92 sent elsewhere = $8.58. '
+    + 'You owed Carol $19.92. Bob pays that to Carol instead, so you receive $19.92 less here.');
+  await away();
+  await expect(roles).toHaveCount(0);
+
+  // Keyboard: focus traces, Enter and Space toggle the pin. The earlier click
+  // left this figure focused, so focus it afresh.
+  await page.evaluate(() => document.activeElement?.blur());
+  await transfer('Bob', 'Carol').focus();
+  await expect(column('Carol', 'Receives')).toBeVisible();
+  await page.keyboard.press('Enter');
+  await expect(transfer('Bob', 'Carol')).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('Space');
+  await expect(transfer('Bob', 'Carol')).toHaveAttribute('aria-pressed', 'false');
+
+  // A pinned transfer that a live update settles is cleared, not left highlighted.
+  await transfer('Bob', 'Alice').click();
+  await expect(transfer('Bob', 'Alice')).toHaveAttribute('aria-pressed', 'true');
+  await away();
+  await trio.repay('Bob', 'Alice', 858);
+  await expect(suggestions.getByRole('listitem')).toHaveCount(1);
+  await expect(transfer('Bob', 'Alice')).toHaveCount(0);
+  await expect(roles).toHaveCount(0);
+  await expect(sum).toHaveCount(0);
+  await expect(trace.getByRole('button', { name: 'Unpin' })).toHaveCount(0);
+  await expect(trace).toContainText('Hover over a balance or transfer above to trace it');
+  // The remaining transfer renders the refreshed explanation.
+  state = await api(`/groups/${trio.id}/bills`);
+  const [, direct, passed] = explanation(state, trio.ids.Bob, trio.ids.Carol);
+  await transfer('Bob', 'Carol').click();
+  await expect(sum).toContainText(`Between them directly: ${currency(direct)} + ${currency(passed)} passed along = $80.71.`);
+
+  // A settled group keeps "No transfers needed." and its balances stay traceable.
+  await trio.repay('Bob', 'Carol', 8071);
+  await expect(suggestions).toContainText('No transfers needed.');
+  await expect(roles).toHaveCount(0);
+  await ui.audit.getByRole('button', { name: /^Alice's balance, / }).click();
+  await expect(column('You', 'Balance')).toBeVisible();
+  await page.context().close();
+
+  // Four members where the would-be intermediaries' direct debts ($20 and $10)
+  // differ from the $30 passed along: the reason must not name either of them.
+  const quad = await fixtureGroup(api, 'Lake house four', ['bob-token', 'carol-token', 'member-1-token']);
+  await quad.bill('Lake house groceries', [['Carol', 1000], ['Bob', 5000], ['Alice', 2000], ['Member', 1000]]);
+  await quad.bill('Canoe rental', [['Alice', 1000], ['Bob', 4000]]);
+  await quad.bill('Firewood', [['Member', 1000], ['Bob', 3000]]);
+  state = await api(`/groups/${quad.id}/bills`);
+  const debt = (from, to) => state.ledger.directDebts.find(d => d.fromUserId === from && d.toUserId === to)?.amountCents ?? 0;
+  const memberIds = state.ledger.members.map(member => member.userId);
+  const generic = state.ledger.suggestions.find(s => s.explanation.passedAlongCents > 0
+    && memberIds.some(x => x !== s.fromUserId && x !== s.toUserId && debt(x, s.toUserId) > 0)
+    && !memberIds.some(x => x !== s.fromUserId && x !== s.toUserId
+      && debt(x, s.toUserId) === s.explanation.passedAlongCents && debt(s.fromUserId, x) >= s.explanation.passedAlongCents));
+  assert.ok(generic, 'fixture has a passed-along amount with no matching intermediary');
+  assert.deepEqual(explanation(state, quad.ids.Bob, quad.ids.Carol).slice(0, 3), [8000, 5000, 3000]);
+  assert.deepEqual(explanation(state, quad.ids.Bob, quad.ids.Member).slice(0, 3), [2000, 3000, -1000]);
+  ui = await open(quad.id);
+  const nameOf = id => state.ledger.members.find(member => member.userId === id).displayName;
+  const recipient = generic.toUserId === quad.ids.Alice ? 'you' : nameOf(generic.toUserId);
+  await ui.transfer(nameOf(generic.fromUserId), nameOf(generic.toUserId)).click();
+  await expect(ui.roles).toHaveCount(2);
+  await expect(ui.sum).toHaveText(`Between them directly: ${currency(generic.explanation.directCents)} + `
+    + `${currency(generic.explanation.passedAlongCents)} passed along = ${currency(generic.amountCents)}. `
+    + `${currency(generic.explanation.passedAlongCents)} of other debts is passed along to ${recipient} so the group needs fewer transfers.`);
+  await expect(ui.sum).not.toContainText('owed');
+  // A negative passed-along amount names the recipient's actual direct debt.
+  await ui.transfer('Bob', 'Member').click();
+  await expect(ui.column('Member', 'Receives')).toBeVisible();
+  await expect(ui.sum).toHaveText('Between them directly: $30.00 − $10.00 sent elsewhere = $20.00. '
+    + 'Member owed Carol $10.00. Bob pays that to Carol instead, so Member receives $10.00 less here.');
+  await ui.page.context().close();
 }

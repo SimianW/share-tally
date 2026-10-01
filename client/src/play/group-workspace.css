@@ -104,6 +104,9 @@
 .ledger-table-active td:not(.ledger-traced) > *, .ledger-table-active thead th:not(:first-child):not(.ledger-traced) > * { opacity: .4; }
 .ledger-table-active .ledger-row-faded > * > * { opacity: .3; }
 .ledger-table-active .ledger-row-faded > td.ledger-traced > * { opacity: .45; }
+/* A traced transfer: its direct amount, what was passed along, and why. */
+.ledger-trace-transfer { margin: 10px 0 0; color: var(--ink-secondary); font-size: 12.5px; line-height: 1.5; }
+.ledger-trace-transfer b { color: var(--ink); font-variant-numeric: tabular-nums; }
 .ledger-trace-note { display: flex; align-items: flex-start; gap: 6px; margin: 10px 0 0; color: var(--ink-muted); font-size: 12px; line-height: 1.45; }
 .ledger-trace-note svg { flex-shrink: 0; margin-top: 2px; }
 .repayments { margin: 0; }

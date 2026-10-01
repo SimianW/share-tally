@@ -45,9 +45,18 @@ export type LedgerEntry =
       effects: { userId: string; netCents: number }[] };
 export type GroupLedger = {
   members: { userId: string; displayName: string; netCents: number }[];
-  suggestions: { fromUserId: string; toUserId: string; amountCents: number }[];
+  // Each suggestion's amount is what its payer directly owes its recipient plus
+  // what the fewest-transfers simplification passed along (either may be negative).
+  suggestions: { fromUserId: string; toUserId: string; amountCents: number; explanation: {
+    directCents: number;
+    // Entries between the two, signed from the payer's side, in entry order.
+    directLines: { entryId: string; cents: number }[];
+    passedAlongCents: number;
+  } }[];
   incompleteBillIds: string[];
   entries: LedgerEntry[];
+  // What one member owes another from their own entries, netted per pair; positive.
+  directDebts: { fromUserId: string; toUserId: string; amountCents: number }[];
 };
 export type Bill = {
   mode: 'manual' | 'items';

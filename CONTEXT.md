@@ -76,6 +76,13 @@ The difference between a bill's total and its submitted shares, assigned to the 
 **Repayment suggestion**:
 A suggested transfer between group members calculated from their current net balances. Suggestions can change as the group's bills and recorded repayments change.
 
+**Direct debt**:
+What one member owes another from their own complete bills and confirmed repayment records alone: on each complete bill, every other participant owes the initiator their share, and a confirmed repayment record reduces its sender's debt to its recipient. Initiator adjustments never create a direct debt. The two directions between a pair are netted, so at most one of them is nonzero.
+
+**Passed along**:
+The part of a repayment suggestion that does not come from the direct debt between its two members: its amount minus the payer's direct debt to the recipient. It comes from settling other members' debts in fewer transfers, and is negative when the recipient receives less than they are owed directly.
+_Avoid_: Routed amount.
+
 **Repayment**:
 Money sent outside ShareTally from one group member to another to reduce a debt within that group.
 
