@@ -837,6 +837,29 @@ test("removing a participant who has not submitted completes a bill that now mat
   assert.equal(done.adjustmentCents, 0);
 });
 
+test("an added participant keeps others confirmed and blocks completion until they submit", async () => {
+  const { path, draft, ids } = await setup();
+  const created = await billCreate(path, { ...draft, participantIds: [ids.Alice, ids.Bob] });
+  await submit(created.id, 4000, "alice-token");
+  const before = await submit(created.id, 5000);
+  const added = (
+    await json(
+      await api(
+        `/bills/${created.id}`,
+        "alice-token",
+        "PATCH",
+        editBody(before, { participantIds: [ids.Alice, ids.Bob, ids.Carol] }),
+      ),
+    )
+  ).bill;
+  assert.equal(added.confirmedCount, 2);
+  const matched = await shareAt(created.id, added.revision, 5000, 6000);
+  assert.equal(matched.submittedCents, 10000);
+  assert.equal(matched.completedAt, null);
+  const done = await shareAt(created.id, added.revision, null, 0, "carol-token");
+  assert.ok(done.completedAt);
+});
+
 test("bill mutation validation and permissions cannot alter other participants shares or remove initiator", async () => {
   const { path, draft, ids } = await setup(false);
   const bill = await billCreate(path, draft);
@@ -1058,7 +1081,7 @@ test("completed bills reject direct edits, participant changes, cancellation and
 
 test("completion racing with edits or cancellation leaves one valid final state", async () => {
   const { path, draft } = await setup(false);
-  for (const mutation of ["edit", "cancel", "share"] as const) {
+  for (const mutation of ["descriptive edit", "total edit", "cancel", "share"] as const) {
     const bill = await billCreate(path, {
       ...draft,
       requestId: crypto.randomUUID(),
@@ -1070,12 +1093,12 @@ test("completion racing with edits or cancellation leaves one valid final state"
         expectedAmountCents: null,
         amountCents: 6000,
       }),
-      mutation === "edit"
+      mutation === "descriptive edit" || mutation === "total edit"
         ? api(
             `/bills/${bill.id}`,
             "alice-token",
             "PATCH",
-            editBody(bill, { notes: "Correction" }),
+            editBody(bill, mutation === "total edit" ? { notes: "Correction", totalCents: 9000 } : { notes: "Correction" }),
           )
         : mutation === "cancel"
           ? api(`/bills/${bill.id}/cancel`, "alice-token", "POST", {
@@ -1087,8 +1110,17 @@ test("completion racing with edits or cancellation leaves one valid final state"
               amountCents: 3999,
             }),
     ]);
-    assert.deepEqual([confirmation.status, change.status].sort(), [200, 409]);
     const after = await readBill(bill.id);
+    if (mutation === "share") {
+      // A share change keeps the revision, so both succeed when Alice's lands first.
+      assert.equal(confirmation.status, 200);
+      assert.ok([200, 409].includes(change.status));
+      assert.ok(after.completedAt);
+      assert.equal(after.revision, bill.revision);
+      assert.equal(after.submittedCents, change.ok ? 9999 : 10000);
+      continue;
+    }
+    assert.deepEqual([confirmation.status, change.status].sort(), [200, 409]);
     if (confirmation.ok) {
       assert.ok(after.completedAt);
       assert.equal(after.canceledAt, null);
@@ -1099,7 +1131,7 @@ test("completion racing with edits or cancellation leaves one valid final state"
       assert.equal(after.completedAt, null);
       assert.equal(after.revision, bill.revision + 1);
       assert.equal(Boolean(after.canceledAt), mutation === "cancel");
-      assert.equal(after.confirmedCount, mutation === "cancel" ? 1 : 0);
+      assert.equal(after.confirmedCount, mutation === "total edit" ? 0 : 1);
     }
   }
 });

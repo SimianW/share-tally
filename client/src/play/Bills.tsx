@@ -137,7 +137,9 @@ export function BillDetails({ id }: { id: string }) {
             ? updated.totalCents !== bill!.totalCents
               ? "Amounts retained. Everyone needs to confirm again."
               : "Bill details saved. Confirmations were kept."
-            : "Your share is confirmed.",
+            : updated.participants.length > 1
+              ? "Your share is confirmed. Other participants’ confirmations are unchanged."
+              : "Your share is confirmed.",
     );
     heading.current?.focus();
   }
