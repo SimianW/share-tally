@@ -352,10 +352,15 @@ export async function checkGroupPage(pageFor, base, api) {
       ['desktop', { width: 1280, height: 900 }], ['mobile', { width: 390, height: 844 }],
     ]) {
       const page = await open(token, viewport);
-      // The ledger table is a desktop explanation; at the 640px breakpoint figures stay plain.
+      // The ledger table stays desktop-only; mobile rows open explanations instead.
       const pageAudit = page.getByRole('region', { name: 'Group balances and repayments' });
       await expect(pageAudit.getByRole('region', { name: 'How the numbers add up' })).toHaveCount(device === 'desktop' ? 1 : 0);
-      await expect(pageAudit.getByRole('button', { name: /'s balance, / })).toHaveCount(device === 'desktop' ? 4 : 0);
+      if (device === 'desktop') {
+        await expect(pageAudit.getByRole('button', { name: /'s balance, / })).toHaveCount(4);
+        for (const button of await pageAudit.getByRole('button', { name: /'s balance, | pays .*\$/ }).all())
+          await expect(button).not.toHaveAttribute('aria-haspopup', /./);
+        await expect(page.getByRole('dialog')).toHaveCount(0);
+      }
       const pageHistory = page.getByRole('region', { name: 'History', exact: true });
       const showAll = pageHistory.getByRole('button', { name: /Show all \d+/ });
       await expect(showAll).toBeVisible();
@@ -377,9 +382,29 @@ export async function checkGroupPage(pageFor, base, api) {
       await page.context().close();
     }
   }
-  await checkTransferTrace(pageFor, base, api);
-  await checkLongLedger(pageFor, base, api);
+  console.log('Group page smoke passed: desktop balance tracing, live ledger refresh, member actions, and desktop/mobile history.');
+  const transferFixture = await checkTransferTrace(pageFor, base, api);
+  console.log('Desktop transfer trace smoke passed (#174).');
+  const longFixture = await checkLongLedger(pageFor, base, api);
+  console.log('Desktop long ledger smoke passed (#175).');
   await checkWideLedger(pageFor, base, api);
+  console.log('Desktop wide ledger smoke passed (#175).');
+
+  // Keep the new test-first checks after the existing ledger scenarios so a
+  // missing mobile sheet does not hide a desktop regression result.
+  const mobile = await open('alice-token', { width: 390, height: 844 });
+  const mobileState = await api(`/groups/${groupId}/bills`);
+  await checkMobileBalances(mobile, mobileState, ids.Alice);
+  console.log('Mobile balance sheet smoke passed: server effects, paid/share detail, totals, and member titles.');
+  await checkMobileSheetClosing(mobile, mobileState, ids.Alice);
+  console.log('Mobile sheet closing smoke passed: close button, Escape, outside tap, focus return, and scroll lock.');
+  await mobile.context().close();
+  await checkMobileAdjustment(pageFor, base, api);
+  console.log('Mobile initiator adjustment smoke passed.');
+  await checkMobileTransfers(pageFor, base, api, transferFixture);
+  console.log('Mobile transfer sheet smoke passed: direct lines, positive/negative passed along, totals, and split paragraphs.');
+  await checkMobileLongLedger(pageFor, base, api, longFixture);
+  console.log('Mobile long ledger smoke passed: ten recent effects, earlier subtotal, Show all, dates, and additive totals.');
 }
 
 const signedCurrency = cents => `${cents > 0 ? '+' : cents < 0 ? '−' : ''}${currency(Math.abs(cents))}`;
@@ -514,11 +539,11 @@ async function fixtureGroup(api, name, tokens) {
   return {
     id: created.id, ids,
     // A complete manual bill: the initiator comes first in `shares`, each share in cents.
-    async bill(title, shares, { purchaseDate = date } = {}) {
+    async bill(title, shares, { purchaseDate = date, totalCents = shares.reduce((sum, [, cents]) => sum + cents, 0) } = {}) {
       const [initiator] = shares[0];
       let { bill } = await api(`/groups/${created.id}/bills`, tokenOf[initiator], 'POST', {
         requestId: randomUUID(), title, purchaseDate, timeZone: 'America/Toronto', notes: '',
-        totalCents: shares.reduce((sum, [, cents]) => sum + cents, 0), participantIds: shares.map(([person]) => ids[person]),
+        totalCents, participantIds: shares.map(([person]) => ids[person]),
       });
       for (const [person, amountCents] of shares)
         ({ bill } = await api(`/bills/${bill.id}/share`, tokenOf[person], 'POST', { revision: bill.revision, expectedAmountCents: null, amountCents }));
@@ -688,6 +713,7 @@ async function checkTransferTrace(pageFor, base, api) {
   await expect(ui.sum).toHaveText('Between them directly: $30.00 − $10.00 sent elsewhere = $20.00. '
     + 'Member owed Carol $10.00. Bob pays that to Carol instead, so Member receives $10.00 less here.');
   await ui.page.context().close();
+  return quad;
 }
 
 // Long histories (#175): the earlier subtotal keeps every column additive,
@@ -797,6 +823,7 @@ async function checkLongLedger(pageFor, base, api) {
   await expect(table.getByRole('columnheader', { name: 'Carol Balance', exact: true })).toBeVisible();
   await expect(earlier).toHaveClass(/\bledger-row-faded\b/);
   await page.context().close();
+  return trio;
 }
 
 // Sum the actual displayed cells (including the earlier row), not a client
@@ -909,5 +936,246 @@ async function checkWideLedger(pageFor, base, api) {
     'the last member header is visible at maximum scroll');
   await footerRule(true);
   await trace.screenshot({ path: '/tmp/st-175/wide.png', animations: 'disabled' });
+  await page.context().close();
+}
+
+// Mobile explanations (#176) are checked through the same member/suggestion
+// names as desktop, with the HTTP ledger as the source of every expected cent.
+const sheetRow = (table, name) => table.getByRole('row')
+  .filter({ has: table.page().getByRole('rowheader', { name, exact: typeof name === 'string' }) });
+const sheetRows = table => table.getByRole('row').filter({ has: table.page().getByRole('rowheader') });
+const balanceButton = (page, member) => page.getByRole('region', { name: "Everyone's balance" })
+  .getByRole('button', { name: `${member.displayName}'s balance, ${signedCurrency(member.netCents)}`, exact: true });
+const memberEntries = (state, userId) => state.ledger.entries.filter(entry => entry.effects.some(effect => effect.userId === userId));
+
+function displayedCents(text) {
+  const amount = text.trim();
+  assert.match(amount, /^[+−]?\$\d+\.\d{2}$/, 'sheet cells contain a signed currency amount, not extra explanation');
+  return Number(amount.replace(/[+−$.]/g, '')) * (amount.startsWith('−') ? -1 : 1);
+}
+
+async function expectSheetSum(table, totalName, expectedCents, rows) {
+  const total = sheetRow(table, totalName).getByRole('cell');
+  const totalCents = displayedCents(await total.innerText());
+  assert.equal(totalCents, expectedCents, `${totalName} agrees with the tapped server figure`);
+  let sum = 0;
+  for (const row of await rows.all()) {
+    await expect(row.getByRole('cell')).toHaveCount(1);
+    sum += displayedCents(await row.getByRole('cell').innerText());
+  }
+  assert.equal(sum, totalCents, `displayed line effects and earlier subtotal add up to ${totalName}`);
+}
+
+async function expectSheetEntry(row, entry, cents, effect) {
+  await expect(row.getByRole('cell')).toHaveText(signedCurrency(cents));
+  const header = row.getByRole('rowheader');
+  await expect(header).toContainText(entry.kind === 'bill' ? entry.title : 'Repayment');
+  const effective = entry.kind === 'bill' ? entry.completedAt : entry.decidedAt;
+  const effectiveDate = await row.page().evaluate(iso => new Date(iso).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }), effective);
+  await expect(header).toContainText(effectiveDate);
+  if (entry.kind !== 'bill') return;
+  const effectiveDay = await row.page().evaluate(iso => new Date(iso).toLocaleDateString('en-CA'), effective);
+  if (entry.purchaseDate !== effectiveDay) {
+    const bought = await row.page().evaluate(day => new Date(`${day}T12:00:00`).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }), entry.purchaseDate);
+    await expect(header).toContainText(`bought ${bought}`);
+  }
+  if (!effect) return;
+  if (effect.shareCents !== 0) {
+    await expect(header).toContainText(/share/i);
+    await expect(header).toContainText(currency(effect.shareCents));
+  }
+  if (effect.paidCents !== 0) {
+    await expect(header).toContainText(/paid/i);
+    await expect(header).toContainText(currency(effect.paidCents));
+  }
+  if (effect.adjustmentCents !== 0) {
+    await expect(header).toContainText(/adjustment/i);
+    await expect(header).toContainText(signedCurrency(-effect.adjustmentCents));
+  }
+}
+
+async function openBalanceSheet(page, member, viewerId) {
+  const button = balanceButton(page, member);
+  await expect(button).toHaveAttribute('aria-haspopup', 'dialog');
+  await expect(button).toContainText(signedCurrency(member.netCents));
+  await expect(button.locator('svg[aria-hidden="true"]')).toBeVisible();
+  await button.click();
+  const dialog = page.getByRole('dialog', { name: member.userId === viewerId ? 'Your balance' : `${member.displayName}'s balance`, exact: true });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toHaveJSProperty('tagName', 'DIALOG');
+  await expect(dialog.getByRole('table')).toHaveCount(1);
+  return dialog;
+}
+
+async function checkMobileBalances(page, state, viewerId) {
+  const audit = page.getByRole('region', { name: 'Group balances and repayments' });
+  await expect(audit.getByRole('region', { name: 'How the numbers add up' })).toHaveCount(0);
+  const balances = audit.getByRole('region', { name: "Everyone's balance" });
+  await expect(balances.getByRole('button')).toHaveCount(state.ledger.members.length);
+  for (const member of state.ledger.members) {
+    const button = balanceButton(page, member);
+    await expect(balances.getByRole('listitem').filter({ has: page.getByRole('button', {
+      name: `${member.displayName}'s balance, ${signedCurrency(member.netCents)}`, exact: true,
+    }) }).getByRole('button')).toHaveCount(1);
+    const dialog = await openBalanceSheet(page, member, viewerId);
+    const table = dialog.getByRole('table');
+    const entries = memberEntries(state, member.userId);
+    assert.ok(entries.length <= 10, 'short mobile fixture needs no earlier subtotal');
+    const rows = sheetRows(table).filter({ hasNot: page.getByRole('rowheader', { name: 'Balance', exact: true }) });
+    await expect(rows).toHaveCount(entries.length);
+    for (const [i, entry] of entries.entries()) {
+      const effect = entry.effects.find(effect => effect.userId === member.userId);
+      await expectSheetEntry(rows.nth(i), entry, effect.netCents, effect);
+    }
+    await expect(sheetRow(table, 'Balance').getByRole('cell')).toHaveText(signedCurrency(member.netCents));
+    await expectSheetSum(table, 'Balance', member.netCents, rows);
+    await dialog.getByRole('button', { name: 'Close explanation', exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(button).toBeFocused();
+  }
+}
+
+async function checkMobileSheetClosing(page, state, viewerId) {
+  const member = state.ledger.members.find(member => member.userId === viewerId);
+  const button = balanceButton(page, member);
+  await button.scrollIntoViewIfNeeded();
+  const before = await page.evaluate(() => window.scrollY);
+  assert.ok(before > 0, 'the fixture page is scrollable before opening its bottom sheet');
+  for (const close of ['button', 'Escape', 'outside']) {
+    const dialog = await openBalanceSheet(page, member, viewerId);
+    const box = await dialog.boundingBox();
+    assert.ok(box && box.y > 30 && Math.abs(box.y + box.height - page.viewportSize().height) <= 2,
+      'the mobile dialog is a bottom sheet, leaving an outside-tap area above it');
+    const position = () => page.evaluate(() => ({ scrollY: window.scrollY, bodyY: document.body.getBoundingClientRect().y }));
+    const locked = await position();
+    await page.mouse.move(10, 10);
+    await page.mouse.wheel(0, -600);
+    await page.keyboard.press('PageUp');
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    assert.deepEqual(await position(), locked, 'scrolling over the backdrop cannot move the underlying page');
+    if (close === 'button') await dialog.getByRole('button', { name: 'Close explanation', exact: true }).click();
+    else if (close === 'Escape') await page.keyboard.press('Escape');
+    else await page.mouse.click(10, 10);
+    await expect(dialog).toHaveCount(0);
+    await expect(button).toBeFocused();
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(before);
+  }
+  // A lock which leaks after close is also a regression: scrolling must work again.
+  await page.mouse.move(10, 10);
+  await page.mouse.wheel(0, -600);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(before);
+}
+
+async function checkMobileAdjustment(pageFor, base, api) {
+  const group = await fixtureGroup(api, 'Mobile adjustment pair', ['bob-token']);
+  await group.bill('Adjusted shared groceries', [['Alice', 1000], ['Bob', 2000]], { totalCents: 3003 });
+  await group.repay('Bob', 'Alice', 75);
+  const state = await api(`/groups/${group.id}/bills`);
+  assert.equal(state.ledger.entries[0].effects.find(effect => effect.userId === group.ids.Alice).adjustmentCents, 3,
+    'the mobile fixture exercises a real nonzero initiator adjustment');
+  const page = await pageFor('alice-token', { width: 390, height: 844 });
+  await page.goto(`${base}#/group-bills/${group.id}`);
+  await checkMobileBalances(page, state, group.ids.Alice);
+  await page.context().close();
+}
+
+async function checkMobileTransfers(pageFor, base, api, group) {
+  let positive = false, negative = false;
+  for (const [token, viewerId] of [['alice-token', group.ids.Alice], ['bob-token', group.ids.Bob]]) {
+    const state = await api(`/groups/${group.id}/bills`, token);
+    const nameOf = id => state.ledger.members.find(member => member.userId === id).displayName;
+    const person = (id, subject = false) => id === viewerId ? (subject ? 'You' : 'you') : nameOf(id);
+    const page = await pageFor(token, { width: 390, height: 844 });
+    await page.goto(`${base}#/group-bills/${group.id}`);
+    await expect(page.getByRole('region', { name: 'How the numbers add up' })).toHaveCount(0);
+    const transfers = page.getByRole('region', { name: 'Suggested transfers' });
+    await expect(transfers.getByRole('button')).toHaveCount(state.ledger.suggestions.length);
+    for (const suggestion of state.ledger.suggestions) {
+      const { fromUserId: from, toUserId: to, amountCents, explanation } = suggestion;
+      const button = transfers.getByRole('button', { name: `${nameOf(from)} pays ${nameOf(to)}, ${currency(amountCents)}`, exact: true });
+      await expect(transfers.getByRole('listitem').filter({ has: page.getByRole('button', {
+        name: `${nameOf(from)} pays ${nameOf(to)}, ${currency(amountCents)}`, exact: true,
+      }) }).getByRole('button')).toHaveCount(1);
+      await expect(button).toHaveAttribute('aria-haspopup', 'dialog');
+      await expect(button).toContainText(currency(amountCents));
+      await expect(button.locator('svg[aria-hidden="true"]')).toBeVisible();
+      await button.click();
+      const payer = person(from, true), recipient = person(to);
+      const dialog = page.getByRole('dialog', { name: `${payer} ${from === viewerId ? 'pay' : 'pays'} ${recipient}`, exact: true });
+      await expect(dialog).toBeVisible();
+      const table = dialog.getByRole('table');
+      const directName = `${payer} ${from === viewerId ? 'owe' : 'owes'} ${recipient} directly`;
+      const direct = sheetRow(table, directName);
+      const passed = sheetRow(table, /^(?:Passed along|Sent elsewhere)/);
+      const lines = sheetRows(table).filter({ hasNot: page.getByRole('rowheader', { name: directName, exact: true }) })
+        .filter({ hasNot: page.getByRole('rowheader', { name: /^(?:Passed along|Sent elsewhere|Suggested transfer)/ }) });
+      await expect(lines).toHaveCount(explanation.directLines.length);
+      for (const [i, line] of explanation.directLines.entries())
+        await expectSheetEntry(lines.nth(i), state.ledger.entries.find(entry => entry.id === line.entryId), line.cents);
+      await expect(direct.getByRole('cell')).toHaveText(signedCurrency(explanation.directCents));
+      await expectSheetSum(table, directName, explanation.directCents, lines);
+      await expect(passed).toHaveCount(explanation.passedAlongCents === 0 ? 0 : 1);
+      if (explanation.passedAlongCents !== 0) {
+        positive ||= explanation.passedAlongCents > 0;
+        negative ||= explanation.passedAlongCents < 0;
+        await expect(passed.getByRole('rowheader')).toHaveAccessibleName(explanation.passedAlongCents > 0 ? /^Passed along/ : /^Sent elsewhere/);
+        await expect(passed.getByRole('cell')).toHaveText(signedCurrency(explanation.passedAlongCents));
+        // The passed-along reason is explanatory text, not merely an amount.
+        await expect(passed.getByRole('rowheader')).toContainText(/(?:debt|owe|pays|transfer)/i);
+      }
+      await expect(sheetRow(table, 'Suggested transfer').getByRole('cell')).toHaveText(currency(amountCents));
+      await expectSheetSum(table, 'Suggested transfer', amountCents, direct.or(passed));
+      const payerBalance = state.ledger.members.find(member => member.userId === from).netCents;
+      const split = dialog.getByRole('paragraph').filter({ hasText: /whole balance/ });
+      await expect(split).toHaveCount(1);
+      await expect(split).toContainText(`${from === viewerId ? 'Your' : `${nameOf(from)}'s`} whole balance is ${signedCurrency(payerBalance)}`);
+      for (const s of state.ledger.suggestions.filter(s => s.fromUserId === from))
+        await expect(split).toContainText(`${currency(s.amountCents)} to ${person(s.toUserId)}`);
+      assert.equal(await split.evaluate(node => Boolean(node.compareDocumentPosition(node.closest('dialog').querySelector('table')) & Node.DOCUMENT_POSITION_PRECEDING)), true,
+        'the payer split follows the explanation table');
+      await dialog.getByRole('button', { name: 'Close explanation', exact: true }).click();
+      await expect(dialog).toHaveCount(0);
+      await expect(button).toBeFocused();
+    }
+    await page.context().close();
+  }
+  assert.ok(positive && negative, 'mobile transfer checks cover both passed along and sent elsewhere');
+}
+
+async function checkMobileLongLedger(pageFor, base, api, group) {
+  const state = await api(`/groups/${group.id}/bills`);
+  assert.equal(state.ledger.entries.length, 12, 'reuse the desktop twelve-entry ledger fixture');
+  const member = state.ledger.members.find(member => member.userId === group.ids.Alice);
+  const entries = memberEntries(state, member.userId);
+  assert.equal(entries.length, 11, 'Alice has eleven effects; the Carol/Bob bill does not involve her');
+  const hidden = entries.slice(0, -10), recent = entries.slice(-10);
+  const page = await pageFor('alice-token', { width: 390, height: 844 });
+  await page.goto(`${base}#/group-bills/${group.id}`);
+  const dialog = await openBalanceSheet(page, member, group.ids.Alice);
+  const table = dialog.getByRole('table');
+  const earlier = sheetRow(table, /^Earlier bills and repayments/);
+  const rows = sheetRows(table).filter({ hasNot: page.getByRole('rowheader', { name: /^(?:Earlier bills and repayments|Balance$)/ }) });
+  await expect(rows).toHaveCount(10);
+  await expect(sheetRows(table).first().getByRole('rowheader')).toHaveAccessibleName(/^Earlier bills and repayments/);
+  await expect(earlier.getByRole('rowheader')).toContainText(`${hidden.length} ${hidden.length === 1 ? 'entry' : 'entries'}`);
+  await expect(earlier.getByRole('cell')).toHaveText(signedCurrency(hidden.reduce((sum, entry) =>
+    sum + entry.effects.find(effect => effect.userId === member.userId).netCents, 0)));
+  for (const [i, entry] of recent.entries()) {
+    const effect = entry.effects.find(effect => effect.userId === member.userId);
+    await expectSheetEntry(rows.nth(i), entry, effect.netCents, effect);
+  }
+  await expectSheetSum(table, 'Balance', member.netCents, rows.or(earlier));
+  await earlier.getByRole('button', { name: 'Show all', exact: true }).click();
+  await expect(earlier).toHaveCount(0);
+  await expect(table.getByRole('button', { name: 'Show all', exact: true })).toHaveCount(0);
+  await expect(rows).toHaveCount(entries.length);
+  for (const [i, entry] of entries.entries()) {
+    const effect = entry.effects.find(effect => effect.userId === member.userId);
+    await expectSheetEntry(rows.nth(i), entry, effect.netCents, effect);
+  }
+  await expectSheetSum(table, 'Balance', member.netCents, rows);
+  await dialog.getByRole('button', { name: 'Close explanation', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(balanceButton(page, member)).toBeFocused();
   await page.context().close();
 }

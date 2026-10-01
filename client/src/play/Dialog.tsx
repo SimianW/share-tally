@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode, type RefObject } from "react";
+import { useEffect, useId, useRef, type MouseEvent, type ReactNode, type RefObject } from "react";
 import { Icon } from "./ui";
 
 let openDialogs = 0;
@@ -39,6 +39,12 @@ function lockPageScroll() {
   };
 }
 
+function outside(event: MouseEvent<HTMLDialogElement>) {
+  if (event.target !== event.currentTarget) return false;
+  const box = event.currentTarget.getBoundingClientRect();
+  return event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom;
+}
+
 export default function Dialog({
   title,
   children,
@@ -48,6 +54,7 @@ export default function Dialog({
   closeLabel = "Close dialog",
   headingRef,
   actions,
+  closeOnOutsideClick = false,
 }: {
   title: string;
   children: ReactNode;
@@ -59,8 +66,11 @@ export default function Dialog({
   headingRef?: RefObject<HTMLHeadingElement | null>;
   // Extra header controls, placed before the close button.
   actions?: ReactNode;
+  // Closes on a tap outside the dialog, as a bottom sheet should.
+  closeOnOutsideClick?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const pressedOutside = useRef(false);
   const id = useId();
   useEffect(() => {
     const dialog = ref.current!;
@@ -82,6 +92,13 @@ export default function Dialog({
       ref={ref}
       className={`play-dialog ${className}`}
       aria-labelledby={id}
+      // Backdrop taps reach the dialog itself, as do taps on its padding, so only a
+      // press that both starts and ends outside the dialog's box closes it.
+      onPointerDown={(event) => { pressedOutside.current = closeOnOutsideClick && outside(event); }}
+      onClick={(event) => {
+        if (pressedOutside.current && outside(event)) close();
+        pressedOutside.current = false;
+      }}
       onCancel={(event) => {
         event.preventDefault();
         event.stopPropagation();
