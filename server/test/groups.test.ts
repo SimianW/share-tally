@@ -435,7 +435,10 @@ test('completed bills and confirmed repayments remain stored after a cleared gro
   }), 201)).repayment;
   await json(await api(`/groups/${group.id}`, 'alice-token', 'DELETE'), 409);
   await json(await api(`/repayments/${repayment.id}/decision`, 'alice-token', 'POST', { decision: 'confirmed' }));
+  assert.deepEqual((await json(await api(`/groups/${group.id}/bills`, 'bob-token'))).ledger.entries
+    .map((entry: { id: string }) => entry.id), [bill.id, repayment.id]);
   await json(await api(`/groups/${group.id}`, 'alice-token', 'DELETE'));
+  for (const token of ['alice-token', 'bob-token']) await json(await api(`/groups/${group.id}/bills`, token), 404);
   assert.equal((await pool.query('SELECT count(*)::int AS n FROM bills WHERE group_id = $1', [group.id])).rows[0].n, 1);
   assert.equal((await pool.query('SELECT status FROM repayments WHERE id = $1', [repayment.id])).rows[0].status, 'confirmed');
   await json(await api(`/bills/${bill.id}`), 404);

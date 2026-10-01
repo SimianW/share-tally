@@ -63,6 +63,49 @@
 .group-ledger-rows li { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); }
 .group-ledger-rows li > span { min-width: 0; overflow-wrap: anywhere; }
 .group-ledger-rows strong { flex-shrink: 0; font-variant-numeric: tabular-nums; }
+/* Traceable balance figures and the "How the numbers add up" ledger table. */
+.group-ledger-figure { flex-shrink: 0; margin: -3px -6px; padding: 3px 6px; border: 0; border-radius: var(--radius-sm); background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.group-ledger-figure strong { text-decoration: underline dotted var(--line-strong); text-underline-offset: 4px; }
+.group-ledger-figure:hover, .group-ledger-figure[aria-pressed="true"] { background: var(--surface-sunken); }
+.group-ledger-figure:hover strong, .group-ledger-figure[aria-pressed="true"] strong { text-decoration-color: currentColor; }
+.group-ledger-figure:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.group-ledger-rows li.group-ledger-traced { margin-inline: -8px; padding-inline: 8px; border-radius: var(--radius-sm); background: var(--surface-selected); box-shadow: inset 3px 0 0 var(--action); }
+.ledger-trace { margin: 4px 0 20px; padding: 14px 16px; border: 1px dashed var(--line-strong); border-radius: var(--radius-md); background: var(--surface-soft); transition: border-color .15s, background-color .15s; }
+.ledger-trace-active { border-style: solid; border-color: var(--line-accent); background: var(--surface); }
+.group-audit .ledger-trace h3 { margin: 0; }
+.ledger-trace h3 button { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 0; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.ledger-trace h3 button:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: var(--radius-sm); }
+.ledger-trace-chevron { flex-shrink: 0; transition: transform .15s; }
+.ledger-trace-open .ledger-trace-chevron { transform: rotate(180deg); }
+.ledger-trace-hint { margin: 8px 0 10px; color: var(--ink-muted); font-size: 12.5px; line-height: 1.45; }
+.ledger-trace-unpin { margin-left: 8px; padding: 0; border: 0; background: none; color: var(--ink); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+.ledger-table-scroll { overflow-x: auto; }
+.ledger-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.ledger-table th, .ledger-table td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: right; transition: background-color .12s; }
+.ledger-table th:first-child { text-align: left; }
+.ledger-table th[scope="row"] { font-weight: 600; }
+/* Member columns share one fixed width, so highlight bands stay even and each
+   name sits above its right-aligned, decimal-aligned amounts. */
+.ledger-table thead th:not(:first-child), .ledger-table td { width: 116px; min-width: 116px; padding-right: 16px; }
+.ledger-table thead th { color: var(--ink-secondary); font-size: 12px; vertical-align: bottom; }
+.ledger-column-head { display: inline-grid; justify-items: end; overflow-wrap: anywhere; }
+.ledger-column-head small { font-size: 10px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.ledger-row-label { display: grid; }
+.ledger-row-label a { color: var(--ink); text-decoration: none; }
+.ledger-row-label a:hover { text-decoration: underline; }
+.ledger-row-label small { color: var(--ink-muted); font-size: 11px; font-weight: 400; }
+.ledger-table tfoot th, .ledger-table tfoot td { border-top: 2px solid var(--ink); border-bottom: 0; font-weight: 800; }
+.ledger-table td.ledger-table-empty { width: auto; color: var(--ink-muted); text-align: left; }
+/* A traced member: filled header and tinted column. Other columns and rows the
+   member is not part of fade back. Contents fade, not cells, so rules stay solid. */
+.ledger-table .ledger-traced { background: var(--surface-selected); font-weight: 700; }
+.ledger-table thead th.ledger-traced { border-radius: var(--radius-sm) var(--radius-sm) 0 0; background: var(--action); color: var(--ink-on-action); }
+.ledger-table > * > tr > * > * { transition: opacity .12s; }
+.ledger-table-active td:not(.ledger-traced) > *, .ledger-table-active thead th:not(:first-child):not(.ledger-traced) > * { opacity: .4; }
+.ledger-table-active .ledger-row-faded > * > * { opacity: .3; }
+.ledger-table-active .ledger-row-faded > td.ledger-traced > * { opacity: .45; }
+.ledger-trace-note { display: flex; align-items: flex-start; gap: 6px; margin: 10px 0 0; color: var(--ink-muted); font-size: 12px; line-height: 1.45; }
+.ledger-trace-note svg { flex-shrink: 0; margin-top: 2px; }
 .repayments { margin: 0; }
 .repayment-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
 .group-audit .repayment-heading h3 { margin: 0; color: var(--ink); font: 800 20px var(--font-heading); }

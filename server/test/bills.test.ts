@@ -1060,12 +1060,118 @@ test('group ledger nets complete bills across dates, includes adjustments and ex
     JSON.stringify({ fromUserId: ids.Bob, toUserId: ids.Carol, amountCents: 1997 }),
   ]));
   assert.deepEqual(result.ledger.incompleteBillIds, [incomplete.id]);
+  assert.deepEqual(result.ledger.entries.map((e: LedgerEntry) => e.id), [first.id, second.id]);
+  assert.deepEqual(byUser(result.ledger.entries[0].effects), byUser([
+    { userId: ids.Alice, paidCents: 2000, shareCents: 0, adjustmentCents: 3, netCents: 1997 },
+    { userId: ids.Bob, paidCents: 0, shareCents: 1997, adjustmentCents: 0, netCents: -1997 },
+  ]));
+  assertEntriesExplainBalances(result.ledger);
   assert.equal(result.bills.length, 4);
   assert.deepEqual((await json(await api(path))).ledger, result.ledger);
   const other = await create('bob-token');
   await json(await api(`/groups/${other.id}/bills`), 404);
   assert.equal((await json(await api(`/groups/${other.id}/bills`, 'bob-token'))).ledger.suggestions.length, 0);
   await json(await api(`/groups/${group.id}/bills`, 'invalid-token'), 401);
+});
+
+type LedgerEffect = { userId: string; netCents: number; paidCents?: number; shareCents?: number; adjustmentCents?: number };
+type LedgerEntry = { kind: 'bill' | 'repayment'; id: string; completedAt?: string; decidedAt?: string; effects: LedgerEffect[] };
+type Ledger = { members: { userId: string; netCents: number }[]; entries: LedgerEntry[] };
+
+const byUser = (effects: LedgerEffect[]) => [...effects].sort((a, b) => a.userId.localeCompare(b.userId));
+
+// Every member's entry effects add up to their net balance, each bill effect
+// follows the balance rule, and entries run in effective-time order, then by id.
+function assertEntriesExplainBalances(ledger: Ledger) {
+  const sums = new Map(ledger.members.map(member => [member.userId, 0]));
+  for (const entry of ledger.entries) for (const effect of entry.effects) {
+    assert.ok(sums.has(effect.userId), 'every effect belongs to a group member');
+    assert.ok(Number.isSafeInteger(effect.netCents));
+    if (entry.kind === 'bill')
+      assert.equal(effect.netCents, effect.paidCents! - effect.shareCents! - effect.adjustmentCents!);
+    sums.set(effect.userId, sums.get(effect.userId)! + effect.netCents);
+  }
+  assert.deepEqual(Object.fromEntries(sums), Object.fromEntries(ledger.members.map(member => [member.userId, member.netCents])));
+  const keys = ledger.entries.map(entry => [entry.kind === 'bill' ? entry.completedAt! : entry.decidedAt!, entry.id].join(' '));
+  assert.deepEqual(keys, [...keys].sort());
+}
+
+test('ledger entries explain balances from counted bills and confirmed repayments only, within one group', async () => {
+  const { group, path, draft, ids } = await setup();
+  // Purchased later but completed first: entries follow effective time, not purchase dates.
+  const later = await billCreate(path, { ...draft, purchaseDate: '2026-01-03', totalCents: 3000 });
+  await submit(later.id, 1000, 'alice-token');
+  await submit(later.id, 1000);
+  await submit(later.id, 1003, 'carol-token');
+  const earlier = (await json(await api(path, 'bob-token', 'POST', {
+    ...draft, requestId: crypto.randomUUID(), title: 'Bob run', purchaseDate: '2026-01-01',
+    totalCents: 2000, participantIds: [ids.Alice, ids.Bob],
+  }), 201)).bill;
+  await submit(earlier.id, 600);
+  await submit(earlier.id, 1398, 'alice-token');
+  const open = await billCreate(path, { ...draft, requestId: crypto.randomUUID() });
+  const canceled = await billCreate(path, { ...draft, requestId: crypto.randomUUID() });
+  await json(await api(`/bills/${canceled.id}/cancel`, 'alice-token', 'POST', { revision: 1 }));
+  const { requestId: _requestId, ...fields } = draft;
+  await json(await api(`/groups/${group.id}/receipt-drafts/${crypto.randomUUID()}`, 'alice-token', 'PUT',
+    { revision: 0, data: { ...fields, mode: 'manual', items: [] } }));
+  const confirmed = await recordRepayment(group.id, ids.Alice, 500, 'carol-token');
+  const decided = (await decide(confirmed.id)).repayment;
+  await recordRepayment(group.id, ids.Alice, 100);
+  const rejected = await recordRepayment(group.id, ids.Carol, 50);
+  await decide(rejected.id, 'rejected', 'carol-token');
+
+  const other = await setup(false);
+  const elsewhere = await billCreate(other.path, other.draft);
+  await submit(elsewhere.id, 4000, 'alice-token');
+  await submit(elsewhere.id, 6000);
+  await decide((await recordRepayment(other.group.id, other.ids.Alice, 700)).id);
+
+  const { ledger } = await json(await api(path, 'carol-token'));
+  assert.deepEqual(Object.fromEntries(ledger.members.map((m: { userId: string; netCents: number }) => [m.userId, m.netCents])), {
+    [ids.Alice]: 2003 - 1398 - 500, [ids.Bob]: 1398 - 1000, [ids.Carol]: -1003 + 500,
+  });
+  assert.deepEqual(ledger.entries.map((e: LedgerEntry) => [e.kind, e.id]), [
+    ['bill', later.id], ['bill', earlier.id], ['repayment', confirmed.id],
+  ]);
+  const [laterEntry, earlierEntry, repaymentEntry] = ledger.entries;
+  const completedLater = (await json(await api(`/bills/${later.id}`))).bill.completedAt;
+  assert.deepEqual({ ...laterEntry, effects: byUser(laterEntry.effects) }, {
+    kind: 'bill', id: later.id, title: 'Costco run', purchaseDate: '2026-01-03', completedAt: completedLater,
+    initiatorId: ids.Alice, totalCents: 3000,
+    effects: byUser([
+      { userId: ids.Alice, paidCents: 3000, shareCents: 1000, adjustmentCents: -3, netCents: 2003 },
+      { userId: ids.Bob, paidCents: 0, shareCents: 1000, adjustmentCents: 0, netCents: -1000 },
+      { userId: ids.Carol, paidCents: 0, shareCents: 1003, adjustmentCents: 0, netCents: -1003 },
+    ]),
+  });
+  assert.deepEqual(byUser(earlierEntry.effects), byUser([
+    { userId: ids.Alice, paidCents: 0, shareCents: 1398, adjustmentCents: 0, netCents: -1398 },
+    { userId: ids.Bob, paidCents: 2000, shareCents: 600, adjustmentCents: 2, netCents: 1398 },
+  ]));
+  assert.deepEqual(repaymentEntry, {
+    kind: 'repayment', id: confirmed.id, senderId: ids.Carol, recipientId: ids.Alice, amountCents: 500,
+    decidedAt: decided.decidedAt,
+    effects: [{ userId: ids.Carol, netCents: 500 }, { userId: ids.Alice, netCents: -500 }],
+  });
+  assertEntriesExplainBalances(ledger);
+  assert.deepEqual(ledger.incompleteBillIds, [open.id]);
+
+  // Entries that took effect at the same moment fall back to ascending entry id.
+  const tied = [later.id, earlier.id, confirmed.id];
+  await pool.query('UPDATE bills SET completed_at = $1 WHERE id = ANY($2::uuid[])', ['2026-02-01T12:00:00Z', [later.id, earlier.id]]);
+  await pool.query('UPDATE repayments SET decided_at = $1 WHERE id = $2', ['2026-02-01T12:00:00Z', confirmed.id]);
+  const tiedLedger = (await json(await api(path, 'carol-token'))).ledger;
+  assert.deepEqual(tiedLedger.entries.map((e: LedgerEntry) => e.id), [...tied].sort());
+  assert.ok(tiedLedger.entries.every((e: LedgerEntry) => (e.completedAt ?? e.decidedAt) === '2026-02-01T12:00:00.000Z'));
+  assertEntriesExplainBalances(tiedLedger);
+
+  const otherLedger = (await json(await api(other.path, 'bob-token'))).ledger;
+  assert.deepEqual(otherLedger.entries.map((e: LedgerEntry) => e.kind), ['bill', 'repayment']);
+  assert.equal(otherLedger.entries[0].id, elsewhere.id);
+  assertEntriesExplainBalances(otherLedger);
+  await json(await api(path, 'member-1-token'), 404);
+  await json(await api(other.path, 'carol-token'), 404);
 });
 
 async function ledgerWithBalances(amounts: number[]) {
@@ -1101,6 +1207,8 @@ test('suggestions achieve the exact minimum for the greedy counterexample and sk
   const { path, ids } = await ledgerWithBalances([-800, -700, -500, 1200, 800, 0]);
   const { ledger } = await json(await api(path));
   assert.deepEqual(ledger.members.map((m: { netCents: number }) => m.netCents), [-800, -700, -500, 1200, 800, 0]);
+  assert.ok(ledger.entries.every((e: LedgerEntry) => e.effects.every(effect => effect.userId !== ids[5])));
+  assertEntriesExplainBalances(ledger);
   assert.equal(ledger.suggestions.length, 3);
   assert.deepEqual(new Set(ledger.suggestions.map((s: unknown) => JSON.stringify(s))), new Set([
     JSON.stringify({ fromUserId: ids[0], toUserId: ids[4], amountCents: 800 }),
@@ -1128,6 +1236,8 @@ test('transitive netting reaches every-member-zero without removing bills or blo
   const zero = await json(await api(path));
   assert.deepEqual(zero.ledger.members.map((m: { netCents: number }) => m.netCents), [0, 0, 0]);
   assert.deepEqual(zero.ledger.suggestions, []);
+  assert.equal(zero.ledger.entries.length, 3);
+  assertEntriesExplainBalances(zero.ledger);
   assert.equal(zero.bills.length, 3);
   assert.ok(zero.bills.every((b: { completedAt: string }) => b.completedAt));
   assert.deepEqual(await json(await api(path)), zero);
@@ -1154,6 +1264,7 @@ test('reads during completion see a whole ledger snapshot and retries create no 
     const before = await json(await api(path));
     assert.deepEqual(before.ledger.suggestions, []);
     assert.deepEqual(before.ledger.incompleteBillIds, [bill.id]);
+    assert.deepEqual(before.ledger.entries, []);
     await blocker.query('COMMIT');
     const reads = await Promise.all(Array.from({ length: 12 }, () => api(path).then(r => json(r))));
     await completion;
@@ -1161,6 +1272,8 @@ test('reads during completion see a whole ledger snapshot and retries create no 
       const complete = Boolean(view.bills[0].completedAt);
       assert.deepEqual(view.ledger.suggestions, complete ? [{ fromUserId: ids.Bob, toUserId: ids.Alice, amountCents: 60 }] : []);
       assert.deepEqual(view.ledger.incompleteBillIds, complete ? [] : [bill.id]);
+      assert.deepEqual(view.ledger.entries.map((e: LedgerEntry) => e.id), complete ? [bill.id] : []);
+      assertEntriesExplainBalances(view.ledger);
       assert.equal(view.summary.netCents, complete ? 60 : 0);
       assert.equal(view.bills.length, 1);
     }
@@ -1181,6 +1294,8 @@ test('16 nonzero members receive a minimum plan within the measured API runtime'
   t.diagnostic(`16-member ledger API, including SQL and exact solver: ${elapsed.toFixed(1)} ms`);
   assert.ok(elapsed < 2000, 'maximum-size ledger read should finish within two seconds');
   assert.equal(view.ledger.suggestions.length, 15);
+  assert.equal(view.ledger.entries.length, 15);
+  assertEntriesExplainBalances(view.ledger);
   const remaining = new Map<string, number>(view.ledger.members.map((m: { userId: string; netCents: number }) => [m.userId, m.netCents]));
   for (const suggestion of view.ledger.suggestions) {
     assert.ok(Number.isSafeInteger(suggestion.amountCents) && suggestion.amountCents > 0);
@@ -1329,6 +1444,8 @@ test("actual partial repayments affect balances only after recipient confirmatio
   const result = await json(await api(path));
   assert.equal(result.summary.netCents, 4000);
   assert.equal(result.ledger.suggestions[0].amountCents, 4000);
+  assert.deepEqual(result.ledger.entries.map((e: LedgerEntry) => [e.kind, e.id]), [['bill', bill.id], ['repayment', repayment.id]]);
+  assertEntriesExplainBalances(result.ledger);
   assert.equal(result.repayments[0].status, "confirmed");
   assert.equal(result.bills.length, 1);
   assert.deepEqual((await json(await api("/summary"))).summary, {
@@ -1384,12 +1501,15 @@ test('overpayments and transfers without suggestions create reverse balances and
   let view = await json(await api(path));
   assert.deepEqual(view.summary, { receivableCents: 0, payableCents: 1000, netCents: -1000 });
   assert.deepEqual(view.ledger.suggestions, [{ fromUserId: ids.Alice, toUserId: ids.Bob, amountCents: 1000 }]);
+  assertEntriesExplainBalances(view.ledger);
   // Carol has no current debt and Bob is not a suggested recipient for Carol.
   const unrelated = await recordRepayment(group.id, ids.Bob, 500, 'carol-token');
   await decide(unrelated.id, 'confirmed', 'bob-token');
   view = await json(await api(path));
   const balances = Object.fromEntries(view.ledger.members.map((m: { userId: string; netCents: number }) => [m.userId, m.netCents]));
   assert.deepEqual(balances, { [ids.Alice]: -1000, [ids.Bob]: 500, [ids.Carol]: 500 });
+  assert.deepEqual(view.ledger.entries.map((e: LedgerEntry) => e.id), [bill.id, extra.id, unrelated.id]);
+  assertEntriesExplainBalances(view.ledger);
   assert.equal(view.bills.length, 1);
   assert.equal(view.repayments.length, 2);
   assert.deepEqual((await json(await api('/summary', 'carol-token'))).summary, { receivableCents: 500, payableCents: 0, netCents: 500 });
@@ -1456,6 +1576,7 @@ test('concurrent confirmations and bill completion yield consistent ledger snaps
     const confirmed = view.repayments.filter((r: { status: string }) => r.status === 'confirmed').reduce((sum: number, r: { amountCents: number }) => sum + r.amountCents, 0);
     assert.equal(view.summary.netCents, eligible - confirmed);
     assert.equal(view.ledger.members.find((m: { userId: string }) => m.userId === ids.Alice).netCents, view.summary.netCents);
+    assertEntriesExplainBalances(view.ledger);
   }
   const view = await json(await api(path));
   assert.equal(view.summary.netCents, 3000);
@@ -2087,6 +2208,10 @@ test('exact thirds round after summing, complete once, and permit item adjustmen
   const ledger = await json(await api(`/groups/${bill.groupId}/bills`));
   assert.equal(ledger.summary.netCents, 2);
   assert.equal(ledger.ledger.members.reduce((sum: number, m: { netCents: number }) => sum + m.netCents, 0), 0);
+  assert.deepEqual(ledger.ledger.entries.map((e: LedgerEntry) => e.id), [bill.id]);
+  assert.deepEqual(ledger.ledger.entries[0].effects.find((e: LedgerEffect) => e.userId === bill.initiatorId),
+    { userId: bill.initiatorId, paidCents: 100, shareCents: 1, adjustmentCents: 97, netCents: 2 });
+  assertEntriesExplainBalances(ledger.ledger);
   const repayment = (await json(await api(`/groups/${bill.groupId}/repayments`, 'bob-token', 'POST', { requestId: crypto.randomUUID(), recipientId: bill.initiatorId, amountCents: 1 }), 201)).repayment;
   await json(await api(`/repayments/${repayment.id}/decision`, 'alice-token', 'POST', { decision: 'confirmed' }));
   assert.equal((await json(await api(`/groups/${bill.groupId}/bills`))).summary.netCents, 1);

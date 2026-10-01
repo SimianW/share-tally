@@ -225,6 +225,7 @@ export async function checkGroupPage(pageFor, base, api) {
     await expect(suggestions.getByRole('listitem').filter({ hasText: `${from} → ${to}` }))
       .toContainText(currency(suggestion.amountCents));
   }
+  await checkLedgerTrace(alice, audit, state);
   const records = audit.getByRole('region', { name: 'Repayment history' });
   await expect(records).toContainText(currency(bobIncoming.amountCents));
   await expect(records).toContainText(currency(secondBobIncoming.amountCents));
@@ -285,12 +286,20 @@ export async function checkGroupPage(pageFor, base, api) {
   // A new bill moves across the open/history boundary through another member's
   // HTTP submission, without navigating away from Alice's live group page.
   await alice.goto(route);
+  const liveTrace = audit.getByRole('region', { name: 'How the numbers add up' });
+  await liveTrace.getByRole('button', { name: 'How the numbers add up' }).click();
   let moving = await manual('Alice', 'Live completion', 1600, 600, ['Alice', 'Bob']);
   await expect(billLink(openBills, 'Live completion')).toContainText('Waiting for Bob');
+  await expect(liveTrace).toContainText(/Not counted yet: .*Live completion.* \(still open\)/);
+  await expect(liveTrace.getByRole('link', { name: 'Live completion' })).toHaveCount(0);
   moving = await share(moving, 'Bob', 1000);
   assert.ok(moving.completedAt);
   await expect(billLink(openBills, 'Live completion')).toHaveCount(0);
   await expect(billLink(history, 'Live completion')).toContainText('Complete');
+  // The explanation rides on the same live refresh as the balances it explains.
+  await expect(liveTrace.getByRole('link', { name: 'Live completion' })).toHaveAttribute('href', `#/bills/${moving.id}`);
+  await expect(liveTrace.getByText(/^Not counted yet:/)).not.toContainText('Live completion');
+  await expectFooterMatchesList(audit, await api(`/groups/${groupId}/bills`));
   const withdrawing = await manual('Alice', 'Live cancellation', 1200, 200, ['Alice', 'Bob']);
   await expect(billLink(openBills, 'Live cancellation')).toBeVisible();
   await api(`/bills/${withdrawing.id}/cancel`, 'alice-token', 'POST', { revision: withdrawing.revision });
@@ -342,6 +351,10 @@ export async function checkGroupPage(pageFor, base, api) {
       ['desktop', { width: 1280, height: 900 }], ['mobile', { width: 390, height: 844 }],
     ]) {
       const page = await open(token, viewport);
+      // The ledger table is a desktop explanation; at the 640px breakpoint figures stay plain.
+      const pageAudit = page.getByRole('region', { name: 'Group balances and repayments' });
+      await expect(pageAudit.getByRole('region', { name: 'How the numbers add up' })).toHaveCount(device === 'desktop' ? 1 : 0);
+      await expect(pageAudit.getByRole('button', { name: /'s balance, / })).toHaveCount(device === 'desktop' ? 4 : 0);
       const pageHistory = page.getByRole('region', { name: 'History', exact: true });
       const showAll = pageHistory.getByRole('button', { name: /Show all \d+/ });
       await expect(showAll).toBeVisible();
@@ -363,4 +376,111 @@ export async function checkGroupPage(pageFor, base, api) {
       await page.context().close();
     }
   }
+}
+
+const signedCurrency = cents => `${cents > 0 ? '+' : cents < 0 ? '−' : ''}${currency(Math.abs(cents))}`;
+const ledgerTable = audit => audit.getByRole('region', { name: 'How the numbers add up' })
+  .getByRole('table', { name: 'Bills and repayments by member' });
+
+// Each member column's Balance footer equals that member's figure in the list.
+async function expectFooterMatchesList(audit, state) {
+  const expected = state.ledger.members.map(member => signedCurrency(member.netCents));
+  const footer = ledgerTable(audit).getByRole('row')
+    .filter({ has: audit.page().getByRole('rowheader', { name: 'Balance', exact: true }) });
+  await expect(footer.getByRole('cell')).toHaveText(expected);
+  await expect(audit.getByRole('region', { name: "Everyone's balance" }).getByRole('button', { name: /'s balance, / }))
+    .toHaveText(expected);
+}
+
+// Desktop "How the numbers add up": collapsed by default, opened and pinned by a
+// balance figure, traced by hover only while open, and cleared by collapsing.
+async function checkLedgerTrace(page, audit, state) {
+  const trace = audit.getByRole('region', { name: 'How the numbers add up' });
+  const toggle = trace.getByRole('button', { name: 'How the numbers add up' });
+  const table = ledgerTable(audit);
+  const balances = audit.getByRole('region', { name: "Everyone's balance" });
+  const figure = name => balances.getByRole('button', { name: new RegExp(`^${name}'s balance, `) });
+  const traced = table.getByRole('columnheader', { name: / Balance$/ });
+  const tracing = name => table.getByRole('columnheader', { name: `${name} Balance`, exact: true });
+  const away = () => page.mouse.move(0, 0);
+
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(trace).toHaveText('How the numbers add up');
+  await expect(figure('Bob')).toHaveAttribute('title', 'Show how this adds up');
+  await figure('Bob').hover();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(table).toHaveCount(0);
+
+  await figure('Bob').click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(figure('Bob')).toHaveAttribute('aria-pressed', 'true');
+  await expect(figure('Bob')).not.toHaveAttribute('title', /./);
+  await expect(tracing('Bob')).toBeVisible();
+  await expect(traced).toHaveCount(1);
+  await expect(trace).toContainText("Reading down Bob's column");
+  await expect(trace.getByRole('button', { name: 'Unpin' })).toBeVisible();
+
+  // One row per counted entry, bill rows linking to their bills, then the Balance footer.
+  await expect(table.getByRole('row').filter({ has: page.getByRole('rowheader') })).toHaveCount(state.ledger.entries.length + 1);
+  for (const entry of state.ledger.entries.filter(entry => entry.kind === 'bill'))
+    await expect(table.getByRole('link', { name: entry.title, exact: true })).toHaveAttribute('href', `#/bills/${entry.id}`);
+  // Rows follow the server's effective-time order; bills completed after their
+  // purchase day also say when they were bought.
+  assert.deepEqual(await table.getByRole('link').evaluateAll(links => links.map(link => link.getAttribute('href'))),
+    state.ledger.entries.filter(entry => entry.kind === 'bill').map(entry => `#/bills/${entry.id}`));
+  const warehouseRow = table.getByRole('rowheader', { name: /^Saturday warehouse run/ });
+  const warehouse = state.ledger.entries.find(entry => entry.title === 'Saturday warehouse run');
+  const completedDay = await page.evaluate(iso => new Date(iso).toLocaleDateString('en-CA'), warehouse.completedAt);
+  if (completedDay === warehouse.purchaseDate) await expect(warehouseRow).not.toContainText('bought');
+  else await expect(warehouseRow).toContainText(/ · bought [A-Z][a-z]{2} 24 · paid by Bob · \$100\.00/);
+  const confirmed = state.ledger.entries.find(entry => entry.kind === 'repayment');
+  const repaymentCells = state.ledger.members.map(member => member.userId === confirmed.senderId ? signedCurrency(confirmed.amountCents)
+    : member.userId === confirmed.recipientId ? signedCurrency(-confirmed.amountCents) : '—Not involved');
+  await expect(table.getByRole('row').filter({ hasText: 'Repayment · Bob → You' }).getByRole('cell')).toHaveText(repaymentCells);
+  await expectFooterMatchesList(audit, state);
+  for (const bill of state.bills.filter(bill => state.ledger.incompleteBillIds.includes(bill.id)))
+    await expect(trace.getByText(/^Not counted yet: .* \(still open\)$/)).toContainText(bill.title);
+
+  // A pin outlasts hovering elsewhere; clicking the pinned figure again releases it.
+  await figure('Carol').hover();
+  await expect(tracing('Bob')).toBeVisible();
+  await expect(traced).toHaveCount(1);
+  await figure('Bob').click();
+  await expect(figure('Bob')).toHaveAttribute('aria-pressed', 'false');
+  await expect(trace.getByRole('button', { name: 'Unpin' })).toHaveCount(0);
+  await away();
+  await expect(traced).toHaveCount(0);
+  await expect(trace).toContainText('Hover over a balance above to trace it');
+  await figure('Carol').hover();
+  await expect(tracing('Carol')).toBeVisible();
+  await away();
+  await expect(traced).toHaveCount(0);
+
+  await figure('Alice').click();
+  await expect(tracing('You')).toBeVisible();
+  await away();
+  await trace.getByRole('button', { name: 'Unpin' }).click();
+  await expect(figure('Alice')).toHaveAttribute('aria-pressed', 'false');
+  await expect(traced).toHaveCount(0);
+
+  // Collapsing clears the pin, so reopening starts fresh.
+  await figure('Bob').click();
+  await expect(figure('Bob')).toHaveAttribute('aria-pressed', 'true');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(table).toHaveCount(0);
+  await expect(figure('Bob')).toHaveAttribute('aria-pressed', 'false');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(traced).toHaveCount(0);
+
+  // Keyboard: focus traces, Enter and Space toggle the pin.
+  await figure('Carol').focus();
+  await expect(tracing('Carol')).toBeVisible();
+  await page.keyboard.press('Enter');
+  await expect(figure('Carol')).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('Space');
+  await expect(figure('Carol')).toHaveAttribute('aria-pressed', 'false');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
 }

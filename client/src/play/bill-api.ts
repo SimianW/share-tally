@@ -35,10 +35,19 @@ export type Summary = {
   payableCents: number;
   netCents: number;
 };
+// A complete bill or confirmed repayment with each affected member's signed
+// effect. A member's effects across all entries sum to their net balance.
+// Entries arrive in the order they took effect: completion or confirmation time.
+export type LedgerEntry =
+  | { kind: 'bill'; id: string; title: string; purchaseDate: string; completedAt: string; initiatorId: string; totalCents: number;
+      effects: { userId: string; paidCents: number; shareCents: number; adjustmentCents: number; netCents: number }[] }
+  | { kind: 'repayment'; id: string; senderId: string; recipientId: string; amountCents: number; decidedAt: string;
+      effects: { userId: string; netCents: number }[] };
 export type GroupLedger = {
   members: { userId: string; displayName: string; netCents: number }[];
   suggestions: { fromUserId: string; toUserId: string; amountCents: number }[];
   incompleteBillIds: string[];
+  entries: LedgerEntry[];
 };
 export type Bill = {
   mode: 'manual' | 'items';
