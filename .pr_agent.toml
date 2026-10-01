@@ -11,9 +11,18 @@ max_model_tokens = 128000
 max_output_tokens = 32768
 ai_timeout = 180
 retry_same_model_on_timeout = false
+num_retries = 0
+# Make failed reviews fail the GitHub Actions job instead of reporting success.
+propagate_tool_errors = true
 log_level = "INFO"
 publish_output_progress = false
 repo_context_files = ["AGENTS.md", "CONTEXT.md", "docs/project-brief.md"]
+
+[litellm]
+# Stream maximum-effort reasoning so long generations do not hit a read timeout.
+custom_llm_provider = "zai"
+force_streaming_custom_llm_provider = "zai"
+force_streaming_api_base_substrings = ["api.z.ai/api/paas/v4"]
 
 [pr_reviewer]
 extra_instructions = """
