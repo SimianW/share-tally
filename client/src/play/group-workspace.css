@@ -125,6 +125,43 @@
 .ledger-trace-transfer b { color: var(--ink); font-variant-numeric: tabular-nums; }
 .ledger-trace-note { display: flex; align-items: flex-start; gap: 6px; margin: 10px 0 0; color: var(--ink-muted); font-size: 12px; line-height: 1.45; }
 .ledger-trace-note svg { flex-shrink: 0; margin-top: 2px; }
+/* Mobile: each balance and transfer row is one button that opens its sheet.
+   It bleeds into the card's padding so the pressed fill has room. */
+.group-ledger-rows-open li { padding: 0; }
+.group-ledger-open { display: flex; flex: 1; align-items: center; gap: var(--space-3); min-width: 0; min-height: 44px; margin-inline: calc(-1 * var(--space-2)); padding: 9px var(--space-2); border: 0; border-radius: var(--radius-sm); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.group-ledger-open > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.group-ledger-open > svg { flex-shrink: 0; margin-left: calc(-1 * var(--space-1)); color: var(--ink-subtle); }
+.group-ledger-open:active { background: var(--surface-sunken); }
+.group-ledger-open:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+/* The mobile "How it adds up" sheet: a quiet receipt. Dashed rules between
+   lines, a solid rule over a subtotal, and a heavy rule over the total. Every
+   cell has the same inline padding, so amounts line up under the earlier band. */
+.balance-sheet-intro { margin: calc(-1 * var(--space-3)) 0 var(--space-4); color: var(--ink-secondary); font-size: var(--text-sm); line-height: 1.5; }
+.balance-sheet table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.balance-sheet table:focus { outline: none; }
+.balance-sheet th, .balance-sheet td { padding: var(--space-3) var(--space-2); border-bottom: 1px dashed var(--line); vertical-align: top; }
+.balance-sheet th { font-weight: 600; text-align: left; }
+.balance-sheet td { padding-left: var(--space-3); font-weight: 700; text-align: right; white-space: nowrap; }
+.balance-sheet tbody:not(.balance-sheet-sums) tr:last-child > * { border-bottom: 0; }
+.balance-sheet .ledger-row-label { gap: 2px; }
+.balance-sheet .ledger-row-label small { color: var(--ink-muted); font-size: var(--text-xs); font-weight: 400; line-height: 1.4; }
+.balance-sheet-detail { display: grid; gap: 1px; }
+.balance-sheet-detail > span > span > span { white-space: nowrap; }
+.balance-sheet-earlier > * { background: var(--surface-sunken); }
+.balance-sheet-earlier > :first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+.balance-sheet-earlier > :last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.balance-sheet .balance-sheet-earlier > * { border-bottom: 0; }
+.balance-sheet-earlier .ledger-row-label > span { color: var(--ink-secondary); }
+.balance-sheet .ledger-show-all { min-height: 24px; }
+.balance-sheet-empty { color: var(--ink-muted); font-weight: 400; text-align: left; white-space: normal; }
+.balance-sheet .balance-sheet-subtotal > * { border-top: 1px solid var(--line-strong); border-bottom: 0; color: var(--ink-secondary); }
+.balance-sheet .balance-sheet-subtotal > td { color: var(--ink); }
+.balance-sheet .balance-sheet-passed > * { border-bottom: 0; }
+.balance-sheet-passed small { margin-top: 2px; color: var(--ink-secondary); line-height: 1.45; }
+.balance-sheet tfoot th, .balance-sheet tfoot td { padding-top: var(--space-3); border-top: 2px solid var(--ink); border-bottom: 0; font-family: var(--font-heading); font-size: var(--text-lg); font-weight: 800; }
+.balance-sheet-split { margin: var(--space-4) 0 0; padding: var(--space-3) var(--space-4); border-radius: var(--radius-sm); background: var(--surface-soft); color: var(--ink-secondary); font-size: var(--text-sm); line-height: 1.5; }
+.balance-sheet-split b { color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.balance-sheet .ledger-trace-note { margin-top: var(--space-4); }
 .repayments { margin: 0; }
 .repayment-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
 .group-audit .repayment-heading h3 { margin: 0; color: var(--ink); font: 800 20px var(--font-heading); }
