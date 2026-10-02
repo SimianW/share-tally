@@ -12,8 +12,6 @@ type BillItem = typeof billItems.$inferSelect;
 type ItemClaim = typeof itemClaims.$inferSelect;
 
 // The single-bill read used by item commands, through the same batch reader.
-// Pass the id of the locked bill row: results are keyed by PostgreSQL's
-// lowercase uuid text, while a URL may spell the same id in uppercase.
 export async function itemDetails(tx: Tx, billId: string) {
   return (await readItemDetailsInSnapshot(tx, [billId])).get(billId)!;
 }
@@ -47,13 +45,15 @@ export async function readItemDetailsInSnapshot(tx: Tx, billIds: string[]) {
   for (const source of sources) if (!sourceByBill.has(source.billId!)) sourceByBill.set(source.billId!, source);
   const now = new Date();
   return new Map(billIds.map(billId => {
-    const source = sourceByBill.get(billId);
+    // PostgreSQL returns uuids in lowercase; a caller may spell one in any case.
+    const key = billId.toLowerCase();
+    const source = sourceByBill.get(key);
     const expired = !source || source.expiresAt <= now;
     // Both the regions and the page geometry expire with the photo.
     const regions = new Map(expired ? [] : (source.regions ?? []).map(({ id, region }) => [id, region] as const));
     const pages = expired ? undefined : source.pages;
     return [billId, {
-      items: (itemsByBill.get(billId) ?? []).map((item) => ({
+      items: (itemsByBill.get(key) ?? []).map((item) => ({
         ...item,
         allocatedTaxCents: item.taxCents,
         allocatedExtraCents: item.extraCents,
