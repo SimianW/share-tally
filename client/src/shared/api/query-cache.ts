@@ -1,5 +1,5 @@
 import { createTransport } from './transport';
-import { QueryClient, QueryCache, useQuery, useQueryClient } from '@tanstack/react-query';
+import { QueryClient, QueryCache, isCancelledError, useQuery, useQueryClient } from '@tanstack/react-query';
 
 export class AccessError extends Error {
   status: number;
@@ -67,8 +67,15 @@ export function createSessionClient(getToken: () => Promise<string | null>) {
   return client;
 }
 
-export function cachedRead<T>(client: QueryClient, path: string, signal?: AbortSignal) {
+export async function cachedRead<T>(client: QueryClient, path: string, signal?: AbortSignal) {
   // A caller leaving does not cancel a cache read shared with another mounted view.
-  void signal;
-  return client.fetchQuery<T>({ queryKey: [path] });
+  // A refresh after a write cancels in-flight reads to replace them; read again rather
+  // than report that cancellation, unless this caller has already left.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await client.fetchQuery<T>({ queryKey: [path] });
+    } catch (error) {
+      if (!isCancelledError(error) || signal?.aborted || attempt === 3) throw error;
+    }
+  }
 }

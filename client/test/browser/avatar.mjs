@@ -1,20 +1,24 @@
+// Avatar component checks in a bare page served by the environment's Vite; no API is needed.
 import assert from 'node:assert/strict';
-import { chromium, expect } from '@playwright/test';
-import { createServer } from 'vite';
-const vite = await createServer({ server: { host: '127.0.0.1', port: 0 } });
-await vite.listen();
-const browser = await chromium.launch();
-try {
-  const page = await browser.newPage();
-  const base = vite.resolvedUrls.local[0];
+import { relative } from 'node:path';
+import { expect } from '@playwright/test';
+
+export const scenarios = [
+  { name: 'avatar', environment: { backend: false }, run: avatar },
+];
+
+async function avatar({ vite, base, pageFor }) {
+  const page = await pageFor(null, { width: 1280, height: 720 });
+  // Optimized dependencies live under the environment's own cache directory.
+  const deps = `/${relative(vite.config.root, vite.config.cacheDir)}/deps`;
   await page.route(base, async route => route.fulfill({
     contentType: 'text/html',
     body: await vite.transformIndexHtml('/', '<html><body></body></html>'),
   }));
   await page.goto(base);
-  await page.evaluate(async () => {
-    const { default: React } = await import('/node_modules/.vite/deps/react.js');
-    const { default: { createRoot } } = await import('/node_modules/.vite/deps/react-dom_client.js');
+  await page.evaluate(async deps => {
+    const { default: React } = await import(`${deps}/react.js`);
+    const { default: { createRoot } } = await import(`${deps}/react-dom_client.js`);
     const { Avatar } = await import('/src/shared/ui/Avatar.tsx');
     await import('/src/app/app.css');
     await import('/src/features/bills/bills.css');
@@ -24,7 +28,7 @@ try {
       React.createElement(Avatar, { name: 'Bob' }),
       React.createElement(Avatar, { name: 'Carol', imageUrl: '/broken-avatar.png' }),
       React.createElement(Avatar, { name: 'David', imageUrl: '/broken-google.png', fallbackImageUrl: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40"/%3E' })));
-  });
+  }, deps);
   await page.locator('.avatar').first().waitFor();
   await expect(page.locator('.avatar').nth(2)).toHaveText('C');
   await expect(page.locator('.avatar').nth(3).locator('img')).toHaveAttribute('src', /^data:image/);
@@ -34,5 +38,4 @@ try {
     const s = getComputedStyle(el); return [s.display, s.alignItems, s.justifyContent];
   });
   assert.deepEqual(style, ['flex', 'center', 'center']);
-  console.log('Avatar image, fallback, and bill centering passed');
-} finally { await browser.close(); await vite.close(); }
+}
