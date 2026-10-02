@@ -1,11 +1,32 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { expect } from '@playwright/test';
-import { expectSegmentSlide } from './smoke-segmented.mjs';
+import { screenshots } from '../environment.mjs';
+import { expectSegmentSlide } from '../ui.mjs';
+import { aliceBill, costcoFriends } from './fixtures.mjs';
+
+export const scenarios = [
+  { name: 'appearance', run: appearance },
+];
+
+// The palette and mode pickers, then the Your share ticket in every palette.
+async function appearance(env) {
+  const { pageFor, base } = env;
+  const { group, ids } = await costcoFriends(env);
+  const appearancePage = await pageFor('alice-token', { width: 1280, height: 900 });
+  await appearancePage.goto(base);
+  await checkAppearance(appearancePage, base, `${base}#/group-bills/${group.id}`);
+  await appearancePage.context().close();
+  // Alice has confirmed her $40.00 share of a $100.00 bill that waits on Bob.
+  const bill = await aliceBill(env, group.id, 'Weekend groceries', 10000, [ids.Alice, ids.Bob], [['alice-token', 4000]]);
+  const alice = await pageFor('alice-token', { width: 1280, height: 900 });
+  await alice.goto(`${base}#/bills/${bill.id}`);
+  await checkShareTicketPalettes(alice, screenshots);
+}
 
 const storageKey = 'share-tally-palette';
 
-export async function checkAppearance(page, base, groupUrl) {
+async function checkAppearance(page, base, groupUrl) {
   await page.getByRole('button', { name: 'Account menu', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Account', exact: true }).click();
   await expect(page).toHaveURL(`${base}#/account`);
@@ -147,7 +168,7 @@ export async function checkAppearance(page, base, groupUrl) {
 // palette's accent tint into the card surface and its "done" stamp uses the
 // palette's accent ink. Screenshots of every palette, light and dark, go to
 // test-results. Expects a viewer whose share is confirmed.
-export async function checkShareTicketPalettes(page, screenshots) {
+async function checkShareTicketPalettes(page, screenshots) {
   const palettes = ['classic', 'marigold', 'raspberry', 'plum-butter', 'lagoon', 'blueberry'];
   const ticket = page.getByRole('region', { name: 'Your share', exact: true });
   await expect(ticket.getByText('Confirmed', { exact: true })).toBeVisible();

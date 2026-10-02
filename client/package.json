@@ -10,9 +10,11 @@
     "preview": "vite preview",
     "generate:emoji": "node scripts/generate-emoji-data.mjs",
     "measure:emoji": "node scripts/measure-emoji-picker.mjs",
-    "test:avatar": "node ../scripts/build-domain.mjs && node scripts/smoke-avatar.mjs",
-    "test:receipts": "node ../scripts/build-domain.mjs && node scripts/smoke-receipts.mjs",
-    "test:groups": "node ../scripts/build-domain.mjs && node scripts/smoke-groups.mjs",
+    "test:avatar": "node ../scripts/build-domain.mjs && node test/browser/run.mjs avatar",
+    "test:receipts": "node ../scripts/build-domain.mjs && node test/browser/run.mjs receipts",
+    "test:groups": "node ../scripts/build-domain.mjs && node test/browser/run.mjs groups",
+    "test:browser": "node ../scripts/build-domain.mjs && node test/browser/run.mjs",
+    "test:environment": "node ../scripts/build-domain.mjs && node --test test/browser/environment.test.mjs",
     "test:unit": "node ../scripts/build-domain.mjs && node --test scripts/test-*.mjs"
   },
   "dependencies": {
