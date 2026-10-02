@@ -1,5 +1,5 @@
 import type { GroupIcon as ContractGroupIcon } from '@share-tally/domain/contracts/groups';
-import { iconNames, type IconName } from "lucide-react/dynamic";
+import { iconNames, type IconName } from "lucide-react/dynamic.js";
 
 export type GroupIcon = ContractGroupIcon<IconName>;
 

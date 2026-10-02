@@ -1,8 +1,13 @@
 // Issues #162 and #166: picking a portion after a By amount bill is initiated.
-// Setup submits no shares. The caller owns the server,
-// browser, and test identities; this creates its own group so other checks are unaffected.
+// Setup submits no shares. The scenario creates its own group.
 import assert from 'node:assert/strict';
 import { expect } from '@playwright/test';
+import { screenshots as screenshotDir } from '../environment.mjs';
+
+export const scenarios = [
+  { name: 'amount-portion', run: ({ pageFor, base, api }) => checkAmountPortion(pageFor, base, api, (page, name) =>
+    page.screenshot({ path: `${screenshotDir}/${name}-${page.viewportSize().width > 700 ? 'desktop' : 'mobile'}.png`, fullPage: true, animations: 'disabled' })) },
+];
 
 const shareInput = page => page.getByLabel('Your share (CAD)', { exact: true });
 const choices = page => page.getByRole('group', { name: 'Your share', exact: true });
@@ -12,7 +17,7 @@ const pressedNames = page => choices(page).locator('[aria-pressed="true"]').eval
 const card = page => page.locator('.amount-portion .claim-portion');
 const totalPaid = page => page.getByLabel('Total paid (CAD)', { exact: true });
 
-export async function checkAmountPortion(pageFor, base, api, screenshots) {
+async function checkAmountPortion(pageFor, base, api, screenshots) {
   const { group } = await api('/groups', 'alice-token', 'POST', { name: 'Portion friends', icon: { type: 'unicode', value: '🍕' } });
   const invitation = await api(`/groups/${group.id}/invitation`);
   for (const token of ['bob-token', 'carol-token']) await api('/groups/join', token, 'POST', { token: invitation.path.split('/').at(-1) });

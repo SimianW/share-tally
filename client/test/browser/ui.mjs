@@ -1,5 +1,37 @@
+// Locators and interaction checks shared by browser scenarios.
 import assert from 'node:assert/strict';
 import { expect } from '@playwright/test';
+
+// The headline stays available during background reads, but never after access loss.
+export const groupNet = page => page.getByRole('region', { name: 'Where you stand' }).getByRole('heading');
+
+// Home lists one row per group, in the order the member joined them.
+export function homeRow(page, name) {
+  return page.getByRole('region', { name: /^Your groups/ }).locator('a.home-group-row').filter({
+    has: page.locator('.home-group-name').getByText(name, { exact: true }),
+  });
+}
+export async function homeGroupNames(page) {
+  return page.getByRole('region', { name: /^Your groups/ }).locator('.home-group-name').allInnerTexts();
+}
+
+// The group page heading's dropdown switches groups.
+export function groupSwitcher(page) {
+  return page.locator('#main-content').getByRole('heading', { level: 2 }).getByRole('button');
+}
+export async function openGroupSwitcher(page) {
+  const trigger = groupSwitcher(page);
+  if (await trigger.getAttribute('aria-expanded') !== 'true') await trigger.click();
+  const listbox = page.getByRole('listbox', { name: 'Switch group', exact: true });
+  await expect(listbox).toBeVisible();
+  return listbox;
+}
+export async function switchGroup(page, name) {
+  const listbox = await openGroupSwitcher(page);
+  await listbox.getByRole('option', { name, exact: true }).click();
+  await expect(listbox).toHaveCount(0);
+  await expect(groupSwitcher(page)).toHaveAccessibleName(name);
+}
 
 // Clicks `name` in a shared segmented control while recording where its
 // selection indicator is on every frame, until the indicator has settled on
