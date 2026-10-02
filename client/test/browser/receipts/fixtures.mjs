@@ -23,7 +23,7 @@ export async function receiptGroup(env) {
   const newBillRoute = `${base}#/new-bill/${group.id}`;
   const alice = await env.pageFor('alice-token', { width: 1280, height: 1000 });
   await alice.goto(groupRoute);
-  // Scenarios start from a loaded group page, so their first navigation never cancels its read.
+  // Scenarios start from a loaded group page, as they did in the sequential suite.
   await expect(alice.getByRole('button', { name: 'New bill', exact: true })).toBeVisible();
   const stepButton = label => alice.getByRole('navigation', { name: 'New bill steps' })
     .getByRole('button', { name: new RegExp(`${label}$`) });

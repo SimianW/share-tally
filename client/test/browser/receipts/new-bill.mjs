@@ -8,6 +8,7 @@ import { groupSwitcher, openGroupSwitcher, expectSegmentSlide } from '../ui.mjs'
 
 export const scenarios = [
   { name: 'scan-retry', environment: { ...receiptEnvironment, firstExtractionFails: true }, run: scanRetry },
+  { name: 'new-bill-during-refresh', environment: receiptEnvironment, run: newBillDuringRefresh },
   { name: 'receipt-crop', environment: receiptEnvironment, run: receiptCrop },
   { name: 'unassigned-tax', environment: receiptEnvironment, run: unassignedTax },
   { name: 'manual-split-fallback', environment: receiptEnvironment, run: manualSplitFallback },
@@ -301,3 +302,41 @@ async function manualSplitFallback(env) {
     "manual",
   );
 }
+
+// A write refreshes group reads by cancelling those in flight and reading again. Opening
+// New bill while a draft deletion's refresh is pending must not show that cancellation.
+async function newBillDuringRefresh(env) {
+  const { group, groupRoute, newBillRoute, alice, titledDraft } = await receiptGroup(env);
+  await titledDraft("Draft to delete");
+  await alice.goto(groupRoute);
+  await alice.reload();
+  const deleteDraft = alice.getByRole("button", { name: "Delete Draft to delete", exact: true });
+  await expect(deleteDraft).toBeVisible();
+  let releaseDelete;
+  const deleteHeld = new Promise(resolve => { releaseDelete = resolve; });
+  await alice.route("**/api/receipt-drafts/*", async route => {
+    if (route.request().method() !== "DELETE") return route.continue();
+    await deleteHeld;
+    await route.continue();
+  });
+  await deleteDraft.click();
+  await alice.getByRole("button", { name: "Delete draft", exact: true }).click();
+  // New bill's group read stays in flight until the deletion's refresh has run.
+  let groupReads = 0;
+  let releaseGroup;
+  const groupHeld = new Promise(resolve => { releaseGroup = resolve; });
+  await alice.route(`**/api/groups/${group.id}`, async route => {
+    groupReads++;
+    await groupHeld;
+    await route.continue().catch(() => {}); // The refresh aborts this request.
+  });
+  await alice.evaluate(hash => { location.hash = hash; }, new URL(newBillRoute).hash);
+  await expect.poll(() => groupReads).toBeGreaterThan(0);
+  releaseDelete();
+  await expect.poll(() => groupReads).toBeGreaterThan(1);
+  releaseGroup();
+  await alice.unrouteAll({ behavior: "wait" });
+  await expect(alice.getByRole("heading", { name: "Start with your receipt" })).toBeVisible();
+  await expect(alice.getByText("Could not open this group", { exact: true })).toHaveCount(0);
+}
+

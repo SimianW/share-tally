@@ -30,7 +30,7 @@ export const suites = {
     'group-page-ledger', 'amount-portion', 'group-deletion',
   ]),
   receipts: ordered(receiptScenarios, [
-    'scan-retry', 'receipt-crop', 'draft-save-and-recovery', 'item-claims', 'claim-controls',
+    'scan-retry', 'new-bill-during-refresh', 'receipt-crop', 'draft-save-and-recovery', 'item-claims', 'claim-controls',
     'correction-races', 'claim-auto-advance', 'claiming-conflicts', 'claim-review', 'processing-recovery',
     'scanned-draft-editing', 'compact-review', 'claim-receipt-photo', 'unassigned-tax',
     'legacy-price-correction', 'price-correction', 'scan-fallback', 'low-confidence-hints', 'manual-split-fallback',
