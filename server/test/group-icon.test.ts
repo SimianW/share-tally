@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { InvalidGroupIconError, parseGroupIcon } from '../src/group-icon.js';
+import { InvalidGroupIconError, parseGroupIcon } from '../src/groups/group-icon.js';
 
 test('accepts real Lucide names and complete Unicode characters', () => {
   for (const value of ['shopping-basket', 'house', 'sun']) {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { receiptLineGeometry } from "../src/play/receipt-line-geometry.ts";
+import { receiptLineGeometry } from "../src/features/receipts/photos/receipt-line-geometry.ts";
 
 test("scales the analyzed polygon into the displayed photo's dimensions", () => {
   const geometry = receiptLineGeometry(

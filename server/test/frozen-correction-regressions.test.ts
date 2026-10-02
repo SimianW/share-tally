@@ -99,7 +99,7 @@ beforeEach(async () => {
 
 // Import by URL so the server's NodeNext typecheck does not pull in the
 // browser's bundler-only React dependency graph. Exercise the real preview.
-const { previewCorrection } = await import(new URL("../../client/src/play/receipt-correction.ts", import.meta.url).href);
+const { previewCorrection } = await import(new URL("../../client/src/features/receipts/pricing/receipt-correction.ts", import.meta.url).href);
 
 async function api(path: string, token = "alice-token", method = "GET", body?: unknown) {
   return fetch(`${baseUrl}/api${path}`, {

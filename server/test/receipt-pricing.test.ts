@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { unassignedReceiptTaxMessage } from "../src/receipt-pricing.js";
-import type { ReceiptDraftData } from "../src/receipt-input.js";
+import { unassignedReceiptTaxMessage } from "../src/receipts/pricing/receipt-pricing.js";
+import type { ReceiptDraftData } from "../src/receipts/receipt-input.js";
 import {
   extractionDefaults,
   type ExtractedReceipt,
-} from "../src/receipt-extraction.js";
+} from "../src/receipts/processing/receipt-extraction.js";
 const receipt = (
   missingTaxable: boolean,
   discountTotal = 0,

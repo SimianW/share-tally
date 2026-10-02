@@ -1,6 +1,6 @@
 import { once } from "node:events";
 import type { Express } from "express";
-import { sweepStaleProcessingDrafts } from "./receipt-drafts.js";
+import { sweepStaleProcessingDrafts } from "./receipts/drafts/processing.js";
 
 // Production and HTTP integration tests share restart recovery before listening.
 export async function startServer(app: Express, port: number, host: string) {

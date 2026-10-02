@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { createAzureExtractor, normalizeAzure } from "../src/azure-receipt.js";
-import { RECEIPT_ITEM_CONFIDENCE_THRESHOLD } from "../src/receipt-needs-check.js";
+import { createAzureExtractor, normalizeAzure } from "../src/receipts/providers/azure-receipt.js";
+import { RECEIPT_ITEM_CONFIDENCE_THRESHOLD } from "../src/receipts/receipt-needs-check.js";
 import {
   extractionDefaults,
   type ExtractedReceipt,
-} from "../src/receipt-extraction.js";
-import { draftItemInput, itemInput } from "../src/receipt-input.js";
-import { priceDraft } from "../src/receipt-pricing.js";
+} from "../src/receipts/processing/receipt-extraction.js";
+import { draftItemInput, itemInput } from "../src/receipts/receipt-input.js";
+import { priceDraft } from "../src/receipts/pricing/receipt-pricing.js";
 
 function receipt(patch: Partial<ExtractedReceipt> = {}): ExtractedReceipt {
   return {

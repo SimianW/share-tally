@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { azureItemRowIndices, mapAzureAnalysis, type AnalyzeResult } from "../src/azure-receipt.js";
-import { buildReceiptNameRequest, parseReceiptNameResponse, receiptNameConfig, type ReceiptModelEvidence } from "../src/receipt-names.js";
-import { applyReceiptModelResult, processReceipt, receiptModelEvidence, type ReceiptModelAttempt } from "../src/receipt-processing.js";
+import { azureItemRowIndices, mapAzureAnalysis, type AnalyzeResult } from "../src/receipts/providers/azure-receipt.js";
+import { buildReceiptNameRequest, parseReceiptNameResponse, receiptNameConfig, type ReceiptModelEvidence } from "../src/receipts/providers/receipt-names.js";
+import { applyReceiptModelResult, processReceipt, receiptModelEvidence, type ReceiptModelAttempt } from "../src/receipts/processing/receipt-processing.js";
 import { PIPELINE_FIELDS, scanFailedPrediction, type BenchmarkAdapter } from "./adapter.js";
 import type { BenchmarkPrediction } from "./scorer.js";
 import { noModelInput, RecordingError, type ModelOutcome } from "./recordings.js";

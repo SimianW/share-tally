@@ -1,8 +1,9 @@
+import { themeBootstrap } from './build/theme-bootstrap.ts';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [themeBootstrap(), react()],
   server: {
     allowedHosts: ['dev-2a1m'],
     port: 5173,

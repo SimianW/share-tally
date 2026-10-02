@@ -1,17 +1,4 @@
-import {
-  check,
-  boolean,
-  jsonb,
-  date,
-  integer,
-  unique,
-  index,
-  pgTable,
-  primaryKey,
-  text,
-  timestamp,
-  uuid
-} from 'drizzle-orm/pg-core';
+import { check, boolean, jsonb, date, integer, unique, index, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm/sql/sql';
 
 export const users = pgTable('users', {
@@ -164,12 +151,11 @@ export const repayments = pgTable('repayments', {
   check('repayments_state', sql`(${table.status} = 'pending' and ${table.decidedAt} is null) or (${table.status} in ('confirmed', 'rejected') and ${table.decidedAt} is not null)`),
 ]);
 
-
 export const receiptDrafts = pgTable('receipt_drafts', {
   id: uuid('id').primaryKey(),
   groupId: uuid('group_id').notNull().references(() => groups.id),
   initiatorId: uuid('initiator_id').notNull().references(() => users.id),
-  data: jsonb('data').$type<import('../receipt-input.js').ReceiptDraftData>().notNull(),
+  data: jsonb('data').$type<import('../receipts/receipt-input.js').ReceiptDraftData>().notNull(),
   revision: integer('revision').notNull().default(1),
   billId: uuid('bill_id').references(() => bills.id),
   processingStatus: text('processing_status').$type<'ready' | 'processing' | 'fallback'>().notNull().default('ready'),

@@ -11,7 +11,7 @@ import { loadDataset } from "../benchmark/dataset.js";
 import { candidateAdapter, CANDIDATE_MODEL_VERSION } from "../benchmark/candidate.js";
 import { invokeAdapter } from "../benchmark/adapter.js";
 import { baselineAdapter, BASELINE_MODEL_VERSION } from "../benchmark/baseline.js";
-import { normalizeReceiptPhoto } from "../src/receipt-photo.js";
+import { normalizeReceiptPhoto } from "../src/receipts/photos/receipt-photo.js";
 import { clientUpload } from "../benchmark/recording-provider.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../benchmark");

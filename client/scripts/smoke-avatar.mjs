@@ -15,9 +15,9 @@ try {
   await page.evaluate(async () => {
     const { default: React } = await import('/node_modules/.vite/deps/react.js');
     const { default: { createRoot } } = await import('/node_modules/.vite/deps/react-dom_client.js');
-    const { Avatar } = await import('/src/play/ui.tsx');
-    await import('/src/play/play.css');
-    await import('/src/play/bills.css');
+    const { Avatar } = await import('/src/shared/ui/Avatar.tsx');
+    await import('/src/app/app.css');
+    await import('/src/features/bills/bills.css');
     const root = document.createElement('div'); document.body.replaceChildren(root);
     createRoot(root).render(React.createElement('div', { className: 'bill-person' },
       React.createElement(Avatar, { name: 'Simon', imageUrl: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40"/%3E' }),

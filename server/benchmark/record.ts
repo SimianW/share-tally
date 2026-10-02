@@ -3,7 +3,7 @@ import { link, lstat, mkdir, readFile, rename, unlink, writeFile } from "node:fs
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { isDeepStrictEqual } from "node:util";
-import type { AnalyzeResult } from "../src/azure-receipt.js";
+import type { AnalyzeResult } from "../src/receipts/providers/azure-receipt.js";
 import { candidateRecorder as builtInCandidateRecorder } from "./candidate-recorder.js";
 import { candidateAdapter, candidateConfig } from "./candidate.js";
 import { invokeAdapter } from "./adapter.js";

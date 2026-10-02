@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { AnalyzeResult } from "../src/azure-receipt.js";
+import type { AnalyzeResult } from "../src/receipts/providers/azure-receipt.js";
 import { mapAzureAnalysis } from "./frozen-baseline/azure-receipt.js";
 import { processReceipt } from "./frozen-baseline/receipt-processing.js";
 import { interpretReceiptNames } from "./frozen-baseline/receipt-names.js";

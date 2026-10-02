@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import type { AnalyzeResult } from "../src/azure-receipt.js";
+import type { AnalyzeResult } from "../src/receipts/providers/azure-receipt.js";
 import { invokeAdapter, type BenchmarkAdapter } from "./adapter.js";
 import { candidateAdapter } from "./candidate.js";
 import { baselineAdapter, BASELINE_COMMIT } from "./baseline.js";
