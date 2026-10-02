@@ -83,11 +83,13 @@ export async function startEnvironment({ backend = true, remoteHost = null, firs
     await checkpoint('vite', { base: origin.href });
 
     const browser = await chromium.launch({
+      // Playwright would otherwise exit the process on a signal before the database is disposed.
+      handleSIGINT: false, handleSIGTERM: false, handleSIGHUP: false,
       ...(remoteHost ? { args: [`--host-resolver-rules=MAP ${remoteHost} 127.0.0.1`, '--no-proxy-server'] } : {}),
       ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}),
     });
     disposers.push(() => browser.close());
-    await checkpoint('browser', {});
+    await checkpoint('browser', { browser });
     await mkdir(screenshots, { recursive: true });
 
     // A page in its own browser context, signed in as `identity` (or signed out when null).

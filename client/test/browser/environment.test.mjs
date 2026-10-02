@@ -36,3 +36,13 @@ test('a failure after the API starts stops it and removes the database', async (
   assert.equal(processExists(pid), false, 'API process was left running');
   assert.equal(await containerExists(containerId), false, 'PostgreSQL container was left behind');
 });
+
+test('a failure after Vite starts closes it', async () => {
+  const { base } = await failAfter('vite');
+  await assert.rejects(fetch(base), 'Vite server was left running');
+});
+
+test('a failure after Chromium starts closes it', async () => {
+  const { browser } = await failAfter('browser');
+  assert.equal(browser.isConnected(), false, 'Chromium was left running');
+});

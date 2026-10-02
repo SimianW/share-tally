@@ -24,8 +24,11 @@ if (unknown.length) {
 const named = all.filter(({ name }) => args.includes(name));
 const selected = named.length ? named : all.filter(({ suite }) => args.includes(suite));
 
-let active, starting;
+let active, starting, interrupted = false;
+// After a signal the handler owns shutdown; the scenario loop waits for it to exit the process.
+const awaitShutdown = () => new Promise(() => {});
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, async () => {
+  interrupted = true;
   console.error(`\n${signal}: disposing the running scenario's environment.`);
   // An environment still starting is disposed once it is up; a failed start disposes itself.
   const env = active ?? await starting?.catch(() => undefined);
@@ -52,10 +55,12 @@ for (const scenario of selected) {
     const crashed = new Promise((_, reject) => { crash = reject; });
     starting = startEnvironment(scenario.environment);
     active = await starting;
+    if (interrupted) await awaitShutdown();
     await Promise.race([scenario.run(active), crashed]);
     assert.deepEqual(active.errors, [], 'Pages raised uncaught errors');
     console.log(`✓ ${label} (${seconds()})`);
   } catch (error) {
+    if (interrupted) await awaitShutdown();
     failed.push(label);
     console.error(`✗ ${label} failed after ${seconds()}:`);
     console.error(error);
