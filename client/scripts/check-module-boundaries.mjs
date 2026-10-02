@@ -7,8 +7,7 @@ import ts from 'typescript';
 export const publicFeatureEntries = {
   groups: ['api', 'icons/GroupIconView'],
   bills: ['api'],
-  claims: ['ItemClaims'],
-  receipts: ['api', 'photos/ReceiptPhoto', 'photos/ReceiptLinePhoto', 'review/ReceiptItemRow', 'review/ReceiptReview', 'review/LegacyItemEditor', 'pricing/receipt-correction'],
+  receipts: ['api', 'photos/ReceiptPhoto', 'photos/ReceiptLinePhoto', 'review/ReceiptItemRow', 'review/ReceiptReview'],
 };
 
 export function moduleBoundaryViolations(files) {

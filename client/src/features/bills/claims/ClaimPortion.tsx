@@ -1,9 +1,9 @@
 import { type Bill } from "@share-tally/domain/contracts/bills";
 import type { BillItem } from "@share-tally/domain/contracts/receipts";
 import { type Fraction } from '@share-tally/domain/fractions';
-import { claimable, cost, shortText, sum, text } from "../../shared/fractions";
-import { money } from "../../shared/money";
-import { PortionBar, PortionCard, type PortionState } from "../../shared/ui/portions/PortionPicker";
+import { claimable, cost, shortText, sum, text } from "../../../shared/fractions";
+import { money } from "../../../shared/money";
+import { PortionBar, PortionCard, type PortionState } from "../../../shared/ui/portions/PortionPicker";
 import { claimedByOthers } from './claim-availability';
 import type { ClaimChange } from "./claim-changes";
 

@@ -1375,7 +1375,7 @@ try {
   // The review rules themselves, as the page loads them: a draft that is not a claimable fraction
   // blocks Confirm, and the reviewed list keeps acknowledged versions of current items only.
   const rules = await reviewer.evaluate(async () => {
-    const { claimReview, reviewedFor } = await import("/src/features/claims/claim-review.ts");
+    const { claimReview, reviewedFor } = await import("/src/features/bills/claims/claim-review.ts");
     const item = (id, version) => ({ id, version, name: id, finalCents: 100, claims: [] });
     const seen = [{ itemId: "kept", version: 1, name: "kept", finalCents: 100 }, { itemId: "gone", version: 1, name: "gone", finalCents: 100 }];
     const review = claimReview({ items: [item("kept", 1)], ownId: "me", selection: { kept: "10199/10403" }, seen, known: {}, conflicts: [] });

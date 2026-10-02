@@ -1,6 +1,6 @@
 import type { BillItem, ReviewedItem } from "@share-tally/domain/contracts/receipts";
 import { type Fraction } from '@share-tally/domain/fractions';
-import { lessOrEqual, parse, subtract, zero } from "../../shared/fractions";
+import { lessOrEqual, parse, subtract, zero } from "../../../shared/fractions";
 import { roomFor } from './claim-availability';
 
 /**

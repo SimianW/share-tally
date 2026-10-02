@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { BillItem } from "@share-tally/domain/contracts/receipts";
 import { fraction, type Fraction } from '@share-tally/domain/fractions';
-import { subtract, zero } from "../../shared/fractions";
+import { subtract, zero } from "../../../shared/fractions";
 
 // Long enough to notice whose share moved, short enough not to linger.
 const HIGHLIGHT_MS = 1200;

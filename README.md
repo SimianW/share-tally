@@ -39,7 +39,7 @@ Captured from the local app using sample data for Alice, Bob, and Carol.
 ```text
 client/src/
   app/                AppShell, page composition and stylesheet ordering
-  features/           account, bills, claims, groups, home, ledger, receipts, repayments
+  features/           account, bills (including item claims and corrections), groups, home, ledger, receipts, repayments
   shared/             authenticated transport, browser utilities, money and shared UI
   theme/              palettes, light/dark preferences and design tokens
 server/src/
@@ -69,7 +69,7 @@ These were the overlapping implementations found in the structure audit. Each ro
 | Bill, group, receipt and cached JSON requests | `shared/api/transport.ts` | Feature error messages and conflict metadata, fresh versus cached reads, mutation invalidation and group deletion ordering. Binary photos and SSE retain their protocols. |
 | Pending, busy and error handling for submissions | `shared/api/use-operation.ts` | Bill revision checks, item versions, repayment request persistence and draft initialization retries retain their own policies. |
 | Amount formatting and entry | `shared/money.ts`, `shared/ui/fields/MoneyField.tsx` and `validity.ts` | Positive-sign display, empty-as-zero, signed adjustments, and validation timing. Share/repayment fields still validate at their original stage. |
-| Available portions in item picker, meter and confirmation checks | `features/claims/claim-availability.ts` | Confirmed claims and reservations both consume availability; a participant can edit their own portion. |
+| Available portions in item picker, meter and confirmation checks | `features/bills/claims/claim-availability.ts` | Confirmed claims and reservations both consume availability; a participant can edit their own portion. |
 | Repeated fraction parsing and picker arithmetic | `shared/fractions.ts`, `shared/ui/portions/` | UI input limits and error wording remain separate from exact domain arithmetic. |
 | Receipt scan buttons and photo resource cleanup | `drafts/ScanActions.tsx`, `photos/photo-resource.ts` | Processing-specific disabled states, full-photo expiry and line-photo positioning. |
 | URLs assembled in several pages | `shared/browser/paths.ts` | Existing hash URLs, query strings, navigation guards and invitation return links. |

@@ -1,19 +1,19 @@
-import { parseClaimInput } from '../../shared/fractions';
+import { parseClaimInput } from '../../../shared/fractions';
 import { useState } from "react";
-import { BillApiError } from "../../shared/api/bill-error";
-import { useBillApi } from "../bills/api";
+import { BillApiError } from "../../../shared/api/bill-error";
+import { useBillApi } from "../api";
 import { type Bill, type ItemConflicts } from "@share-tally/domain/contracts/bills";
-import { correctionInput, useReceiptApi } from "../receipts/api";
+import { correctionInput, useReceiptApi } from "../../receipts/api";
 import { type BillItem, type LegacyCorrectionItem, type ReceiptCorrectionItem, type ReviewedItem } from "@share-tally/domain/contracts/receipts";
-import { previewCorrection } from "../receipts/pricing/receipt-correction";
+import { previewCorrection } from "./receipt-correction";
 import { ClaimItems } from "./ClaimItems";
 import { claimAvailabilityMessage } from "./claim-fractions";
-import { fromParts, shortText } from "../../shared/fractions";
+import { fromParts, shortText } from "../../../shared/fractions";
 import { acknowledge, claimReview, knownOf, reviewedFor, seenOf, type SeenItem } from "./claim-review";
-import { ReceiptReviewItems } from "../receipts/review/ReceiptReview";
-import { LegacyItemEditor } from "../receipts/review/LegacyItemEditor";
-import { Button } from "../../shared/ui/Button";
-import { errorMessage } from "../../shared/api/error-message";
+import { ReceiptReviewItems } from "../../receipts/review/ReceiptReview";
+import { LegacyItemEditor } from "./LegacyItemEditor";
+import { Button } from "../../../shared/ui/Button";
+import { errorMessage } from "../../../shared/api/error-message";
 
 function reviewedItems(items: { id: string; version: number }[] = []): ReviewedItem[] {
   return items.map(({ id, version }) => ({ itemId: id, version }));
