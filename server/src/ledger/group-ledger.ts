@@ -14,7 +14,10 @@ export type BalanceBill = Pick<typeof billsTable.$inferSelect, 'initiatorId' | '
   participants: { userId: string; amountCents: number | null }[];
 };
 
-type LedgerBill = BalanceBill & Pick<typeof billsTable.$inferSelect, 'id' | 'title' | 'purchaseDate' | 'completedAt' | 'canceledAt'>;
+export type LedgerBill = BalanceBill & Pick<typeof billsTable.$inferSelect, 'id' | 'title' | 'purchaseDate' | 'completedAt' | 'canceledAt'>;
+
+// The fields of a repayment that decide balances.
+export type BalanceRepayment = Pick<Repayment, 'groupId' | 'senderId' | 'recipientId' | 'amountCents' | 'status'>;
 
 export const counted = (bill: { completedAt: Date | null; canceledAt: Date | null }) =>
   bill.completedAt !== null && bill.canceledAt === null;
@@ -34,12 +37,36 @@ export function billEffects(bill: BalanceBill): BillEffect[] {
 
 // One equal-and-opposite pair per confirmed record; pending and rejected
 // records have no effect.
-export function repaymentEffects(record: Repayment): RepaymentEffect[] {
+export function repaymentEffects(record: BalanceRepayment): RepaymentEffect[] {
   if (record.status !== 'confirmed') return [];
   return [
     { userId: record.senderId, netCents: record.amountCents },
     { userId: record.recipientId, netCents: -record.amountCents },
   ];
+}
+
+// The member's net balance in each group, from the same per-entry effects as
+// the group ledger. The group page and the group list both use this arithmetic.
+export function memberBalances(bills: (BalanceBill & Pick<typeof billsTable.$inferSelect, 'groupId' | 'completedAt' | 'canceledAt'>)[],
+  userId: string, repayments: BalanceRepayment[]) {
+  const balances = new Map<string, bigint>();
+  const add = (groupId: string, effects: { userId: string; netCents: number }[]) => {
+    for (const effect of effects)
+      if (effect.userId === userId) balances.set(groupId, (balances.get(groupId) ?? 0n) + BigInt(effect.netCents));
+  };
+  for (const bill of bills) if (counted(bill)) add(bill.groupId, billEffects(bill));
+  for (const record of repayments) add(record.groupId, repaymentEffects(record));
+  return balances;
+}
+
+// Amounts owed to and by the member across their groups.
+export function balanceTotals(balances: Map<string, bigint>) {
+  let receivable = 0n, payable = 0n;
+  for (const balance of balances.values()) {
+    if (balance > 0n) receivable += balance;
+    else payable -= balance;
+  }
+  return { receivableCents: safeCents(receivable), payableCents: safeCents(payable), netCents: safeCents(receivable - payable) };
 }
 
 // Complete, non-canceled bills and confirmed repayments, ordered by when they

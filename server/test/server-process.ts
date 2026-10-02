@@ -6,6 +6,18 @@ import { BillError } from '../src/shared/bill-error.js';
 import { createApp } from '../src/app.js';
 import { startServer } from '../src/start-server.js';
 import { closeDatabase } from '../src/db/index.js';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { Client } from 'pg';
+import express from 'express';
+
+// Opt-in HTTP query counts exclude startup/recovery queries outside the request.
+const queryCounts = new AsyncLocalStorage<{ count: number }>();
+const clientQuery = Client.prototype.query;
+Client.prototype.query = function (this: Client, ...args: Parameters<typeof clientQuery>) {
+  const store = queryCounts.getStore();
+  if (store) store.count++;
+  return Reflect.apply(clientQuery, this, args);
+} as typeof clientQuery;
 
 // Only this test entry point knows these tokens. Production always uses Clerk.
 const identities = new Map([
@@ -89,8 +101,21 @@ const app = createApp({
   middleware: (_req, _res, next) => next(),
   userId: (req) => identities.get(req.get('authorization') ?? '') ?? null,
 });
+const countedApp = express();
+countedApp.use((req, res, next) => {
+  if (req.get('x-count-queries') !== '1') return next();
+  const store = { count: 0 };
+  const writeHead = res.writeHead;
+  // Read handlers finish their queries before res.json writes the headers.
+  res.writeHead = function (this: typeof res, ...args: Parameters<typeof writeHead>) {
+    res.setHeader('x-query-count', String(store.count));
+    return Reflect.apply(writeHead, this, args);
+  } as typeof writeHead;
+  queryCounts.run(store, next);
+});
+countedApp.use(app);
 // Use the production startup sequence so recovery on restart is exercised here.
-const server = await startServer(app, 0, '127.0.0.1');
+const server = await startServer(countedApp, 0, '127.0.0.1');
 if (!server.listening) await once(server, 'listening');
 const address = server.address();
 if (address && typeof address !== 'string') process.send?.(address.port);
