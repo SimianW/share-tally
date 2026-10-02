@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "prototype:history": "node ../scripts/build-domain.mjs && vite --config history-prototype.vite.config.ts",
     "dev": "node ../scripts/build-domain.mjs && vite",
     "build": "node ../scripts/build-domain.mjs && tsc -b && vite build",
     "lint": "eslint . && node scripts/check-tokens.mjs && node scripts/check-module-boundaries.mjs",

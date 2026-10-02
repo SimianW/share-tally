@@ -12,6 +12,7 @@ import { Repayments } from "../features/repayments/Repayments";
 import { Avatar } from "../shared/ui/Avatar";
 import { Button } from "../shared/ui/Button";
 import { Icon } from "../shared/ui/Icon";
+import { HistoryPrototype } from './HistoryPrototype';
 
 export function GroupPage({ data, title, drafts, api, refresh, openMembers, selectedRepaymentId }: {
   data: GroupPageData;
@@ -66,7 +67,9 @@ export function GroupPage({ data, title, drafts, api, refresh, openMembers, sele
 
     <div className="group-drafts">{drafts}</div>
 
-    {view.history.length > 0 && <section aria-label="History">
+    {import.meta.env.DEV && new URLSearchParams(window.location.search).has('variant')
+      ? <HistoryPrototype bills={view.history} renderBill={bill => <GroupBill key={bill.id} bill={bill} view={view} />} />
+      : view.history.length > 0 && <section aria-label="History">
       <h2 className="group-section-heading">History <span className="count">{view.history.length}</span></h2>
       <div className="group-history-list">
         {(showHistory ? view.history : view.history.slice(0, 5)).map(bill => <GroupBill key={bill.id} bill={bill} view={view} />)}

@@ -1,0 +1,29 @@
+/* Throwaway styles, using the application's existing palette and type tokens. */
+.history-prototype-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.group-page .history-prototype-heading .group-section-heading { margin-bottom: 0; }
+.history-prototype-heading .button { white-space: nowrap; }
+.history-prototype-archive { margin-top: 18px; border: 1px dashed var(--line-strong); border-radius: 14px; background: var(--surface-soft); }
+.history-prototype-archive > button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 16px 20px; background: transparent; border-radius: inherit; }
+.history-prototype-archive > button > span { display: grid; flex: 1; gap: 3px; }
+.history-prototype-archive strong { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.history-prototype-archive small { color: var(--ink-muted); font-size: 12px; }
+.history-prototype-chevron-open { transform: rotate(180deg); }
+.history-prototype-C .segmented { width: auto; font-size: 13px; }
+.history-prototype-switcher { position: fixed; z-index: 100; bottom: max(16px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 24px); border-radius: 18px; background: var(--ink); color: var(--surface); box-shadow: var(--shadow-floating); padding: 8px 10px; }
+.history-prototype-cycle { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.history-prototype-cycle button { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: transparent; color: inherit; }
+.history-prototype-cycle button:hover { background: var(--ink-secondary); }
+.history-prototype-cycle span { display: grid; text-align: center; gap: 2px; }
+.history-prototype-cycle small { font-size: 10px; opacity: .8; }
+.history-prototype-cycle strong { font-size: 13px; }
+.history-prototype-switcher output { display: block; font-size: 10px; text-align: center; margin: 4px 6px 2px; }
+.history-prototype-shell .main-content { padding-bottom: 125px; }
+.history-prototype-banner { margin: 0 auto 24px; max-width: 780px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; color: var(--ink-muted); font-size: 12px; }
+.history-prototype-banner > span { flex: 1; }
+.history-prototype-banner select { padding: 6px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+@media (max-width: 640px) {
+  .history-prototype .group-history-list { padding-inline: 0; }
+  .history-prototype-archive .group-history-list { padding-inline: 16px; }
+  .history-prototype-heading { gap: 10px; }
+  .history-prototype-C .segmented { width: 100%; }
+}
