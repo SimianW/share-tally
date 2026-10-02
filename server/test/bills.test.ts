@@ -2326,6 +2326,19 @@ test('concurrent participants confirm available fractions without changing item 
   assert.equal(current.completedAt, null, 'partial allocation remains valid');
 });
 
+test('item commands read the bill items whatever the case of its URL id', async () => {
+  const { bill, data, ids } = await itemBill([100]);
+  const upper = bill.id.toUpperCase();
+  const claims = [{ itemId: data.items[0]!.id, numerator: 1, denominator: 3 }];
+  await json(await api(`/bills/${upper}/claims`, 'bob-token', 'POST', { reviewedItems: reviewedItems(bill), claims }));
+  let current = (await json(await api(`/bills/${bill.id}`))).bill;
+  assert.deepEqual(current.items[0].claims.map((claim: { userId: string }) => claim.userId), [ids.Bob]);
+  // Withdrawing must see the existing claim rather than retrying an empty one.
+  await json(await api(`/bills/${upper}/claims`, 'bob-token', 'POST', { reviewedItems: reviewedItems(current), claims: [] }));
+  current = (await json(await api(`/bills/${bill.id}`))).bill;
+  assert.deepEqual(current.items[0].claims, []);
+});
+
 test('claim conflicts report every unavailable item and the exact fraction available to this participant', async () => {
   const { bill, data } = await itemBill([100, 200], 300);
   const ownClaims = data.items.map(item => ({ itemId: item.id, numerator: 1, denominator: 6 }));

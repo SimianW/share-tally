@@ -2,11 +2,12 @@ import type { GroupDeletionReason } from '@share-tally/domain/contracts/groups';
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
 import { readAttentionInSnapshot } from '../attention/attention.js';
-import { readBillsInSnapshot, readMemberBalancesInSnapshot } from "../bills/queries.js";
+import { readGroupAccountingInSnapshot, readMemberBalancesInSnapshot } from "../ledger/accounting.js";
 import type { Transaction as Tx } from '../db/types.js';
 import { groupLedger } from '../ledger/group-ledger.js';
 import { notifyGroupChanged } from '../realtime/group-events.js';
 import { readRepayments } from '../repayments/repayments.js';
+import { safeCents } from '../shared/money.js';
 import { lockGroupForMember } from './group-access.js';
 import { db } from "../db/index.js";
 import { groupMembers, groups, users } from "../db/schema.js";
@@ -123,7 +124,7 @@ export async function listGroupsForUser(userId: string) {
       .where(inArray(groupMembers.groupId, ids)).orderBy(groupMembers.joinedAt, users.id) : [];
     return rows.map(row => ({
       ...toGroup(row, userId),
-      netCents: balances.get(row.id)!,
+      netCents: safeCents(balances.get(row.id) ?? 0n),
       pendingActionCount: pendingByGroup.get(row.id) ?? 0,
       memberPreview: members.filter(member => member.groupId === row.id).slice(0, previewSize)
         .map(({ id, displayName }) => ({ id, displayName })),
@@ -211,7 +212,7 @@ export class GroupDeletionError extends GroupAccessError {
 // financial writes serialize on that row, so the decision cannot go stale
 // between this check and the update in markGroupDeleted.
 async function deletionReasons(tx: Tx, groupId: string, userId: string): Promise<GroupDeletionReason[]> {
-  const bills = await readBillsInSnapshot(tx, userId, groupId);
+  const bills = await readGroupAccountingInSnapshot(tx, groupId);
   const repayments = await readRepayments(tx, userId, groupId);
   const members = await tx.select({ userId: users.id, displayName: users.displayName })
     .from(groupMembers).innerJoin(users, eq(users.id, groupMembers.userId))
