@@ -51,6 +51,7 @@ server/src/
   identity/           users and avatars
   attention/          pending actions
   realtime/           group event streams
+  workflows/          transactions that coordinate business modules
   db/                 schema, connection and transaction type
 packages/domain/      dependency-free wire contracts and financial calculations
 ```
@@ -58,6 +59,8 @@ packages/domain/      dependency-free wire contracts and financial calculations
 The frontend directory is feature-oriented; `AppShell` replaces the old `PlayApp` name. `shared` never imports a feature. Feature pages compose shared controls and their own business rules. `app/styles.css` pins the existing CSS cascade independently of the TypeScript import graph. Existing `.play` CSS selectors remain compatibility names, so changing the folder structure does not change styling or automation selectors.
 
 Both applications link `@share-tally/domain` ([ADR-0016](docs/adr/0016-share-financial-calculations-through-a-domain-package.md)). Their dev, build and test commands compile it using the invoking application's TypeScript compiler; it has no runtime dependencies. After editing that package while a dev server is running, run `node ../scripts/build-domain.mjs` from `client/` or `server/` to refresh its output. Server database types stay internal; compile-time checks in `server/test/wire-contracts.ts` verify that server projections serialize to the shared contracts.
+
+Server routes call workflows for operations spanning business modules. A workflow owns the transaction and passes its transaction to module operations; those operations do not import routes or workflows. Group deletion is the first such workflow: it locks the group before checking eligibility and purging receipt drafts, then publishes the deletion event after commit.
 
 The group-icon picker's compact emoji metadata is generated; do not edit `client/src/features/groups/icons/emoji-data.json` by hand. After upgrading `emojibase-data`, regenerate it with `pnpm --dir client generate:emoji` and run `pnpm --dir client test:unit`.
 

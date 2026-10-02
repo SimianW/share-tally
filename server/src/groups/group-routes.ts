@@ -1,8 +1,9 @@
 import type { AvatarReader, AvatarImages } from "../identity/avatars.js";
 import { Router } from 'express';
 import { getGroupUser } from '../identity/users.js';
+import { deleteGroup } from '../workflows/delete-group.js';
 import { parseGroupIcon } from './group-icon.js';
-import { createGroup, deleteGroup, getGroupForMember, groupDeletionEligibility, groupInvitation, joinGroup, listGroupsForUser } from './groups.js';
+import { createGroup, getGroupForMember, groupDeletionEligibility, groupInvitation, joinGroup, listGroupsForUser } from './groups.js';
 
 export function createGroupsRouter(displayName: (id: string) => Promise<string>, avatars: AvatarReader) {
   const router = Router();
