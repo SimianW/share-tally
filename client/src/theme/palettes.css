@@ -7,7 +7,8 @@
 [data-palette="classic"] {
   --font-heading: "Nunito", sans-serif;
   --font-body: "DM Sans", sans-serif;
-  --palette-white: #fff;
+  /* Cards are paper cut from the same stock as the page, not clinical white. */
+  --palette-white: color-mix(in oklab, var(--palette-canvas) 45%, #fff);
   --palette-canvas: #fafbf8;
   --palette-page: #f9faf6;
   --palette-ink: #273323;
@@ -43,7 +44,7 @@
    same in every added palette: owed is a muted green, owe is amber. Each brand
    accent avoids green and orange, so actions never read as money. */
 [data-palette]:not([data-palette="classic"]) {
-  --palette-white: #fff;
+  --palette-white: color-mix(in oklab, var(--palette-canvas) 45%, #fff);
   --palette-green: #37703f;
   --palette-ochre: #9a5b13;
   --palette-cream: #fcefd9;
