@@ -16,6 +16,8 @@ const identities = new Map([
 for (let i = 1; i <= 17; i++)
   identities.set(`Bearer member-${i}-token`, `user_test_member_${i}`);
 let scans = 0;
+// API tests rely on the first scan failing; browser scenarios opt in to that failure explicitly.
+const firstExtractionFails = process.env.TEST_FIRST_EXTRACTION_FAILS !== '0';
 let recordedScans = 0;
 let nextRecordedFixture: string | null = null;
 let useRecorded = false;
@@ -63,7 +65,7 @@ const app = createApp({
   receiptExtractor: async (image) => {
     if (useRecorded) return recordedExtract(image);
     if (holdExtraction) await new Promise<void>(resolve => { releaseExtraction = resolve; process.send?.('extraction-held'); });
-    if (++scans === 1 && !emptyReceipt && !numericLegend && !allocationReceipt && !lowConfidenceReceipt) throw new BillError(502, 'Test extraction unavailable. Your draft is safe.');
+    if (++scans === 1 && firstExtractionFails && !emptyReceipt && !numericLegend && !allocationReceipt && !lowConfidenceReceipt) throw new BillError(502, 'Test extraction unavailable. Your draft is safe.');
     if (allocationReceipt) return { merchant: 'Test shop', currency: 'CAD', total: 3.15, pricesIncludeTax: false, items: ['APPLE', 'SOAP', 'CANDLE'].map(description => ({ description, plainEnglish: null, quantity: '1', amount: 1, discount: null, tax: null, taxable: null })), discountTotal: null, taxTotal: 0.15, otherCharges: null, warnings: [] };
     return { merchant: 'Test shop', currency: 'CAD', total: emptyReceipt ? 0 : 3, pricesIncludeTax: false, items: emptyReceipt ? [] : [{ description: 'APPLE', plainEnglish: null, quantity: '1', amount: 3, discount: null, tax: null, taxable: null, ...(lowConfidenceReceipt ? { evidence: { descriptionConfidence: 0.7 } } : {}) }], discountTotal: null, taxTotal: null, otherCharges: null, warnings: [], ...(numericLegend ? { text: 'A = 0%\nB: 13' } : {}) };
   },
@@ -94,12 +96,15 @@ const server = await startServer(app, 0, '127.0.0.1');
 if (!server.listening) await once(server, 'listening');
 const address = server.address();
 if (address && typeof address !== 'string') process.send?.(address.port);
-process.once('SIGTERM', () => {
+function shutDown() {
   server.close(async () => {
     await closeDatabase();
     process.exit(0);
   });
   server.closeAllConnections();
-});
+}
+process.once('SIGTERM', shutDown);
+// A test runner that dies without stopping this process must not leave it behind.
+process.once('disconnect', shutDown);
 
 process.on('message', async message => { if (message === 'purge-photos') { await purgeExpiredPhotos(); process.send?.('photos-purged'); } });

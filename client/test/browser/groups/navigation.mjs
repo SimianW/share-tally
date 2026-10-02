@@ -1,11 +1,195 @@
+// Navigation scenarios: moving between Home, groups and accounts.
 import assert from 'node:assert/strict';
+import { mkdir } from 'node:fs/promises';
 import { expect } from '@playwright/test';
+import { screenshots } from '../environment.mjs';
+import { costcoFriends, weekendGroceries } from './fixtures.mjs';
+import { groupNet, homeRow, openGroupSwitcher, switchGroup, homeGroupNames, groupSwitcher } from '../ui.mjs';
 
-// The headline stays available during background reads, but never after access loss.
-export const groupNet = page => page.getByRole('region', { name: 'Where you stand' }).getByRole('heading');
+export const scenarios = [
+  { name: 'navigation-and-account-isolation', run: navigationAndAccountIsolation },
+  { name: 'attention', run: attention },
+];
+
+// Group navigation, cached reads, the group switcher, the top bar, sign-out and account isolation.
+async function navigationAndAccountIsolation(env) {
+  const { pageFor, base } = env;
+  const { group, ids, groupUrl } = await costcoFriends(env);
+  await weekendGroceries(env, group, ids);
+  const alice = await pageFor('alice-token', { width: 1280, height: 900 });
+  await alice.goto(base);
+  const bob = await pageFor('bob-token', { width: 390, height: 844 });
+  const carol = await pageFor('carol-token', { width: 1280, height: 900 });
+  // Group navigation opens finances directly and survives reloads.
+  await alice.getByRole('button', { name: 'New group', exact: true }).first().click();
+  await alice.getByLabel('Group name').fill('Apartment');
+  await alice.getByRole('button', { name: 'Create group', exact: true }).click();
+  await expect(alice.getByRole('dialog')).toContainText('Apartment');
+  await alice.getByRole('button', { name: 'Close dialog' }).click();
+  await expect(alice.locator('#main-content').getByRole('heading', { name: 'Apartment' })).toBeVisible();
+  await expect(groupNet(alice)).toContainText("You're settled up");
+  await switchGroup(alice, 'Costco friends');
+  await expect(groupNet(alice)).toContainText('$59.97');
+  await expect(alice.getByRole('dialog')).toHaveCount(0);
+  await checkNavigation(alice, pageFor);
+  await alice.reload();
+  await expect(groupNet(alice)).toContainText('$59.97');
+  const selectedBillsPattern = '**/api/groups/' + alice.url().split('/').pop() + '/bills';
+  await alice.route(selectedBillsPattern, route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Temporarily unavailable' }) }));
+  await expect(alice.getByRole('button', { name: 'Refresh bills', exact: true })).toHaveCount(0);
+  await alice.evaluate(() => window.dispatchEvent(new Event('online')));
+  await expect(alice.getByRole('alert')).toHaveCount(0);
+  await expect(groupNet(alice)).toContainText('$59.97');
+  await alice.unroute(selectedBillsPattern);
+  // The visible group recovers through automatic reconnection without a manual retry.
+  await expect(alice.getByRole('alert')).toHaveCount(0, { timeout: 20_000 });
+  await expect(groupNet(alice)).toContainText('$59.97', { timeout: 20_000 });
+  await expect(groupNet(alice)).toContainText('$59.97');
+  const newBillButton = alice.getByRole('button', { name: 'New bill', exact: true });
+  const membersButton = alice.getByRole('button', { name: 'Members & invites', exact: true });
+  await expect(newBillButton).toHaveCSS('min-height', '40px');
+  await expect(newBillButton).toHaveCSS('box-shadow', 'none');
+  await expect(membersButton).toHaveCSS('min-height', '40px');
+  await expect(membersButton).toHaveCSS('box-shadow', 'none');
+  assert.equal(await newBillButton.evaluate(button => getComputedStyle(button).backgroundColor === getComputedStyle(document.querySelector('.play')).color), true, 'Primary action uses ink');
+  await newBillButton.hover();
+  await expect(newBillButton).toHaveCSS('transform', 'none');
+  await alice.mouse.move(0, 0);
+  await alice.screenshot({ path: `${screenshots}/workspace-desktop.png`, fullPage: true });
+  await alice.setViewportSize({ width: 390, height: 844 });
+  assert.equal(await alice.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await alice.screenshot({ path: `${screenshots}/workspace-mobile.png`, fullPage: true });
+  await alice.getByRole('button', { name: 'Members & invites', exact: true }).click();
+  await expect(alice.getByRole('dialog')).toContainText('3 members');
+  assert.equal(await alice.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'Members dialog overflows at 390px');
+  await expect(alice.getByRole('button', { name: 'View bills and balance' })).toHaveCount(0);
+  await alice.getByRole('button', { name: 'Close dialog' }).click();
+  await expect(alice.getByRole('dialog')).toHaveCount(0);
+  await alice.setViewportSize({ width: 1280, height: 900 });
+  await alice.goto(groupUrl);
+  await bob.goto(groupUrl);
+  await carol.goto(groupUrl);
+  await bob.reload();
+  await expect(bob.getByRole('dialog')).toContainText('3 members');
+  await bob.getByRole('button', { name: 'Close dialog' }).click();
+  await bob.getByRole('button', { name: 'Account menu', exact: true }).click();
+  await bob.getByRole('menuitem', { name: 'Sign out', exact: true }).click();
+  await expect(bob.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
+  await expect(bob.getByText('Costco friends')).toHaveCount(0);
+  await alice.reload();
+  await expect(alice.getByRole('dialog')).toContainText('3 members');
+  await mkdir(`${screenshots}`, { recursive: true });
+  await alice.screenshot({ path: `${screenshots}/groups-desktop.png`, fullPage: true });
+  await carol.setViewportSize({ width: 390, height: 844 });
+  await carol.screenshot({ path: `${screenshots}/groups-mobile.png`, fullPage: true });
+}
+
+// Home actions: refresh, direct repayment review, loading and failure states, stale links and account isolation.
+async function attention(env) {
+  const { api, pageFor, base } = env;
+  const { group, ids: liveIds } = await costcoFriends(env);
+  const liveGroupId = group.id;
+  const liveApi = api;
+  const alice = await pageFor('alice-token', { width: 1280, height: 900 });
+  // Attention refresh, direct repayment review, stale links, and account isolation.
+  await alice.goto(base);
+  const attention = alice.getByRole('region', { name: 'Needs your attention' });
+  await expect(attention).toHaveCount(0);
+  const { repayment: incoming } = await liveApi(`/groups/${liveGroupId}/repayments`, 'bob-token', 'POST', {
+    requestId: crypto.randomUUID(), recipientId: liveIds.Alice, amountCents: 321,
+  });
+  await alice.evaluate(() => window.dispatchEvent(new Event('focus')));
+  const incomingLink = attention.getByRole('link', { name: /Review incoming transfer.*From Bob/ });
+  await expect(incomingLink).toContainText('$3.21');
+  const aliceHeading = alice.getByRole('heading', { level: 1 });
+  await expect(aliceHeading).toHaveText('Hey Alice, 1 thing needs you');
+  await expect(alice.locator('.home-actions-announcement')).toHaveText('1 thing needs you');
+  await expect(attention.locator('.attention-list > li')).toHaveCount(1);
+  await expect(homeRow(alice, 'Costco friends')).toContainText('1 to do');
+  await checkHomeLayout(alice, 'busy');
+  const { repayment: secondIncoming } = await liveApi(`/groups/${liveGroupId}/repayments`, 'bob-token', 'POST', {
+    requestId: crypto.randomUUID(), recipientId: liveIds.Alice, amountCents: 100,
+  });
+  await alice.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect(attention.locator('.attention-list > li')).toHaveCount(2);
+  await expect(homeRow(alice, 'Costco friends')).toContainText('2 to do');
+  await expect(alice.locator('.home-actions-announcement')).toHaveText('2 things need you');
+  await homeRow(alice, 'Costco friends').click();
+  const twoActions = await openGroupSwitcher(alice);
+  const pluralBadge = twoActions.getByRole('option', { name: /Costco friends.*2 pending actions/ }).locator('.group-switcher-count');
+  await expect(pluralBadge).toHaveText('2 pending actions');
+  await expect(pluralBadge).not.toHaveAttribute('aria-label', /pending actions/);
+  await expect(alice.locator('.home-actions-announcement')).toHaveCount(0);
+  await liveApi(`/repayments/${secondIncoming.id}/decision`, 'alice-token', 'POST', { decision: 'rejected' });
+  await alice.goto(base);
+  await expect(attention.locator('.attention-list > li')).toHaveCount(1);
+  await expect(homeRow(alice, 'Costco friends')).toContainText('1 to do');
+  await expect(alice.locator('.home-actions-announcement')).toHaveText('1 thing needs you');
+  const incomingHref = await incomingLink.getAttribute('href');
+  await alice.route('**/api/attention', route => route.fulfill({ status: 503, json: { error: 'Temporarily unavailable' } }));
+  await attention.getByRole('button', { name: 'Refresh actions' }).click();
+  await expect(attention.getByRole('alert')).toContainText('Could not load your actions');
+  await expect(homeRow(alice, 'Costco friends').locator('.home-group-pending')).toHaveCount(0);
+  await expect(incomingLink).toHaveCount(0);
+  // Unknown actions never read as caught up.
+  await expect(aliceHeading).toHaveText('Hey Alice');
+  await alice.unroute('**/api/attention');
+  await attention.getByRole('button', { name: 'Refresh actions' }).click();
+  await incomingLink.click();
+  await expect(alice.getByRole('dialog', { name: 'Review repayment' })).toContainText('$3.21');
+  await alice.getByRole('button', { name: 'Confirm receipt', exact: true }).click();
+  await expect(alice.getByRole('dialog')).toHaveCount(0);
+  // While the actions load, the heading shows a placeholder and never the caught-up message.
+  let releaseAttention;
+  const attentionHeld = new Promise(resolve => { releaseAttention = resolve; });
+  await alice.route('**/api/attention', async route => { await attentionHeld; await route.continue(); });
+  await alice.getByRole('link', { name: 'ShareTally home', exact: true }).click();
+  await expect(aliceHeading.getByRole('status')).toBeVisible();
+  await expect(aliceHeading).toHaveText('Hey Alice, checking what needs you');
+  await expect(alice.locator('.home-actions-announcement')).toBeEmpty();
+  await expect(alice.locator('.home-actions-announcement')).toHaveAttribute('aria-busy', 'true');
+  await expect(attention.getByRole('status', { name: 'Checking your actions' })).toBeVisible();
+  releaseAttention();
+  await alice.unrouteAll({ behavior: 'wait' });
+  await expect(aliceHeading).toHaveText("Hey Alice, you're all caught up");
+  await expect(attention).toHaveCount(0);
+  await expect(homeRow(alice, 'Costco friends')).toContainText('Nothing to do');
+  await checkHomeLayout(alice, 'caught-up');
+  await alice.goto(`${base}${incomingHref}`);
+  await expect(alice.getByRole('dialog')).toContainText('already confirmed');
+  await expect(alice.getByRole('button', { name: 'Confirm receipt', exact: true })).toHaveCount(0);
+  await alice.getByRole('button', { name: 'Close dialog' }).click();
+  const { repayment: rejected } = await liveApi(`/groups/${liveGroupId}/repayments`, 'bob-token', 'POST', {
+    requestId: crypto.randomUUID(), recipientId: liveIds.Alice, amountCents: 123,
+  });
+  await alice.getByRole('link', { name: 'ShareTally home', exact: true }).click();
+  await incomingLink.click();
+  await alice.getByRole('button', { name: 'Reject record', exact: true }).click();
+  await expect(alice.getByRole('dialog')).toHaveCount(0);
+  await alice.getByRole('link', { name: 'ShareTally home', exact: true }).click();
+  await expect(alice.getByRole('heading', { name: /Hey Alice/ })).toBeVisible();
+  await expect(attention).toHaveCount(0);
+  assert.equal((await liveApi(`/groups/${liveGroupId}/bills`, 'alice-token')).repayments.find(r => r.id === rejected.id).status, 'rejected');
+  assert.equal((await liveApi(`/groups/${liveGroupId}/bills`, 'alice-token')).repayments.find(r => r.id === incoming.id).status, 'confirmed');
+  await liveApi(`/groups/${liveGroupId}/repayments`, 'bob-token', 'POST', {
+    requestId: crypto.randomUUID(), recipientId: liveIds.Alice, amountCents: 456,
+  });
+  await alice.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect(incomingLink).toContainText('$4.56');
+  await alice.getByRole('button', { name: 'Account menu', exact: true }).click();
+  await alice.getByRole('menuitem', { name: 'Sign out', exact: true }).click();
+  await expect(alice.getByRole('region', { name: 'Needs your attention' })).toHaveCount(0);
+  const signedInBobAttention = alice.waitForResponse(response =>
+    new URL(response.url()).pathname === '/api/attention' && response.ok());
+  await alice.getByRole('button', { name: 'Sign in', exact: true }).click(); // Bob in the test boundary.
+  await expect(alice.getByRole('heading', { name: /Hey Bob/ })).toBeVisible();
+  await signedInBobAttention;
+  await expect(alice.getByRole('region', { name: 'Needs your attention' })).toHaveCount(0);
+  console.log('Attention smoke passed: mobile missing shares, reconfirmation links, refresh recovery, receipt decisions, stale links, and account isolation.');
+}
 
 // Hold responses until assertions complete: loading flashes cannot hide behind timing.
-export async function checkNavigation(page, pageFor) {
+async function checkNavigation(page, pageFor) {
   const groupUrl = page.url();
   const path = new URL(groupUrl).hash.slice('#/group-bills/'.length);
   const pattern = `**/api/groups/${path}/bills`;
@@ -158,37 +342,8 @@ export async function checkNavigation(page, pageFor) {
   console.log('Navigation UX passed: top bar with Home and account menu, delayed cached navigation, group switcher, deduplication, no warning flashes, background recovery, initial failure, revoked access and account isolation.');
 }
 
-// Home lists one row per group, in the order the member joined them.
-export function homeRow(page, name) {
-  return page.getByRole('region', { name: /^Your groups/ }).locator('a.home-group-row').filter({
-    has: page.locator('.home-group-name').getByText(name, { exact: true }),
-  });
-}
-export async function homeGroupNames(page) {
-  return page.getByRole('region', { name: /^Your groups/ }).locator('.home-group-name').allInnerTexts();
-}
-
-// The group page heading's dropdown switches groups.
-export function groupSwitcher(page) {
-  return page.locator('#main-content').getByRole('heading', { level: 2 }).getByRole('button');
-}
-export async function openGroupSwitcher(page) {
-  const trigger = groupSwitcher(page);
-  if (await trigger.getAttribute('aria-expanded') !== 'true') await trigger.click();
-  const listbox = page.getByRole('listbox', { name: 'Switch group', exact: true });
-  await expect(listbox).toBeVisible();
-  return listbox;
-}
-export async function switchGroup(page, name) {
-  const listbox = await openGroupSwitcher(page);
-  await listbox.getByRole('option', { name, exact: true }).click();
-  await expect(listbox).toHaveCount(0);
-  await expect(groupSwitcher(page)).toHaveAccessibleName(name);
-}
-
 // Starts and ends on "Costco friends"; the member also belongs to "Apartment".
 async function checkGroupSwitcher(page, label) {
-  const clientRoot = new URL('../', import.meta.url).pathname;
   const costcoUrl = page.url();
   const trigger = groupSwitcher(page);
   const listbox = page.getByRole('listbox', { name: 'Switch group', exact: true });
@@ -208,7 +363,7 @@ async function checkGroupSwitcher(page, label) {
   await assertNoHorizontalOverflow(page, `${label} group page`);
   // Screenshot the resting state, without a focus ring left over from earlier keyboard checks.
   await page.evaluate(() => document.activeElement?.blur());
-  await page.screenshot({ path: `${clientRoot}test-results/group-switcher-closed-${label}.png`, animations: 'disabled' });
+  await page.screenshot({ path: `${screenshots}/group-switcher-closed-${label}.png`, animations: 'disabled' });
 
   // Mouse: the current group is marked and focused; choosing another navigates.
   await trigger.click();
@@ -220,7 +375,7 @@ async function checkGroupSwitcher(page, label) {
   await expect(option('Apartment')).toHaveAttribute('aria-selected', 'false');
   await expect(option('Costco friends')).toBeFocused();
   await assertNoHorizontalOverflow(page, `${label} group switcher`);
-  await page.screenshot({ path: `${clientRoot}test-results/group-switcher-open-${label}.png`, animations: 'disabled' });
+  await page.screenshot({ path: `${screenshots}/group-switcher-open-${label}.png`, animations: 'disabled' });
   await option('Apartment').click();
   await expect(listbox).toHaveCount(0);
   await expect(page).toHaveURL(/#\/group-bills\/[^/?#]+$/);
@@ -299,7 +454,6 @@ async function assertNoHorizontalOverflow(page, where) {
 
 // Home is the only top-level page. The logo returns to it; Account lives in the avatar menu.
 async function checkTopBar(page, label) {
-  const clientRoot = new URL('../', import.meta.url).pathname;
   const banner = page.getByRole('banner');
   const menuButton = banner.getByRole('button', { name: 'Account menu', exact: true });
   const menu = page.getByRole('menu', { name: 'Account menu', exact: true });
@@ -325,7 +479,7 @@ async function checkTopBar(page, label) {
   await page.keyboard.press('ArrowUp');
   await expect(menu.getByRole('menuitem', { name: 'Sign out', exact: true })).toBeFocused();
   await assertNoHorizontalOverflow(page, `${label} account menu`);
-  await page.screenshot({ path: `${clientRoot}test-results/top-bar-menu-${label}.png`, animations: 'disabled' });
+  await page.screenshot({ path: `${screenshots}/top-bar-menu-${label}.png`, animations: 'disabled' });
   await page.keyboard.press('Escape');
   await expect(menu).toHaveCount(0);
   await expect(menuButton).toBeFocused();
@@ -362,9 +516,19 @@ async function checkTopBar(page, label) {
   await expect(page.getByRole('button', { name: 'Check Account identity', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'New group', exact: true })).toHaveCount(0);
   await assertNoHorizontalOverflow(page, `${label} Account`);
-  await page.screenshot({ path: `${clientRoot}test-results/top-bar-account-${label}.png`, fullPage: true, animations: 'disabled' });
+  await page.screenshot({ path: `${screenshots}/top-bar-account-${label}.png`, fullPage: true, animations: 'disabled' });
 
   await banner.getByRole('link', { name: 'ShareTally home', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Your groups' })).toBeVisible();
-  await page.screenshot({ path: `${clientRoot}test-results/top-bar-home-${label}.png`, fullPage: true, animations: 'disabled' });
+  await page.screenshot({ path: `${screenshots}/top-bar-home-${label}.png`, fullPage: true, animations: 'disabled' });
+}
+
+// Screenshots Home on desktop and at 390px, where nothing may overflow sideways.
+async function checkHomeLayout(page, label) {
+  const viewport = page.viewportSize();
+  await page.screenshot({ path: `${screenshots}/home-${label}-desktop.png`, fullPage: true, animations: 'disabled' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${label} Home overflows at 390px`);
+  await page.screenshot({ path: `${screenshots}/home-${label}-mobile.png`, fullPage: true, animations: 'disabled' });
+  await page.setViewportSize(viewport);
 }
