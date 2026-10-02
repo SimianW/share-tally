@@ -8,12 +8,13 @@ import { blockRouteNavigation, replaceRoute } from "../../../shared/browser/rout
 import { useReceiptApi } from "../api";
 import {
   type Activity, type EditorEvent, type Step,
-  createEditor, hasUnsavedChanges, initiationRevision, leaving, recoveryEntry, reduceEditor,
+  createEditor, hasUnsavedChanges, initiationRevision, knownToServer, leaving, opened, recoveryEntry, reduceEditor,
 } from "./draft-model";
 import { clearGroupRecovery, clearRecovery, readRecovery, readStep, recoveryKey, storeRecovery, storeStep } from "./draft-recovery";
 import { useReceiptDraftSync } from "./receipt-draft-sync";
 
 const removedMessage = "This draft no longer exists. It may have been deleted or shared elsewhere.";
+const changedElsewhere = "This draft was changed elsewhere. Check it before sharing.";
 const isRemoved = (error: unknown) => error instanceof BillApiError && error.status === 404;
 
 /**
@@ -64,7 +65,8 @@ export function useDraftEditor({ userId, groupId, id, photoSelected, close, crea
       dispatch({ type: "finished" });
       return true;
     } catch (error) {
-      if (isRemoved(error)) removed();
+      // A new bill the server never saved is not "removed"; its local work stays.
+      if (isRemoved(error) && knownToServer(current.current)) removed();
       else dispatch({ type: "failed", message: errorMessage(error) });
       return false;
     }
@@ -84,7 +86,8 @@ export function useDraftEditor({ userId, groupId, id, photoSelected, close, crea
   const initiate = useCallback(async () => {
     const { local } = current.current;
     const saved = local.initializationRevision ? local : await saveLocal();
-    dispatch({ type: "initiationStarted", draft: saved });
+    if (!dispatch({ type: "initiationStarted", draft: saved }).local.initializationRevision)
+      throw new Error(changedElsewhere);
     try {
       const result = await api.initialize(saved.id, initiationRevision(current.current));
       end(true);
@@ -130,7 +133,7 @@ export function useDraftEditor({ userId, groupId, id, photoSelected, close, crea
     if (drafts[0]) dispatch({ type: "remoteDraft", draft: drafts[0] });
   }, [dispatch]);
   useReceiptDraftSync(groupId, state.local.id, applyRemote, setSyncError,
-    state.local.revision > 0 && !opening && state.operation !== "ended");
+    state.local.revision > 0 && opened(state) && state.operation !== "ended");
 
   // A deleted group's drafts cannot be saved or resumed; the app leaves its route.
   useEffect(() => {
@@ -218,6 +221,8 @@ export function useDraftEditor({ userId, groupId, id, photoSelected, close, crea
       }
       latest.current.close();
     },
+    /** Repeats the server read after opening failed, checking recovery again. */
+    retryOpen: () => dispatch({ type: "reopened" }),
     keepEditing: () => setLeavingTo(null),
     discard() {
       const destination = leavingTo?.destination;

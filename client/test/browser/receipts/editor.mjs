@@ -12,6 +12,7 @@ export const scenarios = [
   { name: 'editor-storage-failure', environment: receiptEnvironment, run: storageFailure },
   { name: 'editor-group-deletion', environment: receiptEnvironment, run: groupDeletion },
   { name: 'editor-removed-draft', environment: receiptEnvironment, run: removedDraft },
+  { name: 'editor-failed-reads', environment: receiptEnvironment, run: failedReads },
 ];
 
 // A saved By amount draft, which opens on the People step with its title.
@@ -241,4 +242,47 @@ async function removedDraft(env) {
   await alice.getByRole('button', { name: 'Back to group' }).click();
   await expect(alice).toHaveURL(groupRoute);
   await expect(discardDialog(alice)).toHaveCount(0);
+}
+
+// A failed first save of a new bill, then a reload that finds nothing saved, keeps the
+// local work; a failed opening read keeps recovery until Try again opens the draft.
+async function failedReads(env) {
+  const { api } = env;
+  const { group, memberIds, groupRoute, newBillRoute, alice } = await receiptGroup(env);
+  const failure = message => route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: message }) });
+
+  await alice.getByRole('button', { name: 'New bill', exact: true }).click();
+  await alice.getByRole('button', { name: 'Split by amount instead' }).click();
+  await titleField(alice).fill('Never saved');
+  const saveRequest = `**/api/groups/${group.id}/receipt-drafts/*`;
+  await alice.route(saveRequest, route => route.request().method() === 'PUT' ? failure('Saving is unavailable.')(route) : route.continue());
+  await alice.getByRole('button', { name: 'Save draft & close', exact: true }).click();
+  await expect(alice.getByText('Saving is unavailable.', { exact: true })).toBeVisible();
+  await alice.getByRole('button', { name: 'Reload saved draft, discarding local edits', exact: true }).click();
+  await expect(alice.getByRole('status').filter({ hasText: 'Reloading…' })).toHaveCount(0);
+  await expect(alice.getByText('This draft no longer exists. It may have been deleted or shared elsewhere.', { exact: true })).toHaveCount(0);
+  await expect(titleField(alice)).toHaveValue('Never saved');
+  await expect(titleField(alice)).toBeEnabled();
+  await alice.unroute(saveRequest);
+  await alice.getByRole('button', { name: 'Save draft & close', exact: true }).click();
+  await expect(alice).toHaveURL(groupRoute);
+  assert.deepEqual((await api(`/groups/${group.id}/receipt-drafts`)).drafts.map(draft => draft.data.title), ['Never saved']);
+
+  const id = await amountDraft(env, group, memberIds, 'Opened after retry');
+  await alice.goto(`${newBillRoute}/${id}`);
+  await titleField(alice).fill('Recovered after retry');
+  await expect.poll(async () => (await storedDraft(alice, id))?.data.title).toBe('Recovered after retry');
+  let failing = true;
+  const draftRequest = `**/api/receipt-drafts/${id}`;
+  await alice.route(draftRequest, route => failing && route.request().method() === 'GET'
+    ? failure('Drafts are unavailable.')(route) : route.continue());
+  await alice.reload();
+  await expect(alice.getByText('Drafts are unavailable.', { exact: true })).toBeVisible();
+  await expect(titleField(alice)).toHaveCount(0);
+  assert.equal((await storedDraft(alice, id))?.data.title, 'Recovered after retry');
+  failing = false;
+  await alice.getByRole('button', { name: 'Try again', exact: true }).click();
+  await expect(titleField(alice)).toHaveValue('Recovered after retry');
+  await expect(recoveredNotice(alice)).toBeVisible();
+  await alice.unroute(draftRequest);
 }

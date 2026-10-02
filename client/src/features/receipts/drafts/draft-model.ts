@@ -28,6 +28,7 @@ export type EditorState = {
 export type EditorEvent =
   | { type: "opened"; draft: ReceiptDraft; storedStep: string | null }
   | { type: "openFailed"; message: string }
+  | { type: "reopened" }
   | { type: "removed"; message: string }
   | { type: "edited"; patch: Partial<ReceiptData> }
   | { type: "photoCropped"; base64: string }
@@ -162,15 +163,25 @@ function clean(state: EditorState) {
     comparable(state.local.data) === comparable(state.baseline.data);
 }
 
-/** Editing needs no running request, no processing scan and no pending initiation. */
+/** Whether the server has confirmed what the editor holds: a saved draft once its read succeeds, or a new bill. */
+export function opened(state: EditorState) {
+  return !!state.baseline;
+}
+
+/** Only a draft the server has known can have been removed; a new bill never saved cannot. */
+export function knownToServer(state: EditorState) {
+  return !!state.server || state.local.revision > 0;
+}
+
+/** Editing needs a confirmed draft, no running request, no processing scan and no pending initiation. */
 export function editable(state: EditorState) {
-  return state.operation === "idle" && !processing(state.local) && !state.local.initializationRevision;
+  return opened(state) && state.operation === "idle" && !processing(state.local) && !state.local.initializationRevision;
 }
 
 export function hasUnsavedChanges(state: EditorState, photoSelected = false) {
   const { local, baseline } = state;
-  return state.operation !== "opening" && state.operation !== "ended" && !local.initializationRevision && (
-    photoSelected || !!local.pendingPhoto || !baseline ||
+  return !!baseline && state.operation !== "ended" && !local.initializationRevision && (
+    photoSelected || !!local.pendingPhoto ||
     comparable(local.data) !== comparable(baseline.data)
   );
 }
@@ -178,14 +189,15 @@ export function hasUnsavedChanges(state: EditorState, photoSelected = false) {
 /** What leaving the editor does: keep recovery while opening, stay during a request, or ask about unsaved changes. */
 export function leaving(state: EditorState, photoSelected = false): "stay" | "leave" | "keep-recovery" | "ask" {
   if (state.operation === "ended") return "leave";
-  if (state.operation === "opening") return "keep-recovery";
+  // Until the server read succeeds, recovery has not been checked; leave it as it was.
+  if (state.operation === "opening" || !opened(state)) return "keep-recovery";
   if (state.operation !== "idle") return "stay";
   return hasUnsavedChanges(state, photoSelected) ? "ask" : "leave";
 }
 
 /** The browser keeps unsaved local work, never a draft that is still opening or has ended. */
 export function recoveryEntry(state: EditorState): ReceiptDraft | null {
-  return state.operation === "opening" || state.operation === "ended" ? null : state.local;
+  return !opened(state) || state.operation === "ended" ? null : state.local;
 }
 
 export function stepOpen(state: EditorState, index: number) {
@@ -220,7 +232,7 @@ export function initiationRevision(state: EditorState) {
 }
 
 function allowed(state: EditorState, operation: Activity) {
-  if (state.operation !== "idle") return false;
+  if (state.operation !== "idle" || !opened(state)) return false;
   if (operation === "reloading") return true;
   if (processing(state.local)) return false;
   if (operation === "initiating") return shareable(state);
@@ -245,6 +257,8 @@ export function reduceEditor(state: EditorState, event: EditorEvent): EditorStat
         notice: recovered ? "Recovered your unsaved changes." : "",
       };
     }
+    case "reopened":
+      return !opened(state) && state.operation === "idle" ? { ...state, operation: "opening", error: "" } : state;
     case "openFailed":
       return state.operation === "opening" ? { ...state, operation: "idle", error: event.message } : state;
     case "removed":
@@ -284,11 +298,14 @@ export function reduceEditor(state: EditorState, event: EditorEvent): EditorStat
       const adopted = adopt(known, latest);
       return processing(latest) && latest.data.mode === "items" ? { ...adopted, step: 1 } : adopted;
     }
-    case "initiationStarted":
-      return {
-        ...adopt(state, event.draft),
-        local: { ...event.draft, initializationRevision: event.draft.initializationRevision ?? event.draft.revision },
-      };
+    case "initiationStarted": {
+      // A retry repeats its original revision; its reply may have been lost.
+      if (event.draft.initializationRevision) return { ...adopt(state, event.draft), local: event.draft };
+      const adopted = adopt(state, event.draft);
+      // A newer draft saved elsewhere is shown for review rather than shared unseen.
+      if (adopted.local.revision !== event.draft.revision) return adopted;
+      return { ...adopted, local: { ...event.draft, initializationRevision: event.draft.revision } };
+    }
     case "initiationRejected":
       // An initiated draft stays locked; only an unpublished draft returns to editing.
       return state.local.billId ? state : { ...state, local: { ...state.local, initializationRevision: undefined } };

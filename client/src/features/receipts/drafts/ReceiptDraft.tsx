@@ -9,7 +9,7 @@ import { unassignedReceiptTaxMessage } from "../pricing/receipt-pricing";
 import { ReceiptReconciliation, ReceiptSummary } from "../review/ReceiptReview";
 import { DeleteDraftDialog } from './DeleteDraftDialog';
 import { DiscardChangesDialog } from "./DiscardChangesDialog";
-import { type Operation, type Step, canOpenStep, itemsComplete, itemsReady, shareable, stepAvailable } from './draft-model';
+import { type Operation, type Step, canOpenStep, opened, itemsComplete, itemsReady, shareable, stepAvailable } from './draft-model';
 import { ReceiptItemsStep } from "./ReceiptItemsStep";
 import { ReceiptSharingStep } from './ReceiptSharingStep';
 import { ReceiptSourceStep } from './ReceiptSourceStep';
@@ -75,6 +75,11 @@ export function ReceiptDraftForm({
       ) : unavailable ? (
         <Notification tone="error" title="Draft unavailable">
           <p>{state.error}</p>
+        </Notification>
+      ) : !opened(state) ? (
+        <Notification tone="error" title="Could not open this draft">
+          <p>{state.error}</p>
+          <Button variant="text" onClick={editor.retryOpen}>Try again</Button>
         </Notification>
       ) : (
         <form

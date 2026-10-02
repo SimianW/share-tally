@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  canOpenStep, createEditor, editable, hasUnsavedChanges, initiationRevision, leaving, recoveryEntry,
-  reduceEditor, shareable, stepAvailable, stepOpen,
+  canOpenStep, createEditor, editable, hasUnsavedChanges, initiationRevision, knownToServer, leaving,
+  recoveryEntry, reduceEditor, shareable, stepAvailable, stepOpen,
 } from "../src/features/receipts/drafts/draft-model.ts";
 
 const userId = "user-1";
@@ -240,4 +240,54 @@ test("a new-bill recovery copy already saved by a scan is checked against the se
   // An unsaved new bill still opens at once.
   const unsaved = run(createEditor({ userId, recovered: null, storedStep: null }), { type: "edited", patch: { title: "Unsaved" } });
   assert.equal(createEditor({ userId, recovered: recoveryEntry(unsaved), storedStep: null }).operation, "idle");
+});
+
+test("initiation stops for review when a newer saved draft arrived during its save", () => {
+  const ready = (revision, title) => saved(revision, { mode: "manual", items: [], totalCents: 1200, title });
+  const state = run(open(ready(3, "Local")), { type: "stepChosen", step: 2 },
+    { type: "edited", patch: { title: "Edited here" } },
+    { type: "started", operation: "initiating" },
+    { type: "remoteDraft", draft: ready(5, "Saved in another tab") },
+    { type: "saved", draft: ready(4, "Edited here") },
+    { type: "initiationStarted", draft: ready(4, "Edited here") });
+  assert.equal(state.local.initializationRevision, undefined, "the newer draft is not shared unreviewed");
+  assert.equal(state.local.revision, 5);
+  assert.equal(state.local.data.title, "Saved in another tab");
+  assert.equal(hasUnsavedChanges(state), false);
+  // A retry keeps its original revision even if a newer draft was seen.
+  const retry = run(open(ready(3, "Local")), { type: "stepChosen", step: 2 },
+    { type: "started", operation: "initiating" },
+    { type: "initiationStarted", draft: ready(3, "Local") },
+    { type: "failed", message: "Network error" },
+    { type: "remoteDraft", draft: ready(4, "Shared") },
+    { type: "started", operation: "initiating" },
+    { type: "initiationStarted", draft: { ...ready(3, "Local"), initializationRevision: 3 } });
+  assert.equal(initiationRevision(retry), 3);
+});
+
+test("a draft whose server read failed stays unopened, keeps its recovery and can retry opening", () => {
+  const recovered = run(open(saved(3)), { type: "edited", patch: { title: "Local edit" } });
+  const failed = run(createEditor({ userId, draftId: "draft-1", recovered: recoveryEntry(recovered), storedStep: null }),
+    { type: "openFailed", message: "Network down" },
+    { type: "edited", patch: { title: "Typed into an unopened draft" } },
+    { type: "started", operation: "saving" });
+  assert.equal(failed.error, "Network down");
+  assert.equal(failed.operation, "idle");
+  assert.equal(editable(failed), false);
+  assert.equal(failed.local.data.title, "Local edit");
+  assert.equal(hasUnsavedChanges(failed), false);
+  assert.equal(leaving(failed), "keep-recovery");
+  assert.equal(recoveryEntry(failed), null, "the browser copy is left as it was");
+  const retried = run(failed, { type: "reopened" });
+  assert.equal(retried.operation, "opening");
+  assert.equal(retried.error, "");
+  const opened = run(retried, { type: "opened", draft: saved(3), storedStep: null });
+  assert.equal(opened.local.data.title, "Local edit");
+  assert.equal(opened.notice, "Recovered your unsaved changes.");
+});
+
+test("only a draft the server has known can be removed", () => {
+  const unsaved = run(createEditor({ userId, recovered: null, storedStep: null }), { type: "edited", patch: { title: "Never saved" } });
+  assert.equal(knownToServer(unsaved), false);
+  assert.equal(knownToServer(open(saved(3))), true);
 });
