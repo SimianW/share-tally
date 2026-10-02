@@ -84,6 +84,9 @@ export async function startEnvironment({ backend = true, remoteHost = null, firs
       optimizeDeps: { exclude: ['@clerk/react'] },
       server: {
         middlewareMode: true, hmr: { server: web },
+        // Scenarios never edit source files. Late dependency transforms can
+        // otherwise reopen Chokidar watchers after Vite closes and keep Node alive.
+        watch: null,
         ...(remoteHost ? { allowedHosts: [remoteHost] } : {}),
         ...(api ? { proxy: { '/api': api.url } } : {}),
       },

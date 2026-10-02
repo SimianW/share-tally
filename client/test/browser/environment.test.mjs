@@ -96,6 +96,13 @@ test('a failed browser connection removes the already started container', async 
   assert.equal(await containerExists(browserContainerId), false);
 });
 
+test('a completed component scenario lets the runner exit naturally', { timeout: 30_000 }, async () => {
+  const { stdout } = await run(process.execPath, ['test/browser/run.mjs', 'avatar'], {
+    cwd: clientRoot, timeout: 25_000,
+  });
+  assert.match(stdout, /1 of 1 browser scenarios passed/);
+});
+
 for (const signal of ['SIGTERM', 'SIGINT']) test(`the runner awaits container cleanup on ${signal}`, { timeout: 60_000 }, async () => {
   const runner = spawn(process.execPath, ['test/browser/run.mjs', 'group-refresh'], {
     cwd: clientRoot, stdio: ['ignore', 'pipe', 'pipe'],
