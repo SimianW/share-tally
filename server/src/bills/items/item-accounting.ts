@@ -12,6 +12,8 @@ type BillItem = typeof billItems.$inferSelect;
 type ItemClaim = typeof itemClaims.$inferSelect;
 
 // The single-bill read used by item commands, through the same batch reader.
+// Pass the id of the locked bill row: results are keyed by PostgreSQL's
+// lowercase uuid text, while a URL may spell the same id in uppercase.
 export async function itemDetails(tx: Tx, billId: string) {
   return (await readItemDetailsInSnapshot(tx, [billId])).get(billId)!;
 }

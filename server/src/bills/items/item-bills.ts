@@ -77,7 +77,7 @@ export async function confirmClaims(id: string, userId: string, body: unknown) {
       .where(and(eq(billShares.billId, id), eq(billShares.userId, userId)));
     if (!share)
       throw new BillError(403, "Only selected participants can claim items.");
-    const { items } = await itemDetails(tx, id);
+    const { items } = await itemDetails(tx, bill.id);
     const stale = staleItems(items, input.reviewedItems, input.claims.map(claim => claim.itemId));
     const previous = items.flatMap((i) =>
       i.claims.filter((c) => c.userId === userId),
@@ -161,7 +161,7 @@ export async function correctItem(id: string, itemId: string, userId: string, bo
       throw new BillError(403, "Only the initiator can correct items.");
     mutable(bill);
     if (!bill.receipt) throw new BillError(400, "This bill has no stored receipt summary. Use the legacy item editor.");
-    const { items } = await itemDetails(tx, id);
+    const { items } = await itemDetails(tx, bill.id);
     const old = items.find(item => item.id === itemId);
     if (!old) throw new BillError(409, "This item was removed.", {
       stale: [{ itemId, kind: "removed" }], overAllocated: [],
@@ -213,7 +213,7 @@ export async function editItems(id: string, userId: string, body: unknown) {
       throw new BillError(403, "Only the initiator can edit items.");
     mutable(bill);
     if (bill.receipt) throw new BillError(409, "Correct one item at a time with the receipt correction endpoint.");
-    const { items: previous } = await itemDetails(tx, id);
+    const { items: previous } = await itemDetails(tx, bill.id);
     const stale = staleItems(previous, input.reviewedItems, input.reviewedItems.map(item => item.itemId));
     if (stale.length)
       throw new BillError(409, "These items changed. Review the latest items before correcting them.", { stale, overAllocated: [] });
