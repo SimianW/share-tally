@@ -143,6 +143,16 @@ pnpm test:receipts
 pnpm test:avatar
 ```
 
+Each command runs every scenario in its suite, one after another. A scenario creates its own users, group and records in a fresh environment (PostgreSQL with migrations, the test API, Vite with the test-only Clerk substitute, and Chromium) and disposes it afterwards, so a failure does not stop the scenarios after it. To run one or more scenarios by name, or to list them:
+
+```bash
+pnpm test:browser draft-save-and-recovery
+pnpm test:receipts scan-fallback processing-recovery
+pnpm test:browser --list
+```
+
+A failing scenario is reported by name; screenshots of its open pages are kept in `client/test-results/failures/<scenario>/`. `pnpm test:environment` checks that a start-up failing part-way leaves no container or API process behind. Scenarios live in `client/test/browser/`, grouped by business area; `environment.mjs` is the shared environment and `suites.mjs` lists every scenario.
+
 Run the browser suites sequentially, after backend/container checks finish; Docker network changes can interrupt Chromium requests. `server/test/domain.test.ts` covers exact arithmetic and pricing edge cases; existing API and browser suites exercise financial, authorization, concurrency and interaction behavior.
 
 ## Project docs
