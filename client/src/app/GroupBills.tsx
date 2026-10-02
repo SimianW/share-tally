@@ -1,17 +1,17 @@
-import { routes } from '../../shared/browser/paths';
+import { routes } from '../shared/browser/paths';
 import { useAuth } from '@clerk/react';
 import { useEffect, useState, type ReactNode } from "react";
-import { errorMessage } from "../../shared/api/error-message";
-import { startGroupSync } from '../../shared/api/group-sync';
-import { AccessError, denied, hideProtectedQueries, useCached, useCachedRequest } from '../../shared/api/query-cache';
-import { LoadingFinancials } from '../../shared/ui/LoadingFinancials';
-import { Notification } from '../../shared/ui/Notification';
-import { Button } from "../../shared/ui/Button";
-import { useBillApi } from "../bills/api";
-import { useGroupApi, type GroupDetail } from "../groups/api";
-import { GroupDetails } from "../groups/GroupDetails";
-import { GroupPage } from '../groups/GroupPage';
-import { ReceiptDrafts } from "../receipts/drafts/ReceiptDrafts";
+import { errorMessage } from "../shared/api/error-message";
+import { startGroupSync } from '../shared/api/group-sync';
+import { AccessError, denied, hideProtectedQueries, useCached, useCachedRequest } from '../shared/api/query-cache';
+import { LoadingFinancials } from '../shared/ui/LoadingFinancials';
+import { Notification } from '../shared/ui/Notification';
+import { Button } from "../shared/ui/Button";
+import { useBillApi } from "../features/bills/api";
+import { useGroupApi, type GroupDetail } from "../features/groups/api";
+import { GroupDetails } from "../features/groups/GroupDetails";
+import { GroupPage } from './GroupPage';
+import { ReceiptDrafts } from "../features/receipts/drafts/ReceiptDrafts";
 
 // `title` renders the heading for the group, which is undefined until the group page loads.
 export function GroupBills({ id, selectedRepaymentId, onDeleted, title }: {

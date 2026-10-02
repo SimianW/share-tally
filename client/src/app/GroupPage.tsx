@@ -1,17 +1,17 @@
-import { routes } from '../../shared/browser/paths';
+import { routes } from '../shared/browser/paths';
 import { useState, type ReactNode } from 'react';
-import { AnimatedMoney } from '../../shared/ui/AnimatedMoney';
-import { GroupBalances } from '../ledger/GroupBalances';
-import { money } from "../../shared/money";
+import { AnimatedMoney } from '../shared/ui/AnimatedMoney';
+import { GroupBalances } from '../features/ledger/GroupBalances';
+import { money } from "../shared/money";
 import { type Bill } from "@share-tally/domain/contracts/bills";
-import { type BillApi } from "../bills/api";
+import { type BillApi } from "../features/bills/api";
 import { type RepaymentPrefill } from "@share-tally/domain/contracts/repayments";
-import { groupView, type DashboardRow, type GroupPageData, type GroupView, type OpenBill } from '../ledger/group-view';
-import { RecordRepayment } from "../repayments/RecordRepayment";
-import { Repayments } from "../repayments/Repayments";
-import { Avatar } from "../../shared/ui/Avatar";
-import { Button } from "../../shared/ui/Button";
-import { Icon } from "../../shared/ui/Icon";
+import { groupView, type DashboardRow, type GroupPageData, type GroupView, type OpenBill } from '../features/ledger/group-view';
+import { RecordRepayment } from "../features/repayments/RecordRepayment";
+import { Repayments } from "../features/repayments/Repayments";
+import { Avatar } from "../shared/ui/Avatar";
+import { Button } from "../shared/ui/Button";
+import { Icon } from "../shared/ui/Icon";
 
 export function GroupPage({ data, title, drafts, api, refresh, openMembers, selectedRepaymentId }: {
   data: GroupPageData;

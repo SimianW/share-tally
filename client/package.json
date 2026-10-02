@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node ../scripts/build-domain.mjs && vite",
     "build": "node ../scripts/build-domain.mjs && tsc -b && vite build",
-    "lint": "eslint . && node scripts/check-tokens.mjs",
+    "lint": "eslint . && node scripts/check-tokens.mjs && node scripts/check-module-boundaries.mjs",
     "preview": "vite preview",
     "test:avatar": "node ../scripts/build-domain.mjs && node scripts/smoke-avatar.mjs",
     "test:receipts": "node ../scripts/build-domain.mjs && node scripts/smoke-receipts.mjs",
