@@ -5,12 +5,11 @@ import { readAttentionInSnapshot } from '../attention/attention.js';
 import { readBillsInSnapshot, readMemberBalancesInSnapshot } from "../bills/queries.js";
 import type { Transaction as Tx } from '../db/types.js';
 import { groupLedger } from '../ledger/group-ledger.js';
-import { notifyGroupChanged, notifyGroupDeleted } from '../realtime/group-events.js';
-import { withoutEvidence } from "../receipts/drafts/evidence.js";
+import { notifyGroupChanged } from '../realtime/group-events.js';
 import { readRepayments } from '../repayments/repayments.js';
 import { lockGroupForMember } from './group-access.js';
 import { db } from "../db/index.js";
-import { groupMembers, groups, receiptDrafts, receiptEvidence, receiptPhotos, users } from "../db/schema.js";
+import { groupMembers, groups, users } from "../db/schema.js";
 import { parseGroupIcon } from "./group-icon.js";
 import type { GroupIcon as GroupIconInput } from "@share-tally/domain/contracts/groups";
 
@@ -210,7 +209,7 @@ export class GroupDeletionError extends GroupAccessError {
 
 // Caller holds the group row lock while reading this ledger. Deletion and all
 // financial writes serialize on that row, so the decision cannot go stale
-// between this check and the update in deleteGroup.
+// between this check and the update in markGroupDeleted.
 async function deletionReasons(tx: Tx, groupId: string, userId: string): Promise<GroupDeletionReason[]> {
   const bills = await readBillsInSnapshot(tx, userId, groupId);
   const repayments = await readRepayments(tx, userId, groupId);
@@ -228,7 +227,7 @@ async function deletionReasons(tx: Tx, groupId: string, userId: string): Promise
   return reasons;
 }
 
-async function lockGroupForCreator(tx: Tx, groupId: string, userId: string) {
+export async function lockGroupForCreator(tx: Tx, groupId: string, userId: string) {
   const group = await lockGroupForMember(tx, groupId, userId);
   if (group.createdBy !== userId)
     throw new GroupAccessError(403, 'Only the group creator can delete this group.');
@@ -243,29 +242,11 @@ export async function groupDeletionEligibility(groupId: string, userId: string) 
   });
 }
 
-export async function deleteGroup(groupId: string, userId: string) {
-  const name = await db.transaction(async tx => {
-    const group = await lockGroupForCreator(tx, groupId, userId);
-    const reasons = await deletionReasons(tx, groupId, userId);
-    if (reasons.length) throw new GroupDeletionError(reasons);
+export async function requireGroupDeletionEligibility(tx: Tx, groupId: string, userId: string) {
+  const reasons = await deletionReasons(tx, groupId, userId);
+  if (reasons.length) throw new GroupDeletionError(reasons);
+}
 
-    // Lock drafts before their evidence/photos, matching the order used by
-    // photo expiry and processing completion. Initiated drafts keep receipt
-    // text behind preserved bills; uninitiated drafts are voided altogether.
-    const drafts = await tx.select().from(receiptDrafts)
-      .where(eq(receiptDrafts.groupId, groupId)).orderBy(receiptDrafts.id).for('update');
-    if (drafts.length) {
-      const ids = drafts.map(draft => draft.id);
-      for (const draft of drafts) {
-        if (draft.billId) await tx.update(receiptDrafts)
-          .set({ data: withoutEvidence(draft.data) }).where(eq(receiptDrafts.id, draft.id));
-      }
-      await tx.delete(receiptEvidence).where(inArray(receiptEvidence.draftId, ids));
-      await tx.delete(receiptPhotos).where(inArray(receiptPhotos.draftId, ids));
-    }
-    await tx.delete(receiptDrafts).where(and(eq(receiptDrafts.groupId, groupId), isNull(receiptDrafts.billId)));
-    await tx.update(groups).set({ deletedAt: new Date() }).where(eq(groups.id, groupId));
-    return group.name;
-  });
-  notifyGroupDeleted(groupId, name);
+export async function markGroupDeleted(tx: Tx, groupId: string) {
+  await tx.update(groups).set({ deletedAt: new Date() }).where(eq(groups.id, groupId));
 }
