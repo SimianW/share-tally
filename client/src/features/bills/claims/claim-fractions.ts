@@ -1,8 +1,8 @@
 import { type Bill } from "@share-tally/domain/contracts/bills";
 import type { BillItem } from "@share-tally/domain/contracts/receipts";
 import { roundedCost } from '@share-tally/domain/fractions';
-import { lessOrEqual, parse, text } from '../../shared/fractions';
-import { signedMoney } from "../../shared/money";
+import { lessOrEqual, parse, text } from '../../../shared/fractions';
+import { signedMoney } from "../../../shared/money";
 import { roomFor } from './claim-availability';
 export function share(items: BillItem[], selection: Record<string, string>) {
   return roundedCost(items.flatMap(item => {

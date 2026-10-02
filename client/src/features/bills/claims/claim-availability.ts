@@ -1,5 +1,5 @@
 import type { BillItem } from '@share-tally/domain/contracts/receipts';
-import { one, subtract, sum } from '../../shared/fractions';
+import { one, subtract, sum } from '../../../shared/fractions';
 
 export function claimedByOthers(item: BillItem, ownId: string | undefined) {
   return sum(item.claims.filter(claim => claim.userId !== ownId));

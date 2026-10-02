@@ -5,7 +5,7 @@ import type { LegacyCorrectionItem } from "@share-tally/domain/contracts/receipt
 import { requestId } from "../../../shared/browser/request-id";
 import Dialog from "../../../shared/ui/Dialog";
 import { MoneyField } from "../../../shared/ui/fields/MoneyField";
-import { ReceiptItemRow } from "./ReceiptItemRow";
+import { ReceiptItemRow } from "../../receipts/review/ReceiptItemRow";
 import { Button } from "../../../shared/ui/Button";
 
 // Legacy bills have known per-item components, but no receipt-wide allocation

@@ -6,7 +6,7 @@ import { useCached, useCachedRequest } from '../shared/api/query-cache';
 import { groupDeletedEvent, type GroupDeleted } from '../shared/api/group-sync';
 import { BillDetails } from '../features/bills/Bills';
 import { Home } from '../features/home/Home';
-import GroupWorkspace from '../features/groups/GroupWorkspace';
+import GroupWorkspace from './GroupWorkspace';
 import { NewBillPage } from "../features/receipts/drafts/NewBillPage";
 import { useRoute, leaveDeletedGroup, routeBelongsToDeletedGroup } from '../shared/browser/route';
 import { useEffect, useRef, useState } from "react";

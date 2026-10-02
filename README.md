@@ -39,7 +39,7 @@ Captured from the local app using sample data for Alice, Bob, and Carol.
 ```text
 client/src/
   app/                AppShell, page composition and stylesheet ordering
-  features/           account, bills, claims, groups, home, ledger, receipts, repayments
+  features/           account, bills (including item claims and corrections), groups, home, ledger, receipts, repayments
   shared/             authenticated transport, browser utilities, money and shared UI
   theme/              palettes, light/dark preferences and design tokens
 server/src/
@@ -56,7 +56,7 @@ server/src/
 packages/domain/      dependency-free wire contracts and financial calculations
 ```
 
-The frontend directory is feature-oriented; `AppShell` replaces the old `PlayApp` name. `shared` never imports a feature. Feature pages compose shared controls and their own business rules. `app/styles.css` pins the existing CSS cascade independently of the TypeScript import graph. Existing `.play` CSS selectors remain compatibility names, so changing the folder structure does not change styling or automation selectors.
+The frontend directory is feature-oriented; `AppShell` replaces the old `PlayApp` name. `pnpm lint` runs `client/scripts/check-module-boundaries.mjs`, which fails when shared or theme code imports a feature or the app, when a feature imports the app, or when a feature imports another feature's file other than that feature's declared public entry points. The application layer composes cross-feature screens such as the group workspace (group detail, bill drafts, bills and repayments). `app/styles.css` pins the existing CSS cascade independently of the TypeScript import graph. Existing `.play` CSS selectors remain compatibility names, so changing the folder structure does not change styling or automation selectors.
 
 Both applications link `@share-tally/domain` ([ADR-0016](docs/adr/0016-share-financial-calculations-through-a-domain-package.md)). Their dev, build and test commands compile it using the invoking application's TypeScript compiler; it has no runtime dependencies. After editing that package while a dev server is running, run `node ../scripts/build-domain.mjs` from `client/` or `server/` to refresh its output. Server database types stay internal; compile-time checks in `server/test/wire-contracts.ts` verify that server projections serialize to the shared contracts.
 
@@ -74,7 +74,7 @@ These were the overlapping implementations found in the structure audit. Each ro
 | Bill, group, receipt and cached JSON requests | `shared/api/transport.ts` | Feature error messages and conflict metadata, fresh versus cached reads, mutation invalidation and group deletion ordering. Binary photos and SSE retain their protocols. |
 | Pending, busy and error handling for submissions | `shared/api/use-operation.ts` | Bill revision checks, item versions, repayment request persistence and draft initialization retries retain their own policies. |
 | Amount formatting and entry | `shared/money.ts`, `shared/ui/fields/MoneyField.tsx` and `validity.ts` | Positive-sign display, empty-as-zero, signed adjustments, and validation timing. Share/repayment fields still validate at their original stage. |
-| Available portions in item picker, meter and confirmation checks | `features/claims/claim-availability.ts` | Confirmed claims and reservations both consume availability; a participant can edit their own portion. |
+| Available portions in item picker, meter and confirmation checks | `features/bills/claims/claim-availability.ts` | Confirmed claims and reservations both consume availability; a participant can edit their own portion. |
 | Repeated fraction parsing and picker arithmetic | `shared/fractions.ts`, `shared/ui/portions/` | UI input limits and error wording remain separate from exact domain arithmetic. |
 | Receipt scan buttons and photo resource cleanup | `drafts/ScanActions.tsx`, `photos/photo-resource.ts` | Processing-specific disabled states, full-photo expiry and line-photo positioning. |
 | URLs assembled in several pages | `shared/browser/paths.ts` | Existing hash URLs, query strings, navigation guards and invitation return links. |

@@ -7,7 +7,7 @@ import { money } from "../../shared/money";
 import { Notification } from '../../shared/ui/Notification';
 import { Button } from "../../shared/ui/Button";
 import { Icon } from "../../shared/ui/Icon";
-import { ItemClaims } from '../claims/ItemClaims';
+import { ItemClaims } from './claims/ItemClaims';
 import { useBillApi } from "./api";
 import { type Bill } from "@share-tally/domain/contracts/bills";
 import { InitiatorActions, ShareActions } from "./BillActions";
