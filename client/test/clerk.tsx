@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components -- Test-only replacement for the Clerk module, not a refresh boundary. */
-// Only scripts/smoke-groups.mjs aliases Clerk to this module. Production Vite
+// Only the browser-test environment (test/browser/environment.mjs) and
+// scripts/measure-emoji-picker.mjs alias Clerk to this module. Production Vite
 // never imports it. API identities are likewise confined to server/test/.
 import { useSyncExternalStore, cloneElement, type ReactElement, type ReactNode } from 'react';
 

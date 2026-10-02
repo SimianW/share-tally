@@ -59,6 +59,8 @@ The frontend directory is feature-oriented; `AppShell` replaces the old `PlayApp
 
 Both applications link `@share-tally/domain` ([ADR-0016](docs/adr/0016-share-financial-calculations-through-a-domain-package.md)). Their dev, build and test commands compile it using the invoking application's TypeScript compiler; it has no runtime dependencies. After editing that package while a dev server is running, run `node ../scripts/build-domain.mjs` from `client/` or `server/` to refresh its output. Server database types stay internal; compile-time checks in `server/test/wire-contracts.ts` verify that server projections serialize to the shared contracts.
 
+The group-icon picker's compact emoji metadata is generated; do not edit `client/src/features/groups/icons/emoji-data.json` by hand. After upgrading `emojibase-data`, regenerate it with `pnpm --dir client generate:emoji` and run `pnpm --dir client test:unit`.
+
 ### Consolidated implementations
 
 These were the overlapping implementations found in the structure audit. Each row records the selected owner and the differences deliberately retained to preserve behavior.
@@ -142,6 +144,16 @@ pnpm test:groups
 pnpm test:receipts
 pnpm test:avatar
 ```
+
+Each command runs every scenario in its suite, one after another. A scenario creates its own users, group and records in a fresh environment (PostgreSQL with migrations, the test API, Vite with the test-only Clerk substitute, and Chromium) and disposes it afterwards, so a failure does not stop the scenarios after it. To run one or more scenarios by name, or to list them:
+
+```bash
+pnpm test:browser draft-save-and-recovery
+pnpm test:receipts scan-fallback processing-recovery
+pnpm test:browser --list
+```
+
+A failing scenario is reported by name; screenshots of its open pages are kept in `client/test-results/failures/<scenario>/`. `pnpm test:environment` checks that a start-up failing part-way leaves no container or API process behind. Scenarios live in `client/test/browser/`, grouped by business area; `environment.mjs` is the shared environment and `suites.mjs` lists every scenario.
 
 Run the browser suites sequentially, after backend/container checks finish; Docker network changes can interrupt Chromium requests. `server/test/domain.test.ts` covers exact arithmetic and pricing edge cases; existing API and browser suites exercise financial, authorization, concurrency and interaction behavior.
 

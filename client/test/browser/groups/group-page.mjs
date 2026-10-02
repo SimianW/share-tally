@@ -1,6 +1,6 @@
-// Group page acceptance at the browser and real-HTTP fixture seams. The caller
-// owns the server, browser, and test identities; run this after the original
-// non-delete group smoke flow so these extra groups cannot alter Home lists.
+// Group page acceptance at the browser and real-HTTP fixture seams: balance
+// tracing, live ledger refresh, member actions, history, and the desktop and
+// mobile ledger explanations. Each check builds its own groups.
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
@@ -14,7 +14,11 @@ const labels = {
 const currency = cents => `$${(cents / 100).toFixed(2)}`;
 const billLink = (region, title) => region.getByRole('link').filter({ hasText: title });
 
-export async function checkGroupPage(pageFor, base, api) {
+export const scenarios = [
+  { name: 'group-page-ledger', run: ({ pageFor, base, api }) => checkGroupPage(pageFor, base, api) },
+];
+
+async function checkGroupPage(pageFor, base, api) {
   const { group: created } = await api('/groups', 'alice-token', 'POST', {
     name: 'Costco Crew', icon: { type: 'unicode', value: '🛒' },
   });
