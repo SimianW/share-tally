@@ -10,6 +10,7 @@ import { fork } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { once } from 'node:events';
 import { mkdir, readFile } from 'node:fs/promises';
+import { createServer as createHttpServer } from 'node:http';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
@@ -64,6 +65,14 @@ export async function startEnvironment({ backend = true, remoteHost = null, firs
       await checkpoint('api', { pid: api.child.pid });
     }
 
+    // Middleware mode leaves signal handling to run.mjs. Vite's standalone
+    // SIGTERM handler otherwise exits before our container cleanup finishes.
+    const web = createHttpServer();
+    disposers.push(async () => {
+      if (!web.listening) return;
+      web.closeAllConnections();
+      await new Promise((resolve, reject) => web.close(error => error ? reject(error) : resolve()));
+    });
     const vite = await createServer({
       root: clientRoot, configFile: false, envDir: false, logLevel: 'warn',
       // Keep the test-only Clerk bundle separate from production dependency caching.
@@ -74,14 +83,16 @@ export async function startEnvironment({ backend = true, remoteHost = null, firs
       } }, react()],
       optimizeDeps: { exclude: ['@clerk/react'] },
       server: {
-        host: '0.0.0.0', port: 0,
+        middlewareMode: true, hmr: { server: web },
         ...(remoteHost ? { allowedHosts: [remoteHost] } : {}),
         ...(api ? { proxy: { '/api': api.url } } : {}),
       },
     });
     disposers.push(() => vite.close());
-    await vite.listen();
-    const origin = new URL(vite.resolvedUrls.local[0]);
+    web.on('request', vite.middlewares);
+    web.listen(0, '0.0.0.0');
+    await once(web, 'listening');
+    const origin = new URL(`http://127.0.0.1:${web.address().port}/`);
     origin.hostname = remoteHost ?? '127.0.0.1';
     await checkpoint('vite', { base: origin.href });
 
@@ -174,6 +185,7 @@ async function startBrowser(appPort, remoteHost, disposers, checkpoint) {
     await checkpoint('browser-container-created', { browserContainerId });
   })
     .withEnvironment({ APP_PORT: String(appPort), APP_REMOTE_HOST: remoteHost ?? '', BROWSER_WS_PATH: wsPath })
+    .withLabels({ 'share-tally.browser-runner': String(process.pid) })
     .withExtraHosts([{ host: 'host.docker.internal', ipAddress: 'host-gateway' }])
     .withExposedPorts(3000)
     .withSharedMemorySize(1024 * 1024 * 1024)

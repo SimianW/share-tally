@@ -1,10 +1,12 @@
 // A start-up that fails part-way disposes everything it had already started.
 // Needs Docker: node --test test/browser/environment.test.mjs
 import assert from 'node:assert/strict';
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
+import { once } from 'node:events';
+import { setTimeout as delay } from 'node:timers/promises';
 import { test } from 'node:test';
 import { promisify } from 'node:util';
-import { startEnvironment } from './environment.mjs';
+import { clientRoot, startEnvironment } from './environment.mjs';
 
 const run = promisify(execFile);
 const containerExists = id => run('docker', ['inspect', id]).then(() => true, () => false);
@@ -92,4 +94,33 @@ test('a failed browser connection removes the already started container', async 
     }
   } }));
   assert.equal(await containerExists(browserContainerId), false);
+});
+
+for (const signal of ['SIGTERM', 'SIGINT']) test(`the runner awaits container cleanup on ${signal}`, { timeout: 60_000 }, async () => {
+  const runner = spawn(process.execPath, ['test/browser/run.mjs', 'group-refresh'], {
+    cwd: clientRoot, stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let output = '';
+  for (const stream of [runner.stdout, runner.stderr]) stream.on('data', chunk => { output = (output + chunk).slice(-8000); });
+  const exited = once(runner, 'exit');
+  try {
+    let browserContainerId;
+    const deadline = Date.now() + 30_000;
+    while (!browserContainerId && Date.now() < deadline) {
+      const { stdout } = await run('docker', ['ps', '-q', '--filter', `label=share-tally.browser-runner=${runner.pid}`]);
+      browserContainerId = stdout.trim();
+      if (runner.exitCode !== null || runner.signalCode !== null) break;
+      if (!browserContainerId) await delay(100);
+    }
+    assert.ok(browserContainerId, `Runner did not start a browser container: ${output}`);
+    runner.kill(signal);
+    const [code] = await exited;
+    assert.equal(code, 130, output);
+    assert.equal(await containerExists(browserContainerId), false, 'Runner exited before removing its browser container');
+  } finally {
+    if (runner.exitCode === null && runner.signalCode === null) {
+      runner.kill('SIGKILL');
+      await exited;
+    }
+  }
 });
