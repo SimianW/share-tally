@@ -886,10 +886,10 @@ try {
   await deleteButton.click();
   // Both the creator and a member viewing the group return to Home.
   await expect(deleteOwner).toHaveURL(`${base}#`);
-  await expect(deleteOwner.getByRole('heading', { name: 'Your groups' })).toBeVisible();
+  await expect(deleteOwner.getByRole('heading', { name: /^(Your groups|Your people, together\.)$/ })).toBeVisible();
   await expect(homeRow(deleteOwner, 'Deletion smoke group')).toHaveCount(0);
   await expect(deleteMember).toHaveURL(`${base}#`);
-  await expect(deleteMember.getByRole('heading', { name: 'Your groups' })).toBeVisible();
+  await expect(deleteMember.getByRole('heading', { name: /^(Your groups|Your people, together\.)$/ })).toBeVisible();
   await expect(homeRow(deleteMember, 'Deletion smoke group')).toHaveCount(0);
   await expect(deleteMember.getByRole('status').filter({ hasText: 'Deletion smoke group was deleted by the group creator' })).toBeVisible();
   await expect(deleteOwner.getByText('Deletion smoke group was deleted by the group creator')).toHaveCount(0);
