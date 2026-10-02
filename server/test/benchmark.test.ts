@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
-import { createAzureExtractor, mapAzureAnalysis, type AnalyzeResult } from "../src/azure-receipt.js";
+import { createAzureExtractor, mapAzureAnalysis, type AnalyzeResult } from "../src/receipts/providers/azure-receipt.js";
 import { mapAzureAnalysis as frozenMap } from "../benchmark/frozen-baseline/azure-receipt.js";
 import { buildReceiptNameRequest, parseReceiptNameResponse } from "../benchmark/frozen-baseline/receipt-names.js";
 import { candidateRecorder } from "../benchmark/candidate-recorder.js";

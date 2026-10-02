@@ -2208,7 +2208,7 @@ test('receipt drafts preserve missing money and reject initialization until requ
   const { group, draft } = await setup();
   const id = crypto.randomUUID();
   const { requestId: _requestId, ...fields } = draft;
-  const data: import('../src/receipt-input.js').ReceiptDraftData = { ...fields, mode: 'items', totalCents: null,
+  const data: import('../src/receipts/receipt-input.js').ReceiptDraftData = { ...fields, mode: 'items', totalCents: null,
     receipt: { subtotalCents: null, taxCents: 0, discountCents: 0, extraCents: 0, pricesIncludeTax: false,
       evidence: { pages: [{ pageNumber: 1, width: 300, height: 500, unit: 'pixel' }] } },
     items: [{
@@ -2243,7 +2243,7 @@ test('an item draft without a total paid initializes with the item total', async
     amountCents: cents, finalCents: cents, discountCents: 0,
   });
   const receipt = { subtotalCents: null, taxCents: 0, discountCents: 0, extraCents: 0, pricesIncludeTax: false };
-  const initialize = async (data: import('../src/receipt-input.js').ReceiptDraftData, status?: number) => {
+  const initialize = async (data: import('../src/receipts/receipt-input.js').ReceiptDraftData, status?: number) => {
     const id = crypto.randomUUID();
     const saved = (await json(await api(`/groups/${group.id}/receipt-drafts/${id}`, 'alice-token', 'PUT', { revision: 0, data }))).draft;
     assert.equal(saved.data.totalCents, data.totalCents);

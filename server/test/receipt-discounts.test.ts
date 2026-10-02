@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { normalizeAzure } from "../src/azure-receipt.js";
-import { attachReceiptDiscounts } from "../src/receipt-discounts.js";
+import { normalizeAzure } from "../src/receipts/providers/azure-receipt.js";
+import { attachReceiptDiscounts } from "../src/receipts/processing/receipt-discounts.js";
 
 function fixture(name: string) {
   return JSON.parse(readFileSync(new URL(`./fixtures/azure-receipt/${name}.json`, import.meta.url), "utf8"));

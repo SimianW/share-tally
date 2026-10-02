@@ -1,10 +1,10 @@
-import { applySavedPalette, applySavedScheme } from './play/appearance';
+import { applySavedPalette, applySavedScheme } from './theme/appearance';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ClerkProvider } from '@clerk/react';
 import { MotionConfig } from 'motion/react';
 import './index.css';
-import App from './App.tsx';
+import App from './app/App.tsx';
 
 applySavedPalette();
 applySavedScheme();

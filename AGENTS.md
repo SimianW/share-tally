@@ -16,6 +16,10 @@ Default vocabulary; each label string equals its canonical role name. See `docs/
 
 Single-context: `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
+### Code structure
+
+Before adding a file or a cross-module import, read the README's "Code structure" section. Imports point from `app` to `features` to `shared`; compose screens that combine features in `client/src/app`.
+
 ### Subagent model for frontend design
 
 When delegating frontend design work (UI/UX, layout, visual design) to a subagent, set the Agent tool's `model` to `"opus"` (Opus 5.5). This overrides the global instruction to leave `model` unset for this kind of task only.

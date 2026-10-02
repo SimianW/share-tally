@@ -5,25 +5,6 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ShareTally</title>
-    <script>
-      // Apply the saved palette before any stylesheet paints, so a reload never
-      // flashes Classic. Keep this list in step with src/play/palettes.ts;
-      // main.tsx re-applies the same choice through play/appearance.ts.
-      try {
-        var palette = localStorage.getItem('share-tally-palette');
-        if (['classic', 'marigold', 'raspberry', 'plum-butter', 'lagoon', 'blueberry'].indexOf(palette) >= 0)
-          document.documentElement.dataset.palette = palette;
-      } catch (error) {
-        // Blocked storage renders Classic; the Account picker explains it.
-      }
-      // Resolve light or dark the same way, before paint. Keep in step with
-      // applySavedScheme in src/play/appearance.ts.
-      var scheme = null;
-      try { scheme = localStorage.getItem('share-tally-scheme'); } catch (error) {}
-      if (scheme !== 'light' && scheme !== 'dark')
-        scheme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      document.documentElement.dataset.scheme = scheme;
-    </script>
   </head>
   <body>
     <div id="root"></div>

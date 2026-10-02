@@ -1,3 +1,4 @@
+import { themeBootstrap } from '../build/theme-bootstrap.ts';
 import { checkGroupPage } from './smoke-group-page.mjs';
 import { checkAmountPortion } from './smoke-amount-portion.mjs';
 import { checkAppearance, checkShareTicketPalettes } from './smoke-appearance.mjs';
@@ -62,7 +63,7 @@ try {
     // Keep the test-only Clerk bundle separate from production dependency caching.
     cacheDir: `${clientRoot}/node_modules/.vite-smoke`,
     define: { 'import.meta.env.VITE_CLERK_PUBLISHABLE_KEY': JSON.stringify('test-only-clerk-boundary') },
-    plugins: [{ name: 'smoke-clerk', enforce: 'pre', resolveId(id) {
+    plugins: [themeBootstrap(),{ name: 'smoke-clerk', enforce: 'pre', resolveId(id) {
       if (id === '@clerk/react') return `${clientRoot}/test/clerk.tsx`;
     } }, react()],
     optimizeDeps: { exclude: ['@clerk/react'] },

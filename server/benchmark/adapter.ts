@@ -1,4 +1,4 @@
-import type { AnalyzeResult } from "../src/azure-receipt.js";
+import type { AnalyzeResult } from "../src/receipts/providers/azure-receipt.js";
 import type { BenchmarkPrediction } from "./scorer.js";
 import { recordedItemIds, replayModel, type ModelRecording, type ModelOutcome } from "./recordings.js";
 

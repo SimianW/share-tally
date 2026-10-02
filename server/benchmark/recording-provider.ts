@@ -1,14 +1,14 @@
 import { setTimeout as delay } from "node:timers/promises";
 import sharp from "sharp";
-import type { AnalyzeResult } from "../src/azure-receipt.js";
-import { normalizeReceiptPhoto } from "../src/receipt-photo.js";
+import type { AnalyzeResult } from "../src/receipts/providers/azure-receipt.js";
+import { normalizeReceiptPhoto } from "../src/receipts/photos/receipt-photo.js";
 import { AZURE_CONFIGS, type AzureConfig } from "./recordings.js";
 
 export type Wait = (ms: number, signal: AbortSignal) => Promise<unknown>;
 const defaultWait: Wait = (ms, signal) => delay(ms, undefined, { signal });
 
 /**
- * The browser step of a production upload (client/src/play/ReceiptPhoto.tsx, uncropped): scale by
+ * The browser step of a production upload (client/src/features/receipts/photos/ReceiptCrop.tsx, uncropped): scale by
  * min(1, 2400 / width, 6000 / height) with rounded dimensions, then encode JPEG at quality 0.9.
  */
 export async function clientUpload(image: Buffer): Promise<Buffer> {

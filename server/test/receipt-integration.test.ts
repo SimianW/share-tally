@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { normalizeAzure } from "../src/azure-receipt.js";
-import { extractionDefaults, extractedReceipt } from "../src/receipt-extraction.js";
-import { priceDraft } from "../src/receipt-pricing.js";
-import { applyReceiptModelResult, receiptModelEvidence } from "../src/receipt-processing.js";
+import { normalizeAzure } from "../src/receipts/providers/azure-receipt.js";
+import { extractionDefaults, extractedReceipt } from "../src/receipts/processing/receipt-extraction.js";
+import { priceDraft } from "../src/receipts/pricing/receipt-pricing.js";
+import { applyReceiptModelResult, receiptModelEvidence } from "../src/receipts/processing/receipt-processing.js";
 
 const draftFields = {
   purchaseDate: "", timeZone: "", notes: "", participantIds: [],

@@ -4,13 +4,14 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "node ../scripts/build-domain.mjs && vite",
+    "build": "node ../scripts/build-domain.mjs && tsc -b && vite build",
     "lint": "eslint . && node scripts/check-tokens.mjs",
     "preview": "vite preview",
-    "test:avatar": "node scripts/smoke-avatar.mjs",
-    "test:receipts": "node scripts/smoke-receipts.mjs",
-    "test:groups": "node scripts/smoke-groups.mjs"
+    "test:avatar": "node ../scripts/build-domain.mjs && node scripts/smoke-avatar.mjs",
+    "test:receipts": "node ../scripts/build-domain.mjs && node scripts/smoke-receipts.mjs",
+    "test:groups": "node ../scripts/build-domain.mjs && node scripts/smoke-groups.mjs",
+    "test:unit": "node ../scripts/build-domain.mjs && node --test scripts/test-*.mjs"
   },
   "dependencies": {
     "@clerk/react": "^6.15.1",
@@ -20,7 +21,8 @@
     "motion": "^13.4.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-zoom-pan-pinch": "^4.2.0"
+    "react-zoom-pan-pinch": "^4.2.0",
+    "@share-tally/domain": "link:../packages/domain"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

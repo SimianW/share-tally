@@ -1,0 +1,271 @@
+import type { GroupDeletionReason } from '@share-tally/domain/contracts/groups';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { randomBytes } from 'node:crypto';
+import { readAttentionInSnapshot } from '../attention/attention.js';
+import { readBillsInSnapshot, readMemberBalancesInSnapshot } from "../bills/queries.js";
+import type { Transaction as Tx } from '../db/types.js';
+import { groupLedger } from '../ledger/group-ledger.js';
+import { notifyGroupChanged, notifyGroupDeleted } from '../realtime/group-events.js';
+import { withoutEvidence } from "../receipts/drafts/evidence.js";
+import { readRepayments } from '../repayments/repayments.js';
+import { lockGroupForMember } from './group-access.js';
+import { db } from "../db/index.js";
+import { groupMembers, groups, receiptDrafts, receiptEvidence, receiptPhotos, users } from "../db/schema.js";
+import { parseGroupIcon } from "./group-icon.js";
+import type { GroupIcon as GroupIconInput } from "@share-tally/domain/contracts/groups";
+
+export type CreateGroupInput = {
+  name: string;
+  icon: GroupIconInput;
+};
+
+// explicitly list all the fields we want to return to the client
+const publicGroupFields = {
+  id: groups.id,
+  name: groups.name,
+  icon: groups.icon,
+  createdBy: groups.createdBy,
+  createdAt: groups.createdAt,
+}
+
+export async function createGroup(
+  creatorId: string,
+  input: CreateGroupInput,
+) {
+  // 创建群组涉及两次写入：
+  // 1. 插入群组。
+  // 2. 插入创建者的成员关系。
+  //
+  // 事务保证它们一起成功或一起回滚。
+  // 否则第二次写入失败时，会留下没有成员的群组。
+  return db.transaction(async (tx) => {
+    const [creator] = await tx.select().from(users).where(eq(users.id, creatorId));
+    if (!creator) throw new Error('Group creator does not exist.');
+    // 事务内部使用 tx，而不是 db。
+    // 使用 db 可能让查询跑到事务之外的另一条连接上。
+    const [group] = await tx
+      .insert(groups)
+      .values({
+        name: input.name,
+        icon: `${input.icon.type}:${input.icon.value}`,
+        createdBy: creatorId,
+      })
+      .returning(publicGroupFields)
+
+    // returning() 返回数组，因为 INSERT 可以一次插入多行。
+    // 这里仅插入一个群组，因此取第一项。
+    if (!group) {
+      throw new Error('Group insert returned no row.')
+    }
+
+    const [membership] = await tx
+      .insert(groupMembers)
+      .values({
+        groupId: group.id,
+        userId: creatorId,
+      })
+      .returning({ joinedAt: groupMembers.joinedAt })
+
+    // 回调成功结束后，Drizzle 才提交事务。
+    // 如果上面的任意操作抛错，整个事务回滚。
+    // A new group has no bills yet, so its creator's balance is zero.
+    const creatorName = creator.displayName ?? "Member";
+    return {
+      ...toGroup({ ...group, joinedAt: membership!.joinedAt, creatorName, memberCount: 1 }, creatorId),
+      netCents: 0,
+      pendingActionCount: 0,
+      memberPreview: [{ id: creatorId, displayName: creatorName }],
+    }
+  })
+};
+
+// Read through the current user's membership row: joinedAt is when they joined.
+const summaryFields = {
+  ...publicGroupFields,
+  joinedAt: groupMembers.joinedAt,
+  creatorName: sql<string>`coalesce(${users.displayName}, 'Member')`,
+  memberCount: sql<number>`(select count(*) from ${groupMembers} where ${groupMembers.groupId} = ${groups.id})`.mapWith(Number),
+};
+
+function toGroup(row: {
+  id: string; name: string; icon: string; createdBy: string; createdAt: Date; joinedAt: Date;
+  creatorName: string; memberCount: number;
+}, userId: string) {
+  const separator = row.icon.indexOf(':');
+  return {
+    ...row,
+    icon: parseGroupIcon({ type: row.icon.slice(0, separator), value: row.icon.slice(separator + 1) }),
+    isCreator: row.createdBy === userId,
+  };
+}
+
+// Home's avatar stack shows this many members.
+const previewSize = 4;
+
+// Groups in the order the member joined them, so the order never shuffles. Each
+// carries the member's own balance there, the same number as its group page.
+export async function listGroupsForUser(userId: string) {
+  return db.transaction(async tx => {
+    const rows = await tx.select(summaryFields).from(groupMembers)
+      .innerJoin(groups, eq(groupMembers.groupId, groups.id))
+      .innerJoin(users, eq(groups.createdBy, users.id))
+      .where(and(eq(groupMembers.userId, userId), isNull(groups.deletedAt)))
+      .orderBy(groupMembers.joinedAt, groups.id);
+    const ids = rows.map(row => row.id);
+    const balances = await readMemberBalancesInSnapshot(tx, userId, ids);
+    const actions = ids.length ? await readAttentionInSnapshot(tx, userId) : [];
+    const pendingByGroup = new Map<string, number>();
+    for (const action of actions) pendingByGroup.set(action.groupId, (pendingByGroup.get(action.groupId) ?? 0) + 1);
+    const members = ids.length ? await tx.select({
+      groupId: groupMembers.groupId,
+      id: users.id,
+      displayName: sql<string>`coalesce(${users.displayName}, 'Member')`,
+    }).from(groupMembers).innerJoin(users, eq(groupMembers.userId, users.id))
+      .where(inArray(groupMembers.groupId, ids)).orderBy(groupMembers.joinedAt, users.id) : [];
+    return rows.map(row => ({
+      ...toGroup(row, userId),
+      netCents: balances.get(row.id)!,
+      pendingActionCount: pendingByGroup.get(row.id) ?? 0,
+      memberPreview: members.filter(member => member.groupId === row.id).slice(0, previewSize)
+        .map(({ id, displayName }) => ({ id, displayName })),
+    }));
+  }, { isolationLevel: 'repeatable read', accessMode: 'read only' });
+}
+
+export class GroupAccessError extends Error {
+  constructor(public status: 403 | 404 | 409, message: string) { super(message); }
+}
+
+export async function getGroupForMember(groupId: string, userId: string) {
+  const [row] = await db.select(summaryFields).from(groupMembers)
+    .innerJoin(groups, eq(groupMembers.groupId, groups.id))
+    .innerJoin(users, eq(groups.createdBy, users.id))
+    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId), isNull(groups.deletedAt)));
+  // Do not reveal whether an inaccessible group exists.
+  if (!row) throw new GroupAccessError(404, 'Group not found.');
+  const members = await db.select({
+    id: users.id,
+    displayName: sql<string>`coalesce(${users.displayName}, 'Member')`,
+    joinedAt: groupMembers.joinedAt,
+  }).from(groupMembers).innerJoin(users, eq(groupMembers.userId, users.id))
+    .where(eq(groupMembers.groupId, groupId)).orderBy(groupMembers.joinedAt, users.id);
+  return {
+    ...toGroup(row, userId),
+    memberCount: members.length,
+    members: members.map(member => ({
+      ...member, isCreator: member.id === row.createdBy, isCurrentUser: member.id === userId,
+    })),
+  };
+}
+
+export async function groupInvitation(groupId: string, userId: string, regenerate: boolean) {
+  return db.transaction(async tx => {
+    // Joining and rotating the token serialize on this same row.
+    const group = await lockGroupForMember(tx, groupId, userId);
+    if (group.createdBy !== userId) throw new GroupAccessError(403, 'Only the group creator can manage invitations.');
+    let token = group.invitationToken;
+    if (regenerate || token === null) {
+      token = randomBytes(32).toString('hex');
+      await tx.update(groups).set({ invitationToken: token }).where(eq(groups.id, groupId));
+    }
+    // A fragment keeps the secret out of page requests and Referer headers.
+    return { path: `/#/join/${token}` };
+  });
+}
+
+export async function joinGroup(token: string, userId: string) {
+  const groupId = await db.transaction(async tx => {
+    // PostgreSQL rechecks this predicate after waiting for a concurrent rotation.
+    const [group] = await tx.select({ id: groups.id }).from(groups)
+      .where(and(eq(groups.invitationToken, token), isNull(groups.deletedAt))).for('update');
+    if (!group) throw new GroupAccessError(404, 'This invitation is invalid or has been replaced.');
+    // The group row lock makes the capacity check and insertion one operation
+    // relative to every other join. Existing members may retry even at capacity.
+    const members = await tx.select({ userId: groupMembers.userId }).from(groupMembers)
+      .where(eq(groupMembers.groupId, group.id));
+    if (members.some(member => member.userId === userId)) return group.id;
+    if (members.length >= 16)
+      throw new GroupAccessError(409, 'This group is full. Groups can have up to 16 members.');
+    // The composite primary key also protects against simultaneous repeat joins.
+    await tx.insert(groupMembers).values({ groupId: group.id, userId })
+      .onConflictDoNothing({ target: [groupMembers.groupId, groupMembers.userId] });
+    return group.id;
+  });
+  notifyGroupChanged(groupId);
+  return getGroupForMember(groupId, userId);
+}
+
+export class GroupDeletionError extends GroupAccessError {
+  constructor(public reasons: GroupDeletionReason[]) {
+    const descriptions = reasons.map(reason => {
+      switch (reason.code) {
+        case 'incomplete_bills': return `${reason.count} incomplete bill${reason.count === 1 ? '' : 's'}`;
+        case 'pending_repayments': return `${reason.count} pending repayment${reason.count === 1 ? '' : 's'}`;
+        case 'nonzero_balances': return reason.members.map(member => `${member.displayName}'s balance is not zero`).join(', ');
+      }
+    });
+    super(409, `This group cannot be deleted: ${descriptions.join('; ')}.`);
+  }
+}
+
+// Caller holds the group row lock while reading this ledger. Deletion and all
+// financial writes serialize on that row, so the decision cannot go stale
+// between this check and the update in deleteGroup.
+async function deletionReasons(tx: Tx, groupId: string, userId: string): Promise<GroupDeletionReason[]> {
+  const bills = await readBillsInSnapshot(tx, userId, groupId);
+  const repayments = await readRepayments(tx, userId, groupId);
+  const members = await tx.select({ userId: users.id, displayName: users.displayName })
+    .from(groupMembers).innerJoin(users, eq(users.id, groupMembers.userId))
+    .where(eq(groupMembers.groupId, groupId)).orderBy(users.id);
+  const ledger = groupLedger(bills, members, repayments);
+  const reasons: GroupDeletionReason[] = [];
+  if (ledger.incompleteBillIds.length)
+    reasons.push({ code: 'incomplete_bills', count: ledger.incompleteBillIds.length });
+  const pendingCount = repayments.filter(repayment => repayment.status === 'pending').length;
+  if (pendingCount) reasons.push({ code: 'pending_repayments', count: pendingCount });
+  const nonzeroMembers = ledger.members.filter(member => member.netCents !== 0);
+  if (nonzeroMembers.length) reasons.push({ code: 'nonzero_balances', members: nonzeroMembers });
+  return reasons;
+}
+
+async function lockGroupForCreator(tx: Tx, groupId: string, userId: string) {
+  const group = await lockGroupForMember(tx, groupId, userId);
+  if (group.createdBy !== userId)
+    throw new GroupAccessError(403, 'Only the group creator can delete this group.');
+  return group;
+}
+
+export async function groupDeletionEligibility(groupId: string, userId: string) {
+  return db.transaction(async tx => {
+    await lockGroupForCreator(tx, groupId, userId);
+    const reasons = await deletionReasons(tx, groupId, userId);
+    return { eligible: reasons.length === 0, reasons };
+  });
+}
+
+export async function deleteGroup(groupId: string, userId: string) {
+  const name = await db.transaction(async tx => {
+    const group = await lockGroupForCreator(tx, groupId, userId);
+    const reasons = await deletionReasons(tx, groupId, userId);
+    if (reasons.length) throw new GroupDeletionError(reasons);
+
+    // Lock drafts before their evidence/photos, matching the order used by
+    // photo expiry and processing completion. Initiated drafts keep receipt
+    // text behind preserved bills; uninitiated drafts are voided altogether.
+    const drafts = await tx.select().from(receiptDrafts)
+      .where(eq(receiptDrafts.groupId, groupId)).orderBy(receiptDrafts.id).for('update');
+    if (drafts.length) {
+      const ids = drafts.map(draft => draft.id);
+      for (const draft of drafts) {
+        if (draft.billId) await tx.update(receiptDrafts)
+          .set({ data: withoutEvidence(draft.data) }).where(eq(receiptDrafts.id, draft.id));
+      }
+      await tx.delete(receiptEvidence).where(inArray(receiptEvidence.draftId, ids));
+      await tx.delete(receiptPhotos).where(inArray(receiptPhotos.draftId, ids));
+    }
+    await tx.delete(receiptDrafts).where(and(eq(receiptDrafts.groupId, groupId), isNull(receiptDrafts.billId)));
+    await tx.update(groups).set({ deletedAt: new Date() }).where(eq(groups.id, groupId));
+    return group.name;
+  });
+  notifyGroupDeleted(groupId, name);
+}

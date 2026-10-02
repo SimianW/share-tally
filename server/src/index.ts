@@ -1,4 +1,4 @@
-import { purgeExpiredPhotos } from './receipt-drafts.js';
+import { purgeExpiredPhotos } from "./receipts/drafts/photos.js";
 import { createApp } from './app.js';
 import { startServer } from './start-server.js';
 

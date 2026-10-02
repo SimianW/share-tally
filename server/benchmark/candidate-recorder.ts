@@ -1,4 +1,4 @@
-import { interpretReceiptNames, receiptNameConfig } from "../src/receipt-names.js";
+import { interpretReceiptNames, receiptNameConfig } from "../src/receipts/providers/receipt-names.js";
 import { candidateDraft, candidateScanFailedInput, candidateScanFails, CANDIDATE_ID, CANDIDATE_MODEL_VERSION } from "./candidate.js";
 import type { CandidateRecorder } from "./record.js";
 import { noModelInput, type ModelOutcome } from "./recordings.js";

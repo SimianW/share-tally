@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { interpretReceiptNames, receiptNameConfig, type ReceiptModelEvidence } from "../src/receipt-names.js";
+import { interpretReceiptNames, receiptNameConfig, type ReceiptModelEvidence } from "../src/receipts/providers/receipt-names.js";
 
 const config = { baseURL: "http://example.test/v1", apiKey: "proxy-key", model: "model-from-env" };
 const evidence: ReceiptModelEvidence = {

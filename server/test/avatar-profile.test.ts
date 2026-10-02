@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { profileAvatars } from '../src/avatar-profile.js';
+import { profileAvatars } from '../src/identity/avatar-profile.js';
 
 test('Clerk Google provider image precedes a different Clerk profile image', () => {
   assert.deepEqual(profileAvatars({

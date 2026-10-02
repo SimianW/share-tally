@@ -1,6 +1,6 @@
 // No database connection is opened by this benchmark.
 import { performance } from 'node:perf_hooks';
-import { minimumRepayments } from '../src/group-ledger.js';
+import { minimumRepayments } from '../src/ledger/group-ledger.js';
 
 const cases = {
   'one component': [-1, -2, -4, -8, -16, -32, -64, -128, -256, -512, -1024, -2048, -4096, -8192, -16384, 32767],

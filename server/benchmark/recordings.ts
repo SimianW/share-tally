@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { isDeepStrictEqual } from "node:util";
 import { z } from "zod";
-import type { AnalyzeResult } from "../src/azure-receipt.js";
+import type { AnalyzeResult } from "../src/receipts/providers/azure-receipt.js";
 
 export const AZURE_CONFIGS = {
   default: { apiVersion: "2024-11-30", modelId: "prebuilt-receipt", options: {} },

@@ -1,8 +1,8 @@
-import { purgeExpiredPhotos } from '../src/receipt-drafts.js';
-import { createAzureExtractor } from '../src/azure-receipt.js';
+import { purgeExpiredPhotos } from "../src/receipts/drafts/photos.js";
+import { createAzureExtractor } from '../src/receipts/providers/azure-receipt.js';
 import { readFileSync } from 'node:fs';
 import { once } from 'node:events';
-import { BillError } from '../src/bill-error.js';
+import { BillError } from '../src/shared/bill-error.js';
 import { createApp } from '../src/app.js';
 import { startServer } from '../src/start-server.js';
 import { closeDatabase } from '../src/db/index.js';

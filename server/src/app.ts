@@ -1,21 +1,21 @@
-import { createReceiptRouter } from './receipt-routes.js';
-import type { interpretReceiptNames } from './receipt-names.js';
-import type { ReceiptExtractor } from './receipt-extraction.js';
-import { readAttention } from './attention.js';
-import { openGroupEvents } from './group-events.js';
-import { getGroupUser } from './users.js';
-import { getGroupForMember } from './groups.js';
-import { createRepaymentsRouter } from './repayment-routes.js';
-import { profileAvatars } from './avatar-profile.js';
-import { createAvatarReader, type AvatarLookup } from './avatars.js';
-import { createBillsRouter } from './bill-routes.js';
-import { BillError } from './bills.js';
+import { createReceiptRouter } from './receipts/receipt-routes.js';
+import type { interpretReceiptNames } from './receipts/providers/receipt-names.js';
+import type { ReceiptExtractor } from './receipts/processing/receipt-extraction.js';
+import { readAttention } from './attention/attention.js';
+import { openGroupEvents } from './realtime/group-events.js';
+import { getGroupUser } from './identity/users.js';
+import { getGroupForMember } from './groups/groups.js';
+import { createRepaymentsRouter } from './repayments/repayment-routes.js';
+import { profileAvatars } from './identity/avatar-profile.js';
+import { createAvatarReader, type AvatarLookup } from './identity/avatars.js';
+import { createBillsRouter } from './bills/bill-routes.js';
+import { BillError } from "./shared/bill-error.js";
 import express, { type ErrorRequestHandler, type Request, type RequestHandler } from 'express';
 import { clerkClient, clerkMiddleware, getAuth } from '@clerk/express';
-import { getOrCreateUser } from './users.js';
-import { GroupAccessError, GroupDeletionError } from './groups.js';
-import { createGroupsRouter } from './group-routes.js';
-import { InvalidGroupIconError } from './group-icon.js';
+import { getOrCreateUser } from './identity/users.js';
+import { GroupAccessError, GroupDeletionError } from './groups/groups.js';
+import { createGroupsRouter } from './groups/group-routes.js';
+import { InvalidGroupIconError } from './groups/group-icon.js';
 
 declare global {
   namespace Express {
@@ -59,7 +59,6 @@ export function createApp(auth: Authentication = {
     res.setHeader('Cache-Control', 'no-store');
     next();
   });
-
 
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok' });
