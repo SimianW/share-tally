@@ -138,11 +138,10 @@ pnpm --dir server typecheck
 pnpm --dir server test
 ```
 
-Backend tests require Docker and create isolated PostgreSQL test containers. Browser tests also require Docker. Install Chromium before running them:
+Backend tests require Docker and create isolated PostgreSQL test containers. Browser tests require Docker on the machine running Vite, or a test runner sharing that machine's host network. They build a cached browser image matching the installed Playwright version and start a fresh Chromium container for each scenario. The first run downloads the official Playwright image and installs its matching Node package; subsequent runs reuse Docker's build cache. No host Chromium installation is needed:
 
 ```bash
 cd client
-pnpm exec playwright install chromium
 pnpm test:groups
 pnpm test:receipts
 pnpm test:avatar
@@ -156,9 +155,13 @@ pnpm test:receipts scan-fallback processing-recovery
 pnpm test:browser --list
 ```
 
-A failing scenario is reported by name; screenshots of its open pages are kept in `client/test-results/failures/<scenario>/`. `pnpm test:environment` checks that a start-up failing part-way leaves no container or API process behind. Scenarios live in `client/test/browser/`, grouped by business area; `environment.mjs` is the shared environment and `suites.mjs` lists every scenario.
+A failing scenario is reported by name; screenshots of its open pages are kept in `client/test-results/failures/<scenario>/`. `pnpm test:environment` checks partial-startup cleanup, browser connection failures, normal disposal and browser/`route.fetch` origin behavior. `pnpm test:network-isolation` creates and removes unrelated Docker bridges while a controlled graph of JavaScript modules is loading and fails if any browser resources report `ERR_NETWORK_CHANGED`. Scenarios live in `client/test/browser/`, grouped by business area; `environment.mjs` is the shared environment and `suites.mjs` lists every scenario.
 
-Run the browser suites sequentially, after backend/container checks finish; Docker network changes can interrupt Chromium requests. `server/test/domain.test.ts` covers exact arithmetic and pricing edge cases; existing API and browser suites exercise financial, authorization, concurrency and interaction behavior.
+The browser container uses its own network namespace. Its loopback relay forwards the application's port to Vite through Docker's `host-gateway`, preserving localhost secure contexts, `receipt.test` plain-HTTP contexts and intercepted upstream requests. Vite listens on all interfaces while a scenario runs, so run these test-only identities and services on a trusted development machine. An unrelated remote Docker daemon cannot reach Vite using this setup. Host executable overrides such as `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` no longer apply.
+
+Run the browser suites sequentially because they share Vite's dependency cache. Other jobs may create and remove Docker bridges without interrupting Chromium. A remaining `ERR_NETWORK_CHANGED` is still reported as a failure, with no automatic retry. If the browser cannot reach Vite, check Docker's host-gateway access and local firewall rules. Avoid deleting `~/.cache/ms-playwright` without checking other projects: it is shared, even though these tests no longer need its browsers.
+
+`server/test/domain.test.ts` covers exact arithmetic and pricing edge cases; existing API and browser suites exercise financial, authorization, concurrency and interaction behavior.
 
 ## Project docs
 
