@@ -62,6 +62,8 @@ Both applications link `@share-tally/domain` ([ADR-0016](docs/adr/0016-share-fin
 
 Server routes call workflows for operations spanning business modules. A workflow owns the transaction and passes its transaction to module operations; those operations do not import routes or workflows. Group deletion is the first such workflow: it locks the group before checking eligibility and purging receipt drafts, then publishes the deletion event after commit.
 
+The group-icon picker's compact emoji metadata is generated; do not edit `client/src/features/groups/icons/emoji-data.json` by hand. After upgrading `emojibase-data`, regenerate it with `pnpm --dir client generate:emoji` and run `pnpm --dir client test:unit`.
+
 ### Consolidated implementations
 
 These were the overlapping implementations found in the structure audit. Each row records the selected owner and the differences deliberately retained to preserve behavior.

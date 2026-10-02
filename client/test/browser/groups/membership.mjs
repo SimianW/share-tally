@@ -4,7 +4,7 @@ import { mkdir } from 'node:fs/promises';
 import { expect } from '@playwright/test';
 import { screenshots } from '../environment.mjs';
 import { costcoFriends } from './fixtures.mjs';
-import { homeRow, openGroupSwitcher } from '../ui.mjs';
+import { groupNet, homeRow, openGroupSwitcher } from '../ui.mjs';
 
 export const scenarios = [
   { name: 'group-refresh', run: groupRefresh },
@@ -23,6 +23,16 @@ async function checkNoGroups(page, label) {
   await expect(page.getByRole('heading', { level: 1 })).toHaveText("Hey Member, you're all caught up");
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${label} zero-group Home overflows`);
   await page.screenshot({ path: `${screenshots}/home-zero-${label}.png`, fullPage: true, animations: 'disabled' });
+}
+
+// Records the dev server's emoji data module requests, which only the Emoji tab may trigger.
+function watchEmojiData(page) {
+  const requests = [];
+  page.on('request', request => {
+    const pathname = new URL(request.url()).pathname;
+    if (/\/(?:src|node_modules)\//i.test(pathname) && /emoji-catalog|emojibase-data|emoji-data/i.test(pathname)) requests.push(pathname);
+  });
+  return requests;
 }
 
 // Successful membership writes must remain visible even when the list read fails.
@@ -94,7 +104,10 @@ async function groupRefresh({ pageFor, base }) {
 async function groupInvitations(env) {
   const { pageFor, base } = env;
   const alice = await pageFor('alice-token', { width: 1280, height: 900 });
+  const emojiModuleRequests = watchEmojiData(alice);
   await alice.goto(base);
+  await expect(alice.getByRole('button', { name: 'New group', exact: true })).toBeVisible();
+  assert.deepEqual(emojiModuleRequests, [], 'Home should not load emoji data modules');
   await alice.getByRole('button', { name: 'New group', exact: true }).click();
   await alice.getByLabel('Group name').fill('Costco friends');
   await alice.getByRole('button', { name: 'Choose group icon' }).click();
@@ -110,7 +123,9 @@ async function groupInvitations(env) {
   await alice.getByRole('button', { name: 'Use icon', exact: true }).click();
   await expect(alice.getByRole('button', { name: 'Choose group icon' }).locator('svg.lucide-coffee')).toBeVisible();
   await alice.getByRole('button', { name: 'Choose group icon' }).click();
+  assert.deepEqual(emojiModuleRequests, [], 'Emoji data should stay unloaded until the Emoji tab is clicked');
   await alice.getByRole('button', { name: /^Emoji/ }).click();
+  await expect.poll(() => emojiModuleRequests.length).toBeGreaterThan(0);
   await alice.getByLabel('Search icons and emoji').fill('pizza');
   await expect(alice.getByRole('button', { name: 'Select pizza', exact: true })).toContainText('🍕');
   await alice.getByRole('button', { name: 'Select pizza', exact: true }).click();
@@ -140,6 +155,12 @@ async function groupInvitations(env) {
   await alice.getByRole('button', { name: 'Copy invitation link' }).click();
   await expect(copiedNotice).toBeVisible();
   const groupUrl = alice.url();
+  const groupPage = await pageFor('alice-token', { width: 1280, height: 900 });
+  const groupEmojiModules = watchEmojiData(groupPage);
+  await groupPage.goto(groupUrl);
+  await expect(groupNet(groupPage)).toContainText("You're settled up");
+  assert.deepEqual(groupEmojiModules, [], 'Group page should not load emoji data modules');
+  await groupPage.context().close();
   // A signed-out mobile visitor keeps the invitation across the sign-in boundary.
   const bob = await pageFor(null, { width: 390, height: 844 });
   await bob.goto(oldLink);

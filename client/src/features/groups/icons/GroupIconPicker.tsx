@@ -4,6 +4,7 @@ import { Check, ChevronDown, Search, X } from 'lucide-react';
 import { GroupIconView } from './GroupIconView';
 import { isUnicodeIcon, type GroupIcon } from './group-icon';
 import { iconLabel, lucideChoices, type IconChoice } from './icon-catalog';
+import { searchChoices } from './icon-search';
 
 export default function GroupIconPicker({ value, onApply, onCancel }: {
   value: GroupIcon; onApply: (value: GroupIcon) => void; onCancel: () => void;
@@ -31,11 +32,8 @@ export default function GroupIconPicker({ value, onApply, onCancel }: {
     return () => { active = false; };
   }, [source, emojis, retry]);
 
-  const results = useMemo(() => {
-    const words = query.toLowerCase().trim().replaceAll('-', ' ').split(/\s+/);
-    return (source === 'lucide' ? lucideChoices : emojis ?? []).filter(item =>
-      words.every(word => item.keywords.toLowerCase().includes(word)));
-  }, [source, emojis, query]);
+  const results = useMemo(() => searchChoices(source === 'lucide' ? lucideChoices : emojis ?? [], query),
+    [source, emojis, query]);
   const invalidCustom = custom !== '' && !isUnicodeIcon(custom);
   function resetResults() { setLimit(48); resultsRef.current?.scrollTo(0, 0); }
   function changeSource(next: GroupIcon['type']) {
