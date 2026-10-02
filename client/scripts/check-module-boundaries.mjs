@@ -56,20 +56,24 @@ function layerFor(file) {
   return segments[0];
 }
 
+// Vite serves the client root at `/`, so `/src/...` names the same files as relative imports.
 function resolveImport(file, specifier) {
-  const base = specifier.startsWith('/')
-    ? path.posix.normalize(specifier.slice(1))
-    : path.posix.normalize(path.posix.join(path.posix.dirname(file), specifier));
-  return base.replace(/\.(?:js|jsx|ts|tsx|css)$/i, '');
+  const bare = specifier.replace(/[?#].*$/, '');
+  const base = bare.startsWith('/')
+    ? path.posix.normalize(bare.slice(1)).replace(/^src\//, '')
+    : path.posix.normalize(path.posix.join(path.posix.dirname(file), bare));
+  return base.replace(/\.(?:js|jsx|mjs|ts|tsx|css)$/i, '');
 }
 
-async function listSources(directory) {
+const sourceExtensions = new Set(['.js', '.jsx', '.mjs', '.ts', '.tsx', '.css']);
+
+export async function listSources(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
   const files = [];
   for (const entry of entries) {
     const fullPath = path.join(directory, entry.name);
     if (entry.isDirectory()) files.push(...await listSources(fullPath));
-    else if (['.ts', '.tsx', '.css'].includes(path.extname(entry.name).toLowerCase())) files.push(fullPath);
+    else if (sourceExtensions.has(path.extname(entry.name).toLowerCase())) files.push(fullPath);
   }
   return files;
 }

@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { moduleBoundaryViolations } from './check-module-boundaries.mjs';
+import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { listSources, moduleBoundaryViolations } from './check-module-boundaries.mjs';
 
 test('allows imports within the same feature', () => {
   assert.deepEqual(moduleBoundaryViolations(new Map([
@@ -138,4 +141,36 @@ test('checks unquoted CSS url imports', () => {
   assert.deepEqual(moduleBoundaryViolations(new Map([
     ['shared/styles.css', '@import url(../features/bills/bills.css);'],
   ])), ['shared/styles.css:1: shared must not import features/bills']);
+});
+
+test('resolves root-relative Vite source imports', () => {
+  assert.deepEqual(moduleBoundaryViolations(new Map([
+    ['shared/styles.css', '@import "/src/features/bills/bills.css";'],
+    ['features/groups/GroupFeature.tsx', "import { app } from '/src/app/AppShell';\nimport { api } from '/src/features/bills/api';"],
+  ])), [
+    'shared/styles.css:1: shared must not import features/bills',
+    'features/groups/GroupFeature.tsx:1: features/groups must not import app',
+  ]);
+});
+
+test('checks JavaScript source files', () => {
+  assert.deepEqual(moduleBoundaryViolations(new Map([
+    ['shared/legacy.mjs', "export { api } from '../features/bills/api.js';"],
+  ])), ['shared/legacy.mjs:1: shared must not import features/bills']);
+});
+
+test('lists JavaScript source files for checking', async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'module-boundaries-'));
+  await mkdir(path.join(directory, 'shared'));
+  for (const name of ['a.js', 'b.mjs', 'c.jsx', 'd.ts', 'e.tsx', 'f.css', 'g.svg']) await writeFile(path.join(directory, 'shared', name), '');
+  const names = (await listSources(directory)).map(file => path.basename(file)).sort();
+  assert.deepEqual(names, ['a.js', 'b.mjs', 'c.jsx', 'd.ts', 'e.tsx', 'f.css']);
+});
+
+test('ignores Vite query suffixes when matching public entries', () => {
+  assert.deepEqual(moduleBoundaryViolations(new Map([
+    ['features/home/Home.tsx', "import source from '../groups/api.ts?raw';\nimport url from '../receipts/drafts/ReceiptDrafts.tsx?url';"],
+  ])), [
+    'features/home/Home.tsx:2: features/home imports features/receipts/drafts/ReceiptDrafts, which is not a public entry point of features/receipts; compose it in app',
+  ]);
 });
