@@ -12,7 +12,7 @@ import { MoneyField } from "../../../shared/ui/fields/MoneyField";
 import { ParticipantPicker } from "../../../shared/ui/ParticipantPicker";
 import { SegmentedControl } from "../../../shared/ui/SegmentedControl";
 import { type GroupDetail } from "../../groups/api";
-import { itemsComplete, itemsReady } from "./draft-model";
+import { type Step, itemsComplete, itemsReady } from "./draft-model";
 
 export function ReceiptSharingStep({
   data,
@@ -30,7 +30,7 @@ export function ReceiptSharingStep({
   group: GroupDetail;
   ownId: string;
   update: (patch: Partial<ReceiptData>) => void;
-  setStep: (step: number) => void;
+  setStep: (step: Step) => void;
   notesOpen: boolean;
   setNotesOpen: (value: boolean) => void;
   enteringTotal: boolean;
