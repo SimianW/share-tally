@@ -24,10 +24,12 @@ if (unknown.length) {
 const named = all.filter(({ name }) => args.includes(name));
 const selected = named.length ? named : all.filter(({ suite }) => args.includes(suite));
 
-let active;
+let active, starting;
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, async () => {
   console.error(`\n${signal}: disposing the running scenario's environment.`);
-  await active?.dispose().catch(error => console.error(error));
+  // An environment still starting is disposed once it is up; a failed start disposes itself.
+  const env = active ?? await starting?.catch(() => undefined);
+  await env?.dispose().catch(error => console.error(error));
   process.exit(130);
 });
 
@@ -45,10 +47,11 @@ for (const scenario of selected) {
   console.log(`\n▶ ${label}`);
   const started = Date.now();
   const seconds = () => `${((Date.now() - started) / 1000).toFixed(1)} s`;
-  active = undefined;
+  active = starting = undefined;
   try {
     const crashed = new Promise((_, reject) => { crash = reject; });
-    active = await startEnvironment(scenario.environment);
+    starting = startEnvironment(scenario.environment);
+    active = await starting;
     await Promise.race([scenario.run(active), crashed]);
     assert.deepEqual(active.errors, [], 'Pages raised uncaught errors');
     console.log(`✓ ${label} (${seconds()})`);

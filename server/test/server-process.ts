@@ -96,7 +96,11 @@ const server = await startServer(app, 0, '127.0.0.1');
 if (!server.listening) await once(server, 'listening');
 const address = server.address();
 if (address && typeof address !== 'string') process.send?.(address.port);
+let shuttingDown = false;
 function shutDown() {
+  // SIGTERM and the IPC disconnect that follows it can both arrive.
+  if (shuttingDown) return;
+  shuttingDown = true;
   server.close(async () => {
     await closeDatabase();
     process.exit(0);
