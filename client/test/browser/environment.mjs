@@ -7,11 +7,13 @@
 // credentials, or session lifetime.
 import assert from 'node:assert/strict';
 import { fork } from 'node:child_process';
+import { createHash, randomUUID } from 'node:crypto';
 import { once } from 'node:events';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
+import { GenericContainer, Wait, getContainerRuntimeClient } from 'testcontainers';
 import { createServer } from 'vite';
 import react from '@vitejs/plugin-react';
 import { themeBootstrap } from '../../build/theme-bootstrap.ts';
@@ -24,6 +26,7 @@ export const serverRequire = createRequire(`${serverRoot}package.json`);
 
 const postgresImage = 'postgres:17.6-alpine';
 const apiStartupTimeout = 30_000;
+let browserImage;
 
 // Options:
 // - backend: start PostgreSQL and the API (default). Component-only scenarios turn it off.
@@ -71,7 +74,7 @@ export async function startEnvironment({ backend = true, remoteHost = null, firs
       } }, react()],
       optimizeDeps: { exclude: ['@clerk/react'] },
       server: {
-        host: '127.0.0.1', port: 0,
+        host: '0.0.0.0', port: 0,
         ...(remoteHost ? { allowedHosts: [remoteHost] } : {}),
         ...(api ? { proxy: { '/api': api.url } } : {}),
       },
@@ -79,16 +82,10 @@ export async function startEnvironment({ backend = true, remoteHost = null, firs
     disposers.push(() => vite.close());
     await vite.listen();
     const origin = new URL(vite.resolvedUrls.local[0]);
-    if (remoteHost) origin.hostname = remoteHost;
+    origin.hostname = remoteHost ?? '127.0.0.1';
     await checkpoint('vite', { base: origin.href });
 
-    const browser = await chromium.launch({
-      // Playwright would otherwise exit the process on a signal before the database is disposed.
-      handleSIGINT: false, handleSIGTERM: false, handleSIGHUP: false,
-      ...(remoteHost ? { args: [`--host-resolver-rules=MAP ${remoteHost} 127.0.0.1`, '--no-proxy-server'] } : {}),
-      ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}),
-    });
-    disposers.push(() => browser.close());
+    const browser = await startBrowser(Number(origin.port), remoteHost, disposers, checkpoint);
     await checkpoint('browser', { browser });
     await mkdir(screenshots, { recursive: true });
 
@@ -142,6 +139,54 @@ export async function startEnvironment({ backend = true, remoteHost = null, firs
     try { await dispose(); } catch (disposalError) { console.error(disposalError); }
     throw error;
   }
+}
+
+// Build once per runner process. Docker caches the layers across invocations;
+// the content-derived tag prevents another worktree overwriting this image.
+async function buildBrowserImage() {
+  const root = fileURLToPath(new URL('./container/', import.meta.url));
+  const require = createRequire(import.meta.url);
+  const { version } = require('@playwright/test/package.json');
+  const sources = await Promise.all(['Dockerfile', 'server.mjs'].map(name => readFile(`${root}${name}`)));
+  const hash = createHash('sha256').update(version);
+  for (const source of sources) hash.update(source);
+  const image = `share-tally-browser:${version}-${hash.digest('hex').slice(0, 16)}`;
+  await GenericContainer.fromDockerfile(root)
+    .withBuildArgs({ PLAYWRIGHT_VERSION: version })
+    .build(image, { deleteOnExit: false });
+  return image;
+}
+
+// Register removal before Docker starts the process, so a failed readiness wait
+// or websocket connection is covered by the environment's usual cleanup.
+class BrowserContainer extends GenericContainer {
+  constructor(image, onCreated) { super(image); this.onCreated = onCreated; }
+  async containerCreated(id) { await this.onCreated(id); }
+}
+
+async function startBrowser(appPort, remoteHost, disposers, checkpoint) {
+  const image = await (browserImage ??= buildBrowserImage().catch(error => { browserImage = undefined; throw error; }));
+  const client = await getContainerRuntimeClient();
+  const wsPath = `/${randomUUID()}`;
+  const container = await new BrowserContainer(image, async browserContainerId => {
+    const handle = client.container.getById(browserContainerId);
+    disposers.push(() => handle.remove({ force: true, v: true }));
+    await checkpoint('browser-container-created', { browserContainerId });
+  })
+    .withEnvironment({ APP_PORT: String(appPort), APP_REMOTE_HOST: remoteHost ?? '', BROWSER_WS_PATH: wsPath })
+    .withExtraHosts([{ host: 'host.docker.internal', ipAddress: 'host-gateway' }])
+    .withExposedPorts(3000)
+    .withSharedMemorySize(1024 * 1024 * 1024)
+    .withWaitStrategy(Wait.forLogMessage('Browser ready'))
+    .withStartupTimeout(30_000)
+    .start();
+  await checkpoint('browser-container', { browserContainerId: container.getId() });
+  const endpoint = new URL(`ws://127.0.0.1${wsPath}`);
+  endpoint.hostname = container.getHost();
+  endpoint.port = String(container.getMappedPort(3000));
+  const browser = await chromium.connect(endpoint.href, { timeout: 15_000 });
+  disposers.push(() => browser.close());
+  return browser;
 }
 
 // The test entry point replaces Clerk and the receipt providers; production entry points never import it.

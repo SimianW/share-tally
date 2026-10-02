@@ -15,18 +15,19 @@
     "test:groups": "node ../scripts/build-domain.mjs && node test/browser/run.mjs groups",
     "test:browser": "node ../scripts/build-domain.mjs && node test/browser/run.mjs",
     "test:environment": "node ../scripts/build-domain.mjs && node --test test/browser/environment.test.mjs",
+    "test:network-isolation": "node ../scripts/build-domain.mjs && node --test test/browser/network-isolation.test.mjs",
     "test:unit": "node ../scripts/build-domain.mjs && node --test scripts/test-*.mjs"
   },
   "dependencies": {
     "@clerk/react": "^6.15.1",
+    "@share-tally/domain": "link:../packages/domain",
     "@tanstack/react-query": "^5.102.8",
     "emojibase-data": "^17.0.0",
     "lucide-react": "^1.45.0",
     "motion": "^13.4.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-zoom-pan-pinch": "^4.2.0",
-    "@share-tally/domain": "link:../packages/domain"
+    "react-zoom-pan-pinch": "^4.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -39,6 +40,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.4",
     "globals": "^17.11.0",
+    "testcontainers": "12.1.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.67.0",
     "vite": "^8.2.2"

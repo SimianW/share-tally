@@ -82,7 +82,7 @@ if (failed.length) {
 // Keeps a screenshot and the visible text of every open page under test-results/failures/<scenario>/.
 async function reportFailure(env, name) {
   if (env.networkChangeFailures.size) {
-    console.error('Browser resource loading was interrupted by ERR_NETWORK_CHANGED. Host network changes, including concurrent Docker container startup/shutdown, can leave the app blank before UI assertions run. Run browser scenarios separately from container-changing jobs; the assertion still fails.');
+    console.error('Browser resource loading was interrupted by ERR_NETWORK_CHANGED. Chromium runs in an isolated container; inspect changes to its network and application connectivity. The scenario still fails and is not retried.');
     console.error('Affected resource samples:', [...env.networkChangeFailures.entries()].slice(0, 8));
   }
   const directory = `${screenshots}/failures/${name}`;

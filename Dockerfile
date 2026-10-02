@@ -15,7 +15,7 @@ FROM node-base AS client-lint
 WORKDIR /app/client
 COPY packages/domain/ /app/packages/domain/
 COPY scripts/build-domain.mjs /app/scripts/build-domain.mjs
-COPY client/package.json client/pnpm-lock.yaml ./
+COPY client/package.json client/pnpm-lock.yaml client/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY client/ ./
 RUN pnpm lint && pnpm test:unit && touch /client-lint-passed
