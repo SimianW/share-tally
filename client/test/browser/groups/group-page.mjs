@@ -453,7 +453,13 @@ async function checkGroupPage(pageFor, base, api) {
       // The heading row keeps the control on screen and tappable at both widths.
       const box = await reveal.boundingBox();
       assert.ok(box.height >= 32 && box.x >= 0 && box.x + box.width <= viewport.width, `canceled control fits: ${JSON.stringify(box)}`);
-      await reveal.click();
+      await reveal.focus();
+      await page.keyboard.press('Shift+Tab');
+      await page.keyboard.press('Tab');
+      await expect(reveal).toBeFocused();
+      assert.equal(await reveal.evaluate(button => button.matches(':focus-visible') && getComputedStyle(button).outlineStyle !== 'none'), true,
+        `keyboard focus on the canceled control is visible on ${device}`);
+      await page.keyboard.press('Enter');
       const latest = await historyBills(true, token);
       assert.equal(latest.length, 12);
       await pageHistory.getByRole('button', { name: `Show all ${latest.length}` }).click();
