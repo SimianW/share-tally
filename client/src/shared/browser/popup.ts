@@ -12,7 +12,8 @@ export function usePopup() {
     if (!open) return;
     // Touch browsers such as iOS Safari do not blur on a tap on non-focusable content.
     function pressedOutside(event: PointerEvent) {
-      pressingTrigger.current = !!trigger.current?.contains(event.target as Node);
+      // Only a primary press will produce the click that toggles the popup.
+      pressingTrigger.current = event.button === 0 && !!trigger.current?.contains(event.target as Node);
       if (!root.current?.contains(event.target as Node)) setOpen(false);
     }
     function clicked() { pressingTrigger.current = false; }

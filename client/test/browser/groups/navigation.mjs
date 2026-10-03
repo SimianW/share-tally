@@ -388,6 +388,11 @@ async function checkGroupSwitcher(page, label) {
   await expect(page).toHaveURL(costcoUrl);
   await trigger.click();
   await expect(listbox).toBeVisible();
+  // A context-menu press has no click to toggle the popup or clear a pending press.
+  await trigger.click({ button: 'right' });
+  await page.evaluate(() => document.activeElement?.blur());
+  await expect(listbox).toHaveCount(0);
+  await trigger.click();
   await option('Apartment').click();
   await expect(listbox).toHaveCount(0);
   await expect(page).toHaveURL(/#\/group-bills\/[^/?#]+$/);
