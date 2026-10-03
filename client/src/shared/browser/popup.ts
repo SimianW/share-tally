@@ -13,8 +13,17 @@ export function usePopup() {
     function pressedOutside(event: PointerEvent) {
       if (!root.current?.contains(event.target as Node)) setOpen(false);
     }
+    // Safari can blur the focused option to the body when pressing the button.
+    // Preserve focus until click closes the popup, including after touch pointerup.
+    function preserveFocus(event: MouseEvent) {
+      if (event.button === 0 && trigger.current?.contains(event.target as Node)) event.preventDefault();
+    }
     document.addEventListener('pointerdown', pressedOutside);
-    return () => document.removeEventListener('pointerdown', pressedOutside);
+    document.addEventListener('mousedown', preserveFocus);
+    return () => {
+      document.removeEventListener('pointerdown', pressedOutside);
+      document.removeEventListener('mousedown', preserveFocus);
+    };
   }, [open]);
 
   // Closing on purpose returns focus to the button that opened the popup.
@@ -22,11 +31,15 @@ export function usePopup() {
     setOpen(false);
     trigger.current?.focus();
   }
+  function toggle() {
+    if (open) close();
+    else setOpen(true);
+  }
   // Tabbing away, or a click that moves focus elsewhere, also closes the popup.
   function focusLeft(event: FocusEvent<HTMLElement>) {
     if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
   }
-  return { open, setOpen, close, root, trigger, focusLeft };
+  return { open, setOpen, close, toggle, root, trigger, focusLeft };
 }
 
 // The item an arrow, Home or End key moves to, or undefined for any other key.
