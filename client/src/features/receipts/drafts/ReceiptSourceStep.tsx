@@ -15,7 +15,7 @@ import { SplitTotalPanel } from "./SplitTotalPanel";
 
 type Mode = ReceiptData["mode"];
 
-/** The text a By amount draft's saved total shows as. */
+/** The text a By amount draft's total shows as. */
 const typedTotal = ({ data }: ReceiptDraft) =>
   data.mode === "manual" && data.totalCents !== null ? amountText(data.totalCents) : "";
 
@@ -26,7 +26,6 @@ const typedTotal = ({ data }: ReceiptDraft) =>
  */
 export function ReceiptSourceStep({
   draft,
-  saved,
   setFile,
   replace,
   setReplace,
@@ -35,8 +34,6 @@ export function ReceiptSourceStep({
   setStep,
 }: {
   draft: ReceiptDraft;
-  /** The saved draft the editor's content started from; it changes only when the editor adopts one. */
-  saved: ReceiptDraft | null;
   setFile: (file: File | null) => void;
   replace: boolean;
   setReplace: (value: boolean) => void;
@@ -47,14 +44,6 @@ export function ReceiptSourceStep({
   const [mode, setMode] = useState<Mode>(draft.data.mode);
   // Held here so a typed total survives a look at the other panel.
   const [totalText, setTotalText] = useState(() => typedTotal(draft));
-  // Adopting a saved draft, such as after Reload saved draft, discards the
-  // local view along with local edits.
-  const [shownFor, setShownFor] = useState(saved);
-  if (shownFor !== saved) {
-    setShownFor(saved);
-    setMode(draft.data.mode);
-    setTotalText(typedTotal(draft));
-  }
   const reducedMotion = useReducedMotion();
   return (
     <div className="split-method">
@@ -95,7 +84,7 @@ function ItemSource({
   scan,
   update,
   setStep,
-}: Omit<Parameters<typeof ReceiptSourceStep>[0], "saved">) {
+}: Parameters<typeof ReceiptSourceStep>[0]) {
   const data = draft.data;
   const cameraInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);

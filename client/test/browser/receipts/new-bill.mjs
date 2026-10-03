@@ -36,12 +36,18 @@ async function scanRetry(env) {
   assert.equal((await api(`/groups/${group.id}/receipt-drafts`)).drafts.length, 0);
   await alice.getByRole("button", { name: "New bill", exact: true }).click();
   await expectNewBillRoute();
+  // A total typed before choosing By item does not pull the view back while the scan saves first.
+  const method = alice.getByRole("radiogroup", { name: "How to split this bill" });
+  await method.getByRole("radio", { name: "By amount" }).check();
+  await alice.getByLabel("Total to split", { exact: true }).fill("20");
+  await method.getByRole("radio", { name: "By item" }).check();
   const temporaryPhoto = await serverRequire("sharp")({ create: { width: 20, height: 30, channels: 3, background: "red" } }).png().toBuffer();
   await alice.getByLabel("Choose a receipt image").setInputFiles({ name: "discard.png", mimeType: "image/png", buffer: temporaryPhoto });
   await alice.getByRole("button", { name: "Use this photo", exact: true }).click();
   await expect(alice.getByRole("img", { name: "Original cropped receipt" })).toBeVisible();
   // The first extraction fails on purpose; cropping must have started it without a Read receipt click.
   await expect(alice.getByText("Test extraction unavailable. Your draft is safe.", { exact: true })).toBeVisible();
+  await expect(method.getByRole("radio", { name: "By item" })).toBeChecked();
   await expect(alice.getByRole("button", { name: "Read receipt", exact: true })).toBeVisible();
   await alice.getByRole("button", { name: "Read receipt", exact: true }).click();
   await expect(alice.getByRole("heading", { name: "Check your items" })).toBeVisible();
@@ -530,7 +536,11 @@ async function splitMethodEntry(env) {
   await expect(people).toBeVisible();
   await stepButton("Receipt").click();
   await total.fill("12.345");
+  await proceed.click();
+  await expect(alice.getByText("Enter an amount with at most two decimal places.", { exact: true })).toBeVisible();
   await failSaveAndReload(untotalled);
   await expect(byAmount).toBeChecked();
   await expect(total).toHaveValue("");
+  await expect(alice.getByText("Enter an amount with at most two decimal places.", { exact: true })).toHaveCount(0);
+  await expect(total).not.toHaveAttribute("aria-invalid");
 }

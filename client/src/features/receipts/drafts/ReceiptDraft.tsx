@@ -48,6 +48,8 @@ export function ReceiptDraftForm({
   // Split by item, an empty total paid follows the items; this shows its input anyway.
   const [enteringTotal, setEnteringTotal] = useState(false);
   const [replace, setReplace] = useState(false);
+  // Reloading discards local edits, so the first step restarts its view of the draft.
+  const [reloads, setReloads] = useState(0);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const stepHeading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
@@ -134,7 +136,7 @@ export function ReceiptDraftForm({
           {editor.syncError && processing && <p role="status">{editor.syncError}</p>}
           <fieldset disabled={running || !!draft.initializationRevision || (processing && step !== 1)}>
             {step === 0 && (
-              <ReceiptSourceStep draft={draft} saved={state.baseline} setFile={setFile} replace={replace} setReplace={setReplace}
+              <ReceiptSourceStep key={reloads} draft={draft} setFile={setFile} replace={replace} setReplace={setReplace}
                 scan={scan} update={editor.edit} setStep={editor.chooseStep} />
             )}
             {step === 1 && data.mode === "items" && (
@@ -180,7 +182,11 @@ export function ReceiptDraftForm({
               <p>{state.error}</p>
               <Button
                 variant="text"
-                onClick={() => void editor.reload().then((reloaded) => { if (reloaded) setFile(null); })}
+                onClick={() => void editor.reload().then((reloaded) => {
+                  if (!reloaded) return;
+                  setFile(null);
+                  setReloads((count) => count + 1);
+                })}
               >
                 Reload saved draft, discarding local edits
               </Button>
