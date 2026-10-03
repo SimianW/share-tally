@@ -90,6 +90,9 @@ async function memberRenames(env) {
   const alice = await pageFor('alice-token', { width: 1280, height: 900 });
   await alice.goto(billsUrl);
   await expect(alice.getByText('Bob says they sent $2.00')).toBeVisible();
+  const explanation = alice.getByRole('region', { name: 'How the numbers add up' });
+  await explanation.getByRole('button', { name: 'How the numbers add up' }).click();
+  await expect(explanation.getByRole('columnheader', { name: /^Bob/ })).toBeVisible();
   const aliceFruit = await newTab(env, alice, `${base}#/bills/${fruit.id}`);
   await aliceFruit.getByRole('button', { name: 'View Apples · $3.00', exact: true }).click();
   const sheet = aliceFruit.getByRole('dialog', { name: 'Apples', exact: true });
@@ -121,6 +124,8 @@ async function memberRenames(env) {
   await expectAccountName(bob, '111wsm');
   await expect(alice.getByText('111wsm says they sent $2.00')).toBeVisible(within());
   await expect(alice.getByRole('region', { name: 'Group balances and repayments' })).toContainText('111wsm', within());
+  await expect(explanation.getByRole('columnheader', { name: /^111wsm/ })).toBeVisible(within());
+  await expect(explanation.getByRole('columnheader', { name: /^Bob/ })).toHaveCount(0);
   await expect(billPeople(aliceFruit)).toContainText('111wsm', within());
   await expect(billPeople(carol)).toContainText('111wsm', within());
   await expect(homeRow(carolHome, 'Costco friends').getByTitle('111wsm', { exact: true })).toHaveCount(1, within());
