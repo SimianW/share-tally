@@ -163,6 +163,34 @@ Run the browser suites sequentially because they share Vite's dependency cache. 
 
 `server/test/domain.test.ts` covers exact arithmetic and pricing edge cases; existing API and browser suites exercise financial, authorization, concurrency and interaction behavior.
 
+## PR automation
+
+[PR size](.github/workflows/pr-size.yml) uses the maintained
+[CodelyTV PR Size Labeler](https://github.com/CodelyTV/pr-size-labeler) to label
+each PR when it opens, reopens or receives new commits. It counts additions plus
+deletions across all files, including lockfiles and generated files. The upstream
+cutoffs are exclusive:
+
+| Changed lines | Label |
+| --- | --- |
+| 0–9 | `size/xs` |
+| 10–99 | `size/s` |
+| 100–499 | `size/m` |
+| 500–999 | `size/l` |
+| 1,000 or more | `size/xl` |
+
+The action replaces stale size labels while keeping unrelated labels. An XL PR
+does not fail the workflow or receive an automatic warning comment. The workflow
+reads GitHub API metadata without checking out PR code and needs only the
+workflow's built-in token.
+
+When a PR is added to the [project](https://github.com/users/SimianW/projects/4),
+its label appears in the project's Labels field. Labels on a linked PR are not
+copied to its issue. The project's Size dropdown remains an implementation
+estimate for issues; PR-Agent's review effort remains a separate estimate of
+review difficulty. This workflow does not write project fields or wait for a
+project-addition event. It becomes active after merging into the default branch.
+
 ## Project docs
 
 - [Project background and development guidelines](docs/project-brief.md)

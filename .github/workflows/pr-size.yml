@@ -1,0 +1,34 @@
+name: PR size
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  pull-requests: write
+
+concurrency:
+  group: pr-size-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Reads PR metadata through the API. Never check out or execute PR code.
+      - name: Label changed lines
+        # CodelyTV/pr-size-labeler v1.12.0, pinned to its release commit.
+        uses: codelytv/pr-size-labeler@19c335e7695ba922de938806dd129f0a9b992644
+        with:
+          xs_label: size/xs
+          xs_max_size: '10'
+          s_label: size/s
+          s_max_size: '100'
+          m_label: size/m
+          m_max_size: '500'
+          l_label: size/l
+          l_max_size: '1000'
+          xl_label: size/xl
+          fail_if_xl: 'false'
+          message_if_xl: ''
