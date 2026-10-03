@@ -1,5 +1,6 @@
 import { routes } from '../shared/browser/paths';
-import { useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { AnimatedMoney } from '../shared/ui/AnimatedMoney';
 import { GroupBalances } from '../features/ledger/GroupBalances';
 import { money } from "../shared/money";
@@ -23,7 +24,6 @@ export function GroupPage({ data, title, drafts, api, refresh, openMembers, sele
   selectedRepaymentId?: string;
 }) {
   const view = groupView(data);
-  const [showHistory, setShowHistory] = useState(false);
   const [prefill, setPrefill] = useState<RepaymentPrefill | null>(null);
   const review = (id: string) => { window.location.hash = routes.groupBills(data.group.id, encodeURIComponent(id)); };
   const tone = view.netCents > 0 ? 'owed' : view.netCents < 0 ? 'owe' : 'settled';
@@ -66,13 +66,7 @@ export function GroupPage({ data, title, drafts, api, refresh, openMembers, sele
 
     <div className="group-drafts">{drafts}</div>
 
-    {view.history.length > 0 && <section aria-label="History">
-      <h2 className="group-section-heading">History <span className="count">{view.history.length}</span></h2>
-      <div className="group-history-list">
-        {(showHistory ? view.history : view.history.slice(0, 5)).map(bill => <GroupBill key={bill.id} bill={bill} view={view} />)}
-      </div>
-      {!showHistory && view.history.length > 5 && <Button className="small group-show-history" variant="secondary" onClick={() => setShowHistory(true)}>Show all {view.history.length}</Button>}
-    </section>}
+    {view.history.length > 0 && <History view={view} />}
 
     <section className="group-card group-audit" aria-label="Group balances and repayments">
       <h2>Group balances &amp; repayments</h2>
@@ -114,6 +108,31 @@ function DashboardPerson({ row, record, review }: {
       </p>)}
     </div>
   </li>;
+}
+
+// Canceled bills are retained but hidden until a member reveals them (#201). The
+// filter applies before the latest-five preview, and the state lives with this
+// group page: live refreshes keep it, while a reload or another group starts hidden.
+function History({ view }: { view: GroupView }) {
+  const [showCanceled, setShowCanceled] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+  const listId = useId();
+  const canceled = view.history.filter(bill => bill.canceledAt).length;
+  const bills = showCanceled ? view.history : view.history.filter(bill => !bill.canceledAt);
+  return <section aria-label="History">
+    <div className="group-history-heading">
+      <h2 className="group-section-heading">History <span className="count">{bills.length}</span></h2>
+      {canceled > 0 && <Button className="small" variant="secondary" expanded={showCanceled} controls={listId}
+        onClick={() => { setShowCanceled(shown => !shown); setShowAll(false); }}>
+        {showCanceled ? <><EyeOff aria-hidden="true" /> Hide canceled</> : <><Eye aria-hidden="true" /> Show canceled · {canceled}</>}
+      </Button>}
+    </div>
+    <div className="group-history-list" id={listId}>
+      {bills.length ? (showAll ? bills : bills.slice(0, 5)).map(bill => <GroupBill key={bill.id} bill={bill} view={view} />)
+        : <p className="group-empty">No completed bills yet.</p>}
+    </div>
+    {!showAll && bills.length > 5 && <Button className="small group-show-history" variant="secondary" onClick={() => setShowAll(true)}>Show all {bills.length}</Button>}
+  </section>;
 }
 
 function GroupBill({ bill, view, entry }: { bill: Bill; view: GroupView; entry?: OpenBill }) {

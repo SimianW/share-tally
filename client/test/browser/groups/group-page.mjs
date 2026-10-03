@@ -13,6 +13,24 @@ const labels = {
 };
 const currency = cents => `$${(cents / 100).toFixed(2)}`;
 const billLink = (region, title) => region.getByRole('link').filter({ hasText: title });
+const historyHrefs = region => region.getByRole('link').evaluateAll(links => links.map(link => link.getAttribute('href')));
+
+// The History region for one canceled filter (#201): `hrefs` is the selected
+// history in server order and `canceled` the group's canceled-bill count.
+async function expectHistory(region, { hrefs, canceled, revealed = false, expanded = false }) {
+  await expect(region.getByRole('heading', { level: 2 })).toHaveText(`History ${hrefs.length}`);
+  const toggle = region.getByRole('button', { name: /^(?:Show|Hide) canceled/ });
+  if (canceled) {
+    await expect(toggle).toHaveAccessibleName(revealed ? 'Hide canceled' : `Show canceled · ${canceled}`);
+    await expect(toggle).toHaveAttribute('aria-expanded', String(revealed));
+    const controlled = await toggle.getAttribute('aria-controls');
+    await expect(region.locator(`[id="${controlled}"]`)).toBeVisible();
+  } else await expect(toggle).toHaveCount(0);
+  await expect.poll(() => historyHrefs(region)).toEqual(expanded ? hrefs : hrefs.slice(0, 5));
+  const showAll = region.getByRole('button', { name: /^Show all/ });
+  if (!expanded && hrefs.length > 5) await expect(showAll).toHaveAccessibleName(`Show all ${hrefs.length}`);
+  else await expect(showAll).toHaveCount(0);
+}
 
 export const scenarios = [
   { name: 'group-page-ledger', run: ({ pageFor, base, api }) => checkGroupPage(pageFor, base, api) },
@@ -83,6 +101,8 @@ async function checkGroupPage(pageFor, base, api) {
   produce = await share(produce, 'member-1', 6000);
   assert.ok(produce.completedAt);
   // Older offsetting bills add four history entries without changing balances.
+  // A canceled bill between the pairs sits among completed history (#201).
+  let withdrawn;
   for (const [index, pair] of [
     ['Pantry restock', 'Shared cleaning kit'], ['Holiday snacks', 'Bulk toiletries'],
   ].entries()) {
@@ -92,6 +112,10 @@ async function checkGroupPage(pageFor, base, api) {
     let bobBill = await manual('Bob', pair[1], 3000 + index * 200, 1000 + index * 100, ['Alice', 'Bob']);
     bobBill = await share(bobBill, 'Alice', 2000 + index * 100);
     assert.ok(bobBill.completedAt);
+    if (index === 0) {
+      withdrawn = await manual('Bob', 'Withdrawn bakery order', 1800, 900, ['Alice', 'Bob']);
+      await api(`/bills/${withdrawn.id}/cancel`, 'bob-token', 'POST', { revision: withdrawn.revision });
+    }
   }
   const missing = await manual('Bob', openName, 5400, 2100, ['Alice', 'Bob', 'Carol']);
   // Only a new total voids manual confirmations (ADR-0015), so the receipt correction changes it.
@@ -155,7 +179,7 @@ async function checkGroupPage(pageFor, base, api) {
   assert.equal(state.summary.netCents, 9725, 'confirmed repayment reduces Alice receivable; pending ones do not');
   assert.equal((await api(`/groups/${groupId}/bills`, 'carol-token')).summary.netCents, -8000);
   assert.equal(state.ledger.incompleteBillIds.length, 5);
-  assert.equal(state.bills.filter(bill => bill.completedAt || bill.canceledAt).length, 7);
+  assert.equal(state.bills.filter(bill => bill.completedAt || bill.canceledAt).length, 8);
   assert.ok(state.repayments.some(record => record.id === secondBobIncoming.id && record.status === 'pending'));
 
   async function open(token, viewport = { width: 1280, height: 900 }) {
@@ -199,11 +223,46 @@ async function checkGroupPage(pageFor, base, api) {
   const openTitles = await openBills.getByRole('link').allTextContents();
   assert.ok(openTitles.slice(0, 4).every(text => /(?:Enter your share|Confirm your share|Claim your items|Confirm your items)/.test(text)),
     'bills requiring Alice come before waiting bills');
-  await expect(history.getByRole('link')).toHaveCount(5);
-  await expect(history.getByRole('button', { name: 'Show all 7' })).toBeVisible();
+  // History hides canceled bills until revealed; each filter keeps the server's
+  // newest-first order and fills the latest-five preview on its own (#201).
+  const historyBills = async (canceledToo, token = 'alice-token') => (await api(`/groups/${groupId}/bills`, token)).bills
+    .filter(bill => bill.completedAt || (canceledToo && bill.canceledAt)).map(bill => `#/bills/${bill.id}`);
+  const completedHistory = await historyBills(false);
+  const mixedHistory = await historyBills(true);
+  assert.equal(completedHistory.length, 6);
+  assert.deepEqual([mixedHistory[0], mixedHistory[3]], [`#/bills/${canceled.id}`, `#/bills/${withdrawn.id}`],
+    'canceled bills are among the newest history entries');
+  const canceledToggle = history.getByRole('button', { name: /^(?:Show|Hide) canceled/ });
+  await expectHistory(history, { hrefs: completedHistory, canceled: 2 });
+  await expect(billLink(history, 'Duplicate register slip')).toHaveCount(0);
+  await history.getByRole('button', { name: 'Show all 6' }).click();
+  await expectHistory(history, { hrefs: completedHistory, canceled: 2, expanded: true });
+  await canceledToggle.click();
+  // Changing the filter returns to the latest-five preview of the selected history.
+  await expectHistory(history, { hrefs: mixedHistory, canceled: 2, revealed: true });
   await expect(billLink(history, 'Duplicate register slip')).toContainText('Canceled');
   await expect(billLink(history, 'Duplicate register slip').getByText('Duplicate register slip', { exact: true })).toHaveCSS('text-decoration-line', 'line-through');
   await expect(billLink(history, 'Duplicate register slip').getByText('$23.00', { exact: true })).toHaveCSS('text-decoration-line', 'line-through');
+  await history.getByRole('button', { name: 'Show all 8' }).click();
+  await expectHistory(history, { hrefs: mixedHistory, canceled: 2, revealed: true, expanded: true });
+  await expect(billLink(history, 'Withdrawn bakery order')).toContainText('Canceled');
+  // The control works from the keyboard with a visible focus ring.
+  await canceledToggle.focus();
+  await alice.keyboard.press('Shift+Tab');
+  await alice.keyboard.press('Tab');
+  await expect(canceledToggle).toBeFocused();
+  assert.equal(await canceledToggle.evaluate(button => button.matches(':focus-visible') && getComputedStyle(button).outlineStyle !== 'none'), true,
+    'keyboard focus on the canceled control is visible');
+  await alice.keyboard.press('Enter');
+  await expectHistory(history, { hrefs: completedHistory, canceled: 2 });
+  await alice.keyboard.press('Space');
+  await expectHistory(history, { hrefs: mixedHistory, canceled: 2, revealed: true });
+  // A revealed canceled bill opens its retained record; returning starts hidden again.
+  await billLink(history, 'Duplicate register slip').click();
+  await expect(alice).toHaveURL(new RegExp(`#/bills/${canceled.id}$`));
+  await expect(alice.getByText('Canceled bills are excluded from balances.')).toBeVisible();
+  await alice.goBack();
+  await expectHistory(history, { hrefs: completedHistory, canceled: 2 });
   const bobRows = dashboard.getByRole('listitem').filter({ hasText: 'Bob says' });
   await expect(bobRows).toHaveCount(1);
   await expect(bobRows).toContainText(currency(bobIncoming.amountCents));
@@ -301,6 +360,8 @@ async function checkGroupPage(pageFor, base, api) {
   assert.ok(moving.completedAt);
   await expect(billLink(openBills, 'Live completion')).toHaveCount(0);
   await expect(billLink(history, 'Live completion')).toContainText('Complete');
+  await expectHistory(history, { hrefs: await historyBills(false), canceled: 2 });
+  assert.equal((await historyBills(false))[0], `#/bills/${moving.id}`);
   // The explanation rides on the same live refresh as the balances it explains.
   await expect(liveTrace.getByRole('link', { name: 'Live completion' })).toHaveAttribute('href', `#/bills/${moving.id}`);
   await expect(liveTrace.getByText(/^Not counted yet:/)).not.toContainText('Live completion');
@@ -309,7 +370,28 @@ async function checkGroupPage(pageFor, base, api) {
   await expect(billLink(openBills, 'Live cancellation')).toBeVisible();
   await api(`/bills/${withdrawing.id}/cancel`, 'alice-token', 'POST', { revision: withdrawing.revision });
   await expect(billLink(openBills, 'Live cancellation')).toHaveCount(0);
+  // Hidden by default, the new canceled record is counted and stays reachable.
+  await expectHistory(history, { hrefs: await historyBills(false), canceled: 3 });
+  await expect(billLink(history, 'Live cancellation')).toHaveCount(0);
+  await canceledToggle.click();
+  await expectHistory(history, { hrefs: await historyBills(true), canceled: 3, revealed: true });
   await expect(billLink(history, 'Live cancellation')).toContainText('Canceled');
+  // Live refreshes keep the revealed filter while counts and order follow the server.
+  let revealedCompletion = await manual('Bob', 'Revealed completion', 1600, 600, ['Alice', 'Bob']);
+  await expect(billLink(openBills, 'Revealed completion')).toBeVisible();
+  revealedCompletion = await share(revealedCompletion, 'Alice', 1000);
+  assert.ok(revealedCompletion.completedAt);
+  await expect(billLink(openBills, 'Revealed completion')).toHaveCount(0);
+  await expectHistory(history, { hrefs: await historyBills(true), canceled: 3, revealed: true });
+  assert.equal((await historyBills(true))[0], `#/bills/${revealedCompletion.id}`);
+  const revealedCancellation = await manual('Alice', 'Revealed cancellation', 1000, 500, ['Alice', 'Bob']);
+  await expect(billLink(openBills, 'Revealed cancellation')).toBeVisible();
+  await api(`/bills/${revealedCancellation.id}/cancel`, 'alice-token', 'POST', { revision: revealedCancellation.revision });
+  await expect(billLink(openBills, 'Revealed cancellation')).toHaveCount(0);
+  await expectHistory(history, { hrefs: await historyBills(true), canceled: 4, revealed: true });
+  await expect(billLink(history, 'Revealed cancellation')).toContainText('Canceled');
+  await alice.reload();
+  await expectHistory(history, { hrefs: await historyBills(false), canceled: 4 });
   await alice.context().close();
 
   // The owing member sees only their own suggestions; a prefill is editable and
@@ -366,14 +448,22 @@ async function checkGroupPage(pageFor, base, api) {
         await expect(page.getByRole('dialog')).toHaveCount(0);
       }
       const pageHistory = page.getByRole('region', { name: 'History', exact: true });
-      const showAll = pageHistory.getByRole('button', { name: /Show all \d+/ });
-      await expect(showAll).toBeVisible();
-      await showAll.click();
-      await expect(pageHistory.getByRole('link')).toHaveCount(9);
-      const latest = (await api(`/groups/${groupId}/bills`, token)).bills
-        .filter(bill => bill.completedAt || bill.canceledAt).map(bill => `#/bills/${bill.id}`);
-      assert.deepEqual(await pageHistory.getByRole('link').evaluateAll(links => links.map(link => link.getAttribute('href'))), latest,
-        'expanded history follows the server newest-first bill order');
+      await expectHistory(pageHistory, { hrefs: await historyBills(false, token), canceled: 4 });
+      const reveal = pageHistory.getByRole('button', { name: 'Show canceled · 4' });
+      // The heading row keeps the control on screen and tappable at both widths.
+      const box = await reveal.boundingBox();
+      assert.ok(box.height >= 32 && box.x >= 0 && box.x + box.width <= viewport.width, `canceled control fits: ${JSON.stringify(box)}`);
+      await reveal.focus();
+      await page.keyboard.press('Shift+Tab');
+      await page.keyboard.press('Tab');
+      await expect(reveal).toBeFocused();
+      assert.equal(await reveal.evaluate(button => button.matches(':focus-visible') && getComputedStyle(button).outlineStyle !== 'none'), true,
+        `keyboard focus on the canceled control is visible on ${device}`);
+      await page.keyboard.press('Enter');
+      const latest = await historyBills(true, token);
+      assert.equal(latest.length, 12);
+      await pageHistory.getByRole('button', { name: `Show all ${latest.length}` }).click();
+      await expectHistory(pageHistory, { hrefs: latest, canceled: 4, revealed: true, expanded: true });
       await sectionOrder(page);
       await page.mouse.move(0, 0);
       await page.evaluate(async () => {
@@ -387,6 +477,8 @@ async function checkGroupPage(pageFor, base, api) {
     }
   }
   console.log('Group page smoke passed: desktop balance tracing, live ledger refresh, member actions, and desktop/mobile history.');
+  await checkHistoryFilterCases(pageFor, base, api);
+  console.log('History filter smoke passed: only-canceled, no-canceled and empty histories, reset per group (#201).');
   const transferFixture = await checkTransferTrace(pageFor, base, api);
   console.log('Desktop transfer trace smoke passed (#174).');
   const longFixture = await checkLongLedger(pageFor, base, api);
@@ -561,6 +653,49 @@ async function fixtureGroup(api, name, tokens) {
       await api(`/repayments/${repayment.id}/decision`, tokenOf[recipient], 'POST', { decision: 'confirmed' });
     },
   };
+}
+
+// History filter edge cases (#201) on a phone: a group with only canceled bills
+// keeps its History section and reveal control, a group without canceled bills
+// omits the control, and an empty group omits History. Every group page opened
+// starts with canceled bills hidden.
+async function checkHistoryFilterCases(pageFor, base, api) {
+  const onlyCanceled = await fixtureGroup(api, 'Only canceled', ['bob-token']);
+  const { bill: dropped } = await api(`/groups/${onlyCanceled.id}/bills`, 'alice-token', 'POST', {
+    requestId: randomUUID(), title: 'Dropped order', purchaseDate: date, timeZone: 'America/Toronto',
+    notes: '', totalCents: 1500, participantIds: [onlyCanceled.ids.Alice, onlyCanceled.ids.Bob],
+  });
+  await api(`/bills/${dropped.id}/cancel`, 'alice-token', 'POST', { revision: dropped.revision });
+  const noCanceled = await fixtureGroup(api, 'No canceled', ['bob-token']);
+  const finished = await noCanceled.bill('Finished shop', [['Alice', 700], ['Bob', 500]]);
+  const empty = await fixtureGroup(api, 'No history', ['bob-token']);
+
+  const page = await pageFor('alice-token', { width: 390, height: 844 });
+  const history = page.getByRole('region', { name: 'History', exact: true });
+  // Hash changes switch groups inside the app, as the group switcher does.
+  async function visit(id, name) {
+    await page.evaluate(hash => { window.location.hash = hash; }, `#/group-bills/${id}`);
+    await expect(page.getByRole('heading', { name })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Where you stand' })).toBeVisible();
+  }
+  await page.goto(`${base}#/group-bills/${onlyCanceled.id}`);
+  await expect(page.getByRole('heading', { name: 'Only canceled' })).toBeVisible();
+  await expectHistory(history, { hrefs: [], canceled: 1 });
+  await expect(history).toContainText('No completed bills yet.');
+  await history.getByRole('button', { name: 'Show canceled · 1' }).click();
+  await expectHistory(history, { hrefs: [`#/bills/${dropped.id}`], canceled: 1, revealed: true });
+  await expect(billLink(history, 'Dropped order')).toContainText('Canceled');
+  await expect(history).not.toContainText('No completed bills yet.');
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true,
+    'revealed only-canceled history has no horizontal overflow');
+
+  await visit(noCanceled.id, 'No canceled');
+  await expectHistory(history, { hrefs: [`#/bills/${finished.id}`], canceled: 0 });
+  await visit(onlyCanceled.id, 'Only canceled');
+  await expectHistory(history, { hrefs: [], canceled: 1 });
+  await visit(empty.id, 'No history');
+  await expect(history).toHaveCount(0);
+  await page.context().close();
 }
 
 // Desktop transfer tracing (#174): a transfer figure pins the payer's and the
