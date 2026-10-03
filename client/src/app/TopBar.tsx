@@ -23,7 +23,7 @@ export function TopBar({ account, openAccount }: { account: SignedInAccount; ope
 }
 
 function AccountMenu({ account, openAccount }: { account: SignedInAccount; openAccount: () => void }) {
-  const { open, setOpen, close, root, trigger, focusLeft } = usePopup();
+  const { open, setOpen, close, toggle, root, trigger, focusLeft } = usePopup();
   const menu = useRef<HTMLDivElement>(null);
   const triggerId = useId();
   const menuId = useId();
@@ -53,7 +53,7 @@ function AccountMenu({ account, openAccount }: { account: SignedInAccount; openA
   return <div ref={root} className="account-menu" onBlur={focusLeft} onKeyDown={navigate}>
     <button ref={trigger} id={triggerId} type="button" className="account-menu-trigger"
       aria-label="Account menu" aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuId : undefined}
-      onClick={() => setOpen(value => !value)}
+      onClick={toggle}
       onKeyDown={event => { if (event.key === 'ArrowDown' && !open) { event.preventDefault(); setOpen(true); } }}>
       <Avatar name={account.name} imageUrl={account.imageUrl} />
       <ChevronDown className="account-menu-chevron" size={16} aria-hidden="true" />

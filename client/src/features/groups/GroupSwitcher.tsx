@@ -29,7 +29,7 @@ export function GroupSwitcher({ groups, currentId, current, loading, error, retr
   focusOnMount: boolean;
   onSelect: (id: string) => void;
 }) {
-  const { open, setOpen, close, root, trigger, focusLeft } = usePopup();
+  const { open, setOpen, close, toggle, root, trigger, focusLeft } = usePopup();
   const listbox = useRef<HTMLUListElement>(null);
   const labelId = useId();
   const listboxId = useId();
@@ -84,7 +84,7 @@ export function GroupSwitcher({ groups, currentId, current, loading, error, retr
     <h2>
       <button ref={trigger} type="button" className="group-switcher-trigger"
         aria-haspopup="listbox" aria-expanded={open} aria-controls={open && groups.length ? listboxId : undefined}
-        onClick={() => setOpen(value => !value)}
+        onClick={toggle}
         onKeyDown={event => {
           if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && !open) { event.preventDefault(); setOpen(true); }
         }}>

@@ -378,19 +378,30 @@ async function checkGroupSwitcher(page, label) {
   await page.screenshot({ path: `${screenshots}/group-switcher-open-${label}.png`, animations: 'disabled' });
   // Safari can blur the focused option without focusing the tapped button.
   // Keep the browser's pointerdown/blur/click order while reproducing that focus policy.
-  await trigger.evaluate(button => button.addEventListener('mousedown', event => {
-    event.preventDefault();
-    document.activeElement?.blur();
+  await trigger.evaluate(button => document.addEventListener('mousedown', event => {
+    if (button.contains(event.target) && !event.defaultPrevented) {
+      event.preventDefault();
+      document.activeElement?.blur();
+    }
   }, { once: true }));
   await trigger.locator('.group-switcher-chevron').click();
   await expect(listbox).toHaveCount(0);
   await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await expect(trigger).toBeFocused();
   await expect(page).toHaveURL(costcoUrl);
   await trigger.click();
   await expect(listbox).toBeVisible();
   // A context-menu press has no click to toggle the popup or clear a pending press.
   await trigger.click({ button: 'right' });
   await page.evaluate(() => document.activeElement?.blur());
+  await expect(listbox).toHaveCount(0);
+  await trigger.click();
+  // A canceled activation can release the pointer without generating a click.
+  await trigger.evaluate(button => {
+    button.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }));
+    button.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }));
+    document.activeElement?.blur();
+  });
   await expect(listbox).toHaveCount(0);
   await trigger.click();
   await option('Apartment').click();

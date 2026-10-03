@@ -7,24 +7,22 @@ export function usePopup() {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
-  const pressingTrigger = useRef(false);
   useEffect(() => {
     if (!open) return;
     // Touch browsers such as iOS Safari do not blur on a tap on non-focusable content.
     function pressedOutside(event: PointerEvent) {
-      // Only a primary press will produce the click that toggles the popup.
-      pressingTrigger.current = event.button === 0 && !!trigger.current?.contains(event.target as Node);
       if (!root.current?.contains(event.target as Node)) setOpen(false);
     }
-    function clicked() { pressingTrigger.current = false; }
+    // Safari can blur the focused option to the body when pressing the button.
+    // Preserve focus until click closes the popup, including after touch pointerup.
+    function preserveFocus(event: MouseEvent) {
+      if (event.button === 0 && trigger.current?.contains(event.target as Node)) event.preventDefault();
+    }
     document.addEventListener('pointerdown', pressedOutside);
-    document.addEventListener('click', clicked);
-    document.addEventListener('pointercancel', clicked);
+    document.addEventListener('mousedown', preserveFocus);
     return () => {
       document.removeEventListener('pointerdown', pressedOutside);
-      document.removeEventListener('click', clicked);
-      document.removeEventListener('pointercancel', clicked);
-      pressingTrigger.current = false;
+      document.removeEventListener('mousedown', preserveFocus);
     };
   }, [open]);
 
@@ -33,14 +31,15 @@ export function usePopup() {
     setOpen(false);
     trigger.current?.focus();
   }
+  function toggle() {
+    if (open) close();
+    else setOpen(true);
+  }
   // Tabbing away, or a click that moves focus elsewhere, also closes the popup.
   function focusLeft(event: FocusEvent<HTMLElement>) {
-    // Safari may blur an option to the body before clicking the trigger. Let
-    // that click close the popup once, rather than closing here and reopening.
-    if (!event.relatedTarget && pressingTrigger.current) return;
     if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
   }
-  return { open, setOpen, close, root, trigger, focusLeft };
+  return { open, setOpen, close, toggle, root, trigger, focusLeft };
 }
 
 // The item an arrow, Home or End key moves to, or undefined for any other key.
