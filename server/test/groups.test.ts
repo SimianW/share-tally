@@ -817,11 +817,12 @@ test('initial synchronization corrects stale cached names of members without a s
     await eventually(() => watching.frames.length === 1);
     // Bob and Carol never sign in or edit again.
     await clerk('sync-profiles', 'profiles-synced');
-    await eventually(() => watching.changes() === 1);
+    // Each renamed member is stored and announced on their own.
+    await eventually(() => watching.changes() === 2);
     assert.deepEqual(await memberNames(group.id), ['Alice', 'builder', 'Member']);
     await clerk('sync-profiles', 'profiles-synced');
     await new Promise(resolve => setTimeout(resolve, 200));
-    assert.equal(watching.changes(), 1);
+    assert.equal(watching.changes(), 2);
   } finally { await watching.close(); }
 });
 
@@ -843,16 +844,73 @@ test('a slow synchronization pass neither delays nor overwrites a member’s new
 test('a name read from Clerk before the stored one is never written, even by another process', async () => {
   const group = await create();
   await inviteMember(group.id);
-  await setProfile('user_test_bob', { username: 'builder', updatedAt: Date.UTC(2026, 9, 2) });
+  const now = Date.now();
+  await setProfile('user_test_bob', { username: 'builder', updatedAt: now + 2_000 });
   assert.deepEqual(await json(await api('/me/profile', 'bob-token', 'POST')), { displayName: 'builder', changed: true });
   // A fresh process remembers nothing; only the database knows which read is newer.
   await stopServer();
   await startServer();
-  await setProfile('user_test_bob', { username: 'old-handle', updatedAt: Date.UTC(2026, 9, 1) });
+  await setProfile('user_test_bob', { username: 'old-handle', updatedAt: now + 1_000 });
   await clerk('sync-profiles', 'profiles-synced');
   assert.deepEqual(await memberNames(group.id), ['Alice', 'builder']);
   // Clerk data saved after the stored name still replaces it.
-  await setProfile('user_test_bob', { username: 'newer-handle', updatedAt: Date.UTC(2026, 9, 3) });
+  await setProfile('user_test_bob', { username: 'newer-handle', updatedAt: now + 3_000 });
   await clerk('sync-profiles', 'profiles-synced');
   assert.deepEqual(await memberNames(group.id), ['Alice', 'newer-handle']);
+});
+
+test('a renamed member without an active group still hears of their own rename', async () => {
+  await json(await api('/groups', 'member-2-token'));
+  const own = await stream('/me/events', 'member-2-token');
+  try {
+    await eventually(() => own.frames.length === 1);
+    await setProfile('user_test_member_2', { username: 'loner' });
+    assert.deepEqual(await json(await api('/me/profile', 'member-2-token', 'POST')), { displayName: 'loner', changed: true });
+    await eventually(() => own.changes() === 1);
+  } finally { await own.close(); }
+});
+
+test('an hourly pass stalled on one member does not hold up another member’s own rename', async () => {
+  const group = await create();
+  await inviteMember(group.id);
+  await inviteMember(group.id, 'carol-token');
+  // Carol has edited her account, so the pass saves her; it stalls there, after Bob.
+  await setProfile('user_test_carol', { firstName: 'Carol', lastName: 'Lee' });
+  await pool.query(`CREATE FUNCTION pause_carol_name() RETURNS trigger LANGUAGE plpgsql AS $$
+    BEGIN IF NEW.clerk_user_id = 'user_test_carol' THEN PERFORM pg_advisory_xact_lock(7206); END IF; RETURN NEW; END; $$;
+    CREATE TRIGGER pause_carol_name BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION pause_carol_name();`);
+  const blocker = await pool.connect();
+  let pass: Promise<void> | undefined;
+  try {
+    await blocker.query('SELECT pg_advisory_lock(7206)');
+    pass = clerk('sync-profiles', 'profiles-synced');
+    await eventually(async () => (await pool.query(
+      `SELECT count(*)::int AS n FROM pg_stat_activity WHERE wait_event = 'advisory' AND datname = current_database()`)).rows[0].n === 1, 5_000);
+    await setProfile('user_test_bob', { username: 'builder' });
+    const saved = await fetch(`${baseUrl}/api/me/profile`, {
+      method: 'POST', headers: { Authorization: 'Bearer bob-token' }, signal: AbortSignal.timeout(3_000),
+    });
+    assert.deepEqual(await json(saved), { displayName: 'builder', changed: true });
+  } finally {
+    await blocker.query('SELECT pg_advisory_unlock_all()');
+    blocker.release();
+    await pass;
+    await pool.query('DROP TRIGGER pause_carol_name ON users; DROP FUNCTION pause_carol_name()');
+  }
+  assert.deepEqual(await memberNames(group.id), ['Alice', 'builder', 'Carol Lee']);
+});
+
+test('a first cached name keeps its Clerk version, so a lagging pass cannot replace it', async () => {
+  await setProfile('user_test_member_3', { username: 'first-handle' });
+  await json(await api('/me', 'member-3-token'));
+  await clerk('hold-profiles', 'holding-profiles');
+  // The pass reads the first handle, then stalls before storing it.
+  const pass = clerk('sync-profiles', 'profiles-synced');
+  await waitForProcessMessage('profiles-held');
+  await setProfile('user_test_member_3', { username: 'second-handle' });
+  // Opening groups caches the newer name for the first time.
+  const group = await create('member-3-token');
+  child!.send('release-profiles');
+  await pass;
+  assert.deepEqual(await memberNames(group.id, 'member-3-token'), ['second-handle']);
 });

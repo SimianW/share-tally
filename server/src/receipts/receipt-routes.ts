@@ -21,8 +21,9 @@ import { startReceiptModel } from "./processing/receipt-reading.js";
 import { type ReceiptExtractor } from "./processing/receipt-extraction.js";
 import { azureExtract } from "./providers/azure-receipt.js";
 import { confirmClaims, editItems, correctItem } from "../bills/items/item-bills.js";
+import type { ProfileReader } from '../identity/clerk-profiles.js';
 export function createReceiptRouter(
-  displayName: (id: string) => Promise<string>,
+  profiles: ProfileReader,
   extract: ReceiptExtractor = azureExtract,
   names: typeof interpretReceiptNames = interpretReceiptNames,
   onProcessingSettled?: () => void,
@@ -45,7 +46,7 @@ export function createReceiptRouter(
     usage.count++;
     daily.set(userId, usage);
   }
-  const user = (id: string) => getGroupUser(id, displayName);
+  const user = (id: string) => getGroupUser(id, profiles);
   for (const key of ["groupId", "draftId", "billId"])
     router.param(key, (_req, _res, next, id) =>
       next(isUuid(id) ? undefined : new BillError(404, "Record not found.")),

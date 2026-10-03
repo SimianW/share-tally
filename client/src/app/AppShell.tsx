@@ -99,6 +99,19 @@ export default function AppShell({
     const sync = startMemberSync({ getToken, changed: renamed });
     return () => sync.stop();
   }, [getToken, spansGroups]);
+  // Without that stream, an edit on another device reaches this account's own
+  // names when the member returns to the tab.
+  const returned = useEffectEvent(() => account.reload());
+  useEffect(() => {
+    if (spansGroups) return;
+    const visible = () => { if (document.visibilityState === 'visible') returned(); };
+    window.addEventListener('focus', returned);
+    document.addEventListener('visibilitychange', visible);
+    return () => {
+      window.removeEventListener('focus', returned);
+      document.removeEventListener('visibilitychange', visible);
+    };
+  }, [spansGroups]);
   const notice = deletionNotice && <Notification tone="info" onDismiss={() => setDeletionNotice('')}>{deletionNotice}</Notification>;
 
   async function createGroup(draft: GroupDraft) {

@@ -2,6 +2,8 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { users, type AppUser } from "../db/schema.js";
 import type { Transaction } from "../db/types.js";
+import type { ProfileReader } from "./clerk-profiles.js";
+import { resolveDisplayName } from "@share-tally/domain/display-name";
 
 export async function getOrCreateUser(clerkUserId: string,): Promise<AppUser> {
   const [createdUser] = await db
@@ -30,13 +32,16 @@ export async function getOrCreateUser(clerkUserId: string,): Promise<AppUser> {
   return existingUser;
 }
 
-export async function getGroupUser(clerkUserId: string, displayName: (id: string) => Promise<string>) {
+export async function getGroupUser(clerkUserId: string, profiles: ProfileReader) {
   const user = await getOrCreateUser(clerkUserId);
   if (user.displayName !== null) return user;
-  const name = (await displayName(clerkUserId)).trim() || 'Member';
-  // Only the first name: a synchronization may have stored a newer one meanwhile.
-  const [updated] = await db.update(users).set({ displayName: name })
-    .where(and(eq(users.id, user.id), isNull(users.displayName))).returning();
+  const [profile] = await profiles([clerkUserId]);
+  // Only the first name, with the Clerk version it came from: a synchronization may
+  // have stored a newer one meanwhile, and a lagging one must not replace this one.
+  const [updated] = await db.update(users).set({
+    displayName: resolveDisplayName(profile ?? {}),
+    clerkUpdatedAt: profile ? new Date(profile.updatedAt) : null,
+  }).where(and(eq(users.id, user.id), isNull(users.displayName))).returning();
   if (updated) return updated;
   const [current] = await db.select().from(users).where(eq(users.id, user.id));
   if (!current) throw new Error('User missing while saving display name.');
@@ -44,7 +49,8 @@ export async function getGroupUser(clerkUserId: string, displayName: (id: string
 }
 
 export async function allClerkUserIds() {
-  return (await db.select({ clerkUserId: users.clerkUserId }).from(users)).map(user => user.clerkUserId);
+  return (await db.select({ clerkUserId: users.clerkUserId }).from(users).orderBy(users.createdAt, users.id))
+    .map(user => user.clerkUserId);
 }
 
 // Stores each user's current name, unless the stored one came from Clerk data saved

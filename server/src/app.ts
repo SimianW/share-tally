@@ -18,7 +18,6 @@ import { GroupAccessError, GroupDeletionError } from './groups/groups.js';
 import { createGroupsRouter } from './groups/group-routes.js';
 import { InvalidGroupIconError } from './groups/group-icon.js';
 import { clerkProfiles, type ProfileReader } from './identity/clerk-profiles.js';
-import { resolveDisplayName } from '@share-tally/domain/display-name';
 
 declare global {
   namespace Express {
@@ -52,7 +51,6 @@ export function createApp(auth: Authentication = {
   },
 }) {
   const profiles = auth.profiles ?? clerkProfiles;
-  const displayName = async (id: string) => resolveDisplayName((await profiles([id]))[0] ?? {});
   const avatars = createAvatarReader(auth.avatarUrl ?? (async () => null));
   const app = express();
 
@@ -75,14 +73,14 @@ export function createApp(auth: Authentication = {
     const receipt = /^\/(receipt-drafts\/|groups\/[^/]+\/(receipt-drafts|receipt-preview)|bills\/[^/]+\/(items|claims))/.test(req.path);
     return express.json({ limit: receipt ? '12mb' : '16kb' })(req, res, next);
   });
-  app.use('/api', createReceiptRouter(displayName, auth.receiptExtractor, auth.receiptNames, auth.receiptProcessingSettled));
+  app.use('/api', createReceiptRouter(profiles, auth.receiptExtractor, auth.receiptNames, auth.receiptProcessingSettled));
   // Streams end at verified Clerk JWT expiry or after 30 seconds, then reauthenticate.
   const streamExpiry = (req: Request) => Math.min(auth.expiresAt?.(req) ?? Infinity, Date.now() + 30_000);
   app.get('/api/groups/:groupId/events', async (req, res) => {
     if (!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(req.params.groupId)) {
       res.status(404).json({ error: 'Group not found.' }); return;
     }
-    const user = await getGroupUser(res.locals.clerkUserId, displayName);
+    const user = await getGroupUser(res.locals.clerkUserId, profiles);
     await getGroupForMember(req.params.groupId, user.id);
     const expiresAt = streamExpiry(req);
     if (expiresAt <= Date.now()) { res.status(401).end(); return; }
@@ -90,7 +88,7 @@ export function createApp(auth: Authentication = {
   });
   // Announces renamed members of any of this member's groups, for views such as Home.
   app.get('/api/me/events', async (req, res) => {
-    const user = await getGroupUser(res.locals.clerkUserId, displayName);
+    const user = await getGroupUser(res.locals.clerkUserId, profiles);
     const expiresAt = streamExpiry(req);
     if (expiresAt <= Date.now()) { res.status(401).end(); return; }
     if (!res.destroyed) openMemberEvents(user.id, res, expiresAt);
@@ -102,12 +100,12 @@ export function createApp(auth: Authentication = {
     const { names, renamed } = await syncDisplayNames(profiles, [user.clerkUserId]);
     res.json({ displayName: names[0]?.displayName ?? user.displayName ?? 'Member', changed: renamed.length > 0 });
   });
-  app.use('/api/groups', createGroupsRouter(displayName, avatars));
-  app.use('/api', createBillsRouter(displayName, avatars));
-  app.use('/api', createRepaymentsRouter(displayName));
+  app.use('/api/groups', createGroupsRouter(profiles, avatars));
+  app.use('/api', createBillsRouter(profiles, avatars));
+  app.use('/api', createRepaymentsRouter(profiles));
 
   app.get('/api/attention', async (_req, res) => {
-    const user = await getGroupUser(res.locals.clerkUserId, displayName);
+    const user = await getGroupUser(res.locals.clerkUserId, profiles);
     res.json({ actions: await readAttention(user.id) });
   });
 

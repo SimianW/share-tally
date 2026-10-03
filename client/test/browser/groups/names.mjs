@@ -180,6 +180,18 @@ async function memberRenames(env) {
   await expect(bob.getByRole('heading', { level: 1 })).toContainText('Hey Member', { timeout: 1_000 });
   await expect(alice.getByText('Member says they sent $2.00')).toBeVisible(within());
 
+  // Bob renames himself on his phone while his laptop shows a group page, which
+  // has no member stream; returning to the laptop tab brings his own name up to date.
+  const bobLaptop = await pageFor('bob-token', { width: 1280, height: 900 });
+  await bobLaptop.goto(`${base}#/group-bills/${apartment.id}`);
+  await expectAccountName(bobLaptop, 'Member');
+  const bobPhone = await pageFor('bob-token', { width: 390, height: 844 });
+  await bobPhone.goto(base);
+  await editAccount(bobPhone, 'Update username', { Username: 'phone-handle' });
+  await expect(bobLaptop.locator('#main-content').getByTitle('phone-handle', { exact: true }).first()).toBeVisible({ timeout: 5_000 });
+  await bobLaptop.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expectAccountName(bobLaptop, 'phone-handle');
+
   // Renaming changed presentation only.
   assert.deepEqual(await financialRecords(pool), stored);
 
