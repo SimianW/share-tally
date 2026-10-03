@@ -186,6 +186,15 @@ export function hasUnsavedChanges(state: EditorState, photoSelected = false) {
   );
 }
 
+/**
+ * Unloading warns about unsaved changes, and also while a failed opening still
+ * holds a saved draft's recovered copy: closing the tab would discard that copy.
+ */
+export function warnBeforeUnload(state: EditorState, photoSelected = false) {
+  if (hasUnsavedChanges(state, photoSelected)) return true;
+  return !opened(state) && state.operation === "idle" && state.local.revision > 0;
+}
+
 /** What leaving the editor does: keep recovery while opening, stay during a request, or ask about unsaved changes. */
 export function leaving(state: EditorState, photoSelected = false): "stay" | "leave" | "keep-recovery" | "ask" {
   if (state.operation === "ended") return "leave";

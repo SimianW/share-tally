@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   canOpenStep, createEditor, editable, hasUnsavedChanges, initiationRevision, knownToServer, leaving,
-  recoveryEntry, reduceEditor, shareable, stepAvailable, stepOpen,
+  recoveryEntry, reduceEditor, shareable, stepAvailable, stepOpen, warnBeforeUnload,
 } from "../src/features/receipts/drafts/draft-model.ts";
 
 const userId = "user-1";
@@ -285,6 +285,13 @@ test("a draft whose server read failed stays unopened, keeps its recovery and ca
   assert.equal(hasUnsavedChanges(failed), false);
   assert.equal(leaving(failed), "keep-recovery");
   assert.equal(recoveryEntry(failed), null, "the browser copy is left as it was");
+  // Closing the tab would lose the recovered copy, so unloading still warns.
+  assert.equal(warnBeforeUnload(failed), true);
+  const nothingHeld = run(createEditor({ userId, draftId: "draft-1", recovered: null, storedStep: null }),
+    { type: "openFailed", message: "Network down" });
+  assert.equal(warnBeforeUnload(nothingHeld), false, "an empty unopened draft has nothing to lose");
+  assert.equal(warnBeforeUnload(open(saved(3))), false);
+  assert.equal(warnBeforeUnload(recovered), true);
   const retried = run(failed, { type: "reopened" });
   assert.equal(retried.operation, "opening");
   assert.equal(retried.error, "");

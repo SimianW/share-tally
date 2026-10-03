@@ -280,6 +280,12 @@ async function failedReads(env) {
   await expect(alice.getByText('Drafts are unavailable.', { exact: true })).toBeVisible();
   await expect(titleField(alice)).toHaveCount(0);
   assert.equal((await storedDraft(alice, id))?.data.title, 'Recovered after retry');
+  // Closing the tab would discard that copy, so unloading still asks first.
+  assert.equal(await alice.evaluate(() => {
+    const event = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  }), true);
   failing = false;
   await alice.getByRole('button', { name: 'Try again', exact: true }).click();
   await expect(titleField(alice)).toHaveValue('Recovered after retry');

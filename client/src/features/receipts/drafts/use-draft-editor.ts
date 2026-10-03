@@ -8,7 +8,7 @@ import { blockRouteNavigation, replaceRoute } from "../../../shared/browser/rout
 import { useReceiptApi } from "../api";
 import {
   type Activity, type EditorEvent, type Step,
-  createEditor, hasUnsavedChanges, initiationRevision, knownToServer, leaving, opened, recoveryEntry, reduceEditor,
+  createEditor, hasUnsavedChanges, initiationRevision, knownToServer, leaving, opened, recoveryEntry, reduceEditor, warnBeforeUnload,
 } from "./draft-model";
 import { clearGroupRecovery, clearRecovery, readRecovery, readStep, recoveryKey, storeRecovery, storeStep } from "./draft-recovery";
 import { useReceiptDraftSync } from "./receipt-draft-sync";
@@ -162,7 +162,7 @@ export function useDraftEditor({ userId, groupId, id, photoSelected, close, crea
       }
     });
     const warn = (event: BeforeUnloadEvent) => {
-      if (!hasUnsavedChanges(current.current, latest.current.photoSelected)) return;
+      if (!warnBeforeUnload(current.current, latest.current.photoSelected)) return;
       event.preventDefault();
       event.returnValue = "";
     };
