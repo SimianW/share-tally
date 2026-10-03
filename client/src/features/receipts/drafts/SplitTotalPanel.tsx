@@ -25,8 +25,7 @@ export function SplitTotalPanel({ mode, text, setText, update, setStep }: {
   mode: ReceiptData["mode"];
   /** The typed total, kept by the step while the other panel shows. */
   text: string;
-  /** Records the typed text with the draft total it leaves: its cents, or none. */
-  setText: (text: string, cents: number | null) => void;
+  setText: (text: string) => void;
   update: (patch: Partial<ReceiptData>) => void;
   setStep: (step: Step) => void;
 }) {
@@ -66,7 +65,7 @@ export function SplitTotalPanel({ mode, text, setText, update, setStep }: {
               const typed = e.target.value;
               const total = parseTotal(typed);
               const cents = typeof total === "number" ? total : null;
-              setText(typed, cents);
+              setText(typed);
               setError("");
               // An invalid total clears a By amount draft's total, so People
               // never opens with a stale one.
@@ -75,7 +74,7 @@ export function SplitTotalPanel({ mode, text, setText, update, setStep }: {
             }}
             onBlur={() => {
               const total = parseTotal(text);
-              if (typeof total === "number") setText(amountText(total), total);
+              if (typeof total === "number") setText(amountText(total));
             }}
             // Enter would otherwise submit the bill form. An input method
             // uses Enter to confirm a composition, which is not a request to continue.

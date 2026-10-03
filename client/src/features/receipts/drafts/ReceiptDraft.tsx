@@ -134,7 +134,7 @@ export function ReceiptDraftForm({
           {editor.syncError && processing && <p role="status">{editor.syncError}</p>}
           <fieldset disabled={running || !!draft.initializationRevision || (processing && step !== 1)}>
             {step === 0 && (
-              <ReceiptSourceStep draft={draft} setFile={setFile} replace={replace} setReplace={setReplace}
+              <ReceiptSourceStep draft={draft} saved={state.baseline} setFile={setFile} replace={replace} setReplace={setReplace}
                 scan={scan} update={editor.edit} setStep={editor.chooseStep} />
             )}
             {step === 1 && data.mode === "items" && (

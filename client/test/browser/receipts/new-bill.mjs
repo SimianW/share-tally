@@ -352,6 +352,16 @@ async function splitMethodEntry(env) {
   const total = alice.getByLabel("Total to split", { exact: true });
   const proceed = alice.getByRole("button", { name: "Continue to people", exact: true });
   const people = alice.getByRole("heading", { name: "Who’s sharing this bill?" });
+  // A failed save offers to reload the saved draft, discarding local edits.
+  const failSaveAndReload = async draftId => {
+    const saveRequest = `**/api/groups/${group.id}/receipt-drafts/${draftId}`;
+    await alice.route(saveRequest, route => route.request().method() === "PUT"
+      ? route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Saving is unavailable." }) })
+      : route.continue());
+    await alice.getByRole("button", { name: "Save draft & close", exact: true }).click();
+    await alice.getByRole("button", { name: "Reload saved draft, discarding local edits", exact: true }).click();
+    await alice.unroute(saveRequest);
+  };
 
   await alice.getByRole("button", { name: "New bill", exact: true }).click();
   await expectNewBillRoute();
@@ -461,13 +471,7 @@ async function splitMethodEntry(env) {
   await expect(total).toHaveValue("84.60");
   // Reloading the saved draft replaces a typed total the step was showing.
   await total.fill("50");
-  const saveRequest = `**/api/groups/${group.id}/receipt-drafts/${saved.id}`;
-  await alice.route(saveRequest, route => route.request().method() === "PUT"
-    ? route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Saving is unavailable." }) })
-    : route.continue());
-  await alice.getByRole("button", { name: "Save draft & close", exact: true }).click();
-  await alice.getByRole("button", { name: "Reload saved draft, discarding local edits", exact: true }).click();
-  await alice.unroute(saveRequest);
+  await failSaveAndReload(saved.id);
   await expect(byAmount).toBeChecked();
   await expect(total).toHaveValue("84.60");
   // Leaving the field tidies the amount to cents.
@@ -513,4 +517,20 @@ async function splitMethodEntry(env) {
   await total.fill("10000.00");
   await expect(total).toBeInViewport();
   assert.equal(await alice.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+
+  // Reloading a saved draft without a total also clears invalid typed text.
+  const untotalled = randomUUID();
+  await api(`/groups/${group.id}/receipt-drafts/${untotalled}`, "alice-token", "PUT", {
+    revision: 0, data: { ...saved.data, title: "No total yet", totalCents: null },
+  });
+  // The typed total above is unsaved, so leaving asks first.
+  await alice.goto(`${newBillRoute}/${untotalled}`);
+  await alice.getByRole("button", { name: "Discard changes", exact: true }).click();
+  await expectNewBillRoute(untotalled);
+  await expect(people).toBeVisible();
+  await stepButton("Receipt").click();
+  await total.fill("12.345");
+  await failSaveAndReload(untotalled);
+  await expect(byAmount).toBeChecked();
+  await expect(total).toHaveValue("");
 }
