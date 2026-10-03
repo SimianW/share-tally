@@ -45,9 +45,6 @@ export function SplitTotalPanel({ mode, text, setText, update, setStep }: {
   };
   return (
     <section aria-label="Split by amount">
-      <p className="split-method-outcome">
-        One total, divided among the people you pick next.
-      </p>
       <div className={error ? "split-total split-total-invalid" : "split-total"}>
         <label htmlFor={inputId}>Total to split</label>
         <div className="split-total-row">

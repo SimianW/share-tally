@@ -94,9 +94,6 @@ function ItemSource({
   };
   return (
     <section aria-label="Split by item">
-      <p className="split-method-outcome">
-        Everyone claims what they had and pays for their own items.
-      </p>
       <div className="receipt-source">
         <ReceiptText className="receipt-source-icon" size={28} strokeWidth={1.8} aria-hidden="true" />
         <div>

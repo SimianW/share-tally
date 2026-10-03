@@ -438,7 +438,7 @@ async function checkGroupSwitcher(page, label) {
   await page.mouse.click(5, 600);
   await expect(listbox).toHaveCount(0);
   await trigger.click();
-  await page.evaluate(() => document.querySelector('.page-footer').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+  await page.evaluate(() => document.querySelector('.top-bar').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
   await expect(listbox).toHaveCount(0);
   await trigger.click();
   await page.evaluate(() => document.querySelector('[role="listbox"]').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));

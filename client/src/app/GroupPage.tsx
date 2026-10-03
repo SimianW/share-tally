@@ -35,7 +35,7 @@ export function GroupPage({ data, title, drafts, api, refresh, openMembers, sele
             {data.group.members.slice(0, 5).map(member => <Avatar key={member.id} name={member.displayName} imageUrl={member.imageUrl} fallbackImageUrl={member.fallbackImageUrl} small />)}
             {data.group.memberCount > 5 && <span className="group-member-more">+{data.group.memberCount - 5}</span>}
           </span>
-          {data.group.memberCount} {data.group.memberCount === 1 ? 'member' : 'members'} · CAD
+          {data.group.memberCount} {data.group.memberCount === 1 ? 'member' : 'members'}
         </p>
       </div>
       <div className="group-actions">
