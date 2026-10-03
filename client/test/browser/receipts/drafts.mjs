@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
 import { expect } from '@playwright/test';
 import { receiptEnvironment, receiptGroup, receiptPhoto, reconciliationButton } from './fixtures.mjs';
+import { splitByAmount } from '../ui.mjs';
 
 export const scenarios = [
   { name: 'draft-save-and-recovery', environment: receiptEnvironment, run: draftSaveAndRecovery },
@@ -49,7 +50,7 @@ async function draftSaveAndRecovery(env) {
   await expect(alice.locator(".draft-list-row")).toHaveCount(0);
   // Explicit save, edit/discard, overwrite and delete on the production list.
   await alice.getByRole("button", { name: "New bill", exact: true }).click();
-  await alice.getByRole("button", { name: "Split by amount instead" }).click();
+  await splitByAmount(alice, "10.00");
   await expect(alice.getByRole("heading", { name: "Who’s sharing this bill?" })).toBeVisible();
   // With no items, By item is disabled and the arrow keys cannot reach it.
   const emptySplit = alice.getByRole("radiogroup", { name: "Split" });
@@ -197,7 +198,7 @@ async function scannedDraftEditing(env) {
     await expect(alice.getByRole("button", { name: "Save draft & close" })).toBeInViewport();
   };
   await expectWizardActionInViewport("Items", "Check your items");
-  await expectWizardActionInViewport("Receipt", "Start with your receipt");
+  await expectWizardActionInViewport("Receipt", "How do you want to split it?");
   await expectWizardActionInViewport("People", "Who’s sharing this bill?");
   await stepButton("Items").click();
   await alice.setViewportSize({ width: 1280, height: 1000 });

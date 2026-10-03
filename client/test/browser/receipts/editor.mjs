@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { expect } from '@playwright/test';
 import { processingTitle, receiptEnvironment, receiptGroup, receiptPhoto } from './fixtures.mjs';
+import { splitByAmount } from '../ui.mjs';
 
 export const scenarios = [
   { name: 'editor-recovery', environment: receiptEnvironment, run: editorRecovery },
@@ -97,7 +98,7 @@ async function scanReordering(env) {
   const { newBillRoute, alice, titledDraft } = await receiptGroup(env);
   const id = await titledDraft('Reordered scan');
   await alice.goto(`${newBillRoute}/${id}`);
-  await expect(alice.getByRole('heading', { name: 'Start with your receipt' })).toBeVisible();
+  await expect(alice.getByRole('heading', { name: 'How do you want to split it?' })).toBeVisible();
   let releaseReply;
   const replyHeld = new Promise(resolve => { releaseReply = resolve; });
   await alice.route('**/api/receipt-drafts/*/extract', async route => {
@@ -171,7 +172,7 @@ async function storageFailure(env) {
   const id = await titledDraft('Storage check');
   await alice.goto(`${newBillRoute}/${id}`);
   await alice.reload();
-  await expect(alice.getByRole('heading', { name: 'Start with your receipt' })).toBeVisible();
+  await expect(alice.getByRole('heading', { name: 'How do you want to split it?' })).toBeVisible();
   await expect.poll(async () => (await storedDraft(alice, id))?.data.title).toBe('Storage check');
 
   // A large unsaved photo removes the older copy instead of leaving it as if it were current.
@@ -253,7 +254,7 @@ async function failedReads(env) {
   const failure = message => route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: message }) });
 
   await alice.getByRole('button', { name: 'New bill', exact: true }).click();
-  await alice.getByRole('button', { name: 'Split by amount instead' }).click();
+  await splitByAmount(alice, '10.00');
   await titleField(alice).fill('Never saved');
   const saveRequest = `**/api/groups/${group.id}/receipt-drafts/*`;
   await alice.route(saveRequest, route => route.request().method() === 'PUT' ? failure('Saving is unavailable.')(route) : route.continue());
@@ -322,7 +323,7 @@ async function rescan(env) {
   await replaceItems.click();
   await expect(keepItems).toBeVisible();
   await alice.getByRole('button', { name: 'Replace receipt photo', exact: true }).click();
-  await expect(alice.getByRole('heading', { name: 'Start with your receipt' })).toBeVisible();
+  await expect(alice.getByRole('heading', { name: 'How do you want to split it?' })).toBeVisible();
   await chooseAndCrop('second.png');
   await expect(alice.getByRole('heading', { name: 'Check your items' })).toBeVisible();
   await expect(row).toBeEnabled();

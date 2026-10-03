@@ -48,6 +48,9 @@ export function ReceiptDraftForm({
   // Split by item, an empty total paid follows the items; this shows its input anyway.
   const [enteringTotal, setEnteringTotal] = useState(false);
   const [replace, setReplace] = useState(false);
+  // The first step restarts its view of the draft when the editor adopts a newer
+  // saved one, or when Reload discards local edits without a newer revision.
+  const [reloads, setReloads] = useState(0);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const stepHeading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
@@ -116,7 +119,7 @@ export function ReceiptDraftForm({
           <h3 className="receipt-step-title" ref={stepHeading} tabIndex={-1}>
             {
               [
-                "Start with your receipt",
+                "How do you want to split it?",
                 "Check your items",
                 "Who’s sharing this bill?",
               ][step]
@@ -125,7 +128,7 @@ export function ReceiptDraftForm({
           <p className="receipt-step-description">
             {
               [
-                "Use a receipt to fill in the items, or enter them yourself.",
+                "Go item by item, or share out one total. You can switch before you continue.",
                 "Check names and final costs. You can correct anything before sharing.",
                 "Pick who's in and check what you paid.",
               ][step]
@@ -134,7 +137,7 @@ export function ReceiptDraftForm({
           {editor.syncError && processing && <p role="status">{editor.syncError}</p>}
           <fieldset disabled={running || !!draft.initializationRevision || (processing && step !== 1)}>
             {step === 0 && (
-              <ReceiptSourceStep draft={draft} setFile={setFile} replace={replace} setReplace={setReplace}
+              <ReceiptSourceStep key={`${reloads}:${state.baseline?.revision ?? 0}`} draft={draft} setFile={setFile} replace={replace} setReplace={setReplace}
                 scan={scan} update={editor.edit} setStep={editor.chooseStep} />
             )}
             {step === 1 && data.mode === "items" && (
@@ -157,6 +160,8 @@ export function ReceiptDraftForm({
               cancel={() => setFile(null)}
               save={async (base64) => {
                 setFile(null);
+                // A receipt photo is split by item, and its scan saves the draft first.
+                editor.edit({ mode: "items" });
                 // As with the scan buttons, a completed scan leaves the replacement choice.
                 void editor.cropPhoto(base64).then((scanned) => { if (scanned) setReplace(false); });
               }}
@@ -180,7 +185,11 @@ export function ReceiptDraftForm({
               <p>{state.error}</p>
               <Button
                 variant="text"
-                onClick={() => void editor.reload().then((reloaded) => { if (reloaded) setFile(null); })}
+                onClick={() => void editor.reload().then((reloaded) => {
+                  if (!reloaded) return;
+                  setFile(null);
+                  setReloads((count) => count + 1);
+                })}
               >
                 Reload saved draft, discarding local edits
               </Button>

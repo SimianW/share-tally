@@ -77,3 +77,13 @@ export async function expectSegmentSlide(group, name, { reduced = false } = {}) 
   if (reduced) assert.ok(!between, `With reduced motion the indicator jumps to ${name}`);
   else assert.ok(between, `The indicator slides to ${name}`);
 }
+
+// The new bill's first step: the By item / By amount switch.
+export const splitMethod = page => page.getByRole('radiogroup', { name: 'How to split this bill' });
+
+// Chooses By amount on the new bill's first step and continues to People with `total`.
+export async function splitByAmount(page, total) {
+  await splitMethod(page).getByRole('radio', { name: 'By amount' }).check();
+  await page.getByLabel('Total to split', { exact: true }).fill(total);
+  await page.getByRole('button', { name: 'Continue to people', exact: true }).click();
+}

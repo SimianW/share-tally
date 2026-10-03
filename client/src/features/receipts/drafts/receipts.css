@@ -53,8 +53,7 @@
   display: grid;
   gap: 6px;
 }
-.receipt-costs,
-.receipt-upload {
+.receipt-costs {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
@@ -148,13 +147,7 @@
   color: var(--status-danger);
   font-size: 0.85rem;
 }
-.receipt-upload .receipt-camera-button {
-  display: none;
-}
 @media (max-width: 700px) {
-  .receipt-upload .receipt-camera-button {
-    display: inline-flex;
-  }
   .receipt-review-layout {
     grid-template-columns: 1fr;
     gap: 12px;
@@ -241,59 +234,254 @@
   line-height: 1.6;
   margin: 0 0 22px;
 }
-.receipt-source {
-  max-width: 650px;
-  margin: 0 auto;
-  border: 1px dashed var(--line-accent);
-  border-radius: 18px;
-  background: var(--surface-soft);
-  padding: 24px;
-  text-align: center;
-}
-.receipt-source > svg {
-  color: var(--accent-ink-muted);
-  margin-bottom: 10px;
-}
-.receipt-source h4 {
-  font-size: 20px;
-  margin: 0 0 8px;
-}
-.receipt-source > p {
-  color: var(--ink-muted);
-  font-size: 13px;
-  margin: 0 0 20px;
-}
-.receipt-source .receipt-upload {
-  justify-content: center;
-  margin-bottom: 16px;
-  align-items: center;
-}
 .receipt-scan-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
 }
-.receipt-source .receipt-scan-actions {
-  justify-content: center;
+/* First step: a large By item / By amount switch, then one method's panel. */
+.split-method {
+  max-width: 650px;
+  margin: 0 auto;
+}
+.segmented.split-method-switch {
+  padding: 5px;
+  box-shadow: inset 0 1px 3px color-mix(in srgb, var(--shadow-color) 8%, transparent);
+}
+.split-method-switch.segmented .segmented-option {
+  flex: 1 1 0;
+  min-height: 60px;
+  font: 800 19px/1.1 var(--font-heading);
+  letter-spacing: -0.2px;
+}
+.split-method-switch .segmented-indicator {
+  background: var(--action);
+  box-shadow:
+    0 0 0 1px var(--action-edge),
+    0 4px 14px -6px color-mix(in srgb, var(--shadow-color) 40%, transparent);
+}
+.split-method-switch.segmented .segmented-option:has(input:checked),
+.split-method-switch.segmented .segmented-option:has(input:checked) svg {
+  color: var(--ink-on-action);
+}
+.split-method-switch .segmented-content {
+  gap: 10px;
+}
+.split-method-switch .segmented-content svg {
+  width: 20px;
+  height: 20px;
+}
+.split-method-switch.segmented .segmented-option:has(input:focus-visible) {
+  outline-width: 3px;
+  outline-offset: 3px;
+}
+.split-method-panel {
+  margin-top: var(--space-5);
+}
+.split-method .split-method-outcome {
+  margin: 0 0 var(--space-4);
+  color: var(--ink-secondary);
+  font-size: 15px;
+  line-height: 1.5;
+  text-align: center;
+  text-wrap: balance;
+}
+
+/* By item: the receipt card, then typing items as the quieter way in. */
+.receipt-source {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-4);
+  align-items: center;
+  padding: var(--space-6);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+}
+.receipt-source-icon {
+  align-self: start;
+  box-sizing: content-box;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--surface-selected);
+  color: var(--accent-ink);
+}
+.receipt-source h4 {
+  margin: 0 0 4px;
+  font: 800 19px/1.25 var(--font-heading);
+  letter-spacing: -0.2px;
+}
+.receipt-source p {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.receipt-source > .receipt-upload,
+.receipt-source > .receipt-photo,
+.receipt-source > .receipt-scan-actions {
+  grid-column: 1 / -1;
+}
+.receipt-upload {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.receipt-upload .button {
+  flex: 1 1 0;
+  min-height: 48px;
+}
+.receipt-upload .receipt-camera-button {
+  display: none;
 }
 .receipt-source .receipt-photo {
   position: static;
-  text-align: left;
-  margin: 16px 0;
+  margin: 0;
 }
 .receipt-source .receipt-photo img {
   max-height: 230px;
 }
-.receipt-entry-alternative {
-  display: grid;
-  justify-items: center;
-  gap: 14px;
-  margin-top: 16px;
+.split-method .receipt-entry-alternative {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 2px var(--space-3);
+  margin: var(--space-4) 0 0;
+  color: var(--ink-muted);
+  font-size: 14px;
 }
-.receipt-entry-alternative > span {
+.receipt-entry-alternative .button.text {
+  color: var(--accent-ink);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent-ink) 35%, transparent);
+  text-underline-offset: 4px;
+}
+.receipt-entry-alternative .button.text:hover {
+  text-decoration-color: currentColor;
+}
+
+/* By amount: the total is the largest thing on the step. */
+.split-total {
+  padding: var(--space-5) var(--space-6) var(--space-6);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  transition: border-color 0.15s;
+}
+.split-total:focus-within {
+  border-color: var(--line-accent);
+}
+.split-total.split-total-invalid {
+  border-color: var(--status-danger);
+}
+/* Above the bill form's generic label and input rules, which load later. */
+.split-method .split-total label {
+  display: block;
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: 14px;
+  font-weight: 700;
+}
+.split-total-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  border-bottom: 2px solid var(--line);
+  transition: border-color 0.15s;
+}
+.split-total:focus-within .split-total-row {
+  border-bottom-color: var(--accent-decoration);
+}
+.split-total-symbol {
   color: var(--ink-subtle);
-  font-size: 12px;
+  font: 800 clamp(34px, 8vw, 48px)/1 var(--font-heading);
+}
+.split-total .split-total-row input:not([type="checkbox"]):not([type="radio"]) {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  padding: 0 0 6px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 800 clamp(44px, 12vw, 80px)/1.05 var(--font-heading);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -2px;
+  caret-color: var(--accent-decoration);
+}
+/* The shared focus ring goes around the card instead of the bare input. */
+.split-total .split-total-row input:focus-visible {
+  outline: none;
+}
+.split-total:has(input:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.split-total .split-total-row input::placeholder {
+  color: color-mix(in srgb, var(--ink-subtle) 45%, transparent);
+}
+.split-total-currency {
+  flex-shrink: 0;
+  align-self: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  color: var(--ink-secondary);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.split-method .split-total-error {
+  min-height: 20px;
+  margin: var(--space-2) 0 0;
+  color: var(--status-danger);
+  font-size: 13px;
+  font-weight: 600;
+}
+.split-total-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+  margin-top: var(--space-2);
+}
+.split-total-actions p {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+.split-total-actions .button {
+  min-height: 48px;
+  padding: 0 22px;
+}
+@media (max-width: 700px) {
+  .receipt-upload .receipt-camera-button {
+    display: inline-flex;
+  }
+}
+@media (max-width: 600px) {
+  .split-method-switch.segmented .segmented-option {
+    min-height: 54px;
+    font-size: 17px;
+  }
+  .split-method-switch .segmented-content {
+    gap: 8px;
+  }
+  .receipt-source,
+  .split-total {
+    padding: var(--space-5) var(--space-4);
+  }
+  .receipt-upload .button,
+  .split-total-actions .button {
+    flex-basis: 100%;
+    width: 100%;
+  }
 }
 .receipt-without-photo {
   grid-template-columns: 1fr;
@@ -409,9 +597,6 @@
     align-items: flex-start;
     font-size: 11px;
     line-height: 1.5;
-  }
-  .receipt-source {
-    padding: 20px 14px;
   }
   .receipt-wizard .receipt-step-title {
     font-size: 22px;

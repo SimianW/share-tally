@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { expect } from '@playwright/test';
-import { receiptEnvironment, receiptGroup } from './fixtures.mjs';
+import { receiptEnvironment, receiptGroup, receiptPhoto } from './fixtures.mjs';
 import { serverRequire } from '../environment.mjs';
 import { groupSwitcher, openGroupSwitcher, expectSegmentSlide } from '../ui.mjs';
 
@@ -12,6 +12,7 @@ export const scenarios = [
   { name: 'receipt-crop', environment: receiptEnvironment, run: receiptCrop },
   { name: 'unassigned-tax', environment: receiptEnvironment, run: unassignedTax },
   { name: 'manual-split-fallback', environment: receiptEnvironment, run: manualSplitFallback },
+  { name: 'split-method-entry', environment: receiptEnvironment, run: splitMethodEntry },
 ];
 
 // A blank new bill saves nothing; a failed scan can be retried, resumed from Home and deleted.
@@ -28,19 +29,27 @@ async function scanRetry(env) {
   await expectNewBillRoute();
   await alice.reload();
   await expectNewBillRoute();
-  await expect(alice.getByRole("heading", { name: "Start with your receipt" })).toBeVisible();
+  await expect(alice.getByRole("heading", { name: "How do you want to split it?" })).toBeVisible();
   await alice.goBack();
   await expect(alice).toHaveURL(groupRoute);
   await expect(alice.getByRole("button", { name: "New bill", exact: true })).toBeVisible();
   assert.equal((await api(`/groups/${group.id}/receipt-drafts`)).drafts.length, 0);
   await alice.getByRole("button", { name: "New bill", exact: true }).click();
   await expectNewBillRoute();
+  // A total typed before choosing By item does not pull the view back while the scan saves first.
+  const method = alice.getByRole("radiogroup", { name: "How to split this bill" });
+  await method.getByRole("radio", { name: "By amount" }).check();
+  await alice.getByLabel("Total to split", { exact: true }).fill("20");
+  await method.getByRole("radio", { name: "By item" }).check();
   const temporaryPhoto = await serverRequire("sharp")({ create: { width: 20, height: 30, channels: 3, background: "red" } }).png().toBuffer();
   await alice.getByLabel("Choose a receipt image").setInputFiles({ name: "discard.png", mimeType: "image/png", buffer: temporaryPhoto });
   await alice.getByRole("button", { name: "Use this photo", exact: true }).click();
   await expect(alice.getByRole("img", { name: "Original cropped receipt" })).toBeVisible();
   // The first extraction fails on purpose; cropping must have started it without a Read receipt click.
   await expect(alice.getByText("Test extraction unavailable. Your draft is safe.", { exact: true })).toBeVisible();
+  await expect(method.getByRole("radio", { name: "By item" })).toBeChecked();
+  // The scan's save already records By item, so reopening returns to the photo, not People.
+  assert.deepEqual((await api(`/groups/${group.id}/receipt-drafts`)).drafts.map(draft => draft.data.mode), ["items"]);
   await expect(alice.getByRole("button", { name: "Read receipt", exact: true })).toBeVisible();
   await alice.getByRole("button", { name: "Read receipt", exact: true }).click();
   await expect(alice.getByRole("heading", { name: "Check your items" })).toBeVisible();
@@ -74,7 +83,7 @@ async function scanRetry(env) {
   await alice.getByRole("button", { name: "New bill", exact: true }).click();
   await expect(stepButton("Items")).toBeDisabled();
   await expect(stepButton("People")).toBeDisabled();
-  await alice.getByRole("button", { name: "Enter items myself", exact: true }).click();
+  await alice.getByRole("button", { name: "Type the items in", exact: true }).click();
   await expect(alice.getByRole("button", { name: "Continue to sharing" })).toBeDisabled();
   await expect(stepButton("People")).toBeDisabled();
   await stepButton("Receipt").click();
@@ -93,7 +102,7 @@ async function receiptCrop(env) {
   const croppedReceipt = () => alice.getByRole("img", { name: "Original cropped receipt" });
   async function openCrop() {
     await alice.getByRole("button", { name: "New bill", exact: true }).click();
-    await expect(alice.getByRole("heading", { name: "Start with your receipt" })).toBeVisible();
+    await expect(alice.getByRole("heading", { name: "How do you want to split it?" })).toBeVisible();
     await alice.getByLabel("Choose a receipt image").setInputFiles({
       name: "crop-smoke.png", mimeType: "image/png", buffer: cropPhoto,
     });
@@ -140,7 +149,7 @@ async function receiptCrop(env) {
       await alice.keyboard.press("Escape");
     } else await cropDialog().getByRole("button", { name: close }).click();
     await expect(cropDialog()).toBeHidden();
-    await expect(alice.getByRole("heading", { name: "Start with your receipt" })).toBeVisible();
+    await expect(alice.getByRole("heading", { name: "How do you want to split it?" })).toBeVisible();
     await expect(croppedReceipt()).toHaveCount(0);
     assert.equal((await api(`/groups/${group.id}/receipt-drafts`)).drafts.length, 0);
     await alice.getByRole("button", { name: "Back to group" }).click();
@@ -250,7 +259,7 @@ async function manualSplitFallback(env) {
   await alice.goto(`${base}#/group-bills/${group.id}`);
   await alice.getByRole("button", { name: "New bill", exact: true }).click();
   await alice
-    .getByRole("button", { name: "Enter items myself", exact: true })
+    .getByRole("button", { name: "Type the items in", exact: true })
     .click();
   await alice
     .getByRole("button", { name: "Add an item", exact: true })
@@ -336,7 +345,213 @@ async function newBillDuringRefresh(env) {
   await expect.poll(() => groupReads).toBeGreaterThan(1);
   releaseGroup();
   await alice.unrouteAll({ behavior: "wait" });
-  await expect(alice.getByRole("heading", { name: "Start with your receipt" })).toBeVisible();
+  await expect(alice.getByRole("heading", { name: "How do you want to split it?" })).toBeVisible();
   await expect(alice.getByText("Could not open this group", { exact: true })).toHaveCount(0);
 }
 
+
+// The first step chooses By item or By amount; only Continue or Type the items in edits the draft.
+async function splitMethodEntry(env) {
+  const { api } = env;
+  const { group, groupRoute, newBillRoute, alice, stepButton, expectNewBillRoute } = await receiptGroup(env);
+  const method = alice.getByRole("radiogroup", { name: "How to split this bill" });
+  const byItem = method.getByRole("radio", { name: "By item" });
+  const byAmount = method.getByRole("radio", { name: "By amount" });
+  const total = alice.getByLabel("Total to split", { exact: true });
+  const proceed = alice.getByRole("button", { name: "Continue to people", exact: true });
+  const people = alice.getByRole("heading", { name: "Who’s sharing this bill?" });
+  // A failed save offers to reload the saved draft, discarding local edits.
+  const failSaveAndReload = async draftId => {
+    const saveRequest = `**/api/groups/${group.id}/receipt-drafts/${draftId}`;
+    await alice.route(saveRequest, route => route.request().method() === "PUT"
+      ? route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Saving is unavailable." }) })
+      : route.continue());
+    await alice.getByRole("button", { name: "Save draft & close", exact: true }).click();
+    await alice.getByRole("button", { name: "Reload saved draft, discarding local edits", exact: true }).click();
+    await alice.unroute(saveRequest);
+  };
+
+  await alice.getByRole("button", { name: "New bill", exact: true }).click();
+  await expectNewBillRoute();
+  await expect(alice.getByRole("heading", { name: "How do you want to split it?" })).toBeVisible();
+  await expect(byItem).toBeChecked();
+  await expect(alice.getByRole("button", { name: "Choose a photo", exact: true })).toBeVisible();
+  await expect(alice.getByRole("button", { name: "Take a picture", exact: true })).toBeHidden();
+  await expect(total).toHaveCount(0);
+  // The arrow keys move between the two methods.
+  await byItem.focus();
+  await alice.keyboard.press("ArrowRight");
+  await expect(byAmount).toBeChecked();
+  await expect(total).toBeVisible();
+  await expect(alice.getByRole("button", { name: "Choose a photo", exact: true })).toHaveCount(0);
+  await alice.keyboard.press("ArrowLeft");
+  await expect(byItem).toBeChecked();
+  // With reduced motion, the panel appears at once instead of fading in.
+  await alice.emulateMedia({ reducedMotion: "reduce" });
+  await alice.reload();
+  await expectNewBillRoute();
+  await byAmount.check();
+  assert.equal(await alice.getByRole("region", { name: "Split by amount" })
+    .evaluate(panel => getComputedStyle(panel.parentElement).opacity), "1");
+  await byItem.check();
+  await alice.emulateMedia({ reducedMotion: "no-preference" });
+  // Choosing a method alone saves nothing, so leaving does not ask about changes.
+  await alice.getByRole("button", { name: "Back to group" }).click();
+  await expect(alice).toHaveURL(groupRoute);
+  assert.equal((await api(`/groups/${group.id}/receipt-drafts`)).drafts.length, 0);
+
+  // A typed total is draft content: it survives a look at the other panel,
+  // leaving asks first, and Save draft & close keeps it.
+  await alice.getByRole("button", { name: "New bill", exact: true }).click();
+  await expectNewBillRoute();
+  await byAmount.check();
+  await total.fill("25.5");
+  await byItem.check();
+  await byAmount.check();
+  await expect(total).toHaveValue("25.50");
+  await alice.getByRole("button", { name: "Back to group" }).click();
+  await expect(alice.getByRole("heading", { name: "Discard unsaved changes?" })).toBeVisible();
+  await alice.getByRole("button", { name: "Keep editing", exact: true }).click();
+  await alice.getByRole("button", { name: "Save draft & close", exact: true }).click();
+  await expect(alice).toHaveURL(groupRoute);
+  const [typedDraft] = (await api(`/groups/${group.id}/receipt-drafts`)).drafts;
+  assert.equal(typedDraft.data.mode, "manual");
+  assert.equal(typedDraft.data.totalCents, 2550);
+  await alice.getByRole("button", { name: "Delete untitled bill", exact: true }).click();
+  await alice.getByRole("button", { name: "Delete draft", exact: true }).click();
+  await expect.poll(async () => (await api(`/groups/${group.id}/receipt-drafts`)).drafts.length).toBe(0);
+
+  // An amount must be a positive CAD amount before continuing.
+  await alice.getByRole("button", { name: "New bill", exact: true }).click();
+  await expectNewBillRoute();
+  await byAmount.check();
+  // Enter that confirms an input-method composition does not continue.
+  await total.evaluate(input => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", isComposing: true, bubbles: true })));
+  await expect(alice.getByText("Enter the total to split.", { exact: true })).toHaveCount(0);
+  await proceed.click();
+  await expect(alice.getByText("Enter the total to split.", { exact: true })).toBeVisible();
+  await expect(total).toBeFocused();
+  await expect(total).toHaveAttribute("aria-invalid", "true");
+  // Keyboard focus shows the shared focus ring around the amount card.
+  await total.blur();
+  await total.focus();
+  await alice.keyboard.press("End");
+  assert.notEqual(await total.evaluate(input => getComputedStyle(input.closest(".split-total")).outlineStyle), "none");
+  await total.fill("0");
+  await expect(alice.getByText("Enter the total to split.", { exact: true })).toHaveCount(0);
+  await total.press("Enter");
+  await expect(alice.getByText("Enter an amount above $0.00.", { exact: true })).toBeVisible();
+  await total.fill("12.345");
+  await proceed.click();
+  await expect(alice.getByText("Enter an amount with at most two decimal places.", { exact: true })).toBeVisible();
+  await total.fill("10000.01");
+  await proceed.click();
+  await expect(alice.getByText("Amounts cannot exceed CAD 10,000.00.", { exact: true })).toBeVisible();
+  await expect(alice.getByRole("heading", { name: "How do you want to split it?" })).toBeVisible();
+  // An invalid total replaces a valid one, so People cannot open with the old total.
+  await total.fill("30");
+  await total.fill("30.001");
+  await stepButton("People").click();
+  await expect(people).toBeVisible();
+  await expect(alice.getByLabel("Total paid (CAD)", { exact: true })).toHaveValue("");
+  await stepButton("Receipt").click();
+  await expect(byAmount).toBeChecked();
+  await expect(total).toHaveValue("");
+  // Enter continues to People with the total, without sharing the bill.
+  await total.fill("84.6");
+  await total.press("Enter");
+  await expect(people).toBeVisible();
+  await expect(alice.getByLabel("Total paid (CAD)", { exact: true })).toHaveValue("84.60");
+  await expect(alice.getByRole("radiogroup", { name: "Split" }).getByRole("radio", { name: "By amount" })).toBeChecked();
+  await expect(stepButton("Items")).toBeDisabled();
+  assert.equal((await api(`/groups/${group.id}/receipt-drafts`)).drafts.length, 0);
+  // The saved draft is a manual bill with that total, and reopens on its method.
+  await alice.getByLabel("Bill title", { exact: true }).fill("Dinner");
+  await alice.getByRole("button", { name: "Save draft & close", exact: true }).click();
+  await expect(alice).toHaveURL(groupRoute);
+  const [saved] = (await api(`/groups/${group.id}/receipt-drafts`)).drafts;
+  assert.equal(saved.data.mode, "manual");
+  assert.equal(saved.data.totalCents, 8460);
+  await alice.goto(`${newBillRoute}/${saved.id}`);
+  await expect(people).toBeVisible();
+  await stepButton("Receipt").click();
+  await expect(byAmount).toBeChecked();
+  await expect(total).toHaveValue("84.60");
+  // A newer save from another tab replaces what the step shows once the
+  // editor hears of it, here through a member joining the group.
+  const elsewhere = (await api(`/receipt-drafts/${saved.id}`)).draft;
+  await api(`/groups/${group.id}/receipt-drafts/${saved.id}`, "alice-token", "PUT", {
+    revision: elsewhere.revision, data: { ...elsewhere.data, totalCents: 9900 },
+  });
+  const invitation = await api(`/groups/${group.id}/invitation`);
+  await api("/groups/join", "member-1-token", "POST", { token: invitation.path.split("/").at(-1) });
+  await expect(total).toHaveValue("99.00");
+  // Reloading the saved draft replaces a typed total the step was showing.
+  await total.fill("50");
+  await failSaveAndReload(saved.id);
+  await expect(byAmount).toBeChecked();
+  await expect(total).toHaveValue("99.00");
+  // Leaving the field tidies the amount to cents.
+  await total.fill("12.5");
+  await total.blur();
+  await expect(total).toHaveValue("12.50");
+  await proceed.click();
+  await expect(alice.getByLabel("Total paid (CAD)", { exact: true })).toHaveValue("12.50");
+  await alice.getByRole("button", { name: "Back to group" }).click();
+  await alice.getByRole("button", { name: "Discard changes", exact: true }).click();
+  await expect(alice).toHaveURL(groupRoute);
+
+  // By item: type the items, or choose a receipt photo to crop.
+  await alice.getByRole("button", { name: "New bill", exact: true }).click();
+  await expectNewBillRoute();
+  await alice.getByRole("button", { name: "Type the items in", exact: true }).click();
+  await expect(alice.getByRole("heading", { name: "Check your items" })).toBeVisible();
+  await expect(alice.getByRole("button", { name: "Add an item", exact: true })).toBeVisible();
+  await stepButton("Receipt").click();
+  await expect(byItem).toBeChecked();
+  const fileChooser = alice.waitForEvent("filechooser");
+  await alice.getByRole("button", { name: "Choose a photo", exact: true }).click();
+  const chooser = await fileChooser;
+  assert.equal(await chooser.element().getAttribute("capture"), null);
+  await chooser.setFiles({ name: "receipt.png", mimeType: "image/png", buffer: await receiptPhoto(300, 500) });
+  const cropDialog = alice.getByRole("dialog", { name: "Just the receipt" });
+  await cropDialog.getByRole("button", { name: "Use this photo", exact: true }).click();
+  await expect(alice.getByRole("heading", { name: "Check your items" })).toBeVisible();
+  const scanned = (await api(`/groups/${group.id}/receipt-drafts`)).drafts.find(draft => draft.id !== saved.id);
+  await expect.poll(async () => (await api(`/receipt-drafts/${scanned.id}`)).draft.processingStatus).toBe("ready");
+  assert.equal((await api(`/receipt-drafts/${scanned.id}`)).draft.data.mode, "items");
+  // Back on the first step, By item shows the photo and its scan actions.
+  await stepButton("Receipt").click();
+  await expect(byItem).toBeChecked();
+  await expect(alice.getByRole("heading", { name: "Your receipt" })).toBeVisible();
+  await expect(alice.getByRole("img", { name: "Original cropped receipt" })).toBeVisible();
+  await expect(alice.getByRole("button", { name: "Scan and replace current items…", exact: true })).toBeVisible();
+
+  // On a phone, the camera is offered and the amount panel fits the screen.
+  await alice.setViewportSize({ width: 390, height: 844 });
+  await expect(alice.getByRole("button", { name: "Take a picture", exact: true })).toBeVisible();
+  await byAmount.check();
+  await total.fill("10000.00");
+  await expect(total).toBeInViewport();
+  assert.equal(await alice.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+
+  // Reloading a saved draft without a total also clears invalid typed text.
+  const untotalled = randomUUID();
+  await api(`/groups/${group.id}/receipt-drafts/${untotalled}`, "alice-token", "PUT", {
+    revision: 0, data: { ...saved.data, title: "No total yet", totalCents: null },
+  });
+  // The typed total above is unsaved, so leaving asks first.
+  await alice.goto(`${newBillRoute}/${untotalled}`);
+  await alice.getByRole("button", { name: "Discard changes", exact: true }).click();
+  await expectNewBillRoute(untotalled);
+  await expect(people).toBeVisible();
+  await stepButton("Receipt").click();
+  await total.fill("12.345");
+  await proceed.click();
+  await expect(alice.getByText("Enter an amount with at most two decimal places.", { exact: true })).toBeVisible();
+  await failSaveAndReload(untotalled);
+  await expect(byAmount).toBeChecked();
+  await expect(total).toHaveValue("");
+  await expect(alice.getByText("Enter an amount with at most two decimal places.", { exact: true })).toHaveCount(0);
+  await expect(total).not.toHaveAttribute("aria-invalid");
+}
