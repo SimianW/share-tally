@@ -64,9 +64,10 @@ export function SplitTotalPanel({ text, setText, update, setStep }: {
               const total = parseTotal(text);
               if (typeof total === "number") setText(amountText(total));
             }}
-            // Enter would otherwise submit the bill form.
+            // Enter would otherwise submit the bill form. An input method
+            // uses Enter to confirm a composition, which is not a request to continue.
             onKeyDown={(e) => {
-              if (e.key !== "Enter") return;
+              if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
               e.preventDefault();
               proceed();
             }}

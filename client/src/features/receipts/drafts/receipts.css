@@ -414,9 +414,13 @@
   letter-spacing: -2px;
   caret-color: var(--accent-decoration);
 }
-/* The card's border and underline show focus instead. */
+/* The shared focus ring goes around the card instead of the bare input. */
 .split-total .split-total-row input:focus-visible {
   outline: none;
+}
+.split-total:has(input:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 .split-total .split-total-row input::placeholder {
   color: color-mix(in srgb, var(--ink-subtle) 45%, transparent);

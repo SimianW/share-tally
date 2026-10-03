@@ -392,10 +392,18 @@ async function splitMethodEntry(env) {
   await alice.getByRole("button", { name: "New bill", exact: true }).click();
   await expectNewBillRoute();
   await byAmount.check();
+  // Enter that confirms an input-method composition does not continue.
+  await total.evaluate(input => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", isComposing: true, bubbles: true })));
+  await expect(alice.getByText("Enter the total to split.", { exact: true })).toHaveCount(0);
   await proceed.click();
   await expect(alice.getByText("Enter the total to split.", { exact: true })).toBeVisible();
   await expect(total).toBeFocused();
   await expect(total).toHaveAttribute("aria-invalid", "true");
+  // Keyboard focus shows the shared focus ring around the amount card.
+  await total.blur();
+  await total.focus();
+  await alice.keyboard.press("End");
+  assert.notEqual(await total.evaluate(input => getComputedStyle(input.closest(".split-total")).outlineStyle), "none");
   await total.fill("0");
   await expect(alice.getByText("Enter the total to split.", { exact: true })).toHaveCount(0);
   await total.press("Enter");
