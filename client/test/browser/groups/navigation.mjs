@@ -376,6 +376,18 @@ async function checkGroupSwitcher(page, label) {
   await expect(option('Costco friends')).toBeFocused();
   await assertNoHorizontalOverflow(page, `${label} group switcher`);
   await page.screenshot({ path: `${screenshots}/group-switcher-open-${label}.png`, animations: 'disabled' });
+  // Safari can blur the focused option without focusing the tapped button.
+  // Keep the browser's pointerdown/blur/click order while reproducing that focus policy.
+  await trigger.evaluate(button => button.addEventListener('mousedown', event => {
+    event.preventDefault();
+    document.activeElement?.blur();
+  }, { once: true }));
+  await trigger.locator('.group-switcher-chevron').click();
+  await expect(listbox).toHaveCount(0);
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await expect(page).toHaveURL(costcoUrl);
+  await trigger.click();
+  await expect(listbox).toBeVisible();
   await option('Apartment').click();
   await expect(listbox).toHaveCount(0);
   await expect(page).toHaveURL(/#\/group-bills\/[^/?#]+$/);

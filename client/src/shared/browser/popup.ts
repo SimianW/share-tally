@@ -7,14 +7,24 @@ export function usePopup() {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
+  const pressingTrigger = useRef(false);
   useEffect(() => {
     if (!open) return;
     // Touch browsers such as iOS Safari do not blur on a tap on non-focusable content.
     function pressedOutside(event: PointerEvent) {
+      pressingTrigger.current = !!trigger.current?.contains(event.target as Node);
       if (!root.current?.contains(event.target as Node)) setOpen(false);
     }
+    function clicked() { pressingTrigger.current = false; }
     document.addEventListener('pointerdown', pressedOutside);
-    return () => document.removeEventListener('pointerdown', pressedOutside);
+    document.addEventListener('click', clicked);
+    document.addEventListener('pointercancel', clicked);
+    return () => {
+      document.removeEventListener('pointerdown', pressedOutside);
+      document.removeEventListener('click', clicked);
+      document.removeEventListener('pointercancel', clicked);
+      pressingTrigger.current = false;
+    };
   }, [open]);
 
   // Closing on purpose returns focus to the button that opened the popup.
@@ -24,6 +34,9 @@ export function usePopup() {
   }
   // Tabbing away, or a click that moves focus elsewhere, also closes the popup.
   function focusLeft(event: FocusEvent<HTMLElement>) {
+    // Safari may blur an option to the body before clicking the trigger. Let
+    // that click close the popup once, rather than closing here and reopening.
+    if (!event.relatedTarget && pressingTrigger.current) return;
     if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
   }
   return { open, setOpen, close, root, trigger, focusLeft };
