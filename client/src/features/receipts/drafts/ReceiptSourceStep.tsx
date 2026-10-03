@@ -3,8 +3,9 @@ import {
   type ReceiptDraft,
 } from "@share-tally/domain/contracts/receipts";
 import { Camera, Divide, ListChecks, PencilLine, ReceiptText, Upload } from "lucide-react";
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { useRef, useState } from "react";
+import { amountText } from "../../../shared/money";
 import { Button } from "../../../shared/ui/Button";
 import { SegmentedControl } from "../../../shared/ui/SegmentedControl";
 import { ReceiptPhoto } from "../photos/ReceiptPhoto";
@@ -36,6 +37,10 @@ export function ReceiptSourceStep({
   setStep: (step: Step) => void;
 }) {
   const [mode, setMode] = useState<Mode>(draft.data.mode);
+  // Held here so a typed total survives a look at the other panel.
+  const [totalText, setTotalText] = useState(() =>
+    draft.data.mode === "manual" && draft.data.totalCents !== null ? amountText(draft.data.totalCents) : "");
+  const reducedMotion = useReducedMotion();
   return (
     <div className="split-method">
       <SegmentedControl
@@ -52,7 +57,7 @@ export function ReceiptSourceStep({
       <motion.div
         key={mode}
         className="split-method-panel"
-        initial={{ opacity: 0, x: mode === "items" ? -14 : 14 }}
+        initial={reducedMotion ? false : { opacity: 0, x: mode === "items" ? -14 : 14 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.28, ease: [0.2, 0.8, 0.3, 1] }}
       >
@@ -60,7 +65,7 @@ export function ReceiptSourceStep({
           <ItemSource draft={draft} setFile={setFile} replace={replace} setReplace={setReplace}
             scan={scan} update={update} setStep={setStep} />
         ) : (
-          <SplitTotalPanel data={draft.data} update={update} setStep={setStep} />
+          <SplitTotalPanel text={totalText} setText={setTotalText} update={update} setStep={setStep} />
         )}
       </motion.div>
     </div>

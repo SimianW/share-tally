@@ -17,13 +17,13 @@ function parseTotal(text: string): number | string {
 }
 
 /** By amount: the total is entered here, then People picks who shares it. */
-export function SplitTotalPanel({ data, update, setStep }: {
-  data: ReceiptData;
+export function SplitTotalPanel({ text, setText, update, setStep }: {
+  /** The typed total, kept by the step while the other panel shows. */
+  text: string;
+  setText: (text: string) => void;
   update: (patch: Partial<ReceiptData>) => void;
   setStep: (step: Step) => void;
 }) {
-  const saved = data.mode === "manual" ? data.totalCents : null;
-  const [text, setText] = useState(saved === null ? "" : amountText(saved));
   const [error, setError] = useState("");
   const input = useRef<HTMLInputElement>(null);
   const inputId = useId();

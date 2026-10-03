@@ -368,6 +368,21 @@ async function splitMethodEntry(env) {
   await expect(alice.getByRole("button", { name: "Choose a photo", exact: true })).toHaveCount(0);
   await alice.keyboard.press("ArrowLeft");
   await expect(byItem).toBeChecked();
+  // A typed total survives a look at the other panel.
+  await byAmount.check();
+  await total.fill("42");
+  await byItem.check();
+  await byAmount.check();
+  await expect(total).toHaveValue("42.00");
+  // With reduced motion, the panel appears at once instead of fading in.
+  await alice.emulateMedia({ reducedMotion: "reduce" });
+  await alice.reload();
+  await expectNewBillRoute();
+  await byAmount.check();
+  assert.equal(await alice.getByRole("region", { name: "Split by amount" })
+    .evaluate(panel => getComputedStyle(panel.parentElement).opacity), "1");
+  await byItem.check();
+  await alice.emulateMedia({ reducedMotion: "no-preference" });
   // Choosing a method alone saves nothing, so leaving does not ask about changes.
   await alice.getByRole("button", { name: "Back to group" }).click();
   await expect(alice).toHaveURL(groupRoute);
@@ -388,6 +403,9 @@ async function splitMethodEntry(env) {
   await total.fill("12.345");
   await proceed.click();
   await expect(alice.getByText("Enter an amount with at most two decimal places.", { exact: true })).toBeVisible();
+  await total.fill("10000.01");
+  await proceed.click();
+  await expect(alice.getByText("Amounts cannot exceed CAD 10,000.00.", { exact: true })).toBeVisible();
   await expect(alice.getByRole("heading", { name: "How do you want to split it?" })).toBeVisible();
   // Enter continues to People with the total, without sharing the bill.
   await total.fill("84.6");
@@ -433,9 +451,17 @@ async function splitMethodEntry(env) {
   assert.equal(await chooser.element().getAttribute("capture"), null);
   await chooser.setFiles({ name: "receipt.png", mimeType: "image/png", buffer: await receiptPhoto(300, 500) });
   const cropDialog = alice.getByRole("dialog", { name: "Just the receipt" });
-  await expect(cropDialog).toBeVisible();
-  await cropDialog.getByRole("button", { name: "Close crop" }).click();
-  await expect(cropDialog).toBeHidden();
+  await cropDialog.getByRole("button", { name: "Use this photo", exact: true }).click();
+  await expect(alice.getByRole("heading", { name: "Check your items" })).toBeVisible();
+  const scanned = (await api(`/groups/${group.id}/receipt-drafts`)).drafts.find(draft => draft.id !== saved.id);
+  await expect.poll(async () => (await api(`/receipt-drafts/${scanned.id}`)).draft.processingStatus).toBe("ready");
+  assert.equal((await api(`/receipt-drafts/${scanned.id}`)).draft.data.mode, "items");
+  // Back on the first step, By item shows the photo and its scan actions.
+  await stepButton("Receipt").click();
+  await expect(byItem).toBeChecked();
+  await expect(alice.getByRole("heading", { name: "Your receipt" })).toBeVisible();
+  await expect(alice.getByRole("img", { name: "Original cropped receipt" })).toBeVisible();
+  await expect(alice.getByRole("button", { name: "Scan and replace current items…", exact: true })).toBeVisible();
 
   // On a phone, the camera is offered and the amount panel fits the screen.
   await alice.setViewportSize({ width: 390, height: 844 });
