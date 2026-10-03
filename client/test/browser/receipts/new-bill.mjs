@@ -368,12 +368,6 @@ async function splitMethodEntry(env) {
   await expect(alice.getByRole("button", { name: "Choose a photo", exact: true })).toHaveCount(0);
   await alice.keyboard.press("ArrowLeft");
   await expect(byItem).toBeChecked();
-  // A typed total survives a look at the other panel.
-  await byAmount.check();
-  await total.fill("42");
-  await byItem.check();
-  await byAmount.check();
-  await expect(total).toHaveValue("42.00");
   // With reduced motion, the panel appears at once instead of fading in.
   await alice.emulateMedia({ reducedMotion: "reduce" });
   await alice.reload();
@@ -387,6 +381,27 @@ async function splitMethodEntry(env) {
   await alice.getByRole("button", { name: "Back to group" }).click();
   await expect(alice).toHaveURL(groupRoute);
   assert.equal((await api(`/groups/${group.id}/receipt-drafts`)).drafts.length, 0);
+
+  // A typed total is draft content: it survives a look at the other panel,
+  // leaving asks first, and Save draft & close keeps it.
+  await alice.getByRole("button", { name: "New bill", exact: true }).click();
+  await expectNewBillRoute();
+  await byAmount.check();
+  await total.fill("25.5");
+  await byItem.check();
+  await byAmount.check();
+  await expect(total).toHaveValue("25.50");
+  await alice.getByRole("button", { name: "Back to group" }).click();
+  await expect(alice.getByRole("heading", { name: "Discard unsaved changes?" })).toBeVisible();
+  await alice.getByRole("button", { name: "Keep editing", exact: true }).click();
+  await alice.getByRole("button", { name: "Save draft & close", exact: true }).click();
+  await expect(alice).toHaveURL(groupRoute);
+  const [typedDraft] = (await api(`/groups/${group.id}/receipt-drafts`)).drafts;
+  assert.equal(typedDraft.data.mode, "manual");
+  assert.equal(typedDraft.data.totalCents, 2550);
+  await alice.getByRole("button", { name: "Delete untitled bill", exact: true }).click();
+  await alice.getByRole("button", { name: "Delete draft", exact: true }).click();
+  await expect.poll(async () => (await api(`/groups/${group.id}/receipt-drafts`)).drafts.length).toBe(0);
 
   // An amount must be a positive CAD amount before continuing.
   await alice.getByRole("button", { name: "New bill", exact: true }).click();

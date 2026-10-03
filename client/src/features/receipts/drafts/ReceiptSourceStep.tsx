@@ -17,7 +17,8 @@ type Mode = ReceiptData["mode"];
 
 /**
  * The first step chooses how the bill is split. The switch is view state only:
- * the draft's mode changes when the initiator continues, types items or scans.
+ * the draft's mode changes when the initiator types a total, continues, types
+ * items or scans.
  */
 export function ReceiptSourceStep({
   draft,
@@ -65,7 +66,7 @@ export function ReceiptSourceStep({
           <ItemSource draft={draft} setFile={setFile} replace={replace} setReplace={setReplace}
             scan={scan} update={update} setStep={setStep} />
         ) : (
-          <SplitTotalPanel text={totalText} setText={setTotalText} update={update} setStep={setStep} />
+          <SplitTotalPanel mode={draft.data.mode} text={totalText} setText={setTotalText} update={update} setStep={setStep} />
         )}
       </motion.div>
     </div>

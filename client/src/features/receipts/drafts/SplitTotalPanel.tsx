@@ -16,8 +16,12 @@ function parseTotal(text: string): number | string {
   }
 }
 
-/** By amount: the total is entered here, then People picks who shares it. */
-export function SplitTotalPanel({ text, setText, update, setStep }: {
+/**
+ * By amount: the total is entered here, then People picks who shares it. A valid
+ * typed total is draft content at once, so saving, leaving and recovery keep it.
+ */
+export function SplitTotalPanel({ mode, text, setText, update, setStep }: {
+  mode: ReceiptData["mode"];
   /** The typed total, kept by the step while the other panel shows. */
   text: string;
   setText: (text: string) => void;
@@ -57,8 +61,12 @@ export function SplitTotalPanel({ text, setText, update, setStep }: {
             aria-invalid={error ? true : undefined}
             aria-describedby={errorId}
             onChange={(e) => {
-              setText(e.target.value);
+              const typed = e.target.value;
+              setText(typed);
               setError("");
+              const total = parseTotal(typed);
+              if (typeof total === "number") update({ mode: "manual", totalCents: total });
+              else if (!typed.trim() && mode === "manual") update({ totalCents: null });
             }}
             onBlur={() => {
               const total = parseTotal(text);
