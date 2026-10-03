@@ -14,6 +14,10 @@ export const users = pgTable('users', {
   // by workflows/sync-display-names.ts; never an identity or financial input.
   displayName: text('display_name'),
 
+  // Clerk's updatedAt for the account data displayName came from. A name read
+  // from Clerk before this is stale and is never stored, whichever process read it.
+  clerkUpdatedAt: timestamp('clerk_updated_at', { withTimezone: true }),
+
   // createdAt is a timestamp for when the user was created
   // notNull() is a function that sets the column to be NOT NULL
   // defaultNow() is a function that sets the default value to the current timestamp

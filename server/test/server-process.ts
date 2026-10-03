@@ -32,10 +32,13 @@ for (let i = 1; i <= 17; i++)
 // Controlled Clerk account fields. Members without an entry have neither
 // Username nor Profile name. Tests edit them as Clerk's account window would.
 type Profile = Omit<ClerkProfile, 'clerkUserId'>;
+// Clerk's updatedAt: every save moves it forward, as Clerk's own clock does.
+let clock = 0;
+const saved = () => clock = Math.max(Date.now(), clock + 1);
 const defaultProfiles = (): Map<string, Profile> => new Map([
-  ['user_test_alice', { username: null, firstName: 'Alice', lastName: null }],
-  ['user_test_bob', { username: null, firstName: 'Bob', lastName: null }],
-  ['user_test_carol', { username: null, firstName: 'Carol', lastName: null }],
+  ['user_test_alice', { username: null, firstName: 'Alice', lastName: null, updatedAt: saved() }],
+  ['user_test_bob', { username: null, firstName: 'Bob', lastName: null, updatedAt: saved() }],
+  ['user_test_carol', { username: null, firstName: 'Carol', lastName: null, updatedAt: saved() }],
 ]);
 let profiles = defaultProfiles();
 // When held, the next read takes its snapshot, then waits to return it until released.
@@ -55,8 +58,9 @@ process.on('message', async message => {
   if (message === 'release-profiles') { releaseProfiles?.(); releaseProfiles = undefined; }
   if (message === 'sync-profiles') { await syncDisplayNames(readProfiles); process.send?.('profiles-synced'); }
   if (message && typeof message === 'object' && 'setProfile' in message) {
-    const { clerkUserId, ...profile } = message.setProfile as ClerkProfile;
-    profiles.set(clerkUserId, { username: null, firstName: null, lastName: null, ...profile });
+    const { clerkUserId, updatedAt, ...profile } = message.setProfile as Partial<ClerkProfile> & { clerkUserId: string };
+    // A test may pass an explicit updatedAt to model data read from Clerk earlier.
+    profiles.set(clerkUserId, { username: null, firstName: null, lastName: null, ...profile, updatedAt: updatedAt ?? saved() });
     process.send?.('profile-set');
   }
 });
@@ -154,7 +158,7 @@ countedApp.use('/api/test-clerk/profile', express.json(), (req, res) => {
   const clerkUserId = identities.get(req.get('authorization') ?? '');
   if (!clerkUserId) { res.status(401).json({ error: 'Unauthorized' }); return; }
   if (req.method === 'PATCH') profiles.set(clerkUserId, {
-    username: null, firstName: null, lastName: null, ...profiles.get(clerkUserId), ...req.body as Profile,
+    username: null, firstName: null, lastName: null, ...profiles.get(clerkUserId), ...req.body as Partial<Omit<Profile, 'updatedAt'>>, updatedAt: saved(),
   });
   res.json({ username: null, firstName: null, lastName: null, ...profiles.get(clerkUserId) });
 });

@@ -1,7 +1,8 @@
 import { clerkClient } from '@clerk/express';
 import type { ProfileNameFields } from '@share-tally/domain/display-name';
 
-export type ClerkProfile = ProfileNameFields & { clerkUserId: string };
+// updatedAt is Clerk's last change to the account, in milliseconds since the epoch.
+export type ClerkProfile = ProfileNameFields & { clerkUserId: string; updatedAt: number };
 // Verified Clerk account data for these users. Users Clerk no longer knows are omitted.
 export type ProfileReader = (clerkUserIds: string[]) => Promise<ClerkProfile[]>;
 
@@ -13,6 +14,7 @@ export const clerkProfiles: ProfileReader = async clerkUserIds => {
     const { data } = await clerkClient.users.getUserList({ userId, limit: userId.length });
     for (const user of data) profiles.push({
       clerkUserId: user.id, username: user.username, firstName: user.firstName, lastName: user.lastName,
+      updatedAt: user.updatedAt,
     });
   }
   return profiles;

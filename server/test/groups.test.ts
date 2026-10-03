@@ -98,7 +98,7 @@ async function clerk(message: unknown, reply: string) {
   child!.send(message as string);
   await replied;
 }
-const setProfile = (clerkUserId: string, profile: { username?: string | null; firstName?: string | null; lastName?: string | null }) =>
+const setProfile = (clerkUserId: string, profile: { username?: string | null; firstName?: string | null; lastName?: string | null; updatedAt?: number }) =>
   clerk({ setProfile: { clerkUserId, ...profile } }, 'profile-set');
 
 
@@ -838,4 +838,21 @@ test('a slow synchronization pass neither delays nor overwrites a member’s new
   child!.send('release-profiles');
   await pass;
   assert.deepEqual(await memberNames(group.id), ['Alice', 'builder']);
+});
+
+test('a name read from Clerk before the stored one is never written, even by another process', async () => {
+  const group = await create();
+  await inviteMember(group.id);
+  await setProfile('user_test_bob', { username: 'builder', updatedAt: Date.UTC(2026, 9, 2) });
+  assert.deepEqual(await json(await api('/me/profile', 'bob-token', 'POST')), { displayName: 'builder', changed: true });
+  // A fresh process remembers nothing; only the database knows which read is newer.
+  await stopServer();
+  await startServer();
+  await setProfile('user_test_bob', { username: 'old-handle', updatedAt: Date.UTC(2026, 9, 1) });
+  await clerk('sync-profiles', 'profiles-synced');
+  assert.deepEqual(await memberNames(group.id), ['Alice', 'builder']);
+  // Clerk data saved after the stored name still replaces it.
+  await setProfile('user_test_bob', { username: 'newer-handle', updatedAt: Date.UTC(2026, 9, 3) });
+  await clerk('sync-profiles', 'profiles-synced');
+  assert.deepEqual(await memberNames(group.id), ['Alice', 'newer-handle']);
 });

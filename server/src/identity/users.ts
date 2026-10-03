@@ -47,14 +47,17 @@ export async function allClerkUserIds() {
   return (await db.select({ clerkUserId: users.clerkUserId }).from(users)).map(user => user.clerkUserId);
 }
 
-// Stores each user's current name, returning the IDs of users whose name changed.
-export async function saveDisplayNames(tx: Transaction, names: { clerkUserId: string; displayName: string }[]) {
+// Stores each user's current name, unless the stored one came from Clerk data saved
+// later. Returns the IDs of users whose name changed.
+export async function saveDisplayNames(tx: Transaction, names: { clerkUserId: string; displayName: string; updatedAt: Date }[]) {
   const renamed: string[] = [];
-  for (const { clerkUserId, displayName } of names) {
-    const [user] = await tx.update(users).set({ displayName })
-      .where(and(eq(users.clerkUserId, clerkUserId), sql`${users.displayName} IS DISTINCT FROM ${displayName}`))
-      .returning({ id: users.id });
-    if (user) renamed.push(user.id);
+  for (const { clerkUserId, displayName, updatedAt } of names) {
+    // Lock the row so a concurrent save cannot slip in between this check and the write.
+    const [stored] = await tx.select({ id: users.id, displayName: users.displayName, clerkUpdatedAt: users.clerkUpdatedAt })
+      .from(users).where(eq(users.clerkUserId, clerkUserId)).for('update');
+    if (!stored || (stored.clerkUpdatedAt && stored.clerkUpdatedAt >= updatedAt)) continue;
+    await tx.update(users).set({ displayName, clerkUpdatedAt: updatedAt }).where(eq(users.id, stored.id));
+    if (stored.displayName !== displayName) renamed.push(stored.id);
   }
   return renamed;
 }
