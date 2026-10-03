@@ -1,4 +1,4 @@
-// Authenticated invalidation stream. Start the snapshot only after `ready`.
+// Authenticated invalidation streams. Start the snapshot only after `ready`.
 // Reads are serialized and invalidations during a read trigger another read.
 export const groupDeletedEvent = 'share-tally:group-deleted';
 export type GroupDeleted = { id: string; name?: string };
@@ -7,20 +7,52 @@ function announceDeletion(group: GroupDeleted) {
   window.dispatchEvent(new CustomEvent<GroupDeleted>(groupDeletedEvent, { detail: group }));
 }
 
-export function startGroupSync<T>(options: {
-  groupId: string;
+type SyncOptions<T> = {
   getToken: () => Promise<string | null>;
   read: (signal: AbortSignal) => Promise<T>;
   apply: (value: T) => void;
   status: (message: string) => void;
   accessDenied?: (status: number) => void;
   invalidateRead?: () => void;
+};
+
+export function startGroupSync<T>(options: SyncOptions<T> & { groupId: string }) {
+  return startSync(`/api/groups/${encodeURIComponent(options.groupId)}/events`, options);
+}
+
+// The names version this tab last saw. It outlives the stream, so returning to
+// Home after missing a rename elsewhere rereads.
+let seenNamesVersion: string | undefined;
+
+// Renamed members of any of the signed-in member's groups, for views spanning
+// groups such as Home; group pages learn of renames from their group's stream.
+// Each event carries a names version, so the event itself is the snapshot: the
+// views reread only when it differs from the last one seen. The tab's first
+// version is unknown, so it rereads once in case of a rename before subscribing.
+export function startMemberSync(options: { getToken: () => Promise<string | null>; changed: () => void }) {
+  return startSync('/api/me/events', {
+    getToken: options.getToken, read: async () => {}, apply: () => {}, status: () => {},
+    reread: event => {
+      let next: unknown;
+      try { next = JSON.parse(event.match(/^data: (.*)$/m)?.[1] ?? '').version; } catch { /* An unknown version rereads. */ }
+      if (typeof next !== 'string' || next !== seenNamesVersion) options.changed();
+      seenNamesVersion = typeof next === 'string' ? next : undefined;
+      return false;
+    },
+  });
+}
+
+function startSync<T>(path: string, options: SyncOptions<T> & {
+  groupId?: string;
+  // Whether a ready or changed event needs this view's read, rather than
+  // bringing the view up to date itself. Defaults to always.
+  reread?: (event: string) => boolean;
 }) {
   let stopped = false;
   let seenReady = false;
   let attempt = 0;
   function deleted(name?: string) {
-    if (stopped) return;
+    if (stopped || !options.groupId) return;
     stopped = true;
     announceDeletion({ id: options.groupId, name });
   }
@@ -67,10 +99,10 @@ export function startGroupSync<T>(options: {
       ]);
       if (controller.signal.aborted) return;
       if (!token) throw new Error('Authentication required');
-      const response = await fetch(`/api/groups/${encodeURIComponent(options.groupId)}/events`, {
+      const response = await fetch(path, {
         headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
       });
-      if (response.status === 404) {
+      if (response.status === 404 && options.groupId) {
         if (seenReady) deleted();
         else { options.accessDenied?.(404); stopped = true; }
         return;
@@ -104,7 +136,10 @@ export function startGroupSync<T>(options: {
             }
             if (/^event: ready$/m.test(event)) seenReady = true;
             if (/^event: changed$/m.test(event)) options.invalidateRead?.();
-            if (/^event: (ready|changed)$/m.test(event)) void refresh();
+            if (/^event: (ready|changed)$/m.test(event)) {
+              if (options.reread?.(event) ?? true) void refresh();
+              else attempt = 0; // A healthy connection; the next reconnect need not back off.
+            }
           }
           if (pending.length > 65_536) throw new Error('Invalid stream');
         }

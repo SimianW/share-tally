@@ -9,6 +9,8 @@ export type SignedInAccount = {
   email?: string | null;
   imageUrl?: string | null;
   openProfile: () => void;
+  // Rereads this account from Clerk, after an edit made in another tab or device.
+  reload: () => void;
   signOut: () => void;
 };
 

@@ -6,9 +6,10 @@ import { changeBill, createBill, submitShare } from "./bills.js";
 import { readBills, readGroupBills, readSummary } from "./queries.js";
 import { isUuid } from "../shared/input-validation.js";
 import { parseAction, parseEdit, parseBill, parseShare } from "./inputs.js";
+import type { ProfileReader } from '../identity/clerk-profiles.js';
 
 export function createBillsRouter(
-  displayName: (id: string) => Promise<string>,
+  profiles: ProfileReader,
   avatars: AvatarReader,
 ) {
   const router = Router();
@@ -21,7 +22,7 @@ export function createBillsRouter(
       ...p, ...images.get(p.userId),
     })) }));
   };
-  const currentUser = (id: string) => getGroupUser(id, displayName);
+  const currentUser = (id: string) => getGroupUser(id, profiles);
   for (const param of ["groupId", "billId"])
     router.param(param, (_req, _res, next, id) => {
       next(isUuid(id) ? undefined : new BillError(404, "Record not found."));

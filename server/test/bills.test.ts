@@ -107,7 +107,22 @@ beforeEach(async () => {
   await pool.query(
     "TRUNCATE TABLE item_claims, bill_items, receipt_evidence, receipt_photos, receipt_drafts, repayments, bill_shares, bills, group_members, groups, users",
   );
+  await clerk("reset-profiles", "profiles-reset");
 });
+
+// Controls the test server's Clerk account fields, as Clerk itself would hold them.
+async function clerk(message: unknown, reply: string) {
+  const replied = new Promise<void>((resolve) => {
+    const received = (response: unknown) => {
+      if (response !== reply) return;
+      child!.off("message", received);
+      resolve();
+    };
+    child!.on("message", received);
+  });
+  child!.send(message as string);
+  await replied;
+}
 
 async function api(
   path: string,
@@ -3752,4 +3767,41 @@ test('legacy item bills retain their amounts and PUT corrections; summarized bil
   const unchanged = (await json(await api(`/bills/${summarized.id}`))).bill;
   assert.deepEqual(unchanged.items.map((item: { finalCents: number }) => item.finalCents), [1010, 2020, 920]);
   assert.ok(unchanged.receipt);
+});
+
+test('renaming a member changes displayed names only, never ownership, amounts, confirmations, revisions or item versions', async () => {
+  const { group, ids, path, draft, bill: items, data } = await itemBill([100, 200], 300);
+  await claimBill(items.id, 'bob-token', [{ itemId: data.items[0]!.id, numerator: 1, denominator: 2 }]);
+  await claimBill(items.id, 'carol-token', [{ itemId: data.items[1]!.id, numerator: 1, denominator: 1 }]);
+  const complete = await billCreate(path, { ...draft, requestId: crypto.randomUUID(), participantIds: [ids.Alice, ids.Bob] });
+  await submit(complete.id, 4000, 'alice-token');
+  await submit(complete.id, 6000);
+  const incomplete = await billCreate(path, { ...draft, requestId: crypto.randomUUID() });
+  await submit(incomplete.id, 3000);
+  await decide((await recordRepayment(group.id, ids.Alice!, 1000)).id);
+  await decide((await recordRepayment(group.id, ids.Alice!, 500)).id, 'rejected');
+  await recordRepayment(group.id, ids.Alice!, 700);
+  const records = async () => Object.fromEntries(await Promise.all([
+    'SELECT id, clerk_user_id, created_at FROM users', 'SELECT * FROM group_members', 'SELECT * FROM bills',
+    'SELECT * FROM bill_shares', 'SELECT * FROM bill_items', 'SELECT * FROM item_claims', 'SELECT * FROM repayments',
+  ].map(async query => [query, (await pool.query(`${query} ORDER BY 1, 2`)).rows])));
+  const reads = async () => ({
+    group: await json(await api(`/groups/${group.id}`)),
+    bills: await json(await api(path)),
+    details: await Promise.all([items.id, complete.id, incomplete.id].map(async id => json(await api(`/bills/${id}`)))),
+    attention: await json(await api('/attention')),
+  });
+  const storedBefore = await records();
+  const before = await reads();
+  assert.equal(before.attention.actions.find((action: { kind: string }) => action.kind === 'review-repayment').senderName, 'Bob');
+
+  await clerk({ setProfile: { clerkUserId: 'user_test_bob', username: 'builder', firstName: 'Bob', lastName: 'Builder' } }, 'profile-set');
+  assert.deepEqual(await json(await api('/me/profile', 'bob-token', 'POST')), { displayName: 'builder', changed: true });
+
+  // Every read, including old and completed records, carries the current name and nothing else changes.
+  const after = await reads();
+  assert.ok(JSON.stringify(before).includes('"displayName":"Bob"'));
+  assert.ok(!JSON.stringify(after).includes('"Bob"'));
+  assert.deepEqual(after, JSON.parse(JSON.stringify(before).replaceAll('"Bob"', '"builder"')));
+  assert.deepEqual(await records(), storedBefore);
 });

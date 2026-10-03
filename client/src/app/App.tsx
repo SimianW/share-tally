@@ -3,20 +3,30 @@ import { useRoute } from '../shared/browser/route';
 import { SessionQueries } from '../shared/api/SessionQueries';
 import AppShell from "./AppShell";
 import { Logo } from "../shared/ui/Logo";
+import { useProfileSync } from "../features/account/profile-sync";
+import { resolveDisplayName } from "@share-tally/domain/display-name";
 
 function SignedInApp() {
   const { user } = useUser();
-  const clerk = useClerk();
   if (!user) return <p role="status">Loading your account…</p>;
-  const displayName = user.firstName || user.fullName || "friend";
+  return <SignedInAccount user={user} />;
+}
+
+function SignedInAccount({ user }: { user: NonNullable<ReturnType<typeof useUser>['user']> }) {
+  const clerk = useClerk();
+  const reload = () => void user.reload().catch(() => {});
+  useProfileSync(user, reload);
+  // The same rule the server applies to every member's name.
+  const displayName = resolveDisplayName(user);
   return (
     <SessionQueries key={user.id}><AppShell
       displayName={displayName}
       account={{
-        name: user.fullName || displayName,
+        name: displayName,
         email: user.primaryEmailAddress?.emailAddress,
         imageUrl: user.imageUrl,
         openProfile: () => clerk.openUserProfile(),
+        reload,
         signOut: () => void clerk.signOut(),
       }}
     /></SessionQueries>

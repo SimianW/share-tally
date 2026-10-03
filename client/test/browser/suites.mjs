@@ -7,6 +7,7 @@ import { scenarios as bills } from './groups/bills.mjs';
 import { scenarios as groupPage } from './groups/group-page.mjs';
 import { scenarios as ledger } from './groups/ledger.mjs';
 import { scenarios as membership } from './groups/membership.mjs';
+import { scenarios as names } from './groups/names.mjs';
 import { scenarios as navigation } from './groups/navigation.mjs';
 import { scenarios as claiming } from './receipts/claiming.mjs';
 import { scenarios as corrections } from './receipts/corrections.mjs';
@@ -21,14 +22,14 @@ const ordered = (scenarios, names) => names.map(name => {
   return scenario;
 });
 
-const groupScenarios = [...membership, ...appearance, ...bills, ...navigation, ...ledger, ...groupPage, ...amountPortion];
+const groupScenarios = [...membership, ...appearance, ...bills, ...navigation, ...ledger, ...groupPage, ...amountPortion, ...names];
 const receiptScenarios = [...newBill, ...drafts, ...editor, ...claiming, ...corrections, ...processing];
 
 export const suites = {
   groups: ordered(groupScenarios, [
     'group-refresh', 'group-invitations', 'appearance', 'bill-sharing', 'navigation-and-account-isolation',
     'bill-corrections', 'repayments', 'group-capacity', 'bill-live-updates', 'attention',
-    'group-page-ledger', 'amount-portion', 'group-deletion',
+    'group-page-ledger', 'amount-portion', 'group-deletion', 'member-renames',
   ]),
   receipts: ordered(receiptScenarios, [
     'scan-retry', 'split-method-entry', 'new-bill-during-refresh', 'receipt-crop', 'draft-save-and-recovery', 'item-claims', 'claim-controls',

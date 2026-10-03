@@ -4,8 +4,9 @@ import { getGroupUser } from '../identity/users.js';
 import { deleteGroup } from '../workflows/delete-group.js';
 import { parseGroupIcon } from './group-icon.js';
 import { createGroup, getGroupForMember, groupDeletionEligibility, groupInvitation, joinGroup, listGroupsForUser } from './groups.js';
+import type { ProfileReader } from '../identity/clerk-profiles.js';
 
-export function createGroupsRouter(displayName: (id: string) => Promise<string>, avatars: AvatarReader) {
+export function createGroupsRouter(profiles: ProfileReader, avatars: AvatarReader) {
   const router = Router();
   type Listed = { id: string };
   const memberIds = (group: { createdBy: string; members?: Listed[]; memberPreview?: Listed[] }) =>
@@ -20,7 +21,7 @@ export function createGroupsRouter(displayName: (id: string) => Promise<string>,
       ...(group.memberPreview ? { memberPreview: group.memberPreview.map(withImages) } : {}),
     };
   }
-  const currentUser = (clerkUserId: string) => getGroupUser(clerkUserId, displayName);
+  const currentUser = (clerkUserId: string) => getGroupUser(clerkUserId, profiles);
 
   router.get('/', async (_req, res) => {
     const user = await currentUser(res.locals.clerkUserId);

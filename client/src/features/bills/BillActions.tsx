@@ -274,6 +274,7 @@ function EditBill({
   } catch {
     /* Show validation on submit. */
   }
+  // Reread members whenever the live bill is reread, so participant names stay current.
   useEffect(() => {
     const controller = new AbortController();
     groups
@@ -288,7 +289,7 @@ function EditBill({
         if (!controller.signal.aborted) setLoadError(errorMessage(error));
       });
     return () => controller.abort();
-  }, [groups, bill.groupId, loadVersion]);
+  }, [groups, bill.groupId, loadVersion, bill]);
   return (
     <Dialog
       title="Edit bill"
