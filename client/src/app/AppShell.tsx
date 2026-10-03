@@ -16,7 +16,6 @@ import { GroupDetails, JoinGroup } from '../features/groups/GroupDetails';
 import { useGroupApi, evictDeletedGroup, deletedLocally, type GroupDetail, type GroupDraft, type GroupView, type ListedGroup } from "../features/groups/api";
 import { errorMessage } from "../shared/api/error-message";
 import { CreateGroupDialog } from "../features/groups/Groups";
-import { Logo } from "../shared/ui/Logo";
 
 // Home is the only top-level page; every other route belongs to a group or the account.
 function goHome() { window.location.hash = routes.home; }
@@ -98,9 +97,7 @@ export default function AppShell({
       <main className="main-content" id="main-content" tabIndex={-1}>
         {accountPage && <header className="page-header">
           <div>
-            <div className="eyebrow">YOUR SHARED PURCHASES</div>
             <h1>Account</h1>
-            <p>Your signed-in ShareTally account.</p>
           </div>
         </header>}
         {!home && notice}
@@ -114,11 +111,6 @@ export default function AppShell({
             revision={revision} retry={() => setRevision(value => value + 1)} notice={notice}
             onCreate={() => setCreating(true)} />
         )}
-        <footer className="page-footer">
-          <Logo compact />
-          <span>Made for the people you share life with.</span>
-          <span>CAD</span>
-        </footer>
       </main>
       {creating && (
         <CreateGroupDialog

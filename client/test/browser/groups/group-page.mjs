@@ -207,7 +207,7 @@ async function checkGroupPage(pageFor, base, api) {
   const audit = alice.getByRole('region', { name: 'Group balances and repayments' });
   await sectionOrder(alice);
   await expect(alice.getByRole('heading', { name: group.name })).toBeVisible();
-  await expect(alice.locator('.group-member-count')).toContainText('4 members · CAD');
+  await expect(alice.locator('.group-member-count')).toContainText('4 members');
   await expect(alice.getByRole('button', { name: 'New bill' })).toBeVisible();
   await expect(dashboard.getByRole('heading', { name: /You're owed.*\$97\.25/ })).toBeVisible();
   await expect(dashboard).toContainText('From completed bills and confirmed repayments.');

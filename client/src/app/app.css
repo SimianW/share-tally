@@ -325,7 +325,7 @@ h1 {
 /* Play layout without the design switcher or future bill/settlement screens. */
 .main-content {
   min-width: 0;
-  padding-bottom: 24px;
+  padding-bottom: 64px;
 }
 .page-header h1 {
   overflow-wrap: anywhere;
@@ -334,19 +334,6 @@ h1 {
   color: var(--ink-secondary);
   font-size: 12px;
   margin-bottom: 24px;
-}
-.page-footer {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  border-top: 1px solid var(--line);
-  padding-top: 22px;
-  margin-top: 56px;
-  color: var(--ink-secondary);
-  font-size: 11px;
-}
-.page-footer > span:last-child {
-  margin-left: auto;
 }
 .member-row {
   display: flex;
@@ -407,9 +394,6 @@ h1 {
   }
   .play-dialog {
     padding: 24px 20px;
-  }
-  .page-footer {
-    margin-top: 32px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
