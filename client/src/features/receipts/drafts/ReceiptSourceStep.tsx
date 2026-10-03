@@ -143,7 +143,11 @@ function ItemSource({
             hasItems={data.items.length > 0}
             replace={replace}
             setReplace={setReplace}
-            scan={scan}
+            // The scan saves first, so the draft must already be split by item.
+            scan={() => {
+              update({ mode: "items" });
+              scan();
+            }}
           />
         )}
       </div>

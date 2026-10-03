@@ -48,6 +48,8 @@ async function scanRetry(env) {
   // The first extraction fails on purpose; cropping must have started it without a Read receipt click.
   await expect(alice.getByText("Test extraction unavailable. Your draft is safe.", { exact: true })).toBeVisible();
   await expect(method.getByRole("radio", { name: "By item" })).toBeChecked();
+  // The scan's save already records By item, so reopening returns to the photo, not People.
+  assert.deepEqual((await api(`/groups/${group.id}/receipt-drafts`)).drafts.map(draft => draft.data.mode), ["items"]);
   await expect(alice.getByRole("button", { name: "Read receipt", exact: true })).toBeVisible();
   await alice.getByRole("button", { name: "Read receipt", exact: true }).click();
   await expect(alice.getByRole("heading", { name: "Check your items" })).toBeVisible();
@@ -475,11 +477,20 @@ async function splitMethodEntry(env) {
   await stepButton("Receipt").click();
   await expect(byAmount).toBeChecked();
   await expect(total).toHaveValue("84.60");
+  // A newer save from another tab replaces what the step shows once the
+  // editor hears of it, here through a member joining the group.
+  const elsewhere = (await api(`/receipt-drafts/${saved.id}`)).draft;
+  await api(`/groups/${group.id}/receipt-drafts/${saved.id}`, "alice-token", "PUT", {
+    revision: elsewhere.revision, data: { ...elsewhere.data, totalCents: 9900 },
+  });
+  const invitation = await api(`/groups/${group.id}/invitation`);
+  await api("/groups/join", "member-1-token", "POST", { token: invitation.path.split("/").at(-1) });
+  await expect(total).toHaveValue("99.00");
   // Reloading the saved draft replaces a typed total the step was showing.
   await total.fill("50");
   await failSaveAndReload(saved.id);
   await expect(byAmount).toBeChecked();
-  await expect(total).toHaveValue("84.60");
+  await expect(total).toHaveValue("99.00");
   // Leaving the field tidies the amount to cents.
   await total.fill("12.5");
   await total.blur();

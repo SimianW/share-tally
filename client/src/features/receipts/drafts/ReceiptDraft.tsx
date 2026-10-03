@@ -48,7 +48,8 @@ export function ReceiptDraftForm({
   // Split by item, an empty total paid follows the items; this shows its input anyway.
   const [enteringTotal, setEnteringTotal] = useState(false);
   const [replace, setReplace] = useState(false);
-  // Reloading discards local edits, so the first step restarts its view of the draft.
+  // The first step restarts its view of the draft when the editor adopts a newer
+  // saved one, or when Reload discards local edits without a newer revision.
   const [reloads, setReloads] = useState(0);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const stepHeading = useRef<HTMLHeadingElement>(null);
@@ -136,7 +137,7 @@ export function ReceiptDraftForm({
           {editor.syncError && processing && <p role="status">{editor.syncError}</p>}
           <fieldset disabled={running || !!draft.initializationRevision || (processing && step !== 1)}>
             {step === 0 && (
-              <ReceiptSourceStep key={reloads} draft={draft} setFile={setFile} replace={replace} setReplace={setReplace}
+              <ReceiptSourceStep key={`${reloads}:${state.baseline?.revision ?? 0}`} draft={draft} setFile={setFile} replace={replace} setReplace={setReplace}
                 scan={scan} update={editor.edit} setStep={editor.chooseStep} />
             )}
             {step === 1 && data.mode === "items" && (
@@ -159,6 +160,8 @@ export function ReceiptDraftForm({
               cancel={() => setFile(null)}
               save={async (base64) => {
                 setFile(null);
+                // A receipt photo is split by item, and its scan saves the draft first.
+                editor.edit({ mode: "items" });
                 // As with the scan buttons, a completed scan leaves the replacement choice.
                 void editor.cropPhoto(base64).then((scanned) => { if (scanned) setReplace(false); });
               }}
