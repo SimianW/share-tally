@@ -292,9 +292,10 @@ export function reduceEditor(state: EditorState, event: EditorEvent): EditorStat
       const known = { ...state, server: newer(state.server, latest) };
       // Keep the original idempotent initiation revision if its response was lost.
       if (state.local.initializationRevision || latest.revision <= state.local.revision) return known;
-      // A scan always wins: the server rejects edits while it is processing.
-      // Otherwise preserve unrelated local edits for the normal revision conflict.
-      if (!clean(state) && !processing(latest) && !processing(state.local)) return known;
+      // A scan always wins: the server rejects edits while it is processing, and a
+      // published bill accepts none. Otherwise preserve unrelated local edits for
+      // the normal revision conflict.
+      if (!clean(state) && !latest.billId && !processing(latest) && !processing(state.local)) return known;
       const adopted = adopt(known, latest);
       return processing(latest) && latest.data.mode === "items" ? { ...adopted, step: 1 } : adopted;
     }

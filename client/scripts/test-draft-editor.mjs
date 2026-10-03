@@ -228,6 +228,13 @@ test("an initiated draft arriving by reload or live update stays locked for its 
   const live = run(open(saved(5)), { type: "remoteDraft", draft: initiated });
   assert.equal(editable(live), false);
   assert.equal(initiationRevision(live), 6);
+  // Unsaved edits cannot be saved to a published bill, so they do not keep it editable.
+  const dirty = run(open(saved(5)), { type: "edited", patch: { title: "Unsaved here" } },
+    { type: "remoteDraft", draft: initiated });
+  assert.equal(editable(dirty), false);
+  assert.equal(dirty.step, 2);
+  assert.equal(initiationRevision(dirty), 6);
+  assert.equal(hasUnsavedChanges(dirty), false);
 });
 
 test("a new-bill recovery copy already saved by a scan is checked against the server before it opens", () => {
