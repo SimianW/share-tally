@@ -59,22 +59,24 @@ export function useDraftEditor({ userId, groupId, id, photoSelected, close, crea
     clearRecovery(userId, groupId, current.current.local.id, key, true);
   }, [dispatch, userId, groupId, key]);
 
-  const settle = useCallback(async (action: () => Promise<void>) => {
+  // Only a request for the draft itself (reload, delete) establishes its absence by a 404;
+  // other requests also answer 404 for an expired photo or a missing item.
+  // A new bill the server never saved is not "removed" either; its local work stays.
+  const settle = useCallback(async (action: () => Promise<void>, draftRequest = false) => {
     try {
       await action();
       dispatch({ type: "finished" });
       return true;
     } catch (error) {
-      // A new bill the server never saved is not "removed"; its local work stays.
-      if (isRemoved(error) && knownToServer(current.current)) removed();
+      if (draftRequest && isRemoved(error) && knownToServer(current.current)) removed();
       else dispatch({ type: "failed", message: errorMessage(error) });
       return false;
     }
   }, [dispatch, removed]);
-  function perform(operation: Activity, action: () => Promise<void>) {
+  function perform(operation: Activity, action: () => Promise<void>, draftRequest = false) {
     const before = current.current;
     if (dispatch({ type: "started", operation }) === before) return Promise.resolve(false);
-    return settle(action);
+    return settle(action, draftRequest);
   }
   const saveLocal = useCallback(async () => {
     const { draft } = await api.save(groupId, current.current.local);
@@ -205,13 +207,13 @@ export function useDraftEditor({ userId, groupId, id, photoSelected, close, crea
     reload: () => perform("reloading", async () => {
       const { draft } = await api.get(current.current.local.id);
       dispatch({ type: "reloaded", draft, storedStep: readStep(userId, draft.id) });
-    }),
+    }, true),
     remove: () => perform("deleting", async () => {
       const { local } = current.current;
       await api.remove(local.id, local.revision);
       end(true);
       latest.current.close();
-    }),
+    }, true),
     requestClose() {
       switch (leaving(current.current, latest.current.photoSelected)) {
         case "stay": return;

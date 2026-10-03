@@ -13,6 +13,7 @@ export const scenarios = [
   { name: 'editor-group-deletion', environment: receiptEnvironment, run: groupDeletion },
   { name: 'editor-removed-draft', environment: receiptEnvironment, run: removedDraft },
   { name: 'editor-failed-reads', environment: receiptEnvironment, run: failedReads },
+  { name: 'editor-rescan', environment: receiptEnvironment, run: rescan },
 ];
 
 // A saved By amount draft, which opens on the People step with its title.
@@ -300,4 +301,44 @@ async function failedReads(env) {
   await expect(titleField(alice)).toHaveValue('Recovered after retry');
   await expect(recoveredNotice(alice)).toBeVisible();
   await alice.unroute(draftRequest);
+}
+
+// Replacing scanned items with a new photo returns to the usual scan controls, and a
+// scan whose photo is unavailable is an ordinary error, not a deleted draft.
+async function rescan(env) {
+  const { newBillRoute, alice, titledDraft } = await receiptGroup(env);
+  const id = await titledDraft('Rescanned receipt');
+  await alice.goto(`${newBillRoute}/${id}`);
+  const chooseAndCrop = async name => {
+    await alice.getByLabel('Choose a receipt image').setInputFiles({ name, mimeType: 'image/png', buffer: await receiptPhoto(300, 500) });
+    await alice.getByRole('button', { name: 'Use this photo', exact: true }).click();
+  };
+  const row = alice.getByRole('button', { name: 'Edit Friendly item 1', exact: true });
+  const replaceItems = alice.getByRole('button', { name: 'Scan and replace current items…', exact: true });
+  const keepItems = alice.getByRole('button', { name: 'Keep current items', exact: true });
+  await chooseAndCrop('receipt.png');
+  await expect(row).toBeEnabled();
+
+  await replaceItems.click();
+  await expect(keepItems).toBeVisible();
+  await alice.getByRole('button', { name: 'Replace receipt photo', exact: true }).click();
+  await expect(alice.getByRole('heading', { name: 'Start with your receipt' })).toBeVisible();
+  await chooseAndCrop('second.png');
+  await expect(alice.getByRole('heading', { name: 'Check your items' })).toBeVisible();
+  await expect(row).toBeEnabled();
+  await expect(replaceItems).toBeVisible();
+  await expect(keepItems).toHaveCount(0);
+
+  const unavailable = 'No photo is available. Receipt photos expire after six months.';
+  const extractRequest = '**/api/receipt-drafts/*/extract';
+  await alice.route(extractRequest, route => route.fulfill({
+    status: 404, contentType: 'application/json', body: JSON.stringify({ error: unavailable }),
+  }));
+  await replaceItems.click();
+  await alice.getByRole('button', { name: 'Replace current items with a new scan', exact: true }).click();
+  await expect(alice.getByText(unavailable, { exact: true })).toBeVisible();
+  await expect(alice.getByText('This draft no longer exists. It may have been deleted or shared elsewhere.', { exact: true })).toHaveCount(0);
+  await expect(row).toBeEnabled();
+  await expect.poll(async () => (await storedDraft(alice, id))?.data.title).toBe('Rescanned receipt');
+  await alice.unroute(extractRequest);
 }

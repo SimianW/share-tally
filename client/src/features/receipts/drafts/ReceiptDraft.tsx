@@ -157,7 +157,8 @@ export function ReceiptDraftForm({
               cancel={() => setFile(null)}
               save={async (base64) => {
                 setFile(null);
-                void editor.cropPhoto(base64);
+                // As with the scan buttons, a completed scan leaves the replacement choice.
+                void editor.cropPhoto(base64).then((scanned) => { if (scanned) setReplace(false); });
               }}
             />
           )}

@@ -36,7 +36,7 @@ export const suites = {
     'scanned-draft-editing', 'compact-review', 'claim-receipt-photo', 'unassigned-tax',
     'legacy-price-correction', 'price-correction', 'scan-fallback', 'low-confidence-hints', 'manual-split-fallback',
     'editor-recovery', 'editor-scan-reordering', 'editor-repeated-initiation', 'editor-storage-failure',
-    'editor-group-deletion', 'editor-removed-draft', 'editor-failed-reads',
+    'editor-group-deletion', 'editor-removed-draft', 'editor-failed-reads', 'editor-rescan',
   ]),
   avatar,
 };
