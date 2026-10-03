@@ -9,6 +9,8 @@ import { closeDatabase } from '../src/db/index.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { Client } from 'pg';
 import express from 'express';
+import type { ClerkProfile } from '../src/identity/clerk-profiles.js';
+import { syncDisplayNames } from '../src/workflows/sync-display-names.js';
 
 // Opt-in HTTP query counts exclude startup/recovery queries outside the request.
 const queryCounts = new AsyncLocalStorage<{ count: number }>();
@@ -27,6 +29,37 @@ const identities = new Map([
 ]);
 for (let i = 1; i <= 17; i++)
   identities.set(`Bearer member-${i}-token`, `user_test_member_${i}`);
+// Controlled Clerk account fields. Members without an entry have neither
+// Username nor Profile name. Tests edit them as Clerk's account window would.
+type Profile = Omit<ClerkProfile, 'clerkUserId'>;
+const defaultProfiles = (): Map<string, Profile> => new Map([
+  ['user_test_alice', { username: null, firstName: 'Alice', lastName: null }],
+  ['user_test_bob', { username: null, firstName: 'Bob', lastName: null }],
+  ['user_test_carol', { username: null, firstName: 'Carol', lastName: null }],
+]);
+let profiles = defaultProfiles();
+// When held, the next read takes its snapshot, then waits to return it until released.
+let holdProfiles = false;
+let releaseProfiles: (() => void) | undefined;
+const readProfiles = async (ids: string[]) => {
+  const snapshot = ids.flatMap(clerkUserId => profiles.has(clerkUserId) ? [{ clerkUserId, ...profiles.get(clerkUserId)! }] : []);
+  if (holdProfiles) {
+    holdProfiles = false;
+    await new Promise<void>(resolve => { releaseProfiles = resolve; process.send?.('profiles-held'); });
+  }
+  return snapshot;
+};
+process.on('message', async message => {
+  if (message === 'reset-profiles') { profiles = defaultProfiles(); process.send?.('profiles-reset'); }
+  if (message === 'hold-profiles') { holdProfiles = true; process.send?.('holding-profiles'); }
+  if (message === 'release-profiles') { releaseProfiles?.(); releaseProfiles = undefined; }
+  if (message === 'sync-profiles') { await syncDisplayNames(readProfiles); process.send?.('profiles-synced'); }
+  if (message && typeof message === 'object' && 'setProfile' in message) {
+    const { clerkUserId, ...profile } = message.setProfile as ClerkProfile;
+    profiles.set(clerkUserId, { username: null, firstName: null, lastName: null, ...profile });
+    process.send?.('profile-set');
+  }
+});
 let scans = 0;
 // API tests rely on the first scan failing; browser scenarios opt in to that failure explicitly.
 const firstExtractionFails = process.env.TEST_FIRST_EXTRACTION_FAILS !== '0';
@@ -99,7 +132,7 @@ const app = createApp({
   avatarUrl: async id => id === 'user_test_alice'
     ? { fallbackImageUrl: null, imageUrl: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40"%3E%3Crect width="40" height="40" fill="green"/%3E%3C/svg%3E' }
     : null,
-  displayName: async id => ({ user_test_alice: 'Alice', user_test_bob: 'Bob', user_test_carol: 'Carol' })[id] ?? 'Member',
+  profiles: readProfiles,
   middleware: (_req, _res, next) => next(),
   userId: (req) => identities.get(req.get('authorization') ?? '') ?? null,
 });
@@ -114,6 +147,16 @@ countedApp.use((req, res, next) => {
     return Reflect.apply(writeHead, this, args);
   } as typeof writeHead;
   queryCounts.run(store, next);
+});
+// The browser fixture's account window reads and saves the signed-in user's
+// Clerk fields here, as the real Clerk account window does with Clerk itself.
+countedApp.use('/api/test-clerk/profile', express.json(), (req, res) => {
+  const clerkUserId = identities.get(req.get('authorization') ?? '');
+  if (!clerkUserId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  if (req.method === 'PATCH') profiles.set(clerkUserId, {
+    username: null, firstName: null, lastName: null, ...profiles.get(clerkUserId), ...req.body as Profile,
+  });
+  res.json({ username: null, firstName: null, lastName: null, ...profiles.get(clerkUserId) });
 });
 countedApp.use(app);
 // Use the production startup sequence so recovery on restart is exercised here.

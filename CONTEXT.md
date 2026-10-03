@@ -21,6 +21,18 @@ A collection of distinct members who record shared bills and settle their debts 
 **Member**:
 A user who belongs to a group. Membership does not make the user a participant in every bill.
 
+**Username**:
+A user's Clerk account handle, edited through **Update username** in the Clerk account window.
+_Avoid_: Profile name, which is a separate field.
+
+**Profile name**:
+A user's first and last name in Clerk's Profile section, edited through **Update profile**. It is not the name of a connected Google account.
+_Avoid_: Username, full name.
+
+**Displayed name**:
+How ShareTally names a user everywhere: their current nonempty Username, otherwise their current nonempty Profile name, otherwise `Member`. It is presentation only; records, ownership and access follow the user's stable identifier, so a rename changes no bill, share, claim or repayment.
+_Avoid_: Display name snapshot; old records show the current name.
+
 **Share**:
 A participant's portion of a bill's total cost, including the initiator's own portion.
 _Avoid_: Payment, which refers to money actually transferred.

@@ -2,14 +2,15 @@ import { routes, parseRoute } from '../shared/browser/paths';
 import './styles.css';
 import { Notification } from '../shared/ui/Notification';
 import { AppearancePicker } from '../theme/AppearancePicker';
-import { useCached, useCachedRequest } from '../shared/api/query-cache';
-import { groupDeletedEvent, type GroupDeleted } from '../shared/api/group-sync';
+import { refreshFinancialQueries, useCached, useCachedRequest } from '../shared/api/query-cache';
+import { groupDeletedEvent, startMemberSync, type GroupDeleted } from '../shared/api/group-sync';
+import { useAuth } from '@clerk/react';
 import { BillDetails } from '../features/bills/Bills';
 import { Home } from '../features/home/Home';
 import GroupWorkspace from './GroupWorkspace';
 import { NewBillPage } from "../features/receipts/drafts/NewBillPage";
 import { useRoute, leaveDeletedGroup, routeBelongsToDeletedGroup } from '../shared/browser/route';
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import AccountCheck from "../features/account/AccountCheck";
 import { TopBar, type SignedInAccount } from './TopBar';
 import { GroupDetails, JoinGroup } from '../features/groups/GroupDetails';
@@ -81,6 +82,23 @@ export default function AppShell({
   }, [api, revision]);
 
   const home = !billId && !newBill && !groupPageId && !accountPage;
+  // A member of one of this account's groups was renamed, possibly this account
+  // elsewhere: reread Home's groups and actions and this account's own names.
+  // Pages within a group hear of renames from that group's stream instead, so
+  // each tab holds one stream.
+  const { getToken } = useAuth();
+  const renamed = useEffectEvent(() => {
+    // Replace any group read already in flight: it may predate the rename.
+    void refreshFinancialQueries(cache);
+    setRevision(value => value + 1);
+    account.reload();
+  });
+  const spansGroups = home || accountPage;
+  useEffect(() => {
+    if (!spansGroups) return;
+    const sync = startMemberSync({ getToken, changed: renamed });
+    return () => sync.stop();
+  }, [getToken, spansGroups]);
   const notice = deletionNotice && <Notification tone="info" onDismiss={() => setDeletionNotice('')}>{deletionNotice}</Notification>;
 
   async function createGroup(draft: GroupDraft) {

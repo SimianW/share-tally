@@ -132,6 +132,20 @@ export async function listGroupsForUser(userId: string) {
   }, { isolationLevel: 'repeatable read', accessMode: 'read only' });
 }
 
+// The active groups these users belong to, and everyone in those groups, themselves included.
+export async function sharedGroups(tx: Tx, userIds: string[]) {
+  if (!userIds.length) return { groupIds: [], memberIds: [] };
+  const theirGroups = tx.select({ id: groupMembers.groupId }).from(groupMembers)
+    .innerJoin(groups, eq(groupMembers.groupId, groups.id))
+    .where(and(inArray(groupMembers.userId, userIds), isNull(groups.deletedAt)));
+  const rows = await tx.select({ groupId: groupMembers.groupId, userId: groupMembers.userId })
+    .from(groupMembers).where(inArray(groupMembers.groupId, theirGroups));
+  return {
+    groupIds: [...new Set(rows.map(row => row.groupId))],
+    memberIds: [...new Set(rows.map(row => row.userId))],
+  };
+}
+
 export class GroupAccessError extends Error {
   constructor(public status: 403 | 404 | 409, message: string) { super(message); }
 }

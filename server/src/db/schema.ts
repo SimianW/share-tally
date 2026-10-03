@@ -10,7 +10,8 @@ export const users = pgTable('users', {
   // notNull() is a function that sets the column to be NOT NULL
   clerkUserId: text('clerk_user_id').notNull().unique(),
 
-  // Cached from the verified Clerk profile when the user first opens groups.
+  // The user's displayed name, cached from verified Clerk data. Kept current
+  // by workflows/sync-display-names.ts; never an identity or financial input.
   displayName: text('display_name'),
 
   // createdAt is a timestamp for when the user was created
