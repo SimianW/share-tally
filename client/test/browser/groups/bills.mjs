@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { expect } from '@playwright/test';
 import { screenshots } from '../environment.mjs';
 import { costcoFriends, weekendGroceries, shareTicket, billSummary, billPanel, billPeople } from './fixtures.mjs';
-import { groupNet, homeRow, homeGroupNames, openGroupSwitcher } from '../ui.mjs';
+import { groupNet, homeRow, homeGroupNames, openGroupSwitcher, splitByAmount, splitMethod } from '../ui.mjs';
 
 export const scenarios = [
   { name: 'bill-sharing', run: billSharing },
@@ -43,10 +43,9 @@ async function billSharing(env) {
   await alice.getByRole('button', { name: 'View bills and balance' }).click();
   await alice.getByRole('button', { name: 'New bill', exact: true }).click();
   // The new-bill page reads its group before showing either the receipt step or the people step.
-  const splitByAmounts = alice.getByRole('button', { name: 'Split by amount instead', exact: true });
   const people = alice.getByRole('group', { name: "Who's in?" });
-  await expect(splitByAmounts.or(people).first()).toBeVisible();
-  if (await splitByAmounts.count()) await splitByAmounts.click();
+  await expect(splitMethod(alice).or(people).first()).toBeVisible();
+  if (await splitMethod(alice).count()) await splitByAmount(alice, '100.00');
   await expect(people).toBeVisible();
   await expect(alice.getByRole('checkbox', { name: 'You', exact: true })).toBeDisabled();
   await alice.getByRole('button', { name: 'Everyone', exact: true }).click();
@@ -214,7 +213,7 @@ async function billCorrections(env) {
   async function incompleteBill(title) {
     await alice.getByRole('link', { name: 'Group bills', exact: false }).click();
     await alice.getByRole('button', { name: 'New bill', exact: true }).click();
-  await alice.getByRole('button', { name: 'Split by amount instead', exact: true }).click();
+    await splitByAmount(alice, '100.00');
     await alice.getByLabel('Bill title', { exact: true }).fill(title);
     await alice.getByLabel('Total paid (CAD)', { exact: true }).fill('100.00');
     await expect(alice.getByLabel('Your share (CAD)', { exact: true })).toHaveCount(0);

@@ -26,7 +26,7 @@ async function processingRecovery(env) {
     alice.getByRole("button", { name: "Take a picture", exact: true }),
   ).toBeHidden();
   await expect(
-    alice.getByRole("button", { name: "Choose file", exact: true }),
+    alice.getByRole("button", { name: "Choose a photo", exact: true }),
   ).toBeVisible();
   await alice.setViewportSize({ width: 390, height: 844 });
   await expect(
@@ -48,7 +48,7 @@ async function processingRecovery(env) {
     .click();
   await alice.setViewportSize({ width: 1280, height: 1000 });
   const fileChooser = alice.waitForEvent("filechooser");
-  await alice.getByRole("button", { name: "Choose file", exact: true }).click();
+  await alice.getByRole("button", { name: "Choose a photo", exact: true }).click();
   const chooser = await fileChooser;
   assert.equal(await chooser.element().getAttribute("capture"), null);
   await waitForServer("holding-model", "hold-model");
@@ -77,7 +77,7 @@ async function processingRecovery(env) {
   assert.equal(await observer.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
   // Leaving the processing draft on the list does not prevent starting another bill.
   await observer.getByRole("button", { name: "New bill", exact: true }).click();
-  await expect(observer.getByRole("heading", { name: "Start with your receipt" })).toBeVisible();
+  await expect(observer.getByRole("heading", { name: "How do you want to split it?" })).toBeVisible();
   await observer.getByRole("button", { name: "Back to group" }).click();
   await expect(observer).toHaveURL(groupRoute);
   await expect(processingDraftRow()).toContainText("Checking names & tax…");

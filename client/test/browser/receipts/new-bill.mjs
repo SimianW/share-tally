@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { expect } from '@playwright/test';
-import { receiptEnvironment, receiptGroup } from './fixtures.mjs';
+import { receiptEnvironment, receiptGroup, receiptPhoto } from './fixtures.mjs';
 import { serverRequire } from '../environment.mjs';
 import { groupSwitcher, openGroupSwitcher, expectSegmentSlide } from '../ui.mjs';
 
@@ -12,6 +12,7 @@ export const scenarios = [
   { name: 'receipt-crop', environment: receiptEnvironment, run: receiptCrop },
   { name: 'unassigned-tax', environment: receiptEnvironment, run: unassignedTax },
   { name: 'manual-split-fallback', environment: receiptEnvironment, run: manualSplitFallback },
+  { name: 'split-method-entry', environment: receiptEnvironment, run: splitMethodEntry },
 ];
 
 // A blank new bill saves nothing; a failed scan can be retried, resumed from Home and deleted.
@@ -28,7 +29,7 @@ async function scanRetry(env) {
   await expectNewBillRoute();
   await alice.reload();
   await expectNewBillRoute();
-  await expect(alice.getByRole("heading", { name: "Start with your receipt" })).toBeVisible();
+  await expect(alice.getByRole("heading", { name: "How do you want to split it?" })).toBeVisible();
   await alice.goBack();
   await expect(alice).toHaveURL(groupRoute);
   await expect(alice.getByRole("button", { name: "New bill", exact: true })).toBeVisible();
@@ -74,7 +75,7 @@ async function scanRetry(env) {
   await alice.getByRole("button", { name: "New bill", exact: true }).click();
   await expect(stepButton("Items")).toBeDisabled();
   await expect(stepButton("People")).toBeDisabled();
-  await alice.getByRole("button", { name: "Enter items myself", exact: true }).click();
+  await alice.getByRole("button", { name: "Type the items in", exact: true }).click();
   await expect(alice.getByRole("button", { name: "Continue to sharing" })).toBeDisabled();
   await expect(stepButton("People")).toBeDisabled();
   await stepButton("Receipt").click();
@@ -93,7 +94,7 @@ async function receiptCrop(env) {
   const croppedReceipt = () => alice.getByRole("img", { name: "Original cropped receipt" });
   async function openCrop() {
     await alice.getByRole("button", { name: "New bill", exact: true }).click();
-    await expect(alice.getByRole("heading", { name: "Start with your receipt" })).toBeVisible();
+    await expect(alice.getByRole("heading", { name: "How do you want to split it?" })).toBeVisible();
     await alice.getByLabel("Choose a receipt image").setInputFiles({
       name: "crop-smoke.png", mimeType: "image/png", buffer: cropPhoto,
     });
@@ -140,7 +141,7 @@ async function receiptCrop(env) {
       await alice.keyboard.press("Escape");
     } else await cropDialog().getByRole("button", { name: close }).click();
     await expect(cropDialog()).toBeHidden();
-    await expect(alice.getByRole("heading", { name: "Start with your receipt" })).toBeVisible();
+    await expect(alice.getByRole("heading", { name: "How do you want to split it?" })).toBeVisible();
     await expect(croppedReceipt()).toHaveCount(0);
     assert.equal((await api(`/groups/${group.id}/receipt-drafts`)).drafts.length, 0);
     await alice.getByRole("button", { name: "Back to group" }).click();
@@ -250,7 +251,7 @@ async function manualSplitFallback(env) {
   await alice.goto(`${base}#/group-bills/${group.id}`);
   await alice.getByRole("button", { name: "New bill", exact: true }).click();
   await alice
-    .getByRole("button", { name: "Enter items myself", exact: true })
+    .getByRole("button", { name: "Type the items in", exact: true })
     .click();
   await alice
     .getByRole("button", { name: "Add an item", exact: true })
@@ -336,7 +337,111 @@ async function newBillDuringRefresh(env) {
   await expect.poll(() => groupReads).toBeGreaterThan(1);
   releaseGroup();
   await alice.unrouteAll({ behavior: "wait" });
-  await expect(alice.getByRole("heading", { name: "Start with your receipt" })).toBeVisible();
+  await expect(alice.getByRole("heading", { name: "How do you want to split it?" })).toBeVisible();
   await expect(alice.getByText("Could not open this group", { exact: true })).toHaveCount(0);
 }
 
+
+// The first step chooses By item or By amount; only Continue or Type the items in edits the draft.
+async function splitMethodEntry(env) {
+  const { api } = env;
+  const { group, groupRoute, newBillRoute, alice, stepButton, expectNewBillRoute } = await receiptGroup(env);
+  const method = alice.getByRole("radiogroup", { name: "How to split this bill" });
+  const byItem = method.getByRole("radio", { name: "By item" });
+  const byAmount = method.getByRole("radio", { name: "By amount" });
+  const total = alice.getByLabel("Total to split", { exact: true });
+  const proceed = alice.getByRole("button", { name: "Continue to people", exact: true });
+  const people = alice.getByRole("heading", { name: "Who’s sharing this bill?" });
+
+  await alice.getByRole("button", { name: "New bill", exact: true }).click();
+  await expectNewBillRoute();
+  await expect(alice.getByRole("heading", { name: "How do you want to split it?" })).toBeVisible();
+  await expect(byItem).toBeChecked();
+  await expect(alice.getByRole("button", { name: "Choose a photo", exact: true })).toBeVisible();
+  await expect(alice.getByRole("button", { name: "Take a picture", exact: true })).toBeHidden();
+  await expect(total).toHaveCount(0);
+  // The arrow keys move between the two methods.
+  await byItem.focus();
+  await alice.keyboard.press("ArrowRight");
+  await expect(byAmount).toBeChecked();
+  await expect(total).toBeVisible();
+  await expect(alice.getByRole("button", { name: "Choose a photo", exact: true })).toHaveCount(0);
+  await alice.keyboard.press("ArrowLeft");
+  await expect(byItem).toBeChecked();
+  // Choosing a method alone saves nothing, so leaving does not ask about changes.
+  await alice.getByRole("button", { name: "Back to group" }).click();
+  await expect(alice).toHaveURL(groupRoute);
+  assert.equal((await api(`/groups/${group.id}/receipt-drafts`)).drafts.length, 0);
+
+  // An amount must be a positive CAD amount before continuing.
+  await alice.getByRole("button", { name: "New bill", exact: true }).click();
+  await expectNewBillRoute();
+  await byAmount.check();
+  await proceed.click();
+  await expect(alice.getByText("Enter the total to split.", { exact: true })).toBeVisible();
+  await expect(total).toBeFocused();
+  await expect(total).toHaveAttribute("aria-invalid", "true");
+  await total.fill("0");
+  await expect(alice.getByText("Enter the total to split.", { exact: true })).toHaveCount(0);
+  await total.press("Enter");
+  await expect(alice.getByText("Enter an amount above $0.00.", { exact: true })).toBeVisible();
+  await total.fill("12.345");
+  await proceed.click();
+  await expect(alice.getByText("Enter an amount with at most two decimal places.", { exact: true })).toBeVisible();
+  await expect(alice.getByRole("heading", { name: "How do you want to split it?" })).toBeVisible();
+  // Enter continues to People with the total, without sharing the bill.
+  await total.fill("84.6");
+  await total.press("Enter");
+  await expect(people).toBeVisible();
+  await expect(alice.getByLabel("Total paid (CAD)", { exact: true })).toHaveValue("84.60");
+  await expect(alice.getByRole("radiogroup", { name: "Split" }).getByRole("radio", { name: "By amount" })).toBeChecked();
+  await expect(stepButton("Items")).toBeDisabled();
+  assert.equal((await api(`/groups/${group.id}/receipt-drafts`)).drafts.length, 0);
+  // The saved draft is a manual bill with that total, and reopens on its method.
+  await alice.getByLabel("Bill title", { exact: true }).fill("Dinner");
+  await alice.getByRole("button", { name: "Save draft & close", exact: true }).click();
+  await expect(alice).toHaveURL(groupRoute);
+  const [saved] = (await api(`/groups/${group.id}/receipt-drafts`)).drafts;
+  assert.equal(saved.data.mode, "manual");
+  assert.equal(saved.data.totalCents, 8460);
+  await alice.goto(`${newBillRoute}/${saved.id}`);
+  await expect(people).toBeVisible();
+  await stepButton("Receipt").click();
+  await expect(byAmount).toBeChecked();
+  await expect(total).toHaveValue("84.60");
+  // Leaving the field tidies the amount to cents.
+  await total.fill("12.5");
+  await total.blur();
+  await expect(total).toHaveValue("12.50");
+  await proceed.click();
+  await expect(alice.getByLabel("Total paid (CAD)", { exact: true })).toHaveValue("12.50");
+  await alice.getByRole("button", { name: "Back to group" }).click();
+  await alice.getByRole("button", { name: "Discard changes", exact: true }).click();
+  await expect(alice).toHaveURL(groupRoute);
+
+  // By item: type the items, or choose a receipt photo to crop.
+  await alice.getByRole("button", { name: "New bill", exact: true }).click();
+  await expectNewBillRoute();
+  await alice.getByRole("button", { name: "Type the items in", exact: true }).click();
+  await expect(alice.getByRole("heading", { name: "Check your items" })).toBeVisible();
+  await expect(alice.getByRole("button", { name: "Add an item", exact: true })).toBeVisible();
+  await stepButton("Receipt").click();
+  await expect(byItem).toBeChecked();
+  const fileChooser = alice.waitForEvent("filechooser");
+  await alice.getByRole("button", { name: "Choose a photo", exact: true }).click();
+  const chooser = await fileChooser;
+  assert.equal(await chooser.element().getAttribute("capture"), null);
+  await chooser.setFiles({ name: "receipt.png", mimeType: "image/png", buffer: await receiptPhoto(300, 500) });
+  const cropDialog = alice.getByRole("dialog", { name: "Just the receipt" });
+  await expect(cropDialog).toBeVisible();
+  await cropDialog.getByRole("button", { name: "Close crop" }).click();
+  await expect(cropDialog).toBeHidden();
+
+  // On a phone, the camera is offered and the amount panel fits the screen.
+  await alice.setViewportSize({ width: 390, height: 844 });
+  await expect(alice.getByRole("button", { name: "Take a picture", exact: true })).toBeVisible();
+  await byAmount.check();
+  await total.fill("10000.00");
+  await expect(total).toBeInViewport();
+  assert.equal(await alice.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+}

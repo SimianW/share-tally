@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { expect } from '@playwright/test';
 import { screenshots as screenshotDir } from '../environment.mjs';
+import { splitByAmount, splitMethod } from '../ui.mjs';
 
 export const scenarios = [
   { name: 'amount-portion', run: ({ pageFor, base, api }) => checkAmountPortion(pageFor, base, api, (page, name) =>
@@ -28,10 +29,11 @@ async function checkAmountPortion(pageFor, base, api, screenshots) {
   const alice = await pageFor('alice-token', { width: 1280, height: 900 });
   await alice.goto(`${base}#/group-bills/${group.id}`);
   await alice.getByRole('button', { name: 'New bill', exact: true }).click();
-  const splitByAmounts = alice.getByRole('button', { name: 'Split by amount instead', exact: true });
   const people = alice.getByRole('group', { name: "Who's in?" });
-  await expect(splitByAmounts.or(people).first()).toBeVisible();
-  if (await splitByAmounts.count()) await splitByAmounts.click();
+  await expect(splitMethod(alice).or(people).first()).toBeVisible();
+  if (await splitMethod(alice).count()) await splitByAmount(alice, '100.00');
+  // Without a total, sharing stays disabled until People has one.
+  await totalPaid(alice).fill('');
   await alice.getByLabel('Bill title', { exact: true }).fill('Split three ways');
   await alice.getByRole('button', { name: 'Everyone', exact: true }).click();
   await expect(shareInput(alice)).toHaveCount(0);

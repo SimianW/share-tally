@@ -22,11 +22,11 @@ async function itemClaims(env) {
   await alice.setViewportSize({ width: 1280, height: 1000 });
   await alice.getByRole("button", { name: "New bill", exact: true }).click();
   await expect(
-    alice.getByRole("heading", { name: "Start with your receipt" }),
+    alice.getByRole("heading", { name: "How do you want to split it?" }),
   ).toBeVisible();
   assert.deepEqual(errors, []);
   await alice
-    .getByRole("button", { name: "Enter items myself", exact: true })
+    .getByRole("button", { name: "Type the items in", exact: true })
     .click();
   await alice
     .getByRole("button", { name: "Add an item", exact: true })

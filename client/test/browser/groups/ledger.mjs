@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { expect } from '@playwright/test';
 import { screenshots } from '../environment.mjs';
 import { costcoFriends, aliceBill, weekendGroceries, shareTicket, billSummary } from './fixtures.mjs';
-import { groupNet } from '../ui.mjs';
+import { groupNet, splitByAmount } from '../ui.mjs';
 
 export const scenarios = [
   { name: 'repayments', run: repayments },
@@ -95,7 +95,7 @@ async function repayments(env) {
   await bobAgain.screenshot({ path: `${screenshots}/repayments-mobile.png`, fullPage: true });
   // A solo bill remains open at initiation and completes after its explicit share submission.
   await alice.getByRole('button', { name: 'New bill', exact: true }).click();
-  await alice.getByRole('button', { name: 'Split by amount instead', exact: true }).click();
+  await splitByAmount(alice, '10.00');
   await alice.getByLabel('Bill title', { exact: true }).fill('After repayment');
   await alice.getByLabel('Total paid (CAD)', { exact: true }).fill('10.00');
   await expect(alice.getByLabel('Your share (CAD)', { exact: true })).toHaveCount(0);

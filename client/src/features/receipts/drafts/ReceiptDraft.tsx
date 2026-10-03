@@ -116,7 +116,7 @@ export function ReceiptDraftForm({
           <h3 className="receipt-step-title" ref={stepHeading} tabIndex={-1}>
             {
               [
-                "Start with your receipt",
+                "How do you want to split it?",
                 "Check your items",
                 "Who’s sharing this bill?",
               ][step]
@@ -125,7 +125,7 @@ export function ReceiptDraftForm({
           <p className="receipt-step-description">
             {
               [
-                "Use a receipt to fill in the items, or enter them yourself.",
+                "Go item by item, or share out one total. You can switch before you continue.",
                 "Check names and final costs. You can correct anything before sharing.",
                 "Pick who's in and check what you paid.",
               ][step]
