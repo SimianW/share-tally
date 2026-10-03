@@ -37,10 +37,19 @@ export function ReceiptSourceStep({
   update: (patch: Partial<ReceiptData>) => void;
   setStep: (step: Step) => void;
 }) {
-  const [mode, setMode] = useState<Mode>(draft.data.mode);
-  // Held here so a typed total survives a look at the other panel.
-  const [totalText, setTotalText] = useState(() =>
-    draft.data.mode === "manual" && draft.data.totalCents !== null ? amountText(draft.data.totalCents) : "");
+  const draftMode = draft.data.mode;
+  const draftTotal = draftMode === "manual" ? draft.data.totalCents : null;
+  const [mode, setMode] = useState<Mode>(draftMode);
+  // When the editor adopts another draft, or an action changes its mode, the switch follows it.
+  const [shownMode, setShownMode] = useState<Mode>(draftMode);
+  if (shownMode !== draftMode) {
+    setShownMode(draftMode);
+    setMode(draftMode);
+  }
+  // Held here so a typed total survives a look at the other panel. As in
+  // MoneyField, the text shows only while the draft still has the total it set.
+  const [typed, setTyped] = useState({ cents: draftTotal, text: draftTotal === null ? "" : amountText(draftTotal) });
+  const totalText = typed.cents === draftTotal ? typed.text : draftTotal === null ? "" : amountText(draftTotal);
   const reducedMotion = useReducedMotion();
   return (
     <div className="split-method">
@@ -66,7 +75,7 @@ export function ReceiptSourceStep({
           <ItemSource draft={draft} setFile={setFile} replace={replace} setReplace={setReplace}
             scan={scan} update={update} setStep={setStep} />
         ) : (
-          <SplitTotalPanel mode={draft.data.mode} text={totalText} setText={setTotalText} update={update} setStep={setStep} />
+          <SplitTotalPanel mode={draftMode} text={totalText} setText={(text, cents) => setTyped({ cents, text })} update={update} setStep={setStep} />
         )}
       </motion.div>
     </div>

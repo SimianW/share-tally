@@ -18,13 +18,15 @@ function parseTotal(text: string): number | string {
 
 /**
  * By amount: the total is entered here, then People picks who shares it. A valid
- * typed total is draft content at once, so saving, leaving and recovery keep it.
+ * typed total is draft content at once, so saving, leaving and recovery keep it;
+ * an invalid one leaves the draft without a total.
  */
 export function SplitTotalPanel({ mode, text, setText, update, setStep }: {
   mode: ReceiptData["mode"];
   /** The typed total, kept by the step while the other panel shows. */
   text: string;
-  setText: (text: string) => void;
+  /** Records the typed text with the draft total it leaves: its cents, or none. */
+  setText: (text: string, cents: number | null) => void;
   update: (patch: Partial<ReceiptData>) => void;
   setStep: (step: Step) => void;
 }) {
@@ -62,15 +64,18 @@ export function SplitTotalPanel({ mode, text, setText, update, setStep }: {
             aria-describedby={errorId}
             onChange={(e) => {
               const typed = e.target.value;
-              setText(typed);
-              setError("");
               const total = parseTotal(typed);
-              if (typeof total === "number") update({ mode: "manual", totalCents: total });
-              else if (!typed.trim() && mode === "manual") update({ totalCents: null });
+              const cents = typeof total === "number" ? total : null;
+              setText(typed, cents);
+              setError("");
+              // An invalid total clears a By amount draft's total, so People
+              // never opens with a stale one.
+              if (cents !== null) update({ mode: "manual", totalCents: cents });
+              else if (mode === "manual") update({ totalCents: null });
             }}
             onBlur={() => {
               const total = parseTotal(text);
-              if (typeof total === "number") setText(amountText(total));
+              if (typeof total === "number") setText(amountText(total), total);
             }}
             // Enter would otherwise submit the bill form. An input method
             // uses Enter to confirm a composition, which is not a request to continue.

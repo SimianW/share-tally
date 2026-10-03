@@ -430,6 +430,15 @@ async function splitMethodEntry(env) {
   await proceed.click();
   await expect(alice.getByText("Amounts cannot exceed CAD 10,000.00.", { exact: true })).toBeVisible();
   await expect(alice.getByRole("heading", { name: "How do you want to split it?" })).toBeVisible();
+  // An invalid total replaces a valid one, so People cannot open with the old total.
+  await total.fill("30");
+  await total.fill("30.001");
+  await stepButton("People").click();
+  await expect(people).toBeVisible();
+  await expect(alice.getByLabel("Total paid (CAD)", { exact: true })).toHaveValue("");
+  await stepButton("Receipt").click();
+  await expect(byAmount).toBeChecked();
+  await expect(total).toHaveValue("");
   // Enter continues to People with the total, without sharing the bill.
   await total.fill("84.6");
   await total.press("Enter");
@@ -448,6 +457,17 @@ async function splitMethodEntry(env) {
   await alice.goto(`${newBillRoute}/${saved.id}`);
   await expect(people).toBeVisible();
   await stepButton("Receipt").click();
+  await expect(byAmount).toBeChecked();
+  await expect(total).toHaveValue("84.60");
+  // Reloading the saved draft replaces a typed total the step was showing.
+  await total.fill("50");
+  const saveRequest = `**/api/groups/${group.id}/receipt-drafts/${saved.id}`;
+  await alice.route(saveRequest, route => route.request().method() === "PUT"
+    ? route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Saving is unavailable." }) })
+    : route.continue());
+  await alice.getByRole("button", { name: "Save draft & close", exact: true }).click();
+  await alice.getByRole("button", { name: "Reload saved draft, discarding local edits", exact: true }).click();
+  await alice.unroute(saveRequest);
   await expect(byAmount).toBeChecked();
   await expect(total).toHaveValue("84.60");
   // Leaving the field tidies the amount to cents.
