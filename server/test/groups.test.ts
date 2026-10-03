@@ -3,7 +3,7 @@ import { after, before, beforeEach, test } from 'node:test';
 import { fork, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { Pool } from 'pg';
+import { Pool, type PoolClient } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 
@@ -876,12 +876,14 @@ test('an hourly pass stalled on one member does not hold up another member’s o
   await inviteMember(group.id, 'carol-token');
   // Carol has edited her account, so the pass saves her; it stalls there, after Bob.
   await setProfile('user_test_carol', { firstName: 'Carol', lastName: 'Lee' });
-  await pool.query(`CREATE FUNCTION pause_carol_name() RETURNS trigger LANGUAGE plpgsql AS $$
-    BEGIN IF NEW.clerk_user_id = 'user_test_carol' THEN PERFORM pg_advisory_xact_lock(7206); END IF; RETURN NEW; END; $$;
-    CREATE TRIGGER pause_carol_name BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION pause_carol_name();`);
-  const blocker = await pool.connect();
+  let blocker: PoolClient | undefined;
   let pass: Promise<void> | undefined;
+  // Setup inside the try: a trigger left behind would stall every later update of Carol.
   try {
+    await pool.query(`CREATE FUNCTION pause_carol_name() RETURNS trigger LANGUAGE plpgsql AS $$
+      BEGIN IF NEW.clerk_user_id = 'user_test_carol' THEN PERFORM pg_advisory_xact_lock(7206); END IF; RETURN NEW; END; $$;
+      CREATE TRIGGER pause_carol_name BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION pause_carol_name();`);
+    blocker = await pool.connect();
     await blocker.query('SELECT pg_advisory_lock(7206)');
     pass = clerk('sync-profiles', 'profiles-synced');
     await eventually(async () => (await pool.query(
@@ -892,10 +894,10 @@ test('an hourly pass stalled on one member does not hold up another member’s o
     });
     assert.deepEqual(await json(saved), { displayName: 'builder', changed: true });
   } finally {
-    await blocker.query('SELECT pg_advisory_unlock_all()');
-    blocker.release();
+    await blocker?.query('SELECT pg_advisory_unlock_all()');
+    blocker?.release();
     await pass;
-    await pool.query('DROP TRIGGER pause_carol_name ON users; DROP FUNCTION pause_carol_name()');
+    await pool.query('DROP TRIGGER IF EXISTS pause_carol_name ON users; DROP FUNCTION IF EXISTS pause_carol_name()');
   }
   assert.deepEqual(await memberNames(group.id), ['Alice', 'builder', 'Carol Lee']);
 });
