@@ -6,6 +6,7 @@ import { Camera, PencilLine, ReceiptText, Upload } from "lucide-react";
 import { useRef } from "react";
 import { Button } from "../../../shared/ui/Button";
 import { ReceiptPhoto } from "../photos/ReceiptPhoto";
+import { type Step } from "./draft-model";
 import { ScanActions } from "./ScanActions";
 
 export function ReceiptSourceStep({
@@ -23,7 +24,7 @@ export function ReceiptSourceStep({
   setReplace: (value: boolean) => void;
   scan: () => void;
   update: (patch: Partial<ReceiptData>) => void;
-  setStep: (step: number) => void;
+  setStep: (step: Step) => void;
 }) {
   const data = draft.data;
   const cameraInput = useRef<HTMLInputElement>(null);
