@@ -16,7 +16,8 @@
     "test:browser": "node ../scripts/build-domain.mjs && node test/browser/run.mjs",
     "test:environment": "node ../scripts/build-domain.mjs && node --test test/browser/environment.test.mjs",
     "test:network-isolation": "node ../scripts/build-domain.mjs && node --test test/browser/network-isolation.test.mjs",
-    "test:unit": "node ../scripts/build-domain.mjs && node --test scripts/test-*.mjs"
+    "test:unit": "node ../scripts/build-domain.mjs && node --test scripts/test-*.mjs",
+    "prototype:bill-entry": "node ../scripts/build-domain.mjs && node test/prototype-bill-entry.mjs"
   },
   "dependencies": {
     "@clerk/react": "^6.15.1",

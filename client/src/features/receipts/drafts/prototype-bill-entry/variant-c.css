@@ -1,0 +1,295 @@
+/* PROTOTYPE (throwaway): variant C, "facing pages". One sheet, two pages,
+   torn along the same perforation as the bill page's share ticket. The item
+   page is the tinted stub; the amount page is ruled ledger paper. */
+.pbc-sheet {
+  --pbc-perforation: color-mix(in srgb, var(--line-accent) 75%, var(--surface));
+  --pbc-stub: color-mix(in srgb, var(--surface-selected) 52%, var(--surface));
+  --pbc-tape: color-mix(in srgb, var(--line) 42%, var(--surface));
+  --pbc-pad: 30px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 0 minmax(0, 1fr);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+}
+
+.pbc-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: var(--pbc-pad);
+}
+.pbc-items {
+  background: var(--pbc-stub);
+  border-radius: 17px 0 0 17px;
+}
+.pbc-amount {
+  border-radius: 0 17px 17px 0;
+}
+
+.pbc-head {
+  display: grid;
+  gap: 4px;
+}
+.pbc-head h4 {
+  margin: 0;
+  font: 850 22px/1.2 var(--font-heading);
+  letter-spacing: -0.5px;
+  color: var(--ink);
+}
+.pbc-promise {
+  margin: 0;
+  font: 700 15px/1.4 var(--font-heading);
+  color: var(--accent-ink);
+}
+.pbc-amount .pbc-promise {
+  color: var(--ink-secondary);
+}
+.pbc-how {
+  margin: 0;
+  max-width: 42ch;
+  color: var(--ink-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* Item page actions. The camera only appears where phones are. */
+/* On a desktop the actions sit in a dashed photo frame that also takes a
+   dropped image, a sibling of the amount page's tape. */
+.pbc-scan {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  max-width: 340px;
+  margin-top: 6px;
+  padding: 22px 18px;
+  border: 1.5px dashed var(--line-accent);
+  border-radius: 6px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.pbc-scan.pbc-scan-bare {
+  padding: 0;
+  border-color: transparent;
+}
+.pbc-scan.pbc-dragging {
+  border-color: var(--accent-decoration);
+  background: var(--surface-selected);
+}
+.pbc-drop-hint {
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+.pbc-scan .pbc-camera {
+  display: none;
+}
+.pbc-photo .receipt-photo {
+  position: static;
+  margin: 0;
+}
+.pbc-photo .receipt-photo img {
+  max-height: 220px;
+}
+.pbc-scan-actions .receipt-scan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.pbc-foot {
+  margin-top: auto;
+  padding-top: 8px;
+}
+.pbc-type {
+  gap: 8px;
+  color: var(--ink-secondary);
+}
+.pbc-type:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* The seam: a dashed perforation with notches cut from the sheet edge and an
+   "or" punched through the middle. */
+.pbc-seam {
+  position: relative;
+  border-left: 2px dashed var(--pbc-perforation);
+  margin-left: -1px;
+}
+.pbc-seam::before,
+.pbc-seam::after {
+  content: "";
+  position: absolute;
+  left: -12px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+.pbc-seam::before { top: -12px; }
+.pbc-seam::after { bottom: -12px; }
+.pbc-seam > span {
+  position: absolute;
+  top: 50%;
+  left: -1px;
+  translate: -50% -50%;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid var(--pbc-perforation);
+  background: var(--surface);
+  color: var(--ink-secondary);
+  font: 800 14px/1 var(--font-heading);
+}
+
+/* The amount page's tape: a strip torn off a till roll, holding one total
+   line with a dot leader, closed by a bookkeeper's double rule. */
+.pbc-tape-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 10px;
+  margin-top: 6px;
+}
+.pbc-sheet .pbc-tape {
+  display: grid;
+  grid-template-columns: auto minmax(16px, 1fr) auto;
+  align-items: baseline;
+  gap: 10px;
+  max-width: 340px;
+  padding: 16px 18px 26px;
+  background: var(--pbc-tape);
+  border-radius: 6px 6px 0 0;
+  mask:
+    linear-gradient(var(--ink) 0 0) top / 100% calc(100% - 8px) no-repeat,
+    conic-gradient(from -45deg at bottom, var(--ink) 90deg, transparent 0) bottom / 14px 8px repeat-x;
+}
+.pbc-sheet .pbc-tape label {
+  display: block;
+  margin: 0;
+  font: 800 15px/1 var(--font-heading);
+  color: var(--ink);
+}
+.pbc-leader {
+  align-self: end;
+  margin-bottom: 7px;
+  border-bottom: 2px dotted var(--line-strong);
+}
+.pbc-figure {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  padding: 0 2px 6px;
+  border-bottom: 4px double var(--ink);
+  font: 850 30px/1.1 var(--font-heading);
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.pbc-figure:focus-within {
+  border-radius: 6px;
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
+}
+.pbc-currency {
+  color: var(--ink-subtle);
+  font-size: 20px;
+}
+.pbc-sheet .pbc-tape .pbc-figure input.pbc-input {
+  width: 6.4ch;
+  min-width: 3.4ch;
+  max-width: 9ch;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: right;
+  caret-color: var(--accent-decoration);
+}
+@supports (field-sizing: content) {
+  .pbc-sheet .pbc-tape .pbc-figure input.pbc-input {
+    width: auto;
+    field-sizing: content;
+  }
+}
+.pbc-sheet .pbc-tape .pbc-figure input.pbc-input:focus {
+  outline: none;
+}
+.pbc-figure input::placeholder {
+  color: var(--ink-subtle);
+  opacity: 0.6;
+}
+.pbc-note {
+  margin: 0;
+  max-width: 340px;
+  color: var(--ink-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.pbc-note-error {
+  color: var(--status-danger);
+  font-weight: 600;
+}
+.pbc-narrow {
+  display: none;
+}
+
+/* Stacked: the seam turns horizontal and the notches move to the sides. */
+@media (max-width: 700px) {
+  .pbc-sheet {
+    --pbc-pad: 22px;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pbc-items { border-radius: 17px 17px 0 0; }
+  .pbc-amount { border-radius: 0 0 17px 17px; }
+  .pbc-seam {
+    margin: -1px 0 0;
+    border-left: 0;
+    border-top: 2px dashed var(--pbc-perforation);
+  }
+  .pbc-seam::before,
+  .pbc-seam::after {
+    top: -12px;
+    bottom: auto;
+  }
+  .pbc-seam::before { left: -12px; }
+  .pbc-seam::after { left: auto; right: -12px; }
+  .pbc-seam > span {
+    top: -1px;
+    left: 50%;
+  }
+  .pbc-scan {
+    max-width: none;
+    padding: 0;
+    border: 0;
+  }
+  .pbc-drop-hint { display: none; }
+  .pbc-scan .pbc-camera {
+    display: inline-flex;
+  }
+  /* Beside the camera, choosing a file is the second choice. */
+  .pbc-scan .pbc-choose.primary {
+    background: var(--surface);
+    color: var(--ink);
+    border-color: var(--line-strong);
+    box-shadow: none;
+  }
+  .pbc-scan > .button {
+    flex: 1 1 0;
+    white-space: nowrap;
+  }
+  .pbc-wide { display: none; }
+  .pbc-narrow { display: inline; }
+  .pbc-sheet .pbc-tape { max-width: none; }
+  .pbc-foot > .button.primary {
+    width: 100%;
+  }
+}

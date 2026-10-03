@@ -1,0 +1,294 @@
+/* PROTOTYPE (throwaway): variant B — mode toggle. The switch is the statement;
+   each panel below it is a complete surface for one method. */
+.pbb {
+  max-width: 650px;
+  margin: 0 auto;
+}
+
+/* The switch: a thick two-way track with one lime thumb that slides. */
+.pbb-switch {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  box-shadow: inset 0 1px 3px color-mix(in srgb, var(--shadow-color) 8%, transparent);
+}
+.pbb-switch-thumb {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 5px;
+  width: calc(50% - 5px);
+  border-radius: 999px;
+  background: var(--action);
+  box-shadow:
+    0 0 0 1px var(--action-edge),
+    0 4px 14px -6px color-mix(in srgb, var(--shadow-color) 40%, transparent);
+  transition: transform 0.32s cubic-bezier(0.3, 1.3, 0.5, 1);
+}
+.pbb-switch[data-mode="amount"] .pbb-switch-thumb {
+  transform: translateX(100%);
+}
+.pbb .pbb-switch-option {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 60px;
+  margin: 0;
+  padding: 0 var(--space-4);
+  border-radius: 999px;
+  color: var(--ink-secondary);
+  font: 800 19px/1.1 var(--font-heading);
+  letter-spacing: -0.2px;
+  cursor: pointer;
+  transition: color 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.pbb .pbb-switch-option:hover {
+  color: var(--ink);
+}
+.pbb .pbb-switch-option:has(input:checked) {
+  color: var(--ink-on-action);
+}
+.pbb .pbb-switch-option input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+.pbb .pbb-switch-option:has(input:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+/* Panels: one at a time, entering from the side of the option chosen. */
+.pbb-stage {
+  margin-top: var(--space-5);
+}
+.pbb-panel {
+  animation: pbb-from-left 0.28s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+.pbb-panel-amount {
+  animation-name: pbb-from-right;
+}
+@keyframes pbb-from-left {
+  from { opacity: 0; transform: translateX(-14px); }
+}
+@keyframes pbb-from-right {
+  from { opacity: 0; transform: translateX(14px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pbb-switch-thumb { transition: none; }
+  .pbb-panel { animation: pbb-fade 0.15s ease both; }
+  @keyframes pbb-fade { from { opacity: 0; } }
+}
+
+.pbb .pbb-outcome {
+  margin: 0 0 var(--space-4);
+  color: var(--ink-secondary);
+  font-size: 15px;
+  line-height: 1.5;
+  text-align: center;
+  text-wrap: balance;
+}
+
+/* Item panel: the receipt card, then typing as the quieter way in. */
+.pbb-receipt {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-4) var(--space-4);
+  align-items: center;
+  padding: var(--space-6);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+}
+.pbb-receipt-icon {
+  align-self: start;
+  box-sizing: content-box;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--surface-selected);
+  color: var(--accent-ink);
+}
+.pbb-receipt-copy h4 {
+  margin: 0 0 4px;
+  font: 800 19px/1.25 var(--font-heading);
+  letter-spacing: -0.2px;
+}
+.pbb-receipt-copy p {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.pbb-receipt-buttons {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.pbb-receipt-buttons .button {
+  flex: 1 1 0;
+  min-height: 48px;
+}
+.pbb-receipt-buttons .pbb-camera-button {
+  display: none;
+}
+@media (max-width: 700px) {
+  .pbb-receipt-buttons .pbb-camera-button {
+    display: inline-flex;
+  }
+}
+.pbb-receipt-photo,
+.pbb-receipt > .receipt-scan-actions {
+  grid-column: 1 / -1;
+}
+.pbb-receipt-photo .receipt-photo {
+  position: static;
+  margin: 0;
+}
+.pbb-receipt-photo .receipt-photo img {
+  max-height: 230px;
+}
+
+.pbb-type-items {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 2px var(--space-3);
+  margin-top: var(--space-4);
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+.pbb-type-items .button.text {
+  color: var(--accent-ink);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent-ink) 35%, transparent);
+  text-underline-offset: 4px;
+}
+.pbb-type-items .button.text:hover {
+  text-decoration-color: currentColor;
+}
+
+/* Amount panel: the total is the hero — a till display you type into. */
+.pbb-amount {
+  padding: var(--space-5) var(--space-6) var(--space-6);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.pbb-amount:focus-within {
+  border-color: var(--line-accent);
+}
+.pbb-amount.pbb-amount-invalid {
+  border-color: var(--status-danger);
+}
+.pbb .pbb-amount-label {
+  display: block;
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: 14px;
+  font-weight: 700;
+}
+.pbb-amount-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  border-bottom: 2px solid var(--line);
+  transition: border-color 0.15s;
+}
+.pbb-amount:focus-within .pbb-amount-row {
+  border-bottom-color: var(--accent-decoration);
+}
+.pbb-amount-symbol {
+  color: var(--ink-subtle);
+  font: 800 clamp(34px, 8vw, 48px)/1 var(--font-heading);
+}
+.pbb .pbb-amount-row input.pbb-amount-input:not([type="radio"]) {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  padding: 0 0 6px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 800 clamp(44px, 12vw, 80px)/1.05 var(--font-heading);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -2px;
+  caret-color: var(--accent-decoration);
+}
+.pbb .pbb-amount-row input.pbb-amount-input:focus-visible {
+  outline: none;
+}
+.pbb .pbb-amount-row input.pbb-amount-input::placeholder {
+  color: color-mix(in srgb, var(--ink-subtle) 45%, transparent);
+}
+.pbb-amount-currency {
+  flex-shrink: 0;
+  align-self: center;
+  white-space: nowrap;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  color: var(--ink-secondary);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.pbb .pbb-amount-error {
+  min-height: 20px;
+  margin: var(--space-2) 0 0;
+  color: var(--status-danger);
+  font-size: 13px;
+  font-weight: 600;
+}
+.pbb-amount-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+  margin-top: var(--space-2);
+}
+.pbb-amount-actions p {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+.pbb-amount-actions .button {
+  min-height: 48px;
+  padding: 0 22px;
+}
+
+@media (max-width: 600px) {
+  .pbb .pbb-switch-option {
+    gap: 8px;
+    min-height: 54px;
+    font-size: 17px;
+  }
+  .pbb-receipt,
+  .pbb-amount {
+    padding: var(--space-5) var(--space-4);
+  }
+  .pbb-receipt-buttons .button {
+    flex-basis: 100%;
+  }
+  .pbb-amount-actions .button {
+    width: 100%;
+  }
+}

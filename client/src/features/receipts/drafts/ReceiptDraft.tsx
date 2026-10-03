@@ -12,8 +12,11 @@ import { DiscardChangesDialog } from "./DiscardChangesDialog";
 import { type Operation, type Step, canOpenStep, opened, itemsComplete, itemsReady, shareable, stepAvailable } from './draft-model';
 import { ReceiptItemsStep } from "./ReceiptItemsStep";
 import { ReceiptSharingStep } from './ReceiptSharingStep';
-import { ReceiptSourceStep } from './ReceiptSourceStep';
 import { useDraftEditor } from "./use-draft-editor";
+// PROTOTYPE (throwaway): entry-screen variants switched by ?variant=.
+import { PrototypeSwitcher } from "../../../shared/ui/PrototypeSwitcher";
+import { usePrototypeVariant } from "../../../shared/ui/prototype-variant";
+import { entryVariantKeys, entryVariants } from "./prototype-bill-entry/variants";
 
 const activityLabels: Partial<Record<Operation, string>> = {
   saving: "Saving draft…",
@@ -63,6 +66,8 @@ export function ReceiptDraftForm({
   const splitLegendId = useId();
   const stepDone = [step > 0, step > 1 && itemsReady(data), false];
   const unavailable = state.operation === "ended" && !!state.error;
+  const variantKey = usePrototypeVariant(entryVariantKeys);
+  const entry = entryVariants.find((v) => v.key === variantKey)!;
   const form = (
     <div className="receipt-wizard">
       <header className="receipt-page-heading">
@@ -116,7 +121,7 @@ export function ReceiptDraftForm({
           <h3 className="receipt-step-title" ref={stepHeading} tabIndex={-1}>
             {
               [
-                "Start with your receipt",
+                entry.title,
                 "Check your items",
                 "Who’s sharing this bill?",
               ][step]
@@ -125,7 +130,7 @@ export function ReceiptDraftForm({
           <p className="receipt-step-description">
             {
               [
-                "Use a receipt to fill in the items, or enter them yourself.",
+                entry.description,
                 "Check names and final costs. You can correct anything before sharing.",
                 "Pick who's in and check what you paid.",
               ][step]
@@ -134,7 +139,7 @@ export function ReceiptDraftForm({
           {editor.syncError && processing && <p role="status">{editor.syncError}</p>}
           <fieldset disabled={running || !!draft.initializationRevision || (processing && step !== 1)}>
             {step === 0 && (
-              <ReceiptSourceStep draft={draft} setFile={setFile} replace={replace} setReplace={setReplace}
+              <entry.Component draft={draft} setFile={setFile} replace={replace} setReplace={setReplace}
                 scan={scan} update={editor.edit} setStep={editor.chooseStep} />
             )}
             {step === 1 && data.mode === "items" && (
@@ -251,6 +256,7 @@ export function ReceiptDraftForm({
   return (
     <>
       {form}
+      {step === 0 && <PrototypeSwitcher variants={entryVariants} current={entry.key} />}
       {summaryOpen && <ReceiptSummary data={data} disabled={locked} change={editor.edit} close={() => setSummaryOpen(false)} />}
       {editor.leavingTo && (
         <DiscardChangesDialog saved={draft.revision > 0} keepEditing={editor.keepEditing} discard={editor.discard} />
