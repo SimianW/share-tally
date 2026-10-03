@@ -304,7 +304,11 @@ async function billCorrections(env) {
   assert.equal(await bobAgain.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await bobAgain.screenshot({ path: `${screenshots}/bill-canceled-mobile.png`, fullPage: true });
   await alice.getByRole('link', { name: 'Group bills', exact: false }).click();
-  await expect(alice.getByRole('region', { name: 'History', exact: true }).getByRole('link').filter({ hasText: 'Canceled groceries' })).toContainText('Canceled');
+  // History hides canceled bills until revealed; the retained record stays linked (#201).
+  const history = alice.getByRole('region', { name: 'History', exact: true });
+  await expect(history.getByRole('link').filter({ hasText: 'Canceled groceries' })).toHaveCount(0);
+  await history.getByRole('button', { name: 'Show canceled · 1' }).click();
+  await expect(history.getByRole('link').filter({ hasText: 'Canceled groceries' })).toContainText('Canceled');
   await expect(groupNet(alice)).toContainText('$119.97');
 }
 

@@ -8,6 +8,8 @@ export function Button({
   type = "button",
   disabled = false,
   describedBy,
+  expanded,
+  controls,
 }: {
   children: ReactNode;
   onClick?: () => void;
@@ -17,6 +19,9 @@ export function Button({
   disabled?: boolean;
   /** Ids of elements that explain the action, such as the row a short label belongs to. */
   describedBy?: string;
+  /** For a disclosure: whether the content it shows is visible, and that content's id. */
+  expanded?: boolean;
+  controls?: string;
 }) {
   return (
     <button
@@ -25,6 +30,8 @@ export function Button({
       onClick={onClick}
       disabled={disabled}
       aria-describedby={describedBy}
+      aria-expanded={expanded}
+      aria-controls={controls}
     >
       {children}
     </button>

@@ -55,6 +55,10 @@
 .group-drafts:empty, .group-drafts:has(> .receipt-drafts:empty) { display: none; }
 .group-drafts .receipt-drafts { margin: 0; }
 .group-history-list { padding: 0 24px; }
+/* The canceled-bill control shares the History heading row and wraps below it on narrow screens. */
+.group-history-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-bottom: 12px; }
+.group-history-heading .group-section-heading { margin-bottom: 0; }
+.group-history-heading .button { white-space: nowrap; }
 .group-bill-canceled { color: var(--ink-muted); }
 .group-bill-canceled .group-bill-text > strong, .group-bill-canceled .group-bill-end > b { text-decoration: line-through; text-decoration-color: var(--ink-subtle); }
 .group-show-history { margin-top: 10px; }
