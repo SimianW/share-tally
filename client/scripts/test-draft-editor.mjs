@@ -274,7 +274,10 @@ test("initiation stops for review when a newer saved draft arrived during its sa
 
 test("a draft whose server read failed stays unopened, keeps its recovery and can retry opening", () => {
   const recovered = run(open(saved(3)), { type: "edited", patch: { title: "Local edit" } });
-  const failed = run(createEditor({ userId, draftId: "draft-1", recovered: recoveryEntry(recovered), storedStep: null }),
+  const opening = createEditor({ userId, draftId: "draft-1", recovered: recoveryEntry(recovered), storedStep: null });
+  assert.equal(warnBeforeUnload(opening), true, "closing the tab while opening would discard the recovered copy");
+  assert.equal(warnBeforeUnload(createEditor({ userId, draftId: "draft-1", recovered: null, storedStep: null })), false);
+  const failed = run(opening,
     { type: "openFailed", message: "Network down" },
     { type: "edited", patch: { title: "Typed into an unopened draft" } },
     { type: "started", operation: "saving" });

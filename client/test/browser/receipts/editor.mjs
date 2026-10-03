@@ -272,20 +272,29 @@ async function failedReads(env) {
   await alice.goto(`${newBillRoute}/${id}`);
   await titleField(alice).fill('Recovered after retry');
   await expect.poll(async () => (await storedDraft(alice, id))?.data.title).toBe('Recovered after retry');
-  let failing = true;
+  const unloadBlocked = () => alice.evaluate(() => {
+    const event = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  let failing = true, releaseRead;
+  const readHeld = new Promise(resolve => { releaseRead = resolve; });
   const draftRequest = `**/api/receipt-drafts/${id}`;
-  await alice.route(draftRequest, route => failing && route.request().method() === 'GET'
-    ? failure('Drafts are unavailable.')(route) : route.continue());
+  await alice.route(draftRequest, async route => {
+    if (!failing || route.request().method() !== 'GET') return route.continue();
+    await readHeld;
+    await failure('Drafts are unavailable.')(route);
+  });
   await alice.reload();
+  // While the read is pending, closing the tab would discard the recovered copy.
+  await expect(alice.getByText('Opening draft…', { exact: true })).toBeVisible();
+  assert.equal(await unloadBlocked(), true);
+  releaseRead();
   await expect(alice.getByText('Drafts are unavailable.', { exact: true })).toBeVisible();
   await expect(titleField(alice)).toHaveCount(0);
   assert.equal((await storedDraft(alice, id))?.data.title, 'Recovered after retry');
   // Closing the tab would discard that copy, so unloading still asks first.
-  assert.equal(await alice.evaluate(() => {
-    const event = new Event('beforeunload', { cancelable: true });
-    window.dispatchEvent(event);
-    return event.defaultPrevented;
-  }), true);
+  assert.equal(await unloadBlocked(), true);
   failing = false;
   await alice.getByRole('button', { name: 'Try again', exact: true }).click();
   await expect(titleField(alice)).toHaveValue('Recovered after retry');
