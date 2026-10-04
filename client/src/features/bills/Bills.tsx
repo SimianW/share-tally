@@ -1,5 +1,6 @@
 import { useSyncSession } from '../../shared/api/SyncSession';
 import { routes } from '../../shared/browser/paths';
+import { leaveDeletedGroup } from '../../shared/browser/route';
 import { useEffect, useRef, useState } from "react";
 import { errorMessage } from "../../shared/api/error-message";
 import { startGroupSync } from '../../shared/api/group-sync';
@@ -45,6 +46,9 @@ export function BillDetails({ id }: { id: string }) {
           }
         },
         accessDenied: () => setBill(null),
+        // The bill's authorized lookup establishes its group even when Home's
+        // group metadata is unavailable to the global deletion listener.
+        deleted: () => { setBill(null); leaveDeletedGroup(); },
         apply: ({ bill: latest }) => {
           setBill(latest);
           if (resetEditors.current) { resetEditors.current = false; setSavedVersion(n => n + 1); }

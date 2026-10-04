@@ -11,6 +11,7 @@ type SyncOptions<T> = {
   apply: (value: T) => void;
   status: (message: string) => void;
   accessDenied?: (status: number, error?: Error) => void;
+  deleted?: () => void;
   invalidateRead?: () => void;
 };
 
@@ -84,6 +85,7 @@ export function startGroupSync<T>(options: SyncOptions<T>) {
     deleted(name) {
       available = false; obsolete();
       window.dispatchEvent(new CustomEvent<GroupDeleted>(groupDeletedEvent, { detail: { id: options.groupId, name } }));
+      options.deleted?.();
     },
   });
   function stop() { stopped = true; available = false; obsolete(); subscription.stop(); }

@@ -510,7 +510,7 @@ async function serverRestartRecovery(env) {
 }
 scenarios.push({ name: 'sse-server-restart', run: serverRestartRecovery });
 
-async function deletedSnapshotBeforeEvent(env, billPage = false) {
+async function deletedSnapshotBeforeEvent(env, billPage = false, directLink = false) {
   const { group, ids } = await costcoFriends(env);
   const bill = billPage ? await aliceBill(env, group.id, 'Retained completed bill', 100, [ids.Alice], [['alice-token', 100]]) : null;
   const page = await env.pageFor('bob-token', { width: 1280, height: 900 });
@@ -544,9 +544,15 @@ async function deletedSnapshotBeforeEvent(env, billPage = false) {
       })), { status: response.status, headers: response.headers });
     };
   });
-  await page.goto(env.base);
-  await expect(page.getByRole('link', { name: /Costco friends/ })).toBeVisible();
-  await page.evaluate(hash => { window.location.hash = hash; }, bill ? `#/bills/${bill.id}` : `#/group-bills/${group.id}`);
+  if (directLink) {
+    // Keep both group caches empty while the authorized bill is displayed.
+    await page.route('**/api/groups', route => route.fulfill({ status: 503, json: { error: 'Groups unavailable' } }));
+    await page.goto(`${env.base}#/bills/${bill.id}`);
+  } else {
+    await page.goto(env.base);
+    await expect(page.getByRole('link', { name: /Costco friends/ })).toBeVisible();
+    await page.evaluate(hash => { window.location.hash = hash; }, bill ? `#/bills/${bill.id}` : `#/group-bills/${group.id}`);
+  }
   if (bill) await expect(page.getByRole('heading', { name: bill.title, exact: true })).toBeVisible();
   else await expect(groupNet(page)).toContainText("You're settled up");
   let release, captured = false;
@@ -564,11 +570,13 @@ async function deletedSnapshotBeforeEvent(env, billPage = false) {
   await expect.poll(() => page.evaluate(() => window.heldDeletionFrames)).toBe(1);
   release();
   await expect(page.getByRole('heading', { name: /Hey Bob/ })).toBeVisible();
-  await expect(page.getByText('Costco friends was deleted by the group creator', { exact: true })).toBeVisible();
+  if (!directLink) await expect(page.getByText('Costco friends was deleted by the group creator', { exact: true })).toBeVisible();
+  if (bill) await expect(page.getByRole('heading', { name: bill.title, exact: true })).toHaveCount(0);
   await expect(page.getByRole('link', { name: /Costco friends/ })).toHaveCount(0);
 }
 scenarios.push({ name: 'sse-deleted-snapshot-before-event', run: deletedSnapshotBeforeEvent });
 scenarios.push({ name: 'sse-deleted-bill-snapshot-before-event', run: env => deletedSnapshotBeforeEvent(env, true) });
+scenarios.push({ name: 'sse-deleted-direct-bill-before-event', run: env => deletedSnapshotBeforeEvent(env, true, true) });
 
 async function deniedMemberRefresh(env) {
   const { group } = await costcoFriends(env);
