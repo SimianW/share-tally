@@ -408,8 +408,9 @@ test('deletion notifies every connected member with its name after commit, then 
     ]);
     for (const stream of streams) {
       const frames = stream.trim().split('\n\n').filter(frame => !frame.startsWith(':'));
-      assert.deepEqual(frames, [
-        'event: ready\ndata: {}',
+      assert.match(frames[0]!, /^event: ready\ndata: /);
+      assert.ok(JSON.parse(frames[0]!.split('data: ')[1]!).expiresInMs > 0);
+      assert.deepEqual(frames.slice(1), [
         `event: group-deleted\ndata: ${JSON.stringify({ id: group.id, name: group.name })}`,
       ]);
     }

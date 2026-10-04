@@ -7,7 +7,21 @@ import { useEffect, useState, useSyncExternalStore, cloneElement, type FormEvent
 type Profile = { username: string | null; firstName: string | null; lastName: string | null };
 
 const token = () => localStorage.getItem('smoke-token');
-const getToken = async () => token();
+declare global {
+  interface Window {
+    smokeTokenControl?: { calls: number; delayMs?: number; fail?: boolean; missing?: boolean; ordinaryToken?: string };
+  }
+}
+const getToken = async (options?: { skipCache?: boolean }) => {
+  const control = window.smokeTokenControl;
+  if (options?.skipCache && control) {
+    control.calls++;
+    if (control.delayMs) await new Promise(resolve => setTimeout(resolve, control.delayMs));
+    if (control.fail) throw new Error('Test Clerk temporarily unavailable');
+    if (control.missing) return null;
+  }
+  return !options?.skipCache && control?.ordinaryToken ? control.ordinaryToken : token();
+};
 const subscribe = (changed: () => void) => {
   window.addEventListener('storage', changed);
   return () => window.removeEventListener('storage', changed);

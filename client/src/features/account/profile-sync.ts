@@ -1,4 +1,4 @@
-import { useAuth } from '@clerk/react';
+import { useSyncSession } from '../../shared/api/SyncSession';
 import { useEffect, useEffectEvent, useRef } from 'react';
 import type { ProfileNameFields } from '@share-tally/domain/display-name';
 import { createTransport } from '../../shared/api/transport';
@@ -10,7 +10,8 @@ const profileChannel = 'share-tally:profile';
 // announces a changed name to every member who can see it. This browser's other
 // tabs reload the account from Clerk at once.
 export function useProfileSync({ username, firstName, lastName }: ProfileNameFields, reload: () => void) {
-  const { getToken } = useAuth();
+  const session = useSyncSession();
+  const { getToken } = session;
   const reloadAccount = useEffectEvent(reload);
   useEffect(() => {
     const channel = new BroadcastChannel(profileChannel);
@@ -32,7 +33,7 @@ export function useProfileSync({ username, firstName, lastName }: ProfileNameFie
     const transport = createTransport(getToken, {
       unauthenticated: () => new Error('No active session.'),
       failed: ({ status }) => new Error(`Name synchronization failed (${status}).`),
-    });
+    }, session);
     // Retry a failure with backoff, and at once when the browser comes back online.
     let attempt = 0;
     let retry: ReturnType<typeof setTimeout> | undefined;
@@ -50,5 +51,5 @@ export function useProfileSync({ username, firstName, lastName }: ProfileNameFie
     window.addEventListener('online', online);
     send();
     return () => { controller.abort(); clearTimeout(retry); window.removeEventListener('online', online); };
-  }, [getToken, username, firstName, lastName]);
+  }, [getToken, username, firstName, lastName, session]);
 }

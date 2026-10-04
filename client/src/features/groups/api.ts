@@ -7,7 +7,7 @@ export type ListedGroup = Contract.ListedGroup<IconName>;
 export type GroupDetail = Contract.GroupDetail<IconName>;
 export type { GroupDeletionEligibility,GroupDeletionReason,MemberPreview } from '@share-tally/domain/contracts/groups';
 
-import { useAuth } from '@clerk/react';
+import { useSyncSession } from '../../shared/api/SyncSession';
 import type { QueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { AccessError, cachedRead, refreshFinancialQueries, useCachedRequest } from '../../shared/api/query-cache';
@@ -53,7 +53,8 @@ function deletionReasons(value: unknown): value is GroupDeletionReason[] {
 }
 
 export function useGroupApi() {
-  const { getToken } = useAuth();
+  const session = useSyncSession();
+  const { getToken } = session;
   const cache = useCachedRequest();
   return useMemo(() => {
     const transport = createTransport(getToken, {
@@ -64,19 +65,22 @@ export function useGroupApi() {
           return new GroupDeletionAccessError(status, message, body.reasons);
         return new AccessError(status, message);
       },
-    });
+    }, session);
     async function request<T>(path: string, method = 'GET', body?: unknown, signal?: AbortSignal, committed?: (result: T) => Promise<void>): Promise<T> {
       const key = `/groups${path}`;
       // Read policy is selected by the endpoint; mutations preserve their commit ordering.
       const result = await transport.json<T>(key, method, body, signal);
+      session.signal.throwIfAborted();
       await committed?.(result);
-      if (method !== 'GET' && method !== 'DELETE') await refreshFinancialQueries(cache);
+      if (method !== 'GET' && method !== 'DELETE') await refreshFinancialQueries(cache, session.signal);
+      session.signal.throwIfAborted();
       return result;
     }
     async function rememberGroup({ group }: { group: ListedGroup | GroupDetail }) {
       // The successful write is authoritative even if the next list read fails.
       // Cancel an older list snapshot before inserting/replacing this membership.
       await cache.cancelQueries({ queryKey: ['/groups'], exact: true });
+      session.signal.throwIfAborted();
       cache.setQueryData<{ groups: ListedGroup[] }>(['/groups'], current => {
         const existing = current?.groups ?? [];
         const listed = existing.find(item => item.id === group.id);
@@ -105,7 +109,7 @@ export function useGroupApi() {
         }
       },
     };
-  }, [getToken, cache]);
+  }, [getToken, cache, session]);
 }
 export type GroupApi = ReturnType<typeof useGroupApi>;
 

@@ -48,14 +48,18 @@ function openEvents(streams: Map<string, Set<Response>>, key: string, response: 
     if (!response.write(': heartbeat\n\n')) response.destroy();
   }, 10_000);
   // Reauthenticate regularly, and never keep a stream past its verified JWT expiry.
+  const renewal = setTimeout(() => {
+    if (!response.write(`event: renew\ndata: ${JSON.stringify({ expiresAt })}\n\n`)) response.destroy();
+  }, Math.max(0, expiresAt - Date.now() - 5000));
   const expiry = setTimeout(() => response.end(), Math.max(0, expiresAt - Date.now()));
   response.once('close', () => {
     clearInterval(heartbeat);
     clearTimeout(expiry);
+    clearTimeout(renewal);
     group.delete(response);
     if (!group.size) streams.delete(key);
   });
-  response.write(`event: ready\ndata: ${ready}\n\n`);
+  response.write(`event: ready\ndata: ${JSON.stringify({ ...JSON.parse(ready), expiresAt, expiresInMs: Math.max(0, expiresAt - Date.now()) })}\n\n`);
 }
 
 export function openGroupEvents(groupId: string, response: Response, expiresAt: number) {

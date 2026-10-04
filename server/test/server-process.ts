@@ -110,7 +110,15 @@ process.on('message', message => {
   if (message === 'hold-extraction') { holdExtraction = true; process.send?.('holding-extraction'); }
   if (message === 'release-extraction') { holdExtraction = false; releaseExtraction?.(); releaseExtraction = undefined; }
 });
+let streamLifetimeMs: number | undefined;
+process.on('message', message => {
+  if (message && typeof message === 'object' && 'streamLifetimeMs' in message) {
+    streamLifetimeMs = typeof message.streamLifetimeMs === 'number' ? message.streamLifetimeMs : undefined;
+    process.send?.('stream-lifetime-set');
+  }
+});
 const app = createApp({
+  expiresAt: () => streamLifetimeMs === undefined ? Infinity : Date.now() + streamLifetimeMs,
   receiptExtractor: async (image) => {
     if (useRecorded) return recordedExtract(image);
     if (holdExtraction) await new Promise<void>(resolve => { releaseExtraction = resolve; process.send?.('extraction-held'); });
@@ -164,7 +172,7 @@ countedApp.use('/api/test-clerk/profile', express.json(), (req, res) => {
 });
 countedApp.use(app);
 // Use the production startup sequence so recovery on restart is exercised here.
-const server = await startServer(countedApp, 0, '127.0.0.1');
+const server = await startServer(countedApp, Number(process.env.TEST_API_PORT ?? 0), '127.0.0.1');
 if (!server.listening) await once(server, 'listening');
 const address = server.address();
 if (address && typeof address !== 'string') process.send?.(address.port);

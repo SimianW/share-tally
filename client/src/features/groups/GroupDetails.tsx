@@ -1,9 +1,9 @@
-import { useAuth } from '@clerk/react';
+import { errorMessage } from '../../shared/api/error-message';
+import { useSyncSession } from '../../shared/api/SyncSession';
 import { ArrowRight,RefreshCw } from 'lucide-react';
-import { useEffect,useState } from 'react';
-import { errorMessage } from "../../shared/api/error-message";
+import { useEffect,useRef,useState } from 'react';
 import { startGroupSync } from '../../shared/api/group-sync';
-import { useCached } from '../../shared/api/query-cache';
+import { AccessError, denied, hideProtectedQueries, useCachedRequest, useCached } from '../../shared/api/query-cache';
 import { useOperation } from '../../shared/api/use-operation';
 import { money } from "../../shared/money";
 import { Avatar } from "../../shared/ui/Avatar";
@@ -15,46 +15,41 @@ import { GroupDeletionAccessError,type GroupApi,type GroupDeletionEligibility,ty
 export function GroupDetails({ id, api, close, onViewBills, onDeleted }: {
   id: string; api: GroupApi; close: () => void; onViewBills?: () => void; onDeleted: () => void;
 }) {
-  const { getToken } = useAuth();
+  const session = useSyncSession();
+  const cache = useCachedRequest();
   const query = useCached<{ group: GroupDetail }>(`/groups/${id}`);
+  const accessLost = denied(query.error);
   const group = query.data?.group;
   const [error, setError] = useState('');
-  const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(true);
+  const live = useRef<ReturnType<typeof startGroupSync> | null>(null);
   const [confirmingDeletion, setConfirmingDeletion] = useState(false);
   useEffect(() => {
-    // The group details dialog can be open without the group's workspace stream.
-    const sync = startGroupSync({ groupId: id, getToken,
-      read: signal => api.detail(id, signal), apply: () => {}, status: () => {},
+    const sync = startGroupSync({ groupId: id, session,
+      read: signal => api.detail(id, signal),
+      accessDenied: (status, error) => hideProtectedQueries(cache, `/groups/${id}`, error ?? new AccessError(status, status === 401 ? 'Please sign in again.' : 'Group not found.')), apply: () => setLoading(false),
+      status: message => { setError(message); setLoading(false); },
     });
-    return () => sync.stop();
-  }, [api, getToken, id]);
-  useEffect(() => {
-    const controller = new AbortController();
-    api.detail(id, controller.signal).then(() => {
-      if (!controller.signal.aborted) { setError(''); }
-    }).catch(error => {
-      if (!controller.signal.aborted) setError(errorMessage(error));
-    }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return () => controller.abort();
-  }, [id, api, revision]);
-  function refresh() { setLoading(true); setRevision(value => value + 1); }
+    live.current = sync;
+    return () => { sync.stop(); live.current = null; };
+  }, [api, session, id, cache]);
+  function refresh() { if (accessLost) return; setLoading(true); live.current?.retry(); }
   return (
     <Dialog title={group?.name ?? 'Group'} kicker="YOUR PEOPLE" close={close}>
       {loading && !group && <p role="status">Loading members…</p>}
       {error && <Notification>{error}</Notification>}
-      {group && !error && onViewBills && <div className="group-bills-action">
+      {group && onViewBills && <div className="group-bills-action">
         <Button onClick={onViewBills}>
           View bills and balance <ArrowRight size={18} aria-hidden="true" />
         </Button>
       </div>}
       <div className="group-members-toolbar">
-        {group && !error && <p className="dialog-intro">{group.memberCount} {group.memberCount === 1 ? 'member' : 'members'} · Maximum 16</p>}
-        <Button variant="text" onClick={refresh} disabled={loading}>
+        {group && <p className="dialog-intro">{group.memberCount} {group.memberCount === 1 ? 'member' : 'members'} · Maximum 16</p>}
+        <Button variant="text" onClick={refresh} disabled={loading || accessLost}>
           <RefreshCw size={16} aria-hidden="true" /> Refresh members
         </Button>
       </div>
-      {group && !error && <>
+      {group && <>
         {group.members.map(member => <div className="member-row" key={member.id}>
           <Avatar name={member.displayName} imageUrl={member.imageUrl} fallbackImageUrl={member.fallbackImageUrl} />
           <span>{member.displayName}{member.isCurrentUser ? ' · You' : ''}</span>
@@ -69,7 +64,7 @@ export function GroupDetails({ id, api, close, onViewBills, onDeleted }: {
           </section>
         </>}
       </>}
-      {group?.isCreator && !error && confirmingDeletion &&
+      {group?.isCreator && confirmingDeletion &&
         <DeleteGroupDialog group={group} api={api} close={() => setConfirmingDeletion(false)} onDeleted={onDeleted} />}
     </Dialog>
   );

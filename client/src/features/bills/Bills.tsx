@@ -1,5 +1,6 @@
+import { useSyncSession } from '../../shared/api/SyncSession';
 import { routes } from '../../shared/browser/paths';
-import { useAuth } from '@clerk/react';
+import { leaveDeletedGroup } from '../../shared/browser/route';
 import { useEffect, useRef, useState } from "react";
 import { errorMessage } from "../../shared/api/error-message";
 import { startGroupSync } from '../../shared/api/group-sync';
@@ -9,18 +10,20 @@ import { Button } from "../../shared/ui/Button";
 import { Icon } from "../../shared/ui/Icon";
 import { ItemClaims } from './claims/ItemClaims';
 import { useBillApi } from "./api";
+import { useGroupApi } from '../groups/api';
 import { type Bill } from "@share-tally/domain/contracts/bills";
 import { InitiatorActions, ShareActions } from "./BillActions";
 import { BillPanel, ShareTicket } from "./BillOverview";
 
 export function BillDetails({ id }: { id: string }) {
   const api = useBillApi();
+  const groups = useGroupApi();
   const [bill, setBill] = useState<Bill | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
   const [notice, setNotice] = useState("");
-  const { getToken } = useAuth();
+  const session = useSyncSession();
   const [savedVersion, setSavedVersion] = useState(0);
   const resetEditors = useRef(false);
   const live = useRef<ReturnType<typeof startGroupSync> | null>(null);
@@ -31,8 +34,26 @@ export function BillDetails({ id }: { id: string }) {
     api.detail(id, controller.signal).then(({ bill: located }) => {
       if (controller.signal.aborted) return;
       sync = startGroupSync({
-        groupId: located.groupId, getToken,
-        read: signal => api.detail(id, signal),
+        groupId: located.groupId, session,
+        read: async signal => {
+          try { return await api.detail(id, signal); }
+          catch (error) {
+            // A bill 404 alone does not establish group deletion. Check its
+            // known group before stopping the reader and aborting the final frame.
+            if (error instanceof Error && 'status' in error && error.status === 404)
+              await groups.detail(located.groupId, signal);
+            throw error;
+          }
+        },
+        accessDenied: (status, _error, source) => {
+          setBill(null);
+          // A stream 404 before ready follows an authorized bill lookup.
+          // Snapshot 404s may concern only a missing bill in an existing group.
+          if (status === 404 && source === 'stream') leaveDeletedGroup();
+        },
+        // The bill's authorized lookup establishes its group even when Home's
+        // group metadata is unavailable to the global deletion listener.
+        deleted: () => { setBill(null); leaveDeletedGroup(); },
         apply: ({ bill: latest }) => {
           setBill(latest);
           if (resetEditors.current) { resetEditors.current = false; setSavedVersion(n => n + 1); }
@@ -44,7 +65,7 @@ export function BillDetails({ id }: { id: string }) {
       if (!controller.signal.aborted) setError(errorMessage(error));
     });
     return () => { controller.abort(); sync?.stop(); live.current = null; };
-  }, [api, getToken, id, revision]);
+  }, [api, groups, session, id, revision]);
   if (!bill) return error ? <Notification title="Could not load this bill"><p>{error}</p><Button onClick={() => setRevision(n => n + 1)}>Retry bill</Button></Notification> : <div role="status">Loading bill...</div>;
   const initiator = bill.participants.find(
     (p) => p.userId === bill.initiatorId,
@@ -77,7 +98,7 @@ export function BillDetails({ id }: { id: string }) {
   }
   function refresh() {
     setNotice("");
-    setRevision((n) => n + 1);
+    if (live.current) live.current.retry(); else setRevision((n) => n + 1);
   }
 
   const open = !bill.completedAt && !bill.canceledAt;

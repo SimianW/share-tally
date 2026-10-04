@@ -1,4 +1,4 @@
-import { useAuth } from "@clerk/react";
+import { useSyncSession } from '../../../shared/api/SyncSession';
 import { useEffect } from "react";
 import { startGroupSync } from "../../../shared/api/group-sync";
 import { useReceiptApi } from "../api";
@@ -14,13 +14,13 @@ export function useReceiptDraftSync(
   enabled = true,
   retry = 0,
 ) {
-  const { getToken } = useAuth();
+  const session = useSyncSession();
   const api = useReceiptApi();
   useEffect(() => {
     if (!enabled) return;
     const sync = startGroupSync({
       groupId,
-      getToken,
+      session,
       read: async (signal) => draftId
         ? [ (await api.get(draftId, signal)).draft ]
         : (await api.list(groupId, signal)).drafts,
@@ -28,5 +28,5 @@ export function useReceiptDraftSync(
       status,
     });
     return () => sync.stop();
-  }, [groupId, draftId, getToken, api, apply, status, enabled, retry]);
+  }, [groupId, draftId, session, api, apply, status, enabled, retry]);
 }

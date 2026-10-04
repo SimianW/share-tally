@@ -1,6 +1,6 @@
+import { useSyncSession } from '../shared/api/SyncSession';
 import { routes } from '../shared/browser/paths';
-import { useAuth } from '@clerk/react';
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { errorMessage } from "../shared/api/error-message";
 import { startGroupSync } from '../shared/api/group-sync';
 import { AccessError, denied, hideProtectedQueries, useCached, useCachedRequest } from '../shared/api/query-cache';
@@ -30,16 +30,17 @@ export function GroupBills({ id, selectedRepaymentId, onDeleted, title }: {
   const data = !accessError && billsQuery.data && groupQuery.data ? { ...billsQuery.data, ...groupQuery.data } : null;
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
-  const { getToken } = useAuth();
+  const session = useSyncSession();
+  const live = useRef<ReturnType<typeof startGroupSync> | null>(null);
   useEffect(() => {
     const sync = startGroupSync({
-      groupId: id, getToken,
+      groupId: id, session,
       invalidateRead: () => {
         // A response begun before this notification must never replace newer state.
         void cache.cancelQueries({ queryKey: [`/groups/${id}/bills`], exact: true });
         void cache.cancelQueries({ queryKey: [`/groups/${id}`], exact: true });
       },
-      accessDenied: status => hideProtectedQueries(cache, `/groups/${id}`, new AccessError(status, status === 401 ? 'Please sign in again.' : 'Group not found.')),
+      accessDenied: (status, error) => hideProtectedQueries(cache, `/groups/${id}`, error ?? new AccessError(status, status === 401 ? 'Please sign in again.' : 'Group not found.')),
       read: async signal => {
         const [bills, group] = await Promise.all([api.list(id, signal), groups.detail(id, signal)]);
         return { ...bills, ...group };
@@ -52,21 +53,23 @@ export function GroupBills({ id, selectedRepaymentId, onDeleted, title }: {
       },
       status: setError,
     });
-    return () => sync.stop();
-  }, [api, groups, getToken, id, revision, cache]);
+    live.current = sync;
+    return () => { sync.stop(); live.current = null; };
+  }, [api, groups, session, id, revision, cache]);
   function closeMembers() {
     setMembersOpen(false);
-    setRevision(n => n + 1);
+    live.current?.retry();
   }
   return <>
     {data ? <GroupPage data={data} title={title(data.group)} api={api} selectedRepaymentId={selectedRepaymentId}
-      openMembers={() => setMembersOpen(true)} refresh={() => setRevision(n => n + 1)}
+      openMembers={() => setMembersOpen(true)} refresh={() => live.current?.retry()}
       drafts={<ReceiptDrafts key={`${id}:${revision}`} groupId={id} open={draftId => { window.location.hash = routes.newBill(id, draftId); }} />} />
       : <section className="group-page">
         <header className="group-page-heading"><div className="group-page-title">{title(undefined)}</div></header>
         {(error || accessError) && <Notification><p>{accessError ? errorMessage(accessError) : "Couldn't load this group."}</p><Button onClick={() => setRevision(n => n + 1)}>Try again</Button></Notification>}
         <LoadingFinancials label="Loading group" />
       </section>}
+    {data && error && <Notification><p>{error}</p><Button onClick={() => live.current?.retry()}>Try again</Button></Notification>}
     {membersOpen && <GroupDetails id={id} api={groups} close={closeMembers} onDeleted={onDeleted} />}
   </>;
 }

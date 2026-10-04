@@ -36,7 +36,7 @@ let browserImage;
 // - firstExtractionFails: the test receipt provider fails its first scan on purpose.
 // - checkpoint(stage, details): awaited after each start-up stage. Throwing from it
 //   simulates a failed start-up; resources already started are still disposed.
-export async function startEnvironment({ backend = true, remoteHost = null, firstExtractionFails = false, checkpoint = async () => {} } = {}) {
+export async function startEnvironment({ backend = true, remoteHost = null, firstExtractionFails = false, checkpoint = async () => {}, nginx = false } = {}) {
   const disposers = [];
   const errors = [];
   const networkChangeFailures = new Map();
@@ -49,13 +49,14 @@ export async function startEnvironment({ backend = true, remoteHost = null, firs
     if (failures.length) throw new AggregateError(failures, 'Browser test environment was not fully disposed');
   })();
   try {
-    let pool, api;
+    let pool, api, databaseUrl;
     if (backend) {
       const { PostgreSqlContainer } = serverRequire('@testcontainers/postgresql');
       const { Pool } = serverRequire('pg');
       const { drizzle } = serverRequire('drizzle-orm/node-postgres');
       const { migrate } = serverRequire('drizzle-orm/node-postgres/migrator');
       const container = await new PostgreSqlContainer(postgresImage).start();
+      databaseUrl = container.getConnectionUri();
       disposers.push(() => container.stop());
       await checkpoint('database', { containerId: container.getId() });
       pool = new Pool({ connectionString: container.getConnectionUri() });
@@ -87,7 +88,7 @@ export async function startEnvironment({ backend = true, remoteHost = null, firs
         // Scenarios never edit source files. Late dependency transforms can
         // otherwise reopen Chokidar watchers after Vite closes and keep Node alive.
         watch: null,
-        ...(remoteHost ? { allowedHosts: [remoteHost] } : {}),
+        ...((remoteHost || nginx) ? { allowedHosts: [...(remoteHost ? [remoteHost] : []), ...(nginx ? ['host.docker.internal'] : [])] } : {}),
         ...(api ? { proxy: { '/api': api.url } } : {}),
       },
     });
@@ -95,7 +96,26 @@ export async function startEnvironment({ backend = true, remoteHost = null, firs
     web.on('request', vite.middlewares);
     web.listen(0, '0.0.0.0');
     await once(web, 'listening');
-    const origin = new URL(`http://127.0.0.1:${web.address().port}/`);
+    let applicationPort = web.address().port;
+    if (nginx) {
+      // Keep deploy's API proxy directives. Vite supplies the test Clerk bundle;
+      // production serves its built static files in this location instead.
+      const deployConfig = await readFile(new URL('../../../deploy/nginx.conf', import.meta.url), 'utf8');
+      const upstream = `http://host.docker.internal:${applicationPort}`;
+      // Vite serves thousands of development modules instead of built assets.
+      // Reuse its static upstream sockets while still allowing its HMR upgrade.
+      const staticUpstream = `upstream test_vite { server host.docker.internal:${applicationPort}; keepalive 64; }\nmap $http_upgrade $test_connection { default upgrade; '' ''; }\n`;
+      const config = staticUpstream + deployConfig.replace('http://api:3000', upstream).replace('try_files $uri $uri/ /index.html;', 'proxy_pass http://test_vite;\n        proxy_http_version 1.1;\n        proxy_set_header Host $host;\n        proxy_set_header Upgrade $http_upgrade;\n        proxy_set_header Connection $test_connection;');
+      const proxy = await new GenericContainer('public.ecr.aws/docker/library/nginx:1.28-alpine')
+        .withExtraHosts([{ host: 'host.docker.internal', ipAddress: 'host-gateway' }])
+        .withCopyContentToContainer([{ content: config, target: '/etc/nginx/conf.d/default.conf' }])
+        .withExposedPorts(80)
+        .withWaitStrategy(Wait.forHttp('/', 80))
+        .start();
+      disposers.push(() => proxy.stop());
+      applicationPort = proxy.getMappedPort(80);
+    }
+    const origin = new URL(`http://127.0.0.1:${applicationPort}/`);
     origin.hostname = remoteHost ?? '127.0.0.1';
     await checkpoint('vite', { base: origin.href });
 
@@ -147,6 +167,12 @@ export async function startEnvironment({ backend = true, remoteHost = null, firs
       sendToServer: message => api.child.send(message),
       // Resolves when the API process sends `expected`, after sending `command` if given.
       waitForServer: (expected, command) => api.waitFor(expected, command),
+      async restartApi(whileStopped = async () => {}) {
+        const port = new URL(api.url).port;
+        await stopProcess(api.child);
+        await whileStopped();
+        api = await startApi(databaseUrl, { firstExtractionFails, port }, disposers);
+      },
       dispose,
     };
   } catch (error) {
@@ -205,10 +231,10 @@ async function startBrowser(appPort, remoteHost, disposers, checkpoint) {
 }
 
 // The test entry point replaces Clerk and the receipt providers; production entry points never import it.
-async function startApi(databaseUrl, { firstExtractionFails }, disposers) {
+async function startApi(databaseUrl, { firstExtractionFails, port: requestedPort = 0 }, disposers) {
   const child = fork(`${serverRoot}test/server-process.ts`, {
     cwd: serverRoot, execArgv: ['--import=tsx'],
-    env: { PATH: process.env.PATH, DATABASE_URL: databaseUrl, TEST_FIRST_EXTRACTION_FAILS: firstExtractionFails ? '1' : '0' },
+    env: { PATH: process.env.PATH, DATABASE_URL: databaseUrl, TEST_FIRST_EXTRACTION_FAILS: firstExtractionFails ? '1' : '0', TEST_API_PORT: String(requestedPort) },
     stdio: ['ignore', 'inherit', 'inherit', 'ipc'],
   });
   // Waits still pending at disposal are dropped, so they cannot fail a later scenario.

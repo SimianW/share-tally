@@ -1,10 +1,10 @@
+import { useSyncSession } from '../shared/api/SyncSession';
 import { routes, parseRoute } from '../shared/browser/paths';
 import './styles.css';
 import { Notification } from '../shared/ui/Notification';
 import { AppearancePicker } from '../theme/AppearancePicker';
 import { refreshFinancialQueries, useCached, useCachedRequest } from '../shared/api/query-cache';
 import { groupDeletedEvent, startMemberSync, type GroupDeleted } from '../shared/api/group-sync';
-import { useAuth } from '@clerk/react';
 import { BillDetails } from '../features/bills/Bills';
 import { Home } from '../features/home/Home';
 import GroupWorkspace from './GroupWorkspace';
@@ -85,7 +85,7 @@ export default function AppShell({
   // elsewhere: reread Home's groups and actions and this account's own names.
   // Pages within a group hear of renames from that group's stream instead, so
   // each tab holds one stream.
-  const { getToken } = useAuth();
+  const session = useSyncSession();
   const renamed = useEffectEvent(() => {
     // Replace any group read already in flight: it may predate the rename.
     void refreshFinancialQueries(cache);
@@ -95,9 +95,9 @@ export default function AppShell({
   const spansGroups = home || accountPage;
   useEffect(() => {
     if (!spansGroups) return;
-    const sync = startMemberSync({ getToken, changed: renamed });
+    const sync = startMemberSync({ session, changed: renamed });
     return () => sync.stop();
-  }, [getToken, spansGroups]);
+  }, [session, spansGroups]);
   // Without that stream, an edit on another device reaches this account's own
   // names when the member returns to the tab.
   const returned = useEffectEvent(() => account.reload());
