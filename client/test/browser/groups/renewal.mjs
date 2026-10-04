@@ -518,14 +518,25 @@ async function deletedSnapshotBeforeEvent(env) {
       const response = await original(url, options);
       if (!String(url).includes('/groups/') || !String(url).endsWith('/events') || !response.body) return response;
       const decoder = new TextDecoder();
-      return new Response(response.body.pipeThrough(new TransformStream({
+      const encoder = new TextEncoder();
+      let pending = '';
+      const fragmented = response.body.pipeThrough(new TransformStream({
+        transform(chunk, controller) { controller.enqueue(chunk.slice(0, 5)); controller.enqueue(chunk.slice(5)); },
+      }));
+      return new Response(fragmented.pipeThrough(new TransformStream({
         async transform(chunk, controller) {
-          if (decoder.decode(chunk, { stream: true }).includes('event: group-deleted')) {
-            window.heldDeletionFrames++;
-            // Force the authoritative REST 404 to arrive before this final frame.
-            if (!options.signal.aborted) await new Promise(resolve => options.signal.addEventListener('abort', resolve, { once: true }));
+          pending += decoder.decode(chunk, { stream: true });
+          let end;
+          while ((end = pending.indexOf('\n\n')) >= 0) {
+            const frame = pending.slice(0, end + 2);
+            pending = pending.slice(end + 2);
+            if (frame.startsWith('event: group-deleted')) {
+              window.heldDeletionFrames++;
+              // Force the authoritative REST 404 to arrive before this final frame.
+              if (!options.signal.aborted) await new Promise(resolve => options.signal.addEventListener('abort', resolve, { once: true }));
+            }
+            controller.enqueue(encoder.encode(frame));
           }
-          controller.enqueue(chunk);
         },
       })), { status: response.status, headers: response.headers });
     };
