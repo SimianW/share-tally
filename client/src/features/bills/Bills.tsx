@@ -9,12 +9,14 @@ import { Button } from "../../shared/ui/Button";
 import { Icon } from "../../shared/ui/Icon";
 import { ItemClaims } from './claims/ItemClaims';
 import { useBillApi } from "./api";
+import { useGroupApi } from '../groups/api';
 import { type Bill } from "@share-tally/domain/contracts/bills";
 import { InitiatorActions, ShareActions } from "./BillActions";
 import { BillPanel, ShareTicket } from "./BillOverview";
 
 export function BillDetails({ id }: { id: string }) {
   const api = useBillApi();
+  const groups = useGroupApi();
   const [bill, setBill] = useState<Bill | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const [error, setError] = useState("");
@@ -32,7 +34,16 @@ export function BillDetails({ id }: { id: string }) {
       if (controller.signal.aborted) return;
       sync = startGroupSync({
         groupId: located.groupId, session,
-        read: signal => api.detail(id, signal),
+        read: async signal => {
+          try { return await api.detail(id, signal); }
+          catch (error) {
+            // A bill 404 alone does not establish group deletion. Check its
+            // known group before stopping the reader and aborting the final frame.
+            if (error instanceof Error && 'status' in error && error.status === 404)
+              await groups.detail(located.groupId, signal);
+            throw error;
+          }
+        },
         accessDenied: () => setBill(null),
         apply: ({ bill: latest }) => {
           setBill(latest);
@@ -45,7 +56,7 @@ export function BillDetails({ id }: { id: string }) {
       if (!controller.signal.aborted) setError(errorMessage(error));
     });
     return () => { controller.abort(); sync?.stop(); live.current = null; };
-  }, [api, session, id, revision]);
+  }, [api, groups, session, id, revision]);
   if (!bill) return error ? <Notification title="Could not load this bill"><p>{error}</p><Button onClick={() => setRevision(n => n + 1)}>Retry bill</Button></Notification> : <div role="status">Loading bill...</div>;
   const initiator = bill.participants.find(
     (p) => p.userId === bill.initiatorId,

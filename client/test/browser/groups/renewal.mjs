@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
 import { screenshots } from '../environment.mjs';
 import { expect } from '@playwright/test';
-import { costcoFriends } from './fixtures.mjs';
+import { aliceBill, costcoFriends } from './fixtures.mjs';
 import { groupNet } from '../ui.mjs';
 
 export const scenarios = [{ name: 'shared-sse-renewal', run: sharedRenewal }];
@@ -322,20 +322,22 @@ async function initialSubscriptionFailure(env) {
   await page.getByRole('button', { name: 'Try again', exact: true }).click();
   await expect(groupNet(page)).toContainText("You're settled up");
 }
-async function deniedBillRead(env) {
+async function deniedBillRead(env, status = 403) {
   const { page, group, ids } = await setupRenewal(env, 30_000);
   const { bill } = await createBill(env, group, ids, 'Protected single bill');
   await page.goto(`${env.base}#/bills/${bill.id}`);
   await expect(page.getByRole('heading', { name: 'Protected single bill', exact: true })).toBeVisible();
-  await page.route(`**/api/bills/${bill.id}`, route => route.fulfill({ status: 403, json: { error: 'Bill access revoked.' } }));
+  await page.route(`**/api/bills/${bill.id}`, route => route.fulfill({ status, json: { error: 'Bill access revoked.' } }));
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(page.getByRole('alert')).toContainText('Bill access revoked.');
   await expect(page.getByText('Loading bill...', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Protected single bill', exact: true })).toHaveCount(0);
+  await expect(page).toHaveURL(new RegExp(`#/bills/${bill.id}$`));
 }
 scenarios.push(
   { name: 'sse-initial-failure', run: initialSubscriptionFailure },
   { name: 'sse-denied-bill-read', run: deniedBillRead },
+  { name: 'sse-missing-bill-with-existing-group', run: env => deniedBillRead(env, 404) },
 );
 
 async function expiredCredentials(env) {
@@ -508,8 +510,9 @@ async function serverRestartRecovery(env) {
 }
 scenarios.push({ name: 'sse-server-restart', run: serverRestartRecovery });
 
-async function deletedSnapshotBeforeEvent(env) {
-  const { group } = await costcoFriends(env);
+async function deletedSnapshotBeforeEvent(env, billPage = false) {
+  const { group, ids } = await costcoFriends(env);
+  const bill = billPage ? await aliceBill(env, group.id, 'Retained completed bill', 100, [ids.Alice], [['alice-token', 100]]) : null;
   const page = await env.pageFor('bob-token', { width: 1280, height: 900 });
   await page.addInitScript(() => {
     const original = window.fetch.bind(window);
@@ -543,11 +546,12 @@ async function deletedSnapshotBeforeEvent(env) {
   });
   await page.goto(env.base);
   await expect(page.getByRole('link', { name: /Costco friends/ })).toBeVisible();
-  await page.evaluate(id => { window.location.hash = `#/group-bills/${id}`; }, group.id);
-  await expect(groupNet(page)).toContainText("You're settled up");
+  await page.evaluate(hash => { window.location.hash = hash; }, bill ? `#/bills/${bill.id}` : `#/group-bills/${group.id}`);
+  if (bill) await expect(page.getByRole('heading', { name: bill.title, exact: true })).toBeVisible();
+  else await expect(groupNet(page)).toContainText("You're settled up");
   let release, captured = false;
   const held = new Promise(resolve => { release = resolve; });
-  await page.route(`**/api/groups/${group.id}/bills`, async route => {
+  await page.route(bill ? `**/api/bills/${bill.id}` : `**/api/groups/${group.id}/bills`, async route => {
     captured = true;
     await held;
     const response = await route.fetch();
@@ -564,6 +568,7 @@ async function deletedSnapshotBeforeEvent(env) {
   await expect(page.getByRole('link', { name: /Costco friends/ })).toHaveCount(0);
 }
 scenarios.push({ name: 'sse-deleted-snapshot-before-event', run: deletedSnapshotBeforeEvent });
+scenarios.push({ name: 'sse-deleted-bill-snapshot-before-event', run: env => deletedSnapshotBeforeEvent(env, true) });
 
 async function deniedMemberRefresh(env) {
   const { group } = await costcoFriends(env);
