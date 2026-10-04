@@ -1,5 +1,5 @@
+import { useSyncSession } from '../../shared/api/SyncSession';
 import { routes } from '../../shared/browser/paths';
-import { useAuth } from '@clerk/react';
 import { useEffect, useRef, useState } from "react";
 import { errorMessage } from "../../shared/api/error-message";
 import { startGroupSync } from '../../shared/api/group-sync';
@@ -20,7 +20,7 @@ export function BillDetails({ id }: { id: string }) {
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
   const [notice, setNotice] = useState("");
-  const { getToken } = useAuth();
+  const session = useSyncSession();
   const [savedVersion, setSavedVersion] = useState(0);
   const resetEditors = useRef(false);
   const live = useRef<ReturnType<typeof startGroupSync> | null>(null);
@@ -31,8 +31,9 @@ export function BillDetails({ id }: { id: string }) {
     api.detail(id, controller.signal).then(({ bill: located }) => {
       if (controller.signal.aborted) return;
       sync = startGroupSync({
-        groupId: located.groupId, getToken,
+        groupId: located.groupId, session,
         read: signal => api.detail(id, signal),
+        accessDenied: () => setBill(null),
         apply: ({ bill: latest }) => {
           setBill(latest);
           if (resetEditors.current) { resetEditors.current = false; setSavedVersion(n => n + 1); }
@@ -44,7 +45,7 @@ export function BillDetails({ id }: { id: string }) {
       if (!controller.signal.aborted) setError(errorMessage(error));
     });
     return () => { controller.abort(); sync?.stop(); live.current = null; };
-  }, [api, getToken, id, revision]);
+  }, [api, session, id, revision]);
   if (!bill) return error ? <Notification title="Could not load this bill"><p>{error}</p><Button onClick={() => setRevision(n => n + 1)}>Retry bill</Button></Notification> : <div role="status">Loading bill...</div>;
   const initiator = bill.participants.find(
     (p) => p.userId === bill.initiatorId,
@@ -77,7 +78,7 @@ export function BillDetails({ id }: { id: string }) {
   }
   function refresh() {
     setNotice("");
-    setRevision((n) => n + 1);
+    if (live.current) live.current.retry(); else setRevision((n) => n + 1);
   }
 
   const open = !bill.completedAt && !bill.canceledAt;

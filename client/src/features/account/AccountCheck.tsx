@@ -1,9 +1,10 @@
 import { createTransport } from '../../shared/api/transport';
 import { useState } from "react";
-import { useAuth } from "@clerk/react";
+import { useSyncSession } from '../../shared/api/SyncSession';
 
 export default function AccountCheck() {
-  const { getToken } = useAuth();
+  const session = useSyncSession();
+  const { getToken } = session;
   const [result, setResult] = useState('');
   const [isChecking, setIsChecking] = useState(false);
 
@@ -15,7 +16,7 @@ export default function AccountCheck() {
       const transport = createTransport(getToken, {
         unauthenticated: () => new Error('No active session. Please sign in again.'),
         failed: ({ status }) => new Error(`Account request failed. ${status}`),
-      });
+      }, session);
       const data = await transport.json<unknown>('/me', 'GET', undefined, undefined, false);
       setResult(JSON.stringify(data, null, 2));
     } catch (error) {

@@ -155,13 +155,19 @@ async function memberRenames(env) {
 
   // Carol's pages lose their connection while Bob renames again, then catch up.
   await carol.context().route('**/api/**/events', route => route.abort());
-  for (const page of [carol, carolHome]) await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  for (const page of [carol, carolHome]) await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
   await editAccount(bob, 'Update username', { Username: 'bobcat' });
   await expect(alice.getByText('bobcat says they sent $2.00')).toBeVisible(within());
   await expect(billPeople(carol)).toContainText('111wsm');
   await expect(homeRow(carolHome, 'Costco friends').getByTitle('111wsm', { exact: true })).toHaveCount(1);
   await carol.context().unroute('**/api/**/events');
-  for (const page of [carol, carolHome]) await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  for (const page of [carol, carolHome]) await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
   await expect(billPeople(carol)).toContainText('bobcat');
   await expect(homeRow(carolHome, 'Costco friends').getByTitle('bobcat', { exact: true })).toHaveCount(1);
   await expect(carol.getByLabel('Your share (CAD)', { exact: true })).toHaveValue('7.77');

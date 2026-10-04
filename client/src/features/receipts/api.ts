@@ -1,6 +1,6 @@
 import { createTransport } from '../../shared/api/transport';
 import type { ItemConflicts } from '@share-tally/domain/contracts/bills';
-import { useAuth } from "@clerk/react";
+import { useSyncSession } from '../../shared/api/SyncSession';
 import { type Bill } from "@share-tally/domain/contracts/bills";
 import type { BillItem, Extraction, LegacyReceiptItem, ReceiptCorrection, ReceiptCorrectionItem, ReceiptData, ReceiptDraft, ReceiptDraftItem, ReviewedItem } from '@share-tally/domain/contracts/receipts';
 import { useMemo } from "react";
@@ -19,13 +19,14 @@ function draftRequestData(data: ReceiptData): ReceiptData {
 }
 
 export function useReceiptApi() {
-  const { getToken } = useAuth();
+  const session = useSyncSession();
+  const { getToken } = session;
   const cache = useCachedRequest();
   return useMemo(() => {
     const transport = createTransport(getToken, {
       unauthenticated: () => new BillApiError(401, 'Please sign in again.'),
       failed: ({ status, body }) => new BillApiError(status, body?.error || 'Request failed. Please try again.', body?.conflicts as ItemConflicts | undefined),
-    });
+    }, session);
     async function request<T>(
       path: string,
       method = "GET",
@@ -36,7 +37,8 @@ export function useReceiptApi() {
       // Draft saves/deletes, photo processing and extraction change the Home
       // attention set as well as bill mutations. Price previews are read-only POSTs.
       if (method !== "GET" && !path.endsWith("/prices"))
-        await refreshFinancialQueries(cache);
+        await refreshFinancialQueries(cache, session.signal);
+      session.signal.throwIfAborted();
       return result;
     }
     return {
@@ -115,7 +117,7 @@ export function useReceiptApi() {
         return response.blob();
       },
     };
-  }, [getToken, cache]);
+  }, [getToken, cache, session]);
 }
 export type ReceiptApi = ReturnType<typeof useReceiptApi>;
 export function correctionInput(item: ReceiptCorrectionItem | BillItem): ReceiptCorrection {

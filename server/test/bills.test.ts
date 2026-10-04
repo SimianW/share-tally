@@ -1744,11 +1744,45 @@ test('SSE heartbeats, bounded authentication lifetime, and reconnects do not wri
       const timer = setTimeout(() => reject(new Error('Stream did not expire')), 22_000);
       timer.unref();
     })]);
+    const ready = JSON.parse(watching.frames.find(f => f.startsWith('event: ready'))!.split('data: ')[1]!);
+    const renewals = watching.frames.filter(f => f.startsWith('event: renew'));
+    assert.equal(renewals.length, 1, 'Announce renewal once before closing');
+    assert.equal(JSON.parse(renewals[0]!.split('data: ')[1]!).expiresAt, ready.expiresAt);
+    assert.ok(Number.isFinite(ready.expiresAt), 'Ready exposes the enforced stream deadline');
     const again = await stream(group.id);
     try { await eventually(() => again.frames.some(f => f.includes('event: ready'))); }
     finally { await again.close(); }
     assert.equal((await pool.query('SELECT count(*)::int AS n FROM bills')).rows[0].n, 0);
   } finally { await watching.close(); }
+});
+
+test('SSE announces the verified token deadline and permits overlap without extending it', async () => {
+  const { group, path, draft } = await setup();
+  await clerk({ streamLifetimeMs: 7000 }, 'stream-lifetime-set');
+  const started = Date.now();
+  const watching = await stream(group.id);
+  try {
+    await eventually(() => watching.frames.some(f => f.startsWith('event: ready')));
+    const ready = JSON.parse(watching.frames[0]!.split('data: ')[1]!);
+    assert.ok(ready.expiresAt >= started + 6900 && ready.expiresAt <= Date.now() + 7000);
+    await eventually(() => watching.frames.some(f => f.startsWith('event: renew')), 4000);
+    assert.ok(Date.now() < ready.expiresAt - 3500, 'Renewal precedes expiry by five seconds');
+    const replacement = await stream(group.id);
+    try {
+      await eventually(() => replacement.frames.some(f => f.startsWith('event: ready')));
+      await billCreate(path, draft);
+      await eventually(() => watching.frames.some(f => f.startsWith('event: changed')) && replacement.frames.some(f => f.startsWith('event: changed')));
+      await watching.reading;
+      assert.ok(Date.now() < ready.expiresAt + 500, 'The old deadline is not extended');
+    } finally { await replacement.close(); }
+    await clerk({ streamLifetimeMs: 1000 }, 'stream-lifetime-set');
+    const short = await stream(group.id);
+    try { await eventually(() => short.frames.some(f => f.startsWith('event: renew')), 500); }
+    finally { await short.close(); }
+  } finally {
+    await watching.close();
+    await clerk({ streamLifetimeMs: null }, 'stream-lifetime-set');
+  }
 });
 
 test("actual partial repayments affect balances only after recipient confirmation", async () => {

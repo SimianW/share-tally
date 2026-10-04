@@ -15,11 +15,10 @@ function SignedInApp() {
 function SignedInAccount({ user }: { user: NonNullable<ReturnType<typeof useUser>['user']> }) {
   const clerk = useClerk();
   const reload = () => void user.reload().catch(() => {});
-  useProfileSync(user, reload);
   // The same rule the server applies to every member's name.
   const displayName = resolveDisplayName(user);
   return (
-    <SessionQueries key={user.id}><AppShell
+    <SessionQueries key={user.id}><ProfileSynchronization user={user} reload={reload} /><AppShell
       displayName={displayName}
       account={{
         name: displayName,
@@ -31,6 +30,11 @@ function SignedInAccount({ user }: { user: NonNullable<ReturnType<typeof useUser
       }}
     /></SessionQueries>
   );
+}
+
+function ProfileSynchronization({ user, reload }: { user: NonNullable<ReturnType<typeof useUser>['user']>; reload: () => void }) {
+  useProfileSync(user, reload);
+  return null;
 }
 
 function App() {

@@ -1,5 +1,5 @@
 import { createTransport } from '../../shared/api/transport';
-import { useAuth } from "@clerk/react";
+import { useSyncSession } from '../../shared/api/SyncSession';
 import type { AttentionAction } from '@share-tally/domain/contracts/attention';
 import type { Bill, BillDraft, BillEdit, ShareInput } from '@share-tally/domain/contracts/bills';
 import type { GroupLedger, Summary } from '@share-tally/domain/contracts/ledger';
@@ -8,16 +8,18 @@ import { useMemo } from "react";
 import { BillApiError } from '../../shared/api/bill-error';
 import { AccessError, cachedRead, refreshFinancialQueries, useCachedRequest } from '../../shared/api/query-cache';
 export function useBillApi() {
-  const { getToken } = useAuth();
+  const session = useSyncSession();
+  const { getToken } = session;
   const cache = useCachedRequest();
   return useMemo(() => {
     const transport = createTransport(getToken, {
       unauthenticated: () => new AccessError(401, 'Please sign in again.'),
       failed: ({ status, body }) => new BillApiError(status, body?.error ?? 'Request failed. Please try again.'),
-    });
+    }, session);
     async function request<T>(path: string, method = 'GET', body?: unknown, signal?: AbortSignal): Promise<T> {
       const result = await transport.json<T>(path, method, body, signal);
-      if (method !== 'GET') await refreshFinancialQueries(cache);
+      if (method !== 'GET') await refreshFinancialQueries(cache, session.signal);
+      session.signal.throwIfAborted();
       return result;
     }
     return {
@@ -61,6 +63,6 @@ export function useBillApi() {
           input,
         ),
     };
-  }, [getToken, cache]);
+  }, [getToken, cache, session]);
 }
 export type BillApi = ReturnType<typeof useBillApi>;

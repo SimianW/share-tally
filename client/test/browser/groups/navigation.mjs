@@ -38,10 +38,10 @@ async function navigationAndAccountIsolation(env) {
   await alice.route(selectedBillsPattern, route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Temporarily unavailable' }) }));
   await expect(alice.getByRole('button', { name: 'Refresh bills', exact: true })).toHaveCount(0);
   await alice.evaluate(() => window.dispatchEvent(new Event('online')));
-  await expect(alice.getByRole('alert')).toHaveCount(0);
+  await expect(alice.getByRole('alert')).toContainText('Displayed data may be out of date');
   await expect(groupNet(alice)).toContainText('$59.97');
   await alice.unroute(selectedBillsPattern);
-  // The visible group recovers through automatic reconnection without a manual retry.
+  // The visible group recovers through automatic snapshot retry without reconnecting.
   await expect(alice.getByRole('alert')).toHaveCount(0, { timeout: 20_000 });
   await expect(groupNet(alice)).toContainText('$59.97', { timeout: 20_000 });
   await expect(groupNet(alice)).toContainText('$59.97');
@@ -285,14 +285,15 @@ async function checkNavigation(page, pageFor) {
   await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect.poll(() => failures).toBeGreaterThan(0);
   await expect(groupNet(page)).toContainText('$59.97');
-  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(page.getByRole('alert')).toContainText('Displayed data may be out of date');
   await page.unroute(pattern);
   let recovered = false;
   await page.route(pattern, async route => { recovered = true; await route.continue(); });
   await expect.poll(() => recovered, { timeout: 20000 }).toBe(true);
   await page.unroute(pattern);
 
-  assert.deepEqual(await page.evaluate(() => window.recoveryFlashes), []);
+  assert.ok((await page.evaluate(() => window.recoveryFlashes)).length > 0, 'Failed required snapshots are visibly stale');
+  await expect(page.getByRole('alert')).toHaveCount(0);
   await page.evaluate(() => window.recoveryObserver.disconnect());
 
   const fresh = await pageFor('alice-token', { width: 390, height: 844 });
@@ -339,7 +340,7 @@ async function checkNavigation(page, pageFor) {
   await expect(groupNet(fresh)).toContainText('You owe');
   await checkTopBar(fresh, 'mobile');
   await fresh.context().close();
-  console.log('Navigation UX passed: top bar with Home and account menu, delayed cached navigation, group switcher, deduplication, no warning flashes, background recovery, initial failure, revoked access and account isolation.');
+  console.log('Navigation UX passed: top bar with Home and account menu, delayed cached navigation, group switcher, deduplication, quiet healthy recovery, visible read failure, automatic retry, initial failure, revoked access and account isolation.');
 }
 
 // Starts and ends on "Costco friends"; the member also belongs to "Apartment".
