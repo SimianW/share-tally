@@ -26,6 +26,8 @@ The full groups/receipts run passed 58 of its original 59 scenarios. The 20-scre
 
 Restart recovery accommodates the existing 25-second liveness timeout: Vite can retain the downstream stream after its API upstream exits. The test verifies stale presentation with retained data, resubscription, current snapshots and no added financial records.
 
+PR #211 review follow-ups add two browser regressions, bringing the suite to 65 scenarios. A post-ready group REST 404 now preserves deletion navigation even when it arrives before the final SSE deletion frame. A denied members dialog disables its unavailable refresh action instead of entering permanent loading. Both regressions failed before their fixes and passed afterward; five related deletion, handoff and shared-renewal scenarios also passed. Manual retry coverage now waits for the new REST read before asserting that a healthy stream remains connected. Client unit checks, lint and build passed again.
+
 ## Local nginx measurements
 
 Each measurement has 64 committed bill creations. Every screen rendered each bill; observed subscription gaps and interruption notices were zero. The single screen crossed two replacement boundaries during measurement, and every screen in the 20-screen run crossed three. At most two stream attempts were active per screen.

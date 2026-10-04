@@ -31,7 +31,7 @@ export const suites = {
     'group-refresh', 'group-invitations', 'appearance', 'bill-sharing', 'navigation-and-account-isolation',
     'bill-corrections', 'repayments', 'group-capacity', 'bill-live-updates', 'attention',
     'group-page-ledger', 'amount-portion', 'group-deletion', 'member-renames', 'shared-sse-renewal', 'sse-candidate-recovery', 'sse-read-handoff', 'sse-token-background', 'sse-attempt-deadline', 'sse-token-failure', 'sse-nginx-soak-one', 'sse-nginx-soak-twenty', 'sse-deletion-during-renewal', 'sse-authentication-loss', 'sse-token-deadline', 'sse-initial-failure', 'sse-denied-bill-read', 'sse-expired-credentials', 'sse-command-authentication-loss', 'sse-obsolete-command',
-    'sse-post-command-authentication-loss', 'sse-cancelled-authentication-body', 'sse-server-restart',
+    'sse-post-command-authentication-loss', 'sse-cancelled-authentication-body', 'sse-server-restart', 'sse-deleted-snapshot-before-event', 'sse-denied-member-refresh',
   ]),
   receipts: ordered(receiptScenarios, [
     'scan-retry', 'split-method-entry', 'new-bill-during-refresh', 'receipt-crop', 'draft-save-and-recovery', 'item-claims', 'claim-controls',

@@ -125,6 +125,9 @@ function createChannel(path: string, freshToken: () => Promise<string | null>, a
     close(old); close(pending);
   }
   function deny(status: number, error?: Error) {
+    // A missing snapshot after membership was established has the same deletion
+    // semantics as a replacement GET returning 404, even before its final frame.
+    if (status === 404 && seenReady && path !== '/api/me/events') { deleted(); return; }
     terminalStatus = status;
     cancel();
     each(consumer => consumer.denied(status, error));

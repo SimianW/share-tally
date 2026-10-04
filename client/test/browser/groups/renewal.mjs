@@ -134,11 +134,14 @@ async function readFailureAndHandoff(env) {
   await expect(page.getByRole('dialog')).toContainText('Bob');
   await page.getByRole('button', { name: 'Close dialog' }).click();
   await expect(page.getByRole('region', { name: 'Open bills', exact: true })).toContainText('New authoritative snapshot');
-  await page.route(pattern, route => route.fulfill({ status: 503, json: { error: 'Read unavailable' } }));
+  let failedReads = 0;
+  await page.route(pattern, route => { failedReads++; return route.fulfill({ status: 503, json: { error: 'Read unavailable' } }); });
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(page.getByText('Live updates interrupted', { exact: false })).toHaveCount(1);
   const attempts = await page.evaluate(() => window.sseTest.attempts);
+  const before = failedReads;
   await page.getByRole('button', { name: 'Try again', exact: true }).click();
+  await expect.poll(() => failedReads).toBeGreaterThan(before);
   assert.equal(await page.evaluate(() => window.sseTest.attempts), attempts, 'Manual read retry preserves a healthy channel');
   await page.unroute(pattern);
   await expect(page.getByText('Live updates interrupted', { exact: false })).toHaveCount(0, { timeout: 5000 });
@@ -504,3 +507,61 @@ async function serverRestartRecovery(env) {
   assert.equal(await page.evaluate(() => window.sseTest.active), 1);
 }
 scenarios.push({ name: 'sse-server-restart', run: serverRestartRecovery });
+
+async function deletedSnapshotBeforeEvent(env) {
+  const { group } = await costcoFriends(env);
+  const page = await env.pageFor('bob-token', { width: 1280, height: 900 });
+  await page.addInitScript(() => {
+    const original = window.fetch.bind(window);
+    window.heldDeletionFrames = 0;
+    window.fetch = async (url, options) => {
+      const response = await original(url, options);
+      if (!String(url).includes('/groups/') || !String(url).endsWith('/events') || !response.body) return response;
+      const decoder = new TextDecoder();
+      return new Response(response.body.pipeThrough(new TransformStream({
+        async transform(chunk, controller) {
+          if (decoder.decode(chunk, { stream: true }).includes('event: group-deleted')) {
+            window.heldDeletionFrames++;
+            // Force the authoritative REST 404 to arrive before this final frame.
+            if (!options.signal.aborted) await new Promise(resolve => options.signal.addEventListener('abort', resolve, { once: true }));
+          }
+          controller.enqueue(chunk);
+        },
+      })), { status: response.status, headers: response.headers });
+    };
+  });
+  await page.goto(env.base);
+  await expect(page.getByRole('link', { name: /Costco friends/ })).toBeVisible();
+  await page.evaluate(id => { window.location.hash = `#/group-bills/${id}`; }, group.id);
+  await expect(groupNet(page)).toContainText("You're settled up");
+  let release, captured = false;
+  const held = new Promise(resolve => { release = resolve; });
+  await page.route(`**/api/groups/${group.id}/bills`, async route => {
+    captured = true;
+    await held;
+    const response = await route.fetch();
+    assert.equal(response.status(), 404);
+    await route.fulfill({ response });
+  }, { times: 1 });
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect.poll(() => captured).toBe(true);
+  await env.api(`/groups/${group.id}`, 'alice-token', 'DELETE');
+  await expect.poll(() => page.evaluate(() => window.heldDeletionFrames)).toBe(1);
+  release();
+  await expect(page.getByRole('heading', { name: /Hey Bob/ })).toBeVisible();
+  await expect(page.getByText('Costco friends was deleted by the group creator', { exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Costco friends/ })).toHaveCount(0);
+}
+scenarios.push({ name: 'sse-deleted-snapshot-before-event', run: deletedSnapshotBeforeEvent });
+
+async function deniedMemberRefresh(env) {
+  const { group } = await costcoFriends(env);
+  const page = await env.pageFor('bob-token', { width: 1280, height: 900 });
+  await page.route(`**/api/groups/${group.id}/events`, route => route.fulfill({ status: 403 }));
+  await page.goto(`${env.base}#/groups/${group.id}`);
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('alert')).toContainText('Group not found.');
+  await expect(dialog.getByRole('button', { name: 'Refresh members' })).toBeDisabled();
+  await expect(dialog.getByText('Loading members…', { exact: true })).toHaveCount(0);
+}
+scenarios.push({ name: 'sse-denied-member-refresh', run: deniedMemberRefresh });

@@ -3,7 +3,7 @@ import { useSyncSession } from '../../shared/api/SyncSession';
 import { ArrowRight,RefreshCw } from 'lucide-react';
 import { useEffect,useRef,useState } from 'react';
 import { startGroupSync } from '../../shared/api/group-sync';
-import { AccessError, hideProtectedQueries, useCachedRequest, useCached } from '../../shared/api/query-cache';
+import { AccessError, denied, hideProtectedQueries, useCachedRequest, useCached } from '../../shared/api/query-cache';
 import { useOperation } from '../../shared/api/use-operation';
 import { money } from "../../shared/money";
 import { Avatar } from "../../shared/ui/Avatar";
@@ -18,6 +18,7 @@ export function GroupDetails({ id, api, close, onViewBills, onDeleted }: {
   const session = useSyncSession();
   const cache = useCachedRequest();
   const query = useCached<{ group: GroupDetail }>(`/groups/${id}`);
+  const accessLost = denied(query.error);
   const group = query.data?.group;
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -32,7 +33,7 @@ export function GroupDetails({ id, api, close, onViewBills, onDeleted }: {
     live.current = sync;
     return () => { sync.stop(); live.current = null; };
   }, [api, session, id, cache]);
-  function refresh() { setLoading(true); live.current?.retry(); }
+  function refresh() { if (accessLost) return; setLoading(true); live.current?.retry(); }
   return (
     <Dialog title={group?.name ?? 'Group'} kicker="YOUR PEOPLE" close={close}>
       {loading && !group && <p role="status">Loading members…</p>}
@@ -44,7 +45,7 @@ export function GroupDetails({ id, api, close, onViewBills, onDeleted }: {
       </div>}
       <div className="group-members-toolbar">
         {group && <p className="dialog-intro">{group.memberCount} {group.memberCount === 1 ? 'member' : 'members'} · Maximum 16</p>}
-        <Button variant="text" onClick={refresh} disabled={loading}>
+        <Button variant="text" onClick={refresh} disabled={loading || accessLost}>
           <RefreshCw size={16} aria-hidden="true" /> Refresh members
         </Button>
       </div>
