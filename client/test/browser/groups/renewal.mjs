@@ -578,6 +578,44 @@ scenarios.push({ name: 'sse-deleted-snapshot-before-event', run: deletedSnapshot
 scenarios.push({ name: 'sse-deleted-bill-snapshot-before-event', run: env => deletedSnapshotBeforeEvent(env, true) });
 scenarios.push({ name: 'sse-deleted-direct-bill-before-event', run: env => deletedSnapshotBeforeEvent(env, true, true) });
 
+async function deletedBillBeforeReady(env) {
+  const { group, ids } = await costcoFriends(env);
+  const bill = await aliceBill(env, group.id, 'Deleted before subscription', 100, [ids.Alice], [['alice-token', 100]]);
+  const page = await env.pageFor('bob-token', { width: 1280, height: 900 });
+  await page.route('**/api/groups', route => route.fulfill({ status: 503, json: { error: 'Groups unavailable' } }));
+  let release, captured = false;
+  const held = new Promise(resolve => { release = resolve; });
+  await page.route(`**/api/groups/${group.id}/events`, async route => {
+    captured = true;
+    await held;
+    const response = await route.fetch();
+    assert.equal(response.status(), 404);
+    await route.fulfill({ response });
+  }, { times: 1 });
+  await page.goto(`${env.base}#/bills/${bill.id}`);
+  // Reaching this request proves the initial authorized bill lookup succeeded.
+  await expect.poll(() => captured).toBe(true);
+  await env.api(`/groups/${group.id}`, 'alice-token', 'DELETE');
+  release();
+  await expect(page.getByRole('heading', { name: /Hey Bob/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: bill.title, exact: true })).toHaveCount(0);
+}
+scenarios.push({ name: 'sse-deleted-bill-before-ready', run: deletedBillBeforeReady });
+
+async function deniedNewBillRetry(env) {
+  const { group } = await costcoFriends(env);
+  for (const path of [`/api/groups/${group.id}/events`, `/api/groups/${group.id}`]) {
+    const page = await env.pageFor('bob-token', { width: 1280, height: 900 });
+    await page.route(`**${path}`, route => route.fulfill({ status: 403, json: { error: 'Group access denied.' } }));
+    await page.goto(`${env.base}#/new-bill/${group.id}`);
+    await expect(page.getByRole('alert')).toContainText('Could not open this group');
+    await expect(page.getByRole('button', { name: 'Try again', exact: true })).toHaveCount(0);
+    await expect(page.getByText('Opening group…', { exact: true })).toHaveCount(0);
+    await page.close();
+  }
+}
+scenarios.push({ name: 'sse-denied-new-bill-retry', run: deniedNewBillRetry });
+
 async function deniedMemberRefresh(env) {
   const { group } = await costcoFriends(env);
   const page = await env.pageFor('bob-token', { width: 1280, height: 900 });

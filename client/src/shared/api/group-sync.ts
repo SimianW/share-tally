@@ -10,7 +10,7 @@ type SyncOptions<T> = {
   read: (signal: AbortSignal) => Promise<T>;
   apply: (value: T) => void;
   status: (message: string) => void;
-  accessDenied?: (status: number, error?: Error) => void;
+  accessDenied?: (status: number, error: Error | undefined, source: 'stream' | 'snapshot') => void;
   deleted?: () => void;
   invalidateRead?: () => void;
 };
@@ -64,7 +64,7 @@ export function startGroupSync<T>(options: SyncOptions<T>) {
           if (stopped || revision !== generation || !available) continue;
           if (error instanceof Error && 'status' in error && [401, 403, 404].includes(Number(error.status))) {
             if (Number(error.status) === 401) options.session.authenticationLost();
-            options.accessDenied?.(Number(error.status), error);
+            options.accessDenied?.(Number(error.status), error, 'snapshot');
             options.status(error.message);
             stop();
             return;
@@ -81,7 +81,7 @@ export function startGroupSync<T>(options: SyncOptions<T>) {
     changed: refresh,
     unavailable() { available = false; obsolete(); options.status(stale); },
     suspend() { available = false; obsolete(); },
-    denied(status, error) { available = false; obsolete(); options.accessDenied?.(status, error); options.status(status === 401 ? "Please sign in again." : "Group not found."); },
+    denied(status, error) { available = false; obsolete(); options.accessDenied?.(status, error, 'stream'); options.status(status === 401 ? "Please sign in again." : "Group not found."); },
     deleted(name) {
       available = false; obsolete();
       window.dispatchEvent(new CustomEvent<GroupDeleted>(groupDeletedEvent, { detail: { id: options.groupId, name } }));

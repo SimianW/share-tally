@@ -45,7 +45,12 @@ export function BillDetails({ id }: { id: string }) {
             throw error;
           }
         },
-        accessDenied: () => setBill(null),
+        accessDenied: (status, _error, source) => {
+          setBill(null);
+          // A stream 404 before ready follows an authorized bill lookup.
+          // Snapshot 404s may concern only a missing bill in an existing group.
+          if (status === 404 && source === 'stream') leaveDeletedGroup();
+        },
         // The bill's authorized lookup establishes its group even when Home's
         // group metadata is unavailable to the global deletion listener.
         deleted: () => { setBill(null); leaveDeletedGroup(); },
