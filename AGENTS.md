@@ -1,29 +1,19 @@
+## Task branches
+
+- Planning or implementation: read `docs/project-brief.md` for ownership and delivery constraints, and `CODING_STANDARDS.md` for requirements, conventions, and invariants.
+- Review: read `CODING_STANDARDS.md`, including its review rules.
+- Frontend design delegation: read `docs/agents/frontend-delegation.md` before dispatching a subagent.
+
 ## Agent skills
-
-### Project context
-
-Before planning or implementing, read `docs/project-brief.md` for ownership and delivery constraints. Current requirements live in GitHub issue #1 and its implementation tickets; domain terms and accepted decisions live in `CONTEXT.md` and `docs/adr/`. Research notes are background, not approved requirements.
 
 ### Issue tracker
 
-Issues live in GitHub Issues on `SimianW/share-tally`, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues: use `gh` on `SimianW/share-tally`; read `docs/agents/issue-tracker.md` for operations.
 
 ### Triage labels
 
-Default vocabulary; each label string equals its canonical role name. See `docs/agents/triage-labels.md`.
+Triage: read `docs/agents/triage-labels.md` for the canonical label vocabulary.
 
 ### Domain docs
 
-Single-context: `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
-
-### Code structure
-
-Before adding a file or a cross-module import, read the README's "Code structure" section.
-
-### Subagent model for frontend design
-
-When delegating frontend design work (UI/UX, layout, visual design) to a subagent, set the Agent tool's `model` to `"opus"` (Opus 5.5). This overrides the global instruction to leave `model` unset for this kind of task only.
-
-## Coding standards
-
-Before implementing or reviewing changes, read `CODING_STANDARDS.md` for coding conventions and review rules.
+Exploration: read `docs/agents/domain.md` for using `CONTEXT.md` and relevant `docs/adr/` decisions.
