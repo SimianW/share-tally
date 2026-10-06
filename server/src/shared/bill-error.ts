@@ -1,5 +1,4 @@
 import type { ItemConflicts } from '@share-tally/domain/contracts/bills';
-export type { ItemConflicts } from '@share-tally/domain/contracts/bills';
 
 export class BillError extends Error {
   constructor(

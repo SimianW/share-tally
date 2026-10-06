@@ -10,22 +10,22 @@ type BillEffect = Extract<LedgerEntry, { kind: 'bill' }>['effects'][number];
 type RepaymentEffect = Extract<LedgerEntry, { kind: 'repayment' }>['effects'][number];
 
 // The fields of a complete bill that decide its participants' balances.
-export type BalanceBill = Pick<typeof billsTable.$inferSelect, 'initiatorId' | 'totalCents' | 'adjustmentCents'> & {
+type BalanceBill = Pick<typeof billsTable.$inferSelect, 'initiatorId' | 'totalCents' | 'adjustmentCents'> & {
   participants: { userId: string; amountCents: number | null }[];
 };
 
 export type LedgerBill = BalanceBill & Pick<typeof billsTable.$inferSelect, 'id' | 'title' | 'purchaseDate' | 'completedAt' | 'canceledAt'>;
 
 // The fields of a repayment that decide balances.
-export type BalanceRepayment = Pick<Repayment, 'groupId' | 'senderId' | 'recipientId' | 'amountCents' | 'status'>;
+type BalanceRepayment = Pick<Repayment, 'groupId' | 'senderId' | 'recipientId' | 'amountCents' | 'status'>;
 
-export const counted = (bill: { completedAt: Date | null; canceledAt: Date | null }) =>
+const counted = (bill: { completedAt: Date | null; canceledAt: Date | null }) =>
   bill.completedAt !== null && bill.canceledAt === null;
 
 // The initiator gains the bill total and loses their share plus the initiator
 // adjustment; every other participant loses their share. Every balance view
 // sums these effects, so explanations and balances cannot diverge.
-export function billEffects(bill: BalanceBill): BillEffect[] {
+function billEffects(bill: BalanceBill): BillEffect[] {
   return bill.participants.map(share => {
     const initiator = share.userId === bill.initiatorId;
     const paidCents = initiator ? bill.totalCents : 0;
@@ -37,7 +37,7 @@ export function billEffects(bill: BalanceBill): BillEffect[] {
 
 // One equal-and-opposite pair per confirmed record; pending and rejected
 // records have no effect.
-export function repaymentEffects(record: BalanceRepayment): RepaymentEffect[] {
+function repaymentEffects(record: BalanceRepayment): RepaymentEffect[] {
   if (record.status !== 'confirmed') return [];
   return [
     { userId: record.senderId, netCents: record.amountCents },

@@ -3,7 +3,8 @@ import { useSyncSession } from '../../shared/api/SyncSession';
 import { ArrowRight,RefreshCw } from 'lucide-react';
 import { useEffect,useRef,useState } from 'react';
 import { startGroupSync } from '../../shared/api/group-sync';
-import { AccessError, denied, hideProtectedQueries, useCachedRequest, useCached } from '../../shared/api/query-cache';
+import { AccessError, denied, hideProtectedQueries, useCached } from '../../shared/api/query-cache';
+import { useQueryClient } from '@tanstack/react-query';
 import { useOperation } from '../../shared/api/use-operation';
 import { money } from "../../shared/money";
 import { Avatar } from "../../shared/ui/Avatar";
@@ -16,7 +17,7 @@ export function GroupDetails({ id, api, close, onViewBills, onDeleted }: {
   id: string; api: GroupApi; close: () => void; onViewBills?: () => void; onDeleted: () => void;
 }) {
   const session = useSyncSession();
-  const cache = useCachedRequest();
+  const cache = useQueryClient();
   const query = useCached<{ group: GroupDetail }>(`/groups/${id}`);
   const accessLost = denied(query.error);
   const group = query.data?.group;

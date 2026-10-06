@@ -7,7 +7,8 @@ import type { Transaction as Tx } from "../../db/types.js";
 import { notifyGroupChanged } from "../../realtime/group-events.js";
 import { correctedPrice } from "../../receipts/pricing/frozen-receipt-pricing.js";
 import { checked, claimInput, itemInput, reviewedItemsInput, } from "../../receipts/receipt-input.js";
-import { BillError, type ItemConflicts } from "../../shared/bill-error.js";
+import type { ItemConflicts } from "@share-tally/domain/contracts/bills";
+import { BillError } from "../../shared/bill-error.js";
 import { lockedBill } from '../access.js';
 import { itemDetails, recalculateItemBill } from "./item-accounting.js";
 

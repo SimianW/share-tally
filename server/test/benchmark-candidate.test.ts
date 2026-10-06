@@ -5,7 +5,8 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { azureItemRowIndices, mapAzureAnalysis, normalizeAzure, type AnalyzeResult } from "../src/receipts/providers/azure-receipt.js";
 import { buildReceiptNameRequest, interpretReceiptNames, parseReceiptNameResponse } from "../src/receipts/providers/receipt-names.js";
-import { applyReceiptModelResult, processReceipt, receiptModelEvidence } from "../src/receipts/processing/receipt-processing.js";
+import { applyReceiptModelResult, receiptModelEvidence } from "../src/receipts/processing/receipt-processing.js";
+import { extractionDefaults } from "../src/receipts/processing/receipt-extraction.js";
 import { invokeAdapter } from "../benchmark/adapter.js";
 import { baselineAdapter, BASELINE_MODEL_VERSION } from "../benchmark/baseline.js";
 import { candidateAdapter, candidateDraft, candidateInput, CANDIDATE_MODEL_VERSION } from "../benchmark/candidate.js";
@@ -61,7 +62,7 @@ test("built-in candidate applies saved IDs after coupon filtering with source ga
 test("raw row selection is transient and never leaks into normalized, draft, stored evidence or model fields", () => {
   assert.deepEqual(azureItemRowIndices(synthetic), [1, 3]);
   const scanned = mapAzureAnalysis(synthetic);
-  const draft = processReceipt(scanned);
+  const draft = extractionDefaults(scanned);
   for (const value of [normalizeAzure(synthetic), scanned, draft, receiptModelEvidence(scanned, draft.items)]) {
     assert.equal(JSON.stringify(value).includes('"sourceIndex"'), false);
     assert.equal(JSON.stringify(value).includes('"sourceIndices"'), false);

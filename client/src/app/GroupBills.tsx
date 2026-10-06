@@ -3,7 +3,8 @@ import { routes } from '../shared/browser/paths';
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { errorMessage } from "../shared/api/error-message";
 import { startGroupSync } from '../shared/api/group-sync';
-import { AccessError, denied, hideProtectedQueries, useCached, useCachedRequest } from '../shared/api/query-cache';
+import { AccessError, denied, hideProtectedQueries, useCached } from '../shared/api/query-cache';
+import { useQueryClient } from '@tanstack/react-query';
 import { LoadingFinancials } from '../shared/ui/LoadingFinancials';
 import { Notification } from '../shared/ui/Notification';
 import { Button } from "../shared/ui/Button";
@@ -23,7 +24,7 @@ export function GroupBills({ id, selectedRepaymentId, onDeleted, title }: {
   const [membersOpen, setMembersOpen] = useState(false);
   const api = useBillApi();
   const groups = useGroupApi();
-  const cache = useCachedRequest();
+  const cache = useQueryClient();
   const billsQuery = useCached<Awaited<ReturnType<typeof api.list>>>(`/groups/${id}/bills`);
   const groupQuery = useCached<{ group: GroupDetail }>(`/groups/${id}`);
   const accessError = [billsQuery.error, groupQuery.error].find(denied);

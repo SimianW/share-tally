@@ -5,7 +5,7 @@ import { requireMember as member } from '../groups/group-access.js';
 import { readMemberBalancesInSnapshot } from "../ledger/accounting.js";
 import { balanceTotals, groupLedger, memberBalances } from "../ledger/group-ledger.js";
 import { selectFrozenTaxRate } from '../receipts/pricing/frozen-receipt-pricing.js';
-import { readRepayments, type Repayment } from '../repayments/repayments.js';
+import { readRepayments } from '../repayments/repayments.js';
 import { safeCents } from "../shared/money.js";
 import { readItemDetailsInSnapshot } from './items/item-accounting.js';
 import { BillError } from "../shared/bill-error.js";
@@ -16,7 +16,7 @@ function receiptForBill(receipt: NonNullable<typeof bills.$inferSelect.receipt>)
   return publicReceipt;
 }
 
-export async function readBillsInSnapshot(tx: Tx, userId: string, groupId?: string, id?: string) {
+async function readBillsInSnapshot(tx: Tx, userId: string, groupId?: string, id?: string) {
   if (groupId) await member(tx, groupId, userId);
   const rows = await tx
     .select({ bill: bills })
@@ -99,17 +99,10 @@ export async function readGroupBills(userId: string, groupId: string) {
       .from(groupMembers).innerJoin(users, eq(users.id, groupMembers.userId))
       .where(eq(groupMembers.groupId, groupId)).orderBy(users.id);
     const repayments = await readRepayments(tx, userId, groupId);
-    return { bills: rows, repayments, summary: summarize(rows, userId, repayments), ledger: groupLedger(rows, members, repayments) };
+    return { bills: rows, repayments, summary: balanceTotals(memberBalances(rows, userId, repayments)), ledger: groupLedger(rows, members, repayments) };
   }, { isolationLevel: "repeatable read", accessMode: "read only" });
 }
 export async function readSummary(userId: string) {
   return db.transaction(async tx => balanceTotals(await readMemberBalancesInSnapshot(tx, userId)),
     { isolationLevel: "repeatable read", accessMode: "read only" });
-}
-export function summarize(
-  rows: Awaited<ReturnType<typeof readBills>>,
-  userId: string,
-  repayments: Repayment[] = [],
-) {
-  return balanceTotals(memberBalances(rows, userId, repayments));
 }

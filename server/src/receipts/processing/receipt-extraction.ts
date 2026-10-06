@@ -43,6 +43,8 @@ export const extractedReceipt = z.object({
 export type ExtractedReceipt = z.infer<typeof extractedReceipt>;
 export type ReceiptExtractor = (image: Buffer) => Promise<ExtractedReceipt>;
 const cents = (n: number | null) => Math.round((n ?? 0) * 100);
+// Azure alone owns all amounts and the provisional draft. The language model
+// runs separately after this result has been persisted.
 export function extractionDefaults(data: ExtractedReceipt) {
   data = extractedReceipt.parse(data);
   const warnings = [...data.warnings];

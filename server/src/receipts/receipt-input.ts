@@ -100,7 +100,6 @@ export function withoutLegacyShare(data: ReceiptDraftData): ReceiptDraftData {
   return current;
 }
 export type DraftItemInput = z.infer<typeof draftItemInput>;
-export type ItemInput = z.infer<typeof itemInput>;
 export function checked<T>(schema: z.ZodType<T>, value: unknown): T {
   const result = schema.safeParse(value);
   if (!result.success)

@@ -1,13 +1,7 @@
 import { z } from "zod";
-import { extractionDefaults, type ExtractedReceipt, } from "./receipt-extraction.js";
+import type { ExtractedReceipt } from "./receipt-extraction.js";
 import type { DraftItemInput } from "../receipt-input.js";
 import type { ReceiptModelEvidence } from "../providers/receipt-names.js";
-
-// Azure alone owns all amounts and the provisional draft. The language model
-// runs separately after this result has been persisted.
-export function processReceipt(receipt: ExtractedReceipt) {
-  return extractionDefaults(receipt);
-}
 
 function merchantAddress(rawAnalysis: ExtractedReceipt["rawAnalysis"]): string | null {
   const documents = rawAnalysis?.documents;
@@ -109,11 +103,11 @@ const answerSchema = z
   .strict();
 
 /** Printed receipt totals used to settle taxability without the model. */
-export type ReceiptTaxEvidence = { taxCents: number; subtotalCents: number | null; totalCents: number | null };
+type ReceiptTaxEvidence = { taxCents: number; subtotalCents: number | null; totalCents: number | null };
 
 // A receipt that prints no tax (zero tax and subtotal equal to total) taxes nothing, whatever the
 // model says. Both conditions are required so a tax line Azure merely missed cannot trigger it.
-export function receiptPrintsNoTax(receipt: ReceiptTaxEvidence | undefined): boolean {
+function receiptPrintsNoTax(receipt: ReceiptTaxEvidence | undefined): boolean {
   return !!receipt && receipt.taxCents === 0 && receipt.subtotalCents !== null &&
     receipt.subtotalCents === receipt.totalCents;
 }

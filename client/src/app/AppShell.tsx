@@ -3,7 +3,8 @@ import { routes, parseRoute } from '../shared/browser/paths';
 import './styles.css';
 import { Notification } from '../shared/ui/Notification';
 import { AppearancePicker } from '../theme/AppearancePicker';
-import { refreshFinancialQueries, useCached, useCachedRequest } from '../shared/api/query-cache';
+import { refreshFinancialQueries, useCached } from '../shared/api/query-cache';
+import { useQueryClient } from '@tanstack/react-query';
 import { groupDeletedEvent, startMemberSync, type GroupDeleted } from '../shared/api/group-sync';
 import { BillDetails } from '../features/bills/Bills';
 import { Home } from '../features/home/Home';
@@ -32,7 +33,7 @@ export default function AppShell({
   account: SignedInAccount;
 }) {
   const api = useGroupApi();
-  const cache = useCachedRequest();
+  const cache = useQueryClient();
   const [deletionNotice, setDeletionNotice] = useState('');
   const handledDeletions = useRef(new Set<string>());
   const knownGroups = useRef(new Map<string, GroupView>());

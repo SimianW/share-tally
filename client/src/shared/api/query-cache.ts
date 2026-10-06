@@ -1,5 +1,5 @@
 import { createTransport, type TokenProvider, type SessionLifetime } from './transport';
-import { QueryClient, QueryCache, isCancelledError, useQuery, useQueryClient } from '@tanstack/react-query';
+import { QueryClient, QueryCache, isCancelledError, useQuery } from '@tanstack/react-query';
 
 export class AccessError extends Error {
   status: number;
@@ -12,11 +12,6 @@ export function denied(error: unknown) {
 export function useCached<T>(path: string) {
   const result = useQuery<T>({ queryKey: [path], enabled: false });
   return { ...result, data: denied(result.error) ? undefined : result.data };
-}
-
-export function useCachedRequest() {
-  const client = useQueryClient();
-  return client;
 }
 
 export async function refreshFinancialQueries(client: QueryClient, signal?: AbortSignal) {

@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { azureItemRowIndices, mapAzureAnalysis, type AnalyzeResult } from "../src/receipts/providers/azure-receipt.js";
 import { buildReceiptNameRequest, parseReceiptNameResponse, receiptNameConfig, type ReceiptModelEvidence } from "../src/receipts/providers/receipt-names.js";
-import { applyReceiptModelResult, processReceipt, receiptModelEvidence, type ReceiptModelAttempt } from "../src/receipts/processing/receipt-processing.js";
+import { applyReceiptModelResult, receiptModelEvidence, type ReceiptModelAttempt } from "../src/receipts/processing/receipt-processing.js";
+import { extractionDefaults } from "../src/receipts/processing/receipt-extraction.js";
 import { PIPELINE_FIELDS, scanFailedPrediction, type BenchmarkAdapter } from "./adapter.js";
 import type { BenchmarkPrediction } from "./scorer.js";
 import { noModelInput, RecordingError, type ModelOutcome } from "./recordings.js";
@@ -22,7 +23,7 @@ export function candidateConfig(value: unknown) {
 
 export function candidateDraft(analysis: AnalyzeResult, itemIds?: (count: number) => string[]) {
   const scanned = mapAzureAnalysis(analysis);
-  const processed = processReceipt(scanned);
+  const processed = extractionDefaults(scanned);
   // Generate/price valid production UUIDs first. Replay IDs may be "0", "1", etc.;
   // they are correlation-only and must never pass back through draft/API validation.
   const ids = itemIds?.(processed.items.length) ?? processed.items.map((item) => item.id);

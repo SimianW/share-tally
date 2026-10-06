@@ -54,7 +54,7 @@ export function selectFrozenTaxRate(receipt: NonNullable<Bill["receipt"]>, taxab
     : null;
 }
 
-export function roundedRatio(numerator: number, weight: number, denominator: number) {
+function roundedRatio(numerator: number, weight: number, denominator: number) {
   if (!weight || !numerator) return 0;
   if (denominator <= 0) throw new BillError(400, "Receipt allocation is unavailable. Set the final cost manually.");
   return roundRatio(numerator, weight, denominator);
