@@ -1,5 +1,5 @@
 import { db } from "../db/index.js";
-import { processReceipt } from "./processing/receipt-processing.js";
+import { extractionDefaults } from "./processing/receipt-extraction.js";
 import { interpretReceiptNames } from "./providers/receipt-names.js";
 import { priceDraft } from "./pricing/receipt-pricing.js";
 import { Router } from "express";
@@ -94,7 +94,7 @@ export function createReceiptRouter(
         }
         const scanned = await extract(bytes);
         const mappingStart = performance.now();
-        const extraction = processReceipt(scanned);
+        const extraction = extractionDefaults(scanned);
         if (scanned.scanTimings) scanned.scanTimings.mappingMs += performance.now() - mappingStart;
         if ("draftId" in input) {
           const draft = await saveProcessingDraft(input.draftId, u.id, input.revision, extraction, scanned.rawAnalysis);
@@ -162,7 +162,7 @@ export function createReceiptRouter(
     try {
       const scanned = await extract(await photoBytes(req.params.draftId, u.id, true));
       const mappingStart = performance.now();
-      const extraction = processReceipt(scanned);
+      const extraction = extractionDefaults(scanned);
       if (scanned.scanTimings) scanned.scanTimings.mappingMs += performance.now() - mappingStart;
       const processing = await saveProcessingDraft(req.params.draftId, u.id, revision, extraction, scanned.rawAnalysis);
       startReceiptModel(processing, scanned, names, onProcessingSettled);

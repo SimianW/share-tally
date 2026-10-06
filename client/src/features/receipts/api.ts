@@ -2,10 +2,11 @@ import { createTransport } from '../../shared/api/transport';
 import type { ItemConflicts } from '@share-tally/domain/contracts/bills';
 import { useSyncSession } from '../../shared/api/SyncSession';
 import { type Bill } from "@share-tally/domain/contracts/bills";
-import type { BillItem, Extraction, LegacyReceiptItem, ReceiptCorrection, ReceiptCorrectionItem, ReceiptData, ReceiptDraft, ReceiptDraftItem, ReviewedItem } from '@share-tally/domain/contracts/receipts';
+import type { BillItem, Extraction, LegacyReceiptItem, ReceiptCorrection, ReceiptCorrectionItem, ReceiptData, ReceiptDraft, ReviewedItem } from '@share-tally/domain/contracts/receipts';
 import { useMemo } from "react";
 import { BillApiError } from "../../shared/api/bill-error";
-import { refreshFinancialQueries, useCachedRequest } from "../../shared/api/query-cache";
+import { refreshFinancialQueries } from "../../shared/api/query-cache";
+import { useQueryClient } from "@tanstack/react-query";
 import { recoverReceiptData } from "./pricing/receipt-pricing";
 function draftRequestData(data: ReceiptData): ReceiptData {
   const clean = recoverReceiptData(data);
@@ -21,7 +22,7 @@ function draftRequestData(data: ReceiptData): ReceiptData {
 export function useReceiptApi() {
   const session = useSyncSession();
   const { getToken } = session;
-  const cache = useCachedRequest();
+  const cache = useQueryClient();
   return useMemo(() => {
     const transport = createTransport(getToken, {
       unauthenticated: () => new BillApiError(401, 'Please sign in again.'),
@@ -35,8 +36,8 @@ export function useReceiptApi() {
     ): Promise<T> {
       const result = await transport.json<T>(path, method, body, signal);
       // Draft saves/deletes, photo processing and extraction change the Home
-      // attention set as well as bill mutations. Price previews are read-only POSTs.
-      if (method !== "GET" && !path.endsWith("/prices"))
+      // attention set as well as bill mutations.
+      if (method !== "GET")
         await refreshFinancialQueries(cache, session.signal);
       session.signal.throwIfAborted();
       return result;
@@ -64,12 +65,6 @@ export function useReceiptApi() {
         request<{ deleted: boolean }>(`/receipt-drafts/${id}`, "DELETE", {
           revision,
         }),
-      previewPrices: (groupId: string, data: ReceiptData) =>
-        request<{ items: ReceiptDraftItem[]; warnings: string[] }>(
-          `/groups/${groupId}/receipt-preview/prices`,
-          "POST",
-          draftRequestData(data),
-        ),
       upload: (id: string, revision: number, base64: string) =>
         request<{ draft: ReceiptDraft }>(`/receipt-drafts/${id}/photo`, "PUT", {
           revision,
@@ -78,12 +73,6 @@ export function useReceiptApi() {
       extract: (id: string, revision: number) =>
         request<{ draft: ReceiptDraft; extraction: Extraction }>(
           `/receipt-drafts/${id}/extract`,
-          "POST",
-          { revision },
-        ),
-      prices: (id: string, revision: number) =>
-        request<{ items: ReceiptDraftItem[]; warnings: string[] }>(
-          `/receipt-drafts/${id}/prices`,
           "POST",
           { revision },
         ),

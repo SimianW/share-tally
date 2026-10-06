@@ -12,12 +12,7 @@ import { lockGroupForMember } from './group-access.js';
 import { db } from "../db/index.js";
 import { groupMembers, groups, users } from "../db/schema.js";
 import { parseGroupIcon } from "./group-icon.js";
-import type { GroupIcon as GroupIconInput } from "@share-tally/domain/contracts/groups";
-
-export type CreateGroupInput = {
-  name: string;
-  icon: GroupIconInput;
-};
+import type { GroupDraft } from "@share-tally/domain/contracts/groups";
 
 // explicitly list all the fields we want to return to the client
 const publicGroupFields = {
@@ -30,7 +25,7 @@ const publicGroupFields = {
 
 export async function createGroup(
   creatorId: string,
-  input: CreateGroupInput,
+  input: GroupDraft,
 ) {
   // 创建群组涉及两次写入：
   // 1. 插入群组。

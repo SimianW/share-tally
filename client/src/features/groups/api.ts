@@ -8,9 +8,9 @@ export type GroupDetail = Contract.GroupDetail<IconName>;
 export type { GroupDeletionEligibility,GroupDeletionReason,MemberPreview } from '@share-tally/domain/contracts/groups';
 
 import { useSyncSession } from '../../shared/api/SyncSession';
-import type { QueryClient } from '@tanstack/react-query';
+import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { AccessError, cachedRead, refreshFinancialQueries, useCachedRequest } from '../../shared/api/query-cache';
+import { AccessError, cachedRead, refreshFinancialQueries } from '../../shared/api/query-cache';
 import { createTransport } from '../../shared/api/transport';
 
 // Mark before the DELETE request: its SSE event can arrive before the HTTP reply.
@@ -55,7 +55,7 @@ function deletionReasons(value: unknown): value is GroupDeletionReason[] {
 export function useGroupApi() {
   const session = useSyncSession();
   const { getToken } = session;
-  const cache = useCachedRequest();
+  const cache = useQueryClient();
   return useMemo(() => {
     const transport = createTransport(getToken, {
       unauthenticated: () => new AccessError(401, 'Please sign in again to continue.'),

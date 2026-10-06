@@ -26,15 +26,3 @@ export function Avatar({
     </span>
   );
 }
-export function Avatars({ names }: { names: string[] }) {
-  return (
-    <span className="avatar-stack" aria-label={names.join(", ")}>
-      {names.slice(0, 4).map((n) => (
-        <Avatar key={n} name={n} small />
-      ))}
-      {names.length > 4 && (
-        <span className="avatar avatar-more small">+{names.length - 4}</span>
-      )}
-    </span>
-  );
-}

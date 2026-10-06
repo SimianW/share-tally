@@ -5,7 +5,7 @@ function object(value: unknown): Record<string, unknown> {
     throw new BillError(400, "Expected a JSON object.");
   return value as Record<string, unknown>;
 }
-export function parseRevision(value: unknown) {
+function parseRevision(value: unknown) {
   const body = object(value);
   if (!Number.isSafeInteger(body.revision) || Number(body.revision) < 1)
     throw new BillError(400, "A positive bill revision is required.");

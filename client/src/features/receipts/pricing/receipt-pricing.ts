@@ -1,11 +1,6 @@
 import type { ReceiptData, ReceiptDraftItem } from '@share-tally/domain/contracts/receipts';
-import { priceReceiptDraft, hasUnassignedReceiptTax } from '@share-tally/domain/draft-pricing';
+import { hasUnassignedReceiptTax } from '@share-tally/domain/draft-pricing';
 import { money } from '../../../shared/money';
-
-// Preview tolerates incomplete edit states; the server separately validates every save.
-export function deriveReceiptItems(data: ReceiptData): ReceiptDraftItem[] {
-  return priceReceiptDraft(data).items;
-}
 
 export function unassignedReceiptTaxMessage(data: ReceiptData): string | null {
   if (!hasUnassignedReceiptTax(data)) return null;
