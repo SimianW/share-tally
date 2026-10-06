@@ -1,8 +1,5 @@
-## Task branches
-
-- Planning or implementation: read `docs/project-brief.md` for ownership and delivery constraints, and `CODING_STANDARDS.md` for requirements, conventions, and invariants.
-- Review: read `CODING_STANDARDS.md`, including its review rules.
-- Frontend design delegation: read `docs/agents/frontend-delegation.md` before dispatching a subagent.
+Planning or implementation: read `docs/project-brief.md` for ownership and delivery constraints.
+Planning, implementation, or review: read `CODING_STANDARDS.md` for requirements, conventions, invariants, and review rules.
 
 ## Agent skills
 

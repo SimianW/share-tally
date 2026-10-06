@@ -4,19 +4,41 @@
 
 Issue #1 and its implementation tickets define the first-release requirements. Issue #26 overrides receipt-extraction and item-claiming scope as described in `docs/project-brief.md`.
 
-Use `CONTEXT.md` and accepted decisions in `docs/adr/` for domain terms and conventions. Research notes, draft specs, and implementation notes are background unless an accepted requirement adopts them.
+Use `CONTEXT.md` and accepted decisions in `docs/adr/` for domain terms and conventions. Read the ADRs that govern changed behavior and surface contradictions by naming the ADR. Research notes, draft specs, and implementation notes are background unless an accepted requirement adopts them.
 
 ## Code structure
 
-Before adding a file or a cross-module import, read the README's "Code structure" section. Imports point from `app` to `features` to `shared`; compose screens that combine features in `client/src/app`.
+Before adding a file or a cross-module import, read the README's "Code structure" section for module boundaries and screen composition.
 
-## Invariants
+## Financial correctness
 
-Preserve and verify the relevant invariants through server authorization, persistence, and concurrent requests.
+Use integer CAD cents for money and BigInt fractions for exact shares. Keep amount arithmetic exact, round only at the final personal total, and check bigint-to-number conversions. Floating-point arithmetic on amounts is not safe.
 
-- Access boundaries: group data stays within the authorized group; uninitiated drafts are visible only to their initiator. Verify server enforcement, including receipt access and deleted-group behavior.
-- Financial correctness: shares, initiator adjustments, bill eligibility, and confirmed repayments produce balances consistent with the accepted lifecycle. Pending or rejected repayments have no balance effect; groups have independent ledgers.
-- Concurrency: item claims respect available fractions and reservations; confirmations and corrections validate the reviewed revision or item version as required. Related financial writes succeed or fail atomically.
+The server is the source of truth for amounts and balances. Client display formatting and input parsing are fine; financial calculations must agree with the server.
+
+Shares, initiator adjustments, bill eligibility, and confirmed repayments produce balances consistent with the accepted lifecycle. Pending or rejected repayments have no balance effect; groups have independent ledgers. Preserve completed-bill immutability and idempotency for repeat submissions.
+
+## Access boundaries
+
+Check that each route's signed-in user belongs to the group and is authorized to act on the bill, item claim, or repayment record. Group data stays within the authorized group; uninitiated drafts are visible only to their initiator. Enforce access on the server, including receipt access and deleted-group behavior.
+
+## Concurrency
+
+Reads that decide a write and multi-row writes belong in one `db.transaction`, with suitable locking or conditional updates. Prevent lost-update and double-submit races. Related financial writes succeed or fail atomically.
+
+Item claims respect available fractions and reservations. Confirmations and corrections validate the reviewed revision or item version as required. Trace relevant financial and access invariants through authorization, persistence, and concurrent requests.
+
+## Boundary validation
+
+Validate request input at the boundary using zod or `input-validation.ts`. Return errors through `BillError` with an accurate status code.
+
+## Schema and migrations
+
+Generate migrations from `schema.ts` with drizzle-kit and keep SQL consistent with the schema change. Preserve already-merged migrations unchanged; use a new migration for subsequent changes. Check constraints, foreign keys, ON DELETE behavior, unique indexes that enforce invariants, and indexes for new query paths.
+
+## Tests
+
+Backend integration tests use node:test and real PostgreSQL via Testcontainers, through the HTTP API via `server-process.ts`. Prefer assertions of observable behavior through the public HTTP API over tests of internal functions. Cover financial edge cases, authorization failures, and concurrent requests for changed behavior. Use deterministic conditions rather than flaky timing assumptions.
 
 ## Code review rules
 

@@ -24,12 +24,3 @@ repo_context_files = ["AGENTS.md", "CONTEXT.md", "docs/project-brief.md", "CODIN
 custom_llm_provider = "zai"
 force_streaming_custom_llm_provider = "zai"
 force_streaming_api_base_substrings = ["api.z.ai/api/paas/v4"]
-
-[pr_reviewer]
-extra_instructions = """
-Focus on concrete correctness defects, authorization and group isolation,
-exact CAD arithmetic, transaction races, idempotency, and completed-bill
-immutability. Use the supplied project context. Do not infer current product
-requirements from research notes or obsolete decisions. Give actionable
-findings with a failure scenario; avoid cosmetic suggestions.
-"""
