@@ -17,7 +17,7 @@ num_retries = 0
 propagate_tool_errors = true
 log_level = "INFO"
 publish_output_progress = false
-repo_context_files = ["AGENTS.md", "CONTEXT.md", "docs/project-brief.md"]
+repo_context_files = ["AGENTS.md", "CONTEXT.md", "docs/project-brief.md", "CODING_STANDARDS.md"]
 
 [litellm]
 # Stream long reasoning so generations do not hit a read timeout.

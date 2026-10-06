@@ -124,6 +124,8 @@ knowledge_base:
     # the ADRs need an explicit applyTo to reach the code they constrain.
     filePatterns:
       - "CONTEXT.md"
+      - files: "CODING_STANDARDS.md"
+        applyTo: "**/*"
       - files: "docs/adr/*.md"
         applyTo: "**/*"
 
