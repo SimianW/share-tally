@@ -30,9 +30,13 @@ export function BillDetails({ id }: { id: string }) {
   useEffect(() => {
     const controller = new AbortController();
     let sync: ReturnType<typeof startGroupSync> | undefined;
-    // This lookup only identifies the group. Display comes from the read after ready.
+    // The authorized lookup identifies the group and is displayed provisionally.
+    // The read after ready is authoritative and replaces it.
     api.detail(id, controller.signal).then(({ bill: located }) => {
       if (controller.signal.aborted) return;
+      setBill(located);
+      // Any error belongs to an earlier attempt; this attempt's sync reports its own.
+      setError("");
       sync = startGroupSync({
         groupId: located.groupId, session,
         read: async signal => {

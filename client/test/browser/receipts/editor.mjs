@@ -109,9 +109,10 @@ async function scanReordering(env) {
     await replyHeld;
     await route.fulfill({ response });
   });
+  // A newer notification cancels an older live read, which then has no body.
   const liveResult = alice.waitForResponse(async response =>
     response.request().method() === 'GET' && response.url().endsWith(`/api/receipt-drafts/${id}`) &&
-    (await response.json()).draft.processingStatus === 'ready');
+    (await response.json().catch(() => null))?.draft.processingStatus === 'ready');
   await alice.getByLabel('Choose a receipt image').setInputFiles({ name: 'receipt.png', mimeType: 'image/png', buffer: await receiptPhoto(300, 500) });
   await alice.getByRole('button', { name: 'Use this photo', exact: true }).click();
   await liveResult;

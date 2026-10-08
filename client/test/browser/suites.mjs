@@ -10,6 +10,7 @@ import { scenarios as ledger } from './groups/ledger.mjs';
 import { scenarios as membership } from './groups/membership.mjs';
 import { scenarios as names } from './groups/names.mjs';
 import { scenarios as navigation } from './groups/navigation.mjs';
+import { scenarios as provisional } from './groups/provisional-display.mjs';
 import { scenarios as claiming } from './receipts/claiming.mjs';
 import { scenarios as corrections } from './receipts/corrections.mjs';
 import { scenarios as drafts } from './receipts/drafts.mjs';
@@ -23,7 +24,7 @@ const ordered = (scenarios, names) => names.map(name => {
   return scenario;
 });
 
-const groupScenarios = [...membership, ...appearance, ...bills, ...navigation, ...ledger, ...groupPage, ...amountPortion, ...names, ...renewal];
+const groupScenarios = [...membership, ...appearance, ...bills, ...navigation, ...ledger, ...groupPage, ...amountPortion, ...names, ...renewal, ...provisional];
 const receiptScenarios = [...newBill, ...drafts, ...editor, ...claiming, ...corrections, ...processing];
 
 export const suites = {
@@ -32,6 +33,7 @@ export const suites = {
     'bill-corrections', 'repayments', 'group-capacity', 'bill-live-updates', 'attention',
     'group-page-ledger', 'amount-portion', 'group-deletion', 'member-renames', 'shared-sse-renewal', 'sse-candidate-recovery', 'sse-read-handoff', 'sse-token-background', 'sse-attempt-deadline', 'sse-token-failure', 'sse-nginx-soak-one', 'sse-nginx-soak-twenty', 'sse-deletion-during-renewal', 'sse-authentication-loss', 'sse-token-deadline', 'sse-initial-failure', 'sse-denied-bill-read', 'sse-expired-credentials', 'sse-command-authentication-loss', 'sse-obsolete-command',
     'sse-post-command-authentication-loss', 'sse-cancelled-authentication-body', 'sse-server-restart', 'sse-deleted-snapshot-before-event', 'sse-deleted-bill-snapshot-before-event', 'sse-deleted-direct-bill-before-event', 'sse-deleted-bill-before-ready', 'sse-denied-new-bill-retry', 'sse-denied-member-refresh', 'sse-missing-bill-with-existing-group',
+    'provisional-bill-from-group', 'provisional-direct-bill', 'provisional-new-bill-from-group', 'provisional-new-bill-pre-ready-read', 'provisional-new-bill-direct', 'provisional-new-bill-denied',
   ]),
   receipts: ordered(receiptScenarios, [
     'scan-retry', 'split-method-entry', 'new-bill-during-refresh', 'receipt-crop', 'draft-save-and-recovery', 'item-claims', 'claim-controls',
