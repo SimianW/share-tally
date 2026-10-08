@@ -1,30 +1,39 @@
 // Already-authorized data is shown while the group stream connects (#217).
 // The authoritative read after `ready` still replaces it.
+import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { expect } from '@playwright/test';
 import { aliceBill, billSummary, costcoFriends } from './fixtures.mjs';
 import { splitByAmount } from '../ui.mjs';
+import { processingTitle, receiptPhoto } from '../receipts/fixtures.mjs';
 
 export const scenarios = [
   { name: 'provisional-bill-from-group', run: billFromGroup },
   { name: 'provisional-direct-bill', run: directBill },
   { name: 'provisional-new-bill-from-group', run: newBillFromGroup },
+  { name: 'provisional-new-bill-pre-ready-read', run: newBillPreReadyRead },
   { name: 'provisional-new-bill-direct', run: newBillDirect },
   { name: 'provisional-new-bill-denied', run: deniedCachedNewBill },
 ];
 
 // Holds the group's next events request until released. Reaching it proves the
 // page's authorized reads before subscription have finished. A channel attempt
-// fails after 10 seconds, so each hold must be released well before then.
+// fails after 10 seconds and retries unheld, so release checks that the held
+// attempt is still the only one: what the page showed came before `ready`.
 async function holdNextStream(page, groupId) {
-  let release, captured = false;
+  let release, attempts = 0;
   const held = new Promise(resolve => { release = resolve; });
   await page.route(`**/api/groups/${groupId}/events`, async route => {
-    captured = true;
-    await held;
+    if (++attempts === 1) await held;
     await route.continue();
-  }, { times: 1 });
-  return { captured: () => captured, release };
+  });
+  return {
+    captured: () => attempts > 0,
+    release() {
+      assert.equal(attempts, 1, 'The held events request is still the only attempt');
+      release();
+    },
+  };
 }
 
 // A bill opened from the group page appears before `ready`. An early share
@@ -115,6 +124,41 @@ async function newBillFromGroup(env) {
   await expect(people).toContainText('of 4');
   await expect(alice.getByLabel('Bill title', { exact: true })).toHaveValue('Typed before ready');
   await expect(alice.getByText('Opening group…', { exact: true })).toHaveCount(0);
+}
+
+// A group read started before `ready`, here by the draft save that begins a
+// receipt scan, must not stand in for the snapshot after subscription: it can
+// predate a member who joined before the stream connected.
+async function newBillPreReadyRead(env) {
+  const { group, billsUrl, invitationToken } = await costcoFriends(env);
+  const alice = await env.pageFor('alice-token', { width: 1280, height: 1000 });
+  await alice.goto(billsUrl);
+  await expect(alice.getByRole('button', { name: 'New bill', exact: true })).toBeVisible();
+  const stream = await holdNextStream(alice, group.id);
+  await alice.getByRole('button', { name: 'New bill', exact: true }).click();
+  await expect.poll(stream.captured).toBe(true);
+  let reads = 0, snapshotTaken = false, releaseRead;
+  const heldRead = new Promise(resolve => { releaseRead = resolve; });
+  await alice.route(`**/api/groups/${group.id}`, async route => {
+    if (++reads > 1) return route.continue();
+    const response = await route.fetch();
+    snapshotTaken = true;
+    await heldRead;
+    // A cancelled read has no request left to answer.
+    await route.fulfill({ response }).catch(() => {});
+  });
+  await alice.getByRole('radiogroup', { name: 'How to split this bill' }).getByRole('radio', { name: 'By item' }).check();
+  await alice.getByLabel('Choose a receipt image').setInputFiles({ name: 'receipt.png', mimeType: 'image/png', buffer: await receiptPhoto(300, 500) });
+  await alice.getByRole('button', { name: 'Use this photo', exact: true }).click();
+  await expect.poll(() => snapshotTaken).toBe(true);
+  await env.api('/groups/join', 'member-1-token', 'POST', { token: invitationToken });
+  stream.release();
+  await expect.poll(() => reads, { message: 'The snapshot after ready reads the group again' }).toBeGreaterThan(1);
+  releaseRead();
+  await expect(alice.getByRole('heading', { name: 'Check your items' })).toBeVisible();
+  await expect(alice.getByText(processingTitle, { exact: true })).toHaveCount(0, { timeout: 15_000 });
+  await alice.getByRole('navigation', { name: 'New bill steps' }).getByRole('button', { name: /People$/ }).click();
+  await expect(alice.getByRole('group', { name: "Who's in?", exact: true })).toContainText('of 4');
 }
 
 // With nothing cached, New bill waits for the group as before.

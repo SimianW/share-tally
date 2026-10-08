@@ -31,12 +31,17 @@ async function draftSaveAndRecovery(env) {
   })).draft;
   await alice.goto(`${newBillRoute}/${reducedTaxId}`);
   await expect(alice.getByRole("button", { name: "Edit Reduced tax", exact: true })).toBeVisible();
-  await alice.evaluate(({ id, draft }) => {
-    const key = Object.keys(sessionStorage).find(entry => entry.startsWith("receipt-draft:") && entry.endsWith(`:${id}`));
-    if (!key) throw new Error("Missing browser draft recovery entry");
+  const recoveryKey = await alice.evaluate(id => Object.keys(sessionStorage)
+    .find(entry => entry.startsWith("receipt-draft:") && entry.endsWith(`:${id}`)), reducedTaxId);
+  assert.ok(recoveryKey, "Missing browser draft recovery entry");
+  // Replace the entry as the reload starts: until the group stream is ready, the
+  // open editor may still apply a server read and rewrite its recovery entry.
+  await alice.addInitScript(({ key, draft }) => {
+    if (sessionStorage.getItem("test:reduced-tax-recovery")) return;
+    sessionStorage.setItem("test:reduced-tax-recovery", "written");
     draft.data.items[0] = { ...draft.data.items[0], taxCents: 0, allocatedTaxCents: 100, extraCents: 0, finalCents: 1000 };
     sessionStorage.setItem(key, JSON.stringify(draft));
-  }, { id: reducedTaxId, draft: reducedTaxDraft });
+  }, { key: recoveryKey, draft: reducedTaxDraft });
   await alice.reload();
   await expect(alice.getByRole("button", { name: "Edit Reduced tax", exact: true })).toContainText("10.00");
   await expect(alice.getByRole("button", { name: "Edit Reduced tax", exact: true })).toContainText("Manual");
@@ -92,6 +97,9 @@ async function draftSaveAndRecovery(env) {
       JSON.parse(sessionStorage.getItem(storedKey) ?? "null")?.data.title, key),
     `Recover after ${exit} back`);
     release();
+    // Removing the route stops interception, which can strand a request made at
+    // that moment; the group page's reads have finished once its drafts are listed.
+    await expect(lifecycleRow()).toBeVisible();
     await alice.unroute(draftRequest);
     await lifecycleRow().getByRole("button", { name: "Continue", exact: true }).click();
     await expect(alice.getByText("Recovered your unsaved changes.", { exact: true })).toBeVisible();

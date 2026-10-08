@@ -4,12 +4,14 @@ import { ReceiptDraftForm } from './ReceiptDraft';
 import { useEffect, useRef, useState } from "react";
 import { startGroupSync } from "../../../shared/api/group-sync";
 import { useCached } from "../../../shared/api/query-cache";
+import { useQueryClient } from "@tanstack/react-query";
 import { useGroupApi, type GroupDetail } from "../../groups/api";
 import { Notification } from "../../../shared/ui/Notification";
 import { Button } from "../../../shared/ui/Button";
 
 export function NewBillPage({ groupId, draftId }: { groupId: string; draftId?: string }) {
   const api = useGroupApi();
+  const cache = useQueryClient();
   const [applied, setApplied] = useState<GroupDetail | null>(null);
   const [error, setError] = useState("");
   const [accessLost, setAccessLost] = useState(false);
@@ -22,12 +24,15 @@ export function NewBillPage({ groupId, draftId }: { groupId: string; draftId?: s
   useEffect(() => {
     const sync = startGroupSync({
       groupId, session, read: signal => api.detail(groupId, signal),
+      // A read begun before this notification, such as one refreshed by an early
+      // draft save, may predate the subscription and must not be reused.
+      invalidateRead: () => void cache.cancelQueries({ queryKey: [`/groups/${groupId}`], exact: true }),
       apply: ({ group }) => setApplied(group), status: setError,
       accessDenied: () => setAccessLost(true),
     });
     live.current = sync;
     return () => { sync.stop(); live.current = null; };
-  }, [api, groupId, session]);
+  }, [api, cache, groupId, session]);
   return <section className="receipt-page">
     {error && <Notification tone="error" title="Could not open this group"><p>{error}</p>{!accessLost && <Button onClick={() => live.current?.retry()}>Try again</Button>}</Notification>}
     {!group && !error && <p role="status">Opening group…</p>}
