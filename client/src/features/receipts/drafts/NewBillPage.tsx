@@ -3,22 +3,27 @@ import { routes } from '../../../shared/browser/paths';
 import { ReceiptDraftForm } from './ReceiptDraft';
 import { useEffect, useRef, useState } from "react";
 import { startGroupSync } from "../../../shared/api/group-sync";
+import { useCached } from "../../../shared/api/query-cache";
 import { useGroupApi, type GroupDetail } from "../../groups/api";
 import { Notification } from "../../../shared/ui/Notification";
 import { Button } from "../../../shared/ui/Button";
 
 export function NewBillPage({ groupId, draftId }: { groupId: string; draftId?: string }) {
   const api = useGroupApi();
-  const [group, setGroup] = useState<GroupDetail | null>(null);
+  const [applied, setApplied] = useState<GroupDetail | null>(null);
   const [error, setError] = useState("");
   const [accessLost, setAccessLost] = useState(false);
+  // The group page's cached details show the form until the first snapshot applies.
+  // A stream denial does not clear that cache, so access loss must hide it.
+  const cached = useCached<{ group: GroupDetail }>(`/groups/${groupId}`).data?.group;
+  const group = accessLost ? null : applied ?? cached ?? null;
   const session = useSyncSession();
   const live = useRef<ReturnType<typeof startGroupSync> | null>(null);
   useEffect(() => {
     const sync = startGroupSync({
       groupId, session, read: signal => api.detail(groupId, signal),
-      apply: ({ group }) => setGroup(group), status: setError,
-      accessDenied: () => { setGroup(null); setAccessLost(true); },
+      apply: ({ group }) => setApplied(group), status: setError,
+      accessDenied: () => setAccessLost(true),
     });
     live.current = sync;
     return () => { sync.stop(); live.current = null; };
