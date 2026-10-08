@@ -66,17 +66,26 @@ async function billFromGroup(env) {
   await expect(bob.getByText('Live updates interrupted', { exact: false })).toHaveCount(0);
 }
 
-// A direct link needs only the bill lookup. A share confirmed by another
-// participant during the hold appears after release without user action.
+// A direct link needs only the bill lookup, and a retried lookup's bill does not
+// keep the earlier failure. A share confirmed by another participant during the
+// hold appears after release without user action.
 async function directBill(env) {
   const { group, ids } = await costcoFriends(env);
   const title = 'Direct held groceries';
   const bill = await aliceBill(env, group.id, title, 10000, [ids.Alice, ids.Bob]);
   const bob = await env.pageFor('bob-token', { width: 1280, height: 900 });
+  let lookups = 0;
+  await bob.route(`**/api/bills/${bill.id}`, route => ++lookups === 1
+    ? route.fulfill({ status: 503, json: { error: 'Bill lookup unavailable.' } })
+    : route.continue());
   const stream = await holdNextStream(bob, group.id);
   await bob.goto(`${env.base}#/bills/${bill.id}`);
+  const failure = bob.getByText('Bill lookup unavailable.', { exact: true });
+  await expect(failure).toBeVisible();
+  await bob.getByRole('button', { name: 'Retry bill', exact: true }).click();
   await expect.poll(stream.captured).toBe(true);
   await expect(bob.getByRole('heading', { name: title, exact: true })).toBeVisible();
+  await expect(failure).toHaveCount(0);
   await expect(billSummary(bob)).toContainText('0 of 2 confirmed');
   await env.api(`/bills/${bill.id}/share`, 'alice-token', 'POST', { revision: bill.revision, expectedAmountCents: null, amountCents: 4000 });
   stream.release();
@@ -181,10 +190,22 @@ async function deniedCachedNewBill(env) {
   const alice = await env.pageFor('alice-token', { width: 1280, height: 1000 });
   await alice.goto(billsUrl);
   await expect(alice.getByRole('button', { name: 'New bill', exact: true })).toBeVisible();
-  await alice.route(`**/api/groups/${group.id}/events`, route => route.fulfill({ status: 403, json: { error: 'Group access denied.' } }));
+  let attempts = 0, release;
+  const held = new Promise(resolve => { release = resolve; });
+  await alice.route(`**/api/groups/${group.id}/events`, async route => {
+    if (++attempts > 1) await held;
+    await route.fulfill({ status: 403, json: { error: 'Group access denied.' } });
+  });
   await alice.getByRole('button', { name: 'New bill', exact: true }).click();
   await expect(alice.getByRole('alert')).toContainText('Could not open this group');
   await expect(alice.getByRole('heading', { name: 'New bill · Costco friends', exact: true })).toHaveCount(0);
   await expect(alice.getByRole('button', { name: 'Try again', exact: true })).toHaveCount(0);
   await expect(alice.getByText('Opening group…', { exact: true })).toHaveCount(0);
+  // The denial also hides the group's cached reads, so returning to the group
+  // page shows none of them while its own stream connects.
+  await alice.goBack();
+  await expect.poll(() => attempts).toBe(2);
+  await expect(alice.getByText('Group not found.', { exact: true })).toBeVisible();
+  await expect(alice.getByRole('button', { name: 'New bill', exact: true })).toHaveCount(0);
+  release();
 }

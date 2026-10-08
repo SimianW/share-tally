@@ -3,7 +3,7 @@ import { routes } from '../../../shared/browser/paths';
 import { ReceiptDraftForm } from './ReceiptDraft';
 import { useEffect, useRef, useState } from "react";
 import { startGroupSync } from "../../../shared/api/group-sync";
-import { useCached } from "../../../shared/api/query-cache";
+import { AccessError, hideProtectedQueries, useCached } from "../../../shared/api/query-cache";
 import { useQueryClient } from "@tanstack/react-query";
 import { useGroupApi, type GroupDetail } from "../../groups/api";
 import { Notification } from "../../../shared/ui/Notification";
@@ -16,7 +16,7 @@ export function NewBillPage({ groupId, draftId }: { groupId: string; draftId?: s
   const [error, setError] = useState("");
   const [accessLost, setAccessLost] = useState(false);
   // The group page's cached details show the form until the first snapshot applies.
-  // A stream denial does not clear that cache, so access loss must hide it.
+  // Access loss hides them here at once and from the cache for later pages.
   const cached = useCached<{ group: GroupDetail }>(`/groups/${groupId}`).data?.group;
   const group = accessLost ? null : applied ?? cached ?? null;
   const session = useSyncSession();
@@ -28,7 +28,10 @@ export function NewBillPage({ groupId, draftId }: { groupId: string; draftId?: s
       // draft save, may predate the subscription and must not be reused.
       invalidateRead: () => void cache.cancelQueries({ queryKey: [`/groups/${groupId}`], exact: true }),
       apply: ({ group }) => setApplied(group), status: setError,
-      accessDenied: () => setAccessLost(true),
+      accessDenied: (status, error) => {
+        setAccessLost(true);
+        hideProtectedQueries(cache, `/groups/${groupId}`, error ?? new AccessError(status, status === 401 ? 'Please sign in again.' : 'Group not found.'));
+      },
     });
     live.current = sync;
     return () => { sync.stop(); live.current = null; };

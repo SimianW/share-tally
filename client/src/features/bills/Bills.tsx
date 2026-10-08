@@ -35,6 +35,8 @@ export function BillDetails({ id }: { id: string }) {
     api.detail(id, controller.signal).then(({ bill: located }) => {
       if (controller.signal.aborted) return;
       setBill(located);
+      // Any error belongs to an earlier attempt; this attempt's sync reports its own.
+      setError("");
       sync = startGroupSync({
         groupId: located.groupId, session,
         read: async signal => {
