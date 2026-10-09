@@ -6,6 +6,10 @@ import { parseMoney } from "../../shared/money";
 import { Button } from "../../shared/ui/Button";
 import Dialog from "../../shared/ui/Dialog";
 import { Notification } from '../../shared/ui/Notification';
+import { useNotePhotoApi } from '../../shared/api/note-photos';
+import { blockRouteNavigation } from '../../shared/browser/route';
+import { NotePhotoEditor } from '../../shared/ui/note-photos/NotePhotos';
+import { useNotePhotos } from '../../shared/ui/note-photos/use-note-photos';
 import { ParticipantPicker } from "../../shared/ui/ParticipantPicker";
 import { AmountPortion } from "../../shared/ui/portions/AmountPortion";
 import type { Fraction } from '@share-tally/domain/fractions';
@@ -268,6 +272,25 @@ function EditBill({
   const [validation, setValidation] = useState("");
   const mutation = useBillMutation(saved);
   const review = useBillDraftReview(bill, String(bill.revision), mutation);
+  const notePhotoApi = useNotePhotoApi();
+  // Photos save as they are added or removed, outside this form's revision.
+  const notePhotos = useNotePhotos({
+    photos: bill.notePhotos,
+    upload: (base64) => notePhotoApi.addToBill(bill.id, base64),
+    remove: notePhotoApi.remove,
+    changed: refresh,
+  });
+  // Leaving mid-upload would hide its progress or failure, and a reload could drop the photo.
+  useEffect(() => {
+    if (!notePhotos.busy) return;
+    const unblock = blockRouteNavigation(() => true);
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => { unblock(); window.removeEventListener("beforeunload", warn); };
+  }, [notePhotos.busy]);
   let totalChanged = true;
   try {
     totalChanged = parseMoney(total) !== bill.totalCents;
@@ -295,14 +318,15 @@ function EditBill({
       title="Edit bill"
       kicker={bill.title}
       close={() => {
-        if (!mutation.busy) close();
+        if (!mutation.busy && !notePhotos.busy) close();
       }}
     >
       <form
         className="bill-form"
         onSubmit={(e) => {
           e.preventDefault();
-          if (review.blocked) return;
+          // Saving closes the form, which would hide an unfinished upload's progress or failure.
+          if (review.blocked || notePhotos.busy) return;
           setValidation("");
           let totalCents: number;
           try {
@@ -380,6 +404,8 @@ function EditBill({
               onChange={(e) => setNotes(e.target.value)}
             />
           </label>
+          <NotePhotoEditor photos={notePhotos} disabled={review.terminal} />
+          <p className="note-photo-hint">Photos are saved as soon as you add or remove them, and keep everyone’s confirmations.</p>
           {group && (
             <ParticipantPicker
               members={group.members}
@@ -414,7 +440,7 @@ function EditBill({
         <div className="dialog-actions">
           <Button
             type="submit"
-            disabled={!group || review.blocked || mutation.busy || mutation.conflict}
+            disabled={!group || review.blocked || mutation.busy || mutation.conflict || notePhotos.busy}
           >
             {mutation.busy
               ? "Saving..."
@@ -422,7 +448,7 @@ function EditBill({
                 ? "Retry request"
                 : "Save & request confirmations"}
           </Button>
-          <Button variant="secondary" onClick={close} disabled={mutation.busy}>
+          <Button variant="secondary" onClick={close} disabled={mutation.busy || notePhotos.busy}>
             Keep current bill
           </Button>
         </div>

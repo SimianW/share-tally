@@ -34,6 +34,13 @@ export function createTransport(getToken: TokenProvider, errors: ErrorPolicy, li
     return result;
   }
   return {
+    /** A binary read, such as a photo, with the same authentication retry and cancellation. */
+    async blob(path: string, signal?: AbortSignal): Promise<Blob> {
+      const value = await (await response(path, { signal })).blob();
+      lifetime?.signal.throwIfAborted();
+      signal?.throwIfAborted();
+      return value;
+    },
     async json<T>(path: string, method = 'GET', body?: unknown, signal?: AbortSignal, contentType = true, deadlineMs?: number): Promise<T> {
       const result = await response(path, { method, signal,
         ...(contentType ? { headers: { 'Content-Type': 'application/json' } } : {}),

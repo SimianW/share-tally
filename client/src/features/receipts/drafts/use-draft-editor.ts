@@ -21,12 +21,14 @@ const isRemoved = (error: unknown) => error instanceof BillApiError && error.sta
  * Owns the editor's requests, live updates, local recovery and navigation guard.
  * Every request starts through the model, so a second click cannot start a conflicting one.
  */
-export function useDraftEditor({ userId, groupId, id, photoSelected, close, created }: {
+export function useDraftEditor({ userId, groupId, id, photoSelected, uploading, close, created }: {
   userId: string;
   groupId: string;
   id?: string;
   /** A chosen photo that has not been cropped yet is unsaved work. */
   photoSelected: boolean;
+  /** Whether note photos are still uploading; read when someone tries to leave. */
+  uploading: () => boolean;
   close: () => void;
   created: (bill: Bill) => void;
 }) {
@@ -47,8 +49,8 @@ export function useDraftEditor({ userId, groupId, id, photoSelected, close, crea
     }
     return next;
   }, []);
-  const latest = useRef({ close, created, photoSelected });
-  useEffect(() => { latest.current = { close, created, photoSelected }; });
+  const latest = useRef({ close, created, photoSelected, uploading });
+  useEffect(() => { latest.current = { close, created, photoSelected, uploading }; });
 
   const end = useCallback((step = false) => {
     dispatch({ type: "ended" });
@@ -152,7 +154,7 @@ export function useDraftEditor({ userId, groupId, id, photoSelected, close, crea
   const [leavingTo, setLeavingTo] = useState<{ destination: string | null } | null>(null);
   useEffect(() => {
     const unblock = blockRouteNavigation((destination) => {
-      switch (leaving(current.current, latest.current.photoSelected)) {
+      switch (leaving(current.current, latest.current.photoSelected, latest.current.uploading())) {
         case "stay": return true;
         case "keep-recovery": return false; // Preserve recovery until the server read completes.
         case "leave":
@@ -164,7 +166,7 @@ export function useDraftEditor({ userId, groupId, id, photoSelected, close, crea
       }
     });
     const warn = (event: BeforeUnloadEvent) => {
-      if (!warnBeforeUnload(current.current, latest.current.photoSelected)) return;
+      if (!warnBeforeUnload(current.current, latest.current.photoSelected, latest.current.uploading())) return;
       event.preventDefault();
       event.returnValue = "";
     };
@@ -198,6 +200,9 @@ export function useDraftEditor({ userId, groupId, id, photoSelected, close, crea
         const { draft } = await api.confirmItem(saved.id, itemId, saved.revision, flag);
         dispatch({ type: "saved", draft });
       }),
+    /** A note photo belongs to a saved draft, so a new bill is saved before its first one. */
+    persist: () => current.current.local.revision > 0 ? Promise.resolve(true)
+      : perform("saving", async () => { await saveLocal(); }),
     saveAndClose: () => perform("saving", async () => {
       await saveLocal();
       end();
@@ -215,7 +220,7 @@ export function useDraftEditor({ userId, groupId, id, photoSelected, close, crea
       latest.current.close();
     }, true),
     requestClose() {
-      switch (leaving(current.current, latest.current.photoSelected)) {
+      switch (leaving(current.current, latest.current.photoSelected, latest.current.uploading())) {
         case "stay": return;
         case "ask": setLeavingTo({ destination: null }); return;
         case "leave": if (current.current.operation !== "ended") end(); break;

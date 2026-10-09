@@ -14,6 +14,7 @@ import { itemWasEdited } from "../receipt-needs-check.js";
 import { editable, ownDraft } from './access.js';
 import { storePhoto } from './photos.js';
 import { readDraft } from './queries.js';
+import { draftNotePhotos } from '../../note-photos/note-photos.js';
 // A client cannot clear (or invent) a review marker by merely echoing a flag.
 // New manual rows without scan evidence only need review for a missing price.
 function preserveReviewFlags(items: ReceiptDraftData["items"], previous: ReceiptDraftData["items"] = []) {
@@ -104,6 +105,7 @@ export async function saveDraft(
                 expired: oldPhoto.expiresAt <= new Date(),
               }
             : null,
+          notePhotos: await draftNotePhotos(tx, id),
         };
       editable(old, input.revision);
       const [updated] = await tx
@@ -128,6 +130,7 @@ export async function saveDraft(
         photo: savedPhoto
           ? { ...savedPhoto, expired: savedPhoto.expiresAt <= new Date() }
           : null,
+        notePhotos: await draftNotePhotos(tx, id),
       };
     }
     if (input.revision !== 0)
@@ -148,6 +151,7 @@ export async function saveDraft(
     return {
       ...row,
       photo: savedPhoto ? { ...savedPhoto, expired: false } : null,
+      notePhotos: [],
     };
   });
 }

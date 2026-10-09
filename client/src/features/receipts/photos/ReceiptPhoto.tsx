@@ -1,4 +1,4 @@
-import { loadPhotoResource, localPhotoBlob } from './photo-resource';
+import { loadPhotoResource, localPhotoBlob } from '../../../shared/browser/photo-resource';
 import { Scan } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useReceiptApi } from "../api";

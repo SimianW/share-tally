@@ -1,4 +1,4 @@
-import { check, boolean, jsonb, date, integer, unique, index, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { check, boolean, customType, jsonb, date, integer, unique, index, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm/sql/sql';
 
 export const users = pgTable('users', {
@@ -186,6 +186,26 @@ export const receiptEvidence = pgTable('receipt_evidence', {
   analysis: jsonb('analysis').$type<Record<string, unknown>>().notNull(),
   scannedAt: timestamp('scanned_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+const bytea = customType<{ data: Buffer }>({ dataType: () => 'bytea' });
+
+// Pictures attached to a bill's notes, only for members to look at (ADR-0019).
+// A note photo belongs to its bill draft until initiation moves it to the bill.
+export const notePhotos = pgTable('note_photos', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  draftId: uuid('draft_id').references(() => receiptDrafts.id, { onDelete: 'cascade' }),
+  billId: uuid('bill_id').references(() => bills.id, { onDelete: 'cascade' }),
+  // Order of addition; removals leave gaps.
+  position: integer('position').notNull(),
+  // The server's JPEG re-encoding, never the uploaded bytes.
+  bytes: bytea('bytes').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, table => [
+  check('note_photos_owner', sql`num_nonnulls(${table.draftId}, ${table.billId}) = 1`),
+  check('note_photos_position', sql`${table.position} >= 0`),
+  unique('note_photos_draft_position').on(table.draftId, table.position),
+  unique('note_photos_bill_position').on(table.billId, table.position),
+]);
 
 export const billItems = pgTable('bill_items', {
   version: integer('version').notNull().default(1),

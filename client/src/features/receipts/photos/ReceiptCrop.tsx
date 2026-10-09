@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import { Button } from "../../../shared/ui/Button";
 import { RotateCcw } from "lucide-react";
+import { scaledCanvas } from "../../../shared/browser/photo-canvas";
 import Dialog from "../../../shared/ui/Dialog";
 
 type Crop = { left: number; top: number; right: number; bottom: number };
@@ -183,12 +184,7 @@ export function ReceiptCrop({
       const width = (img.naturalWidth * (crop.right - crop.left)) / 100,
         height = (img.naturalHeight * (crop.bottom - crop.top)) / 100;
       const ratio = Math.min(1, 2400 / width, 6000 / height);
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round(width * ratio));
-      canvas.height = Math.max(1, Math.round(height * ratio));
-      canvas
-        .getContext("2d")!
-        .drawImage(img, x, y, width, height, 0, 0, canvas.width, canvas.height);
+      const canvas = scaledCanvas(img, { x, y, width, height }, ratio);
       await save(canvas.toDataURL("image/jpeg", 0.9).split(",")[1]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not upload this photo.");

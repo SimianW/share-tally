@@ -136,8 +136,11 @@ export function createEditor({ userId, draftId, recovered, storedStep }: {
 }
 
 const processing = (draft: ReceiptDraft) => draft.processingStatus === "processing";
+// Note photos change no revision, and only draft reads list them, so a reply
+// without the list keeps the one read last.
 const newer = (known: ReceiptDraft | null, draft: ReceiptDraft) =>
-  known && known.revision > draft.revision ? known : draft;
+  known && known.revision > draft.revision ? known
+    : draft.notePhotos || !known?.notePhotos ? draft : { ...draft, notePhotos: known.notePhotos };
 
 // Unsaved edits are recovered only against the saved revision they started from:
 // an older entry never replaces a newer saved draft, and a scan always wins.
@@ -189,15 +192,21 @@ export function hasUnsavedChanges(state: EditorState, photoSelected = false) {
 /**
  * Unloading warns about unsaved changes, and also while an opening (in flight or
  * failed) holds a saved draft's recovered copy: closing the tab would discard it.
+ * A note photo still uploading would be lost the same way.
  */
-export function warnBeforeUnload(state: EditorState, photoSelected = false) {
+export function warnBeforeUnload(state: EditorState, photoSelected = false, uploading = false) {
+  if (uploading && state.operation !== "ended") return true;
   if (hasUnsavedChanges(state, photoSelected)) return true;
   return !opened(state) && state.operation !== "ended" && state.local.revision > 0;
 }
 
-/** What leaving the editor does: keep recovery while opening, stay during a request, or ask about unsaved changes. */
-export function leaving(state: EditorState, photoSelected = false): "stay" | "leave" | "keep-recovery" | "ask" {
+/**
+ * What leaving the editor does: keep recovery while opening, stay during a request
+ * or a note photo upload, or ask about unsaved changes.
+ */
+export function leaving(state: EditorState, photoSelected = false, uploading = false): "stay" | "leave" | "keep-recovery" | "ask" {
   if (state.operation === "ended") return "leave";
+  if (uploading) return "stay";
   // Until the server read succeeds, recovery has not been checked; leave it as it was.
   if (state.operation === "opening" || !opened(state)) return "keep-recovery";
   if (state.operation !== "idle") return "stay";

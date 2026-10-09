@@ -55,3 +55,17 @@ test('a request deadline starts after the token is available', async t => {
   assert.deepEqual(await transport.json('/groups', 'GET', undefined, new AbortController().signal, false, 15_000), { groups: [] });
   assert.deepEqual(events, ['token', 'deadline 15000', 'fetch aborted=false']);
 });
+
+test('binary reads retry an expired token once and keep the caller signal', async t => {
+  const signal = new AbortController().signal;
+  const tokens = [];
+  const fetch = t.mock.method(globalThis, 'fetch', async (_path, { headers }) =>
+    headers.Authorization === 'Bearer fresh' ? new Response(new Uint8Array([1, 2, 3]), { headers: { 'Content-Type': 'image/jpeg' } }) : new Response(null, { status: 401 }));
+  const transport = createTransport(async options => { tokens.push(options?.skipCache ?? false); return options?.skipCache ? 'fresh' : 'stale'; }, policy);
+  const blob = await transport.blob('/note-photos/1', signal);
+  assert.deepEqual([...new Uint8Array(await blob.arrayBuffer())], [1, 2, 3]);
+  assert.deepEqual(tokens, [false, true]);
+  assert.deepEqual(fetch.mock.calls.map(call => [call.arguments[0], call.arguments[1].method, call.arguments[1].signal]), [
+    ['/api/note-photos/1', undefined, signal], ['/api/note-photos/1', undefined, signal],
+  ]);
+});

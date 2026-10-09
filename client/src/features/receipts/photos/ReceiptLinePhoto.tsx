@@ -1,4 +1,4 @@
-import { loadPhotoResource } from './photo-resource';
+import { loadPhotoResource } from '../../../shared/browser/photo-resource';
 import { useEffect, useState, type ReactNode } from "react";
 import { Scan } from "lucide-react";
 import { ReceiptPhotoViewer } from "./ReceiptPhotoViewer";

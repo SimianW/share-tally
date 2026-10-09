@@ -28,11 +28,15 @@ export async function ownDraft(
   await requireMember(tx, row.groupId, userId);
   return { ...row, data: withoutLegacyShare(row.data) };
 }
-export function editable(row: typeof receiptDrafts.$inferSelect, revision: number) {
+// Processing and initiated drafts accept no change, whichever revision it is based on.
+export function unlocked(row: typeof receiptDrafts.$inferSelect) {
   if (row.processingStatus === "processing")
     throw new BillError(409, "Receipt is checking names and tax. Please wait.");
   if (row.billId)
     throw new BillError(409, "This draft has already been initialized.");
+}
+export function editable(row: typeof receiptDrafts.$inferSelect, revision: number) {
+  unlocked(row);
   if (row.revision !== revision)
     throw new BillError(
       409,

@@ -93,7 +93,7 @@ after(async () => {
 beforeEach(async () => {
   // Clear only this suite's isolated database, including dependent bill tables.
   await pool.query(
-    "TRUNCATE TABLE item_claims, bill_items, receipt_photos, receipt_drafts, repayments, bill_shares, bills, group_members, groups, users CASCADE",
+    "TRUNCATE TABLE note_photos, item_claims, bill_items, receipt_photos, receipt_drafts, repayments, bill_shares, bills, group_members, groups, users CASCADE",
   );
 });
 

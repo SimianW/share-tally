@@ -308,3 +308,27 @@ test("only a draft the server has known can be removed", () => {
   assert.equal(knownToServer(unsaved), false);
   assert.equal(knownToServer(open(saved(3))), true);
 });
+
+test("note photos listed by a draft read survive save and scan replies that leave them out", () => {
+  const photos = [{ id: "photo-1", position: 0 }];
+  const opened = open(saved(2, {}, { notePhotos: photos }));
+  assert.deepEqual(opened.server.notePhotos, photos);
+  const savedReply = run(opened, { type: "started", operation: "saving" }, { type: "saved", draft: saved(3) });
+  assert.deepEqual(savedReply.server.notePhotos, photos);
+  const scanned = run(savedReply, { type: "started", operation: "scanning" },
+    { type: "scanned", draft: saved(4, {}, { processingStatus: "processing", processingStartedAt: "now" }), warnings: [] });
+  assert.deepEqual(scanned.server.notePhotos, photos);
+  // A later read is authoritative, including an empty list.
+  const reread = run(scanned, { type: "remoteDraft", draft: saved(5, {}, { notePhotos: [] }) });
+  assert.deepEqual(reread.server.notePhotos, []);
+});
+
+test("an upload in progress holds the editor open and warns before unload, even with nothing unsaved", () => {
+  const opened = open(saved(2));
+  assert.equal(leaving(opened), "leave");
+  assert.equal(warnBeforeUnload(opened), false);
+  assert.equal(leaving(opened, false, true), "stay");
+  assert.equal(warnBeforeUnload(opened, false, true), true);
+  // An ended editor has nothing left to hold.
+  assert.equal(leaving(run(opened, { type: "ended" }), false, true), "leave");
+});

@@ -82,7 +82,7 @@ const sentinels = ['PRIVATE_CONTENT', 'PRIVATE_PRODUCT_CODE', 'PRIVATE_PRICE_REG
 const receipt = { subtotalCents: 600, taxCents: 0, discountCents: 0, extraCents: 0, pricesIncludeTax: false, totalCents: 605 };
 
 async function fixture(size: number) {
-  await pool.query('TRUNCATE TABLE item_claims, bill_items, receipt_evidence, receipt_photos, receipt_drafts, repayments, bill_shares, bills, group_members, groups, users');
+  await pool.query('TRUNCATE TABLE note_photos, item_claims, bill_items, receipt_evidence, receipt_photos, receipt_drafts, repayments, bill_shares, bills, group_members, groups, users');
   // Seed the same identities as server-process, rather than accepting random IDs
   // generated on the first authenticated request. Reads still authenticate over HTTP.
   for (const [name, id] of Object.entries(users)) {

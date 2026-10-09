@@ -15,7 +15,7 @@ import { editable } from "./drafts/access.js";
 import { saveProcessingDraft } from "./drafts/processing.js";
 import { readDraft, listDrafts } from "./drafts/queries.js";
 import { uploadPhoto, photoBytes } from "./drafts/photos.js";
-import { initializeDraft } from "./drafts/initiation.js";
+import { initiateDraft } from "../workflows/initiate-draft.js";
 import { normalizeReceiptPhoto } from "./photos/receipt-photo.js";
 import { startReceiptModel } from "./processing/receipt-reading.js";
 import { type ReceiptExtractor } from "./processing/receipt-extraction.js";
@@ -183,7 +183,7 @@ export function createReceiptRouter(
   });
   router.post("/receipt-drafts/:draftId/initialize", async (req, res) => {
     const u = await user(res.locals.clerkUserId);
-    const id = await initializeDraft(req.params.draftId, u.id, req.body);
+    const id = await initiateDraft(req.params.draftId, u.id, req.body);
     res.json({ bill: (await readBills(u.id, undefined, id))[0] });
   });
   router.post("/bills/:billId/claims", async (req, res) => {

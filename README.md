@@ -40,11 +40,12 @@ Captured from the local app using sample data for Alice, Bob, and Carol.
 client/src/
   app/                AppShell, page composition and stylesheet ordering
   features/           account, bills (including item claims and corrections), groups, home, ledger, receipts, repayments
-  shared/             authenticated transport, browser utilities, money and shared UI
+  shared/             authenticated transport, browser utilities, money and shared UI, including the note photo editor
   theme/              palettes, light/dark preferences and design tokens
 server/src/
   bills/              commands, validation, queries and item accounting
   receipts/           drafts, photos, pricing, processing and external providers
+  note-photos/        note photo storage, re-encoding and access for drafts and bills
   groups/             membership, invitations and deletion
   ledger/             balances, effects and repayment suggestions
   repayments/         repayment lifecycle
@@ -60,7 +61,7 @@ The frontend directory is feature-oriented; `AppShell` replaces the old `PlayApp
 
 Both applications link `@share-tally/domain` ([ADR-0016](docs/adr/0016-share-financial-calculations-through-a-domain-package.md)). Their dev, build and test commands compile it using the invoking application's TypeScript compiler; it has no runtime dependencies. After editing that package while a dev server is running, run `node ../scripts/build-domain.mjs` from `client/` or `server/` to refresh its output. Server database types stay internal; compile-time checks in `server/test/wire-contracts.ts` verify that server projections serialize to the shared contracts.
 
-Server routes call workflows for operations spanning business modules. A workflow owns the transaction and passes its transaction to module operations; those operations do not import routes or workflows. Group deletion is the first such workflow: it locks the group before checking eligibility and purging receipt drafts, then publishes the deletion event after commit.
+Server routes call workflows for operations spanning business modules. A workflow owns the transaction and passes its transaction to module operations; those operations do not import routes or workflows. Group deletion is the first such workflow: it locks the group before checking eligibility and purging note photos and receipt drafts, then publishes the deletion event after commit.
 
 The group-icon picker's compact emoji metadata is generated; do not edit `client/src/features/groups/icons/emoji-data.json` by hand. After upgrading `emojibase-data`, regenerate it with `pnpm --dir client generate:emoji` and run `pnpm --dir client test:unit`.
 
@@ -71,12 +72,12 @@ These were the overlapping implementations found in the structure audit. Each ro
 | Overlap | Shared implementation | Preserved differences |
 | --- | --- | --- |
 | Receipt calculations in browser previews and server writes | `packages/domain`: exact fractions, draft pricing, frozen correction pricing | Draft edits can reallocate sibling costs; corrections to initiated bills price only the edited item. Server validation and messages remain local. |
-| Bill, group, receipt and cached JSON requests | `shared/api/transport.ts` | Feature error messages and conflict metadata, fresh versus cached reads, mutation invalidation and group deletion ordering. Binary photos and SSE retain their protocols. |
+| Bill, group, receipt and cached JSON requests | `shared/api/transport.ts` | Feature error messages and conflict metadata, fresh versus cached reads, mutation invalidation and group deletion ordering. Note photo bytes use its `blob` read; receipt photos and SSE retain their protocols. |
 | Pending, busy and error handling for submissions | `shared/api/use-operation.ts` | Bill revision checks, item versions, repayment request persistence and draft initialization retries retain their own policies. |
 | Amount formatting and entry | `shared/money.ts`, `shared/ui/fields/MoneyField.tsx` and `validity.ts` | Positive-sign display, empty-as-zero, signed adjustments, and validation timing. Share/repayment fields still validate at their original stage. |
 | Available portions in item picker, meter and confirmation checks | `features/bills/claims/claim-availability.ts` | Confirmed claims and reservations both consume availability; a participant can edit their own portion. |
 | Repeated fraction parsing and picker arithmetic | `shared/fractions.ts`, `shared/ui/portions/` | UI input limits and error wording remain separate from exact domain arithmetic. |
-| Receipt scan buttons and photo resource cleanup | `drafts/ScanActions.tsx`, `photos/photo-resource.ts` | Processing-specific disabled states, full-photo expiry and line-photo positioning. |
+| Receipt scan buttons and photo resource cleanup | `drafts/ScanActions.tsx`, `shared/browser/photo-resource.ts` (also used by note photos) | Processing-specific disabled states, full-photo expiry and line-photo positioning. |
 | URLs assembled in several pages | `shared/browser/paths.ts` | Existing hash URLs, query strings, navigation guards and invitation return links. |
 | Theme metadata in React and inline HTML | `theme/palettes.ts`, `build/theme-bootstrap.ts` | Storage keys, palette choices, light/dark resolution and synchronous application before paint. |
 | Repeated locked-bill access and transaction types | `server/src/bills/access.ts`, `server/src/db/types.ts` | Authorization, lock ordering, atomic financial writes and notifications after commit. |
