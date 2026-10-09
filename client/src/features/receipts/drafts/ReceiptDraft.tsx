@@ -40,7 +40,9 @@ export function ReceiptDraftForm({
 }) {
   const me = group.members.find((m) => m.isCurrentUser)!;
   const [file, setFile] = useState<File | null>(null);
-  const editor = useDraftEditor({ userId: me.id, groupId: group.id, id, photoSelected: !!file, close, created });
+  // The note photo editor below reports its uploads; the exit guards read them when someone leaves.
+  const uploading = useRef(false);
+  const editor = useDraftEditor({ userId: me.id, groupId: group.id, id, photoSelected: !!file, uploading: () => uploading.current, close, created });
   const { state } = editor;
   const draft = state.local;
   const step = state.step;
@@ -72,6 +74,7 @@ export function ReceiptDraftForm({
     upload: (base64) => notePhotoApi.addToDraft(draft.id, base64),
     remove: notePhotoApi.remove,
   });
+  useEffect(() => { uploading.current = notePhotos.busy; });
   // Leaving, deleting or sharing mid-upload could drop a photo on its way.
   const locked = running || !!draft.initializationRevision || processing || notePhotos.busy;
   const unassignedTaxMessage = unassignedReceiptTaxMessage(data);
