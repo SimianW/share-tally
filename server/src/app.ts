@@ -1,4 +1,5 @@
 import { createReceiptRouter } from './receipts/receipt-routes.js';
+import { createNotePhotosRouter } from './note-photos/note-photo-routes.js';
 import type { interpretReceiptNames } from './receipts/providers/receipt-names.js';
 import type { ReceiptExtractor } from './receipts/processing/receipt-extraction.js';
 import { readAttention } from './attention/attention.js';
@@ -70,9 +71,12 @@ export function createApp(auth: Authentication = {
     next();
   });
   app.use('/api', (req, res, next) => {
+    const notePhoto = /^\/(receipt-drafts|bills)\/[^/]+\/note-photos$/.test(req.path);
     const receipt = /^\/(receipt-drafts\/|groups\/[^/]+\/(receipt-drafts|receipt-preview)|bills\/[^/]+\/(items|claims))/.test(req.path);
-    return express.json({ limit: receipt ? '12mb' : '16kb' })(req, res, next);
+    // One compressed note photo is at most 1.5 MB, about 2 MB as base64.
+    return express.json({ limit: notePhoto ? '2200kb' : receipt ? '12mb' : '16kb' })(req, res, next);
   });
+  app.use('/api', createNotePhotosRouter(profiles));
   app.use('/api', createReceiptRouter(profiles, auth.receiptExtractor, auth.receiptNames, auth.receiptProcessingSettled));
   // Streams end at verified Clerk JWT expiry or after 30 seconds, then reauthenticate.
   const streamExpiry = (req: Request) => Math.min(auth.expiresAt?.(req) ?? Infinity, Date.now() + 30_000);
@@ -152,7 +156,7 @@ export function createApp(auth: Authentication = {
     }
 
     // Database exceptions can contain bound photo bytes; never retain them in logs.
-    console.error('Request failed', (_req.path.includes('receipt-drafts') || _req.path.includes('receipt-preview')) ? (error instanceof Error ? error.name : 'UnknownError') : error);
+    console.error('Request failed', (_req.path.includes('receipt-drafts') || _req.path.includes('receipt-preview') || _req.path.includes('note-photos')) ? (error instanceof Error ? error.name : 'UnknownError') : error);
 
     res.status(500).json({
       error: 'Internal Server Error'

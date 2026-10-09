@@ -5,6 +5,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { receiptDrafts, receiptPhotos } from "../../db/schema.js";
 import { withoutLegacyShare } from "../receipt-input.js";
+import { draftNotePhotos } from "../../note-photos/note-photos.js";
 
 export async function listDrafts(groupId: string, userId: string) {
   await db.transaction((tx) => requireMember(tx, groupId, userId));
@@ -46,6 +47,7 @@ export async function readDraft(id: string, userId: string) {
       photo: photo
         ? { ...photo, expired: photo.expiresAt <= new Date() }
         : null,
+      notePhotos: await draftNotePhotos(tx, id),
     };
   });
 }

@@ -87,7 +87,7 @@ beforeEach(async () => {
   // 三张表一起清空，避免外键引用阻止 TRUNCATE。
   // 不要把这条语句拿去开发或生产数据库手动执行。
   await pool.query(
-    'TRUNCATE TABLE item_claims, bill_items, receipt_evidence, receipt_photos, receipt_drafts, repayments, bill_shares, bills, group_members, groups, users',
+    'TRUNCATE TABLE note_photos, item_claims, bill_items, receipt_evidence, receipt_photos, receipt_drafts, repayments, bill_shares, bills, group_members, groups, users',
   )
   await clerk('reset-profiles', 'profiles-reset');
 })
@@ -496,7 +496,7 @@ test('a receipt draft does not block deletion and becomes inaccessible afterward
   await json(await api(`/groups/${group.id}/receipt-drafts`), 404);
 });
 
-test('deletion purges draft and initiated bill photos and evidence while keeping reviewed items and receipt text', async () => {
+test('deletion purges draft and initiated bill photos, note photos and evidence while keeping reviewed items and receipt text', async () => {
   const group = await create();
   const unrelated = await create('bob-token');
   const draftId = crypto.randomUUID();
@@ -523,6 +523,12 @@ test('deletion purges draft and initiated bill photos and evidence while keeping
     await pool.query("INSERT INTO receipt_photos (draft_id, base64, expires_at) VALUES ($1, 'cGhvdG8=', now() + interval '6 months')", [id]);
     await pool.query("INSERT INTO receipt_evidence (draft_id, analysis) VALUES ($1, '{\"raw\":true}')", [id]);
   }
+  // Note photos on an uninitiated draft and on the initiated bill, and one in another group.
+  const notePhoto = async (owner: 'draft_id' | 'bill_id', id: string) => (await pool.query(
+    `INSERT INTO note_photos (${owner}, position, bytes) VALUES ($1, 0, $2) RETURNING id`, [id, Buffer.from('note photo')])).rows[0].id;
+  const purgedNotes = [await notePhoto('draft_id', draftId), await notePhoto('bill_id', billId)];
+  const survivingNote = await notePhoto('draft_id', unrelatedId);
+  assert.equal((await api(`/note-photos/${purgedNotes[1]}`)).status, 200);
   assert.deepEqual(await json(await api(`/groups/${group.id}/deletion`)), { eligible: true, reasons: [] });
   await json(await api(`/groups/${group.id}`, 'alice-token', 'DELETE'));
   for (const table of ['receipt_photos', 'receipt_evidence']) {
@@ -537,6 +543,9 @@ test('deletion purges draft and initiated bill photos and evidence while keeping
   assert.ok(drafts.rows.find(row => row.id === unrelatedId).data.receipt.evidence);
   assert.equal((await pool.query('SELECT name FROM bill_items WHERE id = $1', [itemId])).rows[0].name, 'Apple');
   await json(await api(`/receipt-drafts/${initiatedId}/photo`), 404);
+  assert.deepEqual((await pool.query('SELECT id FROM note_photos')).rows.map(row => row.id), [survivingNote]);
+  for (const id of purgedNotes) await json(await api(`/note-photos/${id}`), 404);
+  assert.equal((await api(`/note-photos/${survivingNote}`, 'bob-token')).status, 200);
   // The scheduled expiry pass still handles another group's surviving photos.
   await pool.query("UPDATE receipt_photos SET expires_at = now() - interval '1 day' WHERE draft_id = $1", [unrelatedId]);
   const purged = once(child!, 'message'); child!.send('purge-photos');

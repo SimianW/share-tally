@@ -6,6 +6,8 @@ export type ItemConflicts = {
   )[];
   overAllocated: { itemId: string; available: { numerator: string; denominator: string } }[];
 };
+/** A picture on a bill's notes; its bytes are fetched separately by id. */
+export type NotePhoto = { id: string; position: number };
 export type Bill = {
   mode: 'manual' | 'items';
   items?: import('./receipts.js').BillItem[];
@@ -20,6 +22,8 @@ export type Bill = {
   title: string;
   purchaseDate: string;
   notes: string;
+  /** In the order they were added. */
+  notePhotos: NotePhoto[];
   totalCents: number;
   submittedCents: number;
   differenceCents: number;

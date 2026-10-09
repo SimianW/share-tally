@@ -8,6 +8,7 @@ import { selectFrozenTaxRate } from '../receipts/pricing/frozen-receipt-pricing.
 import { readRepayments } from '../repayments/repayments.js';
 import { safeCents } from "../shared/money.js";
 import { readItemDetailsInSnapshot } from './items/item-accounting.js';
+import { billNotePhotos } from '../note-photos/note-photos.js';
 import { BillError } from "../shared/bill-error.js";
 import type { Transaction as Tx } from '../db/types.js';
 // Source observations stay server-side; expose only the receipt used by the bill.
@@ -57,6 +58,7 @@ async function readBillsInSnapshot(tx: Tx, userId: string, groupId?: string, id?
     .orderBy(users.id);
   const details = await readItemDetailsInSnapshot(tx,
     rows.filter(({ bill }) => bill.mode === 'items').map(({ bill }) => bill.id));
+  const photos = await billNotePhotos(tx, rows.map(({ bill }) => bill.id));
   return rows.map(({ bill }) => {
     const participants = shares
       .filter((s) => s.billId === bill.id)
@@ -76,6 +78,7 @@ async function readBillsInSnapshot(tx: Tx, userId: string, groupId?: string, id?
     const publicReceipt = bill.receipt ? receiptForBill(bill.receipt) : null;
     return {
       ...fields,
+      notePhotos: photos.get(bill.id) ?? [],
       receipt: publicReceipt,
       frozenTaxRate: bill.receipt
         ? selectFrozenTaxRate(bill.receipt, bill.frozenTaxBaseCents ?? 0) : null,

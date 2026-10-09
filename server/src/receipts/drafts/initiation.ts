@@ -5,6 +5,7 @@ import { db } from "../../db/index.js";
 import { billItems, bills, billShares, groupMembers, receiptDrafts } from "../../db/schema.js";
 import { checked, draftInput, itemInput, revisionInput } from "../receipt-input.js";
 import { BillError } from "../../shared/bill-error.js";
+import { moveDraftNotePhotos } from "../../note-photos/note-photos.js";
 import { parseBill } from "../../bills/inputs.js";
 import { notifyGroupChanged } from "../../realtime/group-events.js";
 import { priceDraft, unassignedReceiptTaxMessage } from "../pricing/receipt-pricing.js";
@@ -126,6 +127,7 @@ export async function initializeDraft(
       .update(receiptDrafts)
       .set({ billId: bill!.id, revision: draft.revision + 1 })
       .where(eq(receiptDrafts.id, id));
+    await moveDraftNotePhotos(tx, id, bill!.id);
     return { id: bill!.id, groupId: draft.groupId };
   });
   notifyGroupChanged(result.groupId);
