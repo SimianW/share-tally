@@ -11,9 +11,9 @@ export const NOTE_PHOTO_LIMIT = 3;
 export type PendingNotePhoto = { key: number; preview: string; error: string };
 
 /**
- * Uploads each picked photo as soon as it is compressed. `photos` is the
- * owner's list as last read; photos this editor added or removed show at once,
- * before a reread lists them.
+ * Uploads each picked photo as soon as it is compressed, in the order picked.
+ * `photos` is the owner's list as last read; photos this editor added or
+ * removed show at once, until a reread lists them.
  */
 export function useNotePhotos({ photos, upload, remove, prepare, changed }: {
   photos: NotePhoto[];
@@ -33,11 +33,20 @@ export function useNotePhotos({ photos, upload, remove, prepare, changed }: {
   const [previews, setPreviews] = useState<Record<string, string>>({});
   const urls = useRef(new Set<string>());
   const nextKey = useRef(0);
+  // One upload at a time, so the server numbers photos in the order they were picked.
+  const uploads = useRef(Promise.resolve());
   useEffect(() => {
     const owned = urls.current;
     return () => { for (const url of owned) URL.revokeObjectURL(url); };
   }, []);
 
+  // Once a read lists an added photo, that read decides, so a removal elsewhere shows.
+  const listedIds = photos.map((photo) => photo.id).join();
+  const [listed, setListed] = useState(listedIds);
+  if (listed !== listedIds) {
+    setListed(listedIds);
+    setAdded((current) => current.filter((photo) => !photos.some((entry) => entry.id === photo.id)));
+  }
   const known = new Map([...photos, ...added].map((photo) => [photo.id, photo]));
   const shown = [...known.values()].filter((photo) => !removed.includes(photo.id))
     .sort((a, b) => a.position - b.position);
@@ -70,7 +79,7 @@ export function useNotePhotos({ photos, upload, remove, prepare, changed }: {
       const preview = URL.createObjectURL(localPhotoBlob(base64));
       urls.current.add(preview);
       update(key, { preview });
-      void upload(base64).then((photo) => {
+      uploads.current = uploads.current.then(() => upload(base64)).then((photo) => {
         setPreviews((current) => ({ ...current, [photo.id]: preview }));
         setAdded((current) => [...current, photo]);
         drop(key);

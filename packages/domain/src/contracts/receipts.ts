@@ -110,7 +110,7 @@ export type ReceiptDraft = {
   data: ReceiptData;
   billId?: string | null;
   photo?: { expiresAt: string; expired?: boolean } | null;
-  /** Present on draft reads; other draft replies leave it out. */
+  /** Present on draft reads and saves; scan replies leave it out. */
   notePhotos?: import('./bills.js').NotePhoto[];
 };
 export type Extraction = {

@@ -69,9 +69,10 @@ async function json(response: Response, status = 200) {
   return response.json();
 }
 
-// Alice creates the group; Bob joins it. Carol is in no group with them.
+// Alice creates the group; Bob joins it. Carol is a member of another group only.
 async function setup() {
   const { group } = await json(await api('/groups', 'alice-token', 'POST', { name: 'Costco', icon: { type: 'unicode', value: '🛒' } }), 201);
+  await json(await api('/groups', 'carol-token', 'POST', { name: 'Elsewhere', icon: { type: 'unicode', value: '🏠' } }), 201);
   const invite = await json(await api(`/groups/${group.id}/invitation`));
   await json(await api('/groups/join', 'bob-token', 'POST', { token: invite.path.split('/').at(-1) }));
   const { members } = (await json(await api(`/groups/${group.id}`))).group;

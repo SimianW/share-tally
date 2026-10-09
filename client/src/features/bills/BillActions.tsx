@@ -313,7 +313,8 @@ function EditBill({
         className="bill-form"
         onSubmit={(e) => {
           e.preventDefault();
-          if (review.blocked) return;
+          // Saving closes the form, which would hide an unfinished upload's progress or failure.
+          if (review.blocked || notePhotos.busy) return;
           setValidation("");
           let totalCents: number;
           try {
@@ -427,7 +428,7 @@ function EditBill({
         <div className="dialog-actions">
           <Button
             type="submit"
-            disabled={!group || review.blocked || mutation.busy || mutation.conflict}
+            disabled={!group || review.blocked || mutation.busy || mutation.conflict || notePhotos.busy}
           >
             {mutation.busy
               ? "Saving..."
