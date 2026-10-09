@@ -170,7 +170,6 @@ export async function changeBill(
           const itemIds = items.map(i => i.id);
           for (const share of shares) if (!input.participantIds.includes(share.userId))
             await tx.delete(itemClaims).where(and(inArray(itemClaims.itemId, itemIds), eq(itemClaims.userId, share.userId)));
-          await tx.update(itemClaims).set({ confirmedAt: null }).where(inArray(itemClaims.itemId, itemIds));
         }
       }
       for (const share of shares)
@@ -187,8 +186,9 @@ export async function changeBill(
         if (!shares.some((s) => s.userId === userId))
           await tx.insert(billShares).values({ billId: id, userId });
     }
-    // Manual confirmations cover only their owner's share, so only a new total voids them (ADR-0015).
-    const keepConfirmations = bill.mode !== 'items' && input?.totalCents === bill.totalCents;
+    // Edits void only confirmations whose amounts they change (ADR-0015): manual shares are stated
+    // against the total, while item shares come from item costs and the total moves only the adjustment.
+    const keepConfirmations = bill.mode === 'items' || input?.totalCents === bill.totalCents;
     if (!keepConfirmations) await clearConfirmations(tx, id);
     await tx
       .update(bills)
@@ -207,7 +207,7 @@ export async function changeBill(
       })
       .where(eq(bills.id, id));
     if (bill.mode === 'items') await recalculateItemBill(tx, { ...bill, totalCents: input?.totalCents ?? bill.totalCents, completedAt: null });
-    if (keepConfirmations) await complete(tx, bill);
+    else if (keepConfirmations) await complete(tx, bill);
     return bill.groupId;
   });
   notifyGroupChanged(groupId);

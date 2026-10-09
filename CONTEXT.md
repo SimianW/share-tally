@@ -75,6 +75,10 @@ _Avoid_: Pending draft, since "pending" already describes repayment records.
 The complete raw analysis the receipt reader returned for a scanned receipt photo, retained with the photo and deleted with it. The receipt text and reviewed items outlive it.
 _Avoid_: OCR data, scan result.
 
+**Note photo**:
+A picture attached to a bill's notes for members to look at, such as the products or how they were divided; a bill has at most three. Only the bill's initiator adds or removes note photos, before the bill is complete or canceled. A note photo is never read for receipt contents and changes no amount, share, claim or confirmation.
+_Avoid_: Receipt photo, which is the picture read for receipt contents; attachment.
+
 **Bill initiation**:
 The initiator's publication of a reviewed bill draft, making it visible to the group and opening it to its selected participants. In either split mode, initiation submits or confirms no shares or item claims.
 
@@ -117,7 +121,7 @@ The amount a member is currently owed or owes within a group after accounting fo
 The member who created a group. This role is distinct from a bill's initiator. Only the group creator may delete the group, and only when it is cleared.
 
 **Deleted group**:
-A group marked as deleted by its creator after every member's net balance is zero, there are no incomplete bills, and there are no pending repayment records. Its financial records remain stored, but the group is gone for all members: it is absent from their group lists and its endpoints and invitation link no longer provide access. There is no read-only history view or restoration workflow. Uninitiated bill drafts, including processing drafts, are deleted and cannot be resumed. Receipt photos and raw receipt evidence are physically purged during group deletion, including those linked to initiated bills; receipt text and reviewed items are retained.
+A group marked as deleted by its creator after every member's net balance is zero, there are no incomplete bills, and there are no pending repayment records. Its financial records remain stored, but the group is gone for all members: it is absent from their group lists and its endpoints and invitation link no longer provide access. There is no read-only history view or restoration workflow. Uninitiated bill drafts, including processing drafts, are deleted and cannot be resumed. Receipt photos, raw receipt evidence and note photos are physically purged during group deletion, including those linked to initiated bills; receipt text and reviewed items are retained.
 
 **Invitation link**:
 A shareable link through which a signed-in user can join a group.

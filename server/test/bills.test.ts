@@ -2613,7 +2613,7 @@ test('competing last claims serialize, stale prices fail, and reservations retai
   assert.ok(completed.completedAt);
   assert.equal(completed.adjustmentCents, 10);
 });
-test('negative initiator cost blocks completion until corrected total and all reconfirmations', async () => {
+test('negative initiator cost blocks completion until a corrected total completes it without reconfirmation', async () => {
   const { bill, data, draft } = await itemBill([11000], 10000);
   await claimBill(bill.id, 'alice-token', []);
   await claimBill(bill.id, 'carol-token', []);
@@ -2621,14 +2621,48 @@ test('negative initiator cost blocks completion until corrected total and all re
   assert.equal(current.completedAt, null);
   assert.equal(current.adjustmentCents, null);
   const { requestId: _requestId, ...fields } = draft;
+  // A kept confirmation still cannot complete the bill while the initiator's cost is negative (ADR-0008).
+  current = (await json(await api(`/bills/${bill.id}`, 'alice-token', 'PATCH', { ...fields, title: 'Renamed run', revision: current.revision }))).bill;
+  assert.ok(current.participants.every((p: { confirmedAt: string | null }) => p.confirmedAt));
+  assert.equal(current.completedAt, null);
+  assert.equal(current.adjustmentCents, null);
+  // The total paid moves only the initiator adjustment, so item confirmations stay (ADR-0015).
   current = (await json(await api(`/bills/${bill.id}`, 'alice-token', 'PATCH', { ...fields, totalCents: 11000, revision: current.revision }))).bill;
-  assert.ok(current.participants.every((p: { confirmedAt: string | null }) => p.confirmedAt === null));
-  assert.equal(current.items[0].claims[0].confirmedAt, null);
-  await claimBill(bill.id, 'alice-token', []);
-  await claimBill(bill.id, 'carol-token', []);
-  current = await claimBill(bill.id, 'bob-token', [{ itemId: data.items[0]!.id, numerator: 1, denominator: 1 }]);
+  assert.ok(current.participants.every((p: { confirmedAt: string | null }) => p.confirmedAt));
+  assert.ok(current.items[0].claims[0].confirmedAt);
   assert.ok(current.completedAt);
   assert.equal(current.adjustmentCents, 0);
+});
+test('item bill edits keep confirmations whose amounts they do not change', async () => {
+  const { bill, data, draft, ids } = await itemBill([100, 100], 200);
+  const [first, second] = data.items.map(item => item.id);
+  await claimBill(bill.id, 'bob-token', [{ itemId: first!, numerator: 1, denominator: 1 }]);
+  await claimBill(bill.id, 'carol-token', [{ itemId: second!, numerator: 1, denominator: 2 }]);
+  const reviewed = await claimBill(bill.id, 'alice-token', []);
+  const confirmations = (current: { participants: { userId: string; confirmedAt: string | null }[] }) =>
+    Object.fromEntries(current.participants.map(p => [p.userId, p.confirmedAt]));
+  const { requestId: _requestId, ...fields } = draft;
+  const edit = (current: { revision: number }, participantIds: string[]) => api(`/bills/${bill.id}`, 'alice-token', 'PATCH',
+    { ...fields, title: 'Renamed run', purchaseDate: '2026-01-02', notes: 'Split at home', totalCents: 200, participantIds, revision: current.revision });
+  let current = (await json(await edit(reviewed, Object.values(ids)))).bill;
+  assert.equal(current.revision, reviewed.revision + 1);
+  assert.deepEqual(current.items.map((i: { version: number }) => i.version), reviewed.items.map((i: { version: number }) => i.version));
+  assert.deepEqual(confirmations(current), confirmations(reviewed));
+  assert.ok(current.items.flatMap((i: { claims: { confirmedAt: string | null }[] }) => i.claims).every((c: { confirmedAt: string | null }) => c.confirmedAt));
+  // Removing Carol frees only her fraction.
+  current = (await json(await edit(current, [ids.Alice, ids.Bob]))).bill;
+  assert.equal(current.items[1].claims.length, 0);
+  assert.ok(current.items[0].claims[0].confirmedAt);
+  assert.deepEqual(confirmations(current), { [ids.Alice]: confirmations(reviewed)[ids.Alice], [ids.Bob]: confirmations(reviewed)[ids.Bob] });
+  // A re-added participant starts unconfirmed and blocks completion.
+  current = (await json(await edit(current, Object.values(ids)))).bill;
+  assert.equal(confirmations(current)[ids.Carol], null);
+  assert.ok(confirmations(current)[ids.Alice] && confirmations(current)[ids.Bob]);
+  assert.equal(current.completedAt, null);
+  // Item versions, not the bill revision, decide staleness, so Carol's review from before the edits still applies.
+  const result = await json(await api(`/bills/${bill.id}/claims`, 'carol-token', 'POST', { reviewedItems: reviewedItems(reviewed), claims: [{ itemId: second!, numerator: 1, denominator: 1 }] }));
+  assert.ok(result.bill.completedAt);
+  assert.equal(result.bill.adjustmentCents, 0);
 });
 test('photo privacy, extraction retry and naming failure preserve saved edits and initialization', async () => {
   const sharp = (await import('sharp')).default;
@@ -2682,10 +2716,14 @@ test('item addition, deletion, names and participant changes follow their confir
   assert.equal(current.participants.find((p: { userId: string }) => p.userId === ids.Bob).confirmedAt, null);
   assert.equal(current.participants.find((p: { userId: string }) => p.userId === ids.Bob).amountCents, 0);
   current = await claimBill(bill.id, 'bob-token', [{ itemId: added.id, numerator: 1, denominator: 2 }]);
+  await claimBill(bill.id, 'alice-token', []);
+  current = await claimBill(bill.id, 'carol-token', []);
   const { requestId: _requestId, ...fields } = draft;
-  current = (await json(await api(`/bills/${bill.id}`, 'alice-token', 'PATCH', { ...fields, revision: current.revision, participantIds: [ids.Alice, ids.Carol] }))).bill;
+  current = (await json(await api(`/bills/${bill.id}`, 'alice-token', 'PATCH', { ...fields, totalCents: 200, revision: current.revision, participantIds: [ids.Alice, ids.Carol] }))).bill;
   assert.equal(current.items.flatMap((i: { claims: unknown[] }) => i.claims).length, 0);
-  assert.ok(current.participants.every((p: { confirmedAt: string | null }) => p.confirmedAt === null));
+  // Removing Bob deletes his claims without voiding the remaining confirmations (ADR-0015).
+  assert.ok(current.participants.every((p: { confirmedAt: string | null }) => p.confirmedAt));
+  assert.equal(current.completedAt, null);
   await claimBill(bill.id, 'bob-token', [], 403);
 });
 test('draft price defaults are repeatable without a manual name retry endpoint', async () => {
