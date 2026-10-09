@@ -2621,6 +2621,11 @@ test('negative initiator cost blocks completion until a corrected total complete
   assert.equal(current.completedAt, null);
   assert.equal(current.adjustmentCents, null);
   const { requestId: _requestId, ...fields } = draft;
+  // A kept confirmation still cannot complete the bill while the initiator's cost is negative (ADR-0008).
+  current = (await json(await api(`/bills/${bill.id}`, 'alice-token', 'PATCH', { ...fields, title: 'Renamed run', revision: current.revision }))).bill;
+  assert.ok(current.participants.every((p: { confirmedAt: string | null }) => p.confirmedAt));
+  assert.equal(current.completedAt, null);
+  assert.equal(current.adjustmentCents, null);
   // The total paid moves only the initiator adjustment, so item confirmations stay (ADR-0015).
   current = (await json(await api(`/bills/${bill.id}`, 'alice-token', 'PATCH', { ...fields, totalCents: 11000, revision: current.revision }))).bill;
   assert.ok(current.participants.every((p: { confirmedAt: string | null }) => p.confirmedAt));

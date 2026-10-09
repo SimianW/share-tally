@@ -326,8 +326,9 @@ function EditBill({
       >
         {bill.mode === "items" ? (
           <p>
-            Confirmations stay. Item shares come from item prices, so changing
-            the total only changes your adjustment.
+            Remaining participants keep their confirmations. Removing someone
+            deletes their item claims, and anyone you add starts unconfirmed.
+            Changing the total only changes your adjustment.
           </p>
         ) : totalChanged ? (
           <Notification tone="warning" title="Everyone will need to confirm again">
