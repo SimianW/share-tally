@@ -325,10 +325,10 @@ function EditBill({
         }}
       >
         {bill.mode === "items" ? (
-          <Notification tone="warning" title="Everyone will need to confirm again">
-            Saving any edit clears everyone’s confirmation, even if you only
-            change its description. Existing amounts stay.
-          </Notification>
+          <p>
+            Confirmations stay. Item shares come from item prices, so changing
+            the total only changes your adjustment.
+          </p>
         ) : totalChanged ? (
           <Notification tone="warning" title="Everyone will need to confirm again">
             Changing the total clears everyone’s confirmation, including yours.
