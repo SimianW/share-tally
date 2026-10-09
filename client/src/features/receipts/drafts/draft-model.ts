@@ -136,8 +136,11 @@ export function createEditor({ userId, draftId, recovered, storedStep }: {
 }
 
 const processing = (draft: ReceiptDraft) => draft.processingStatus === "processing";
+// Note photos change no revision, and only draft reads list them, so a reply
+// without the list keeps the one read last.
 const newer = (known: ReceiptDraft | null, draft: ReceiptDraft) =>
-  known && known.revision > draft.revision ? known : draft;
+  known && known.revision > draft.revision ? known
+    : draft.notePhotos || !known?.notePhotos ? draft : { ...draft, notePhotos: known.notePhotos };
 
 // Unsaved edits are recovered only against the saved revision they started from:
 // an older entry never replaces a newer saved draft, and a scan always wins.

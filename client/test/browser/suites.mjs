@@ -16,6 +16,7 @@ import { scenarios as corrections } from './receipts/corrections.mjs';
 import { scenarios as drafts } from './receipts/drafts.mjs';
 import { scenarios as editor } from './receipts/editor.mjs';
 import { scenarios as newBill } from './receipts/new-bill.mjs';
+import { scenarios as notePhotos } from './receipts/note-photos.mjs';
 import { scenarios as processing } from './receipts/processing.mjs';
 
 const ordered = (scenarios, names) => names.map(name => {
@@ -25,7 +26,7 @@ const ordered = (scenarios, names) => names.map(name => {
 });
 
 const groupScenarios = [...membership, ...appearance, ...bills, ...navigation, ...ledger, ...groupPage, ...amountPortion, ...names, ...renewal, ...provisional];
-const receiptScenarios = [...newBill, ...drafts, ...editor, ...claiming, ...corrections, ...processing];
+const receiptScenarios = [...newBill, ...notePhotos, ...drafts, ...editor, ...claiming, ...corrections, ...processing];
 
 export const suites = {
   groups: ordered(groupScenarios, [
@@ -41,7 +42,7 @@ export const suites = {
     'scanned-draft-editing', 'compact-review', 'claim-receipt-photo', 'unassigned-tax',
     'legacy-price-correction', 'price-correction', 'scan-fallback', 'low-confidence-hints', 'manual-split-fallback',
     'editor-recovery', 'editor-scan-reordering', 'editor-repeated-initiation', 'editor-storage-failure',
-    'editor-group-deletion', 'editor-removed-draft', 'editor-failed-reads', 'editor-rescan',
+    'editor-group-deletion', 'editor-removed-draft', 'editor-failed-reads', 'editor-rescan', 'note-photos',
   ]),
   avatar,
 };

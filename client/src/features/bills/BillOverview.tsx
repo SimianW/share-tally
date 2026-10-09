@@ -5,6 +5,7 @@ import { money, signedMoney } from "../../shared/money";
 import { type Bill } from "@share-tally/domain/contracts/bills";
 import { Avatar } from "../../shared/ui/Avatar";
 import { Icon } from "../../shared/ui/Icon";
+import { NotePhotoGallery } from "./NotePhotoGallery";
 
 type Participant = Bill["participants"][number];
 type Tone = "act" | "done" | "warn" | "quiet" | "void";
@@ -196,7 +197,11 @@ export function BillPanel({ bill, needsAmountCorrection, initiatorActions }: {
         })}
       </ul>
       <div className="bill-explanation">{explanation}</div>
-      {bill.notes && <div className="bill-notes"><h3>Purchase notes</h3><p>{bill.notes}</p></div>}
+      {(bill.notes || bill.notePhotos.length > 0) && <div className="bill-notes">
+        <h3>Purchase notes</h3>
+        {bill.notes && <p>{bill.notes}</p>}
+        {bill.notePhotos.length > 0 && <NotePhotoGallery photos={bill.notePhotos} />}
+      </div>}
       {initiatorActions && <div className="bill-initiator">{initiatorActions}</div>}
     </section>
   </aside>;

@@ -1,0 +1,67 @@
+/* Note photos: square thumbnails under a bill's notes, in the editor and on the bill. */
+.note-photos { display: grid; gap: 10px; }
+.note-photo-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 112px));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.note-photo { position: relative; display: grid; gap: 6px; align-content: start; }
+.note-photo-frame {
+  display: block;
+  aspect-ratio: 1;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-sunken);
+}
+.note-photo-frame img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.note-photo-open { padding: 0; cursor: zoom-in; }
+.note-photo-open:hover { border-color: var(--line-strong); }
+.note-photo-open:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.note-photo-missing {
+  display: grid;
+  place-items: center;
+  padding: 8px;
+  color: var(--ink-muted);
+  font-size: 12px;
+  text-align: center;
+}
+.note-photo-pending .note-photo-frame img { opacity: 0.55; }
+.note-photo-failed .note-photo-frame { border-color: var(--status-danger); }
+.note-photo-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink-secondary);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.note-photo-failed .note-photo-status { color: var(--status-danger); }
+.note-photo-status svg { flex-shrink: 0; animation: note-photo-spin 1s linear infinite; }
+@keyframes note-photo-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .note-photo-status svg { animation: none; } }
+/* A 32 px target sits on the corner, over the photo. */
+.note-photo-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.note-photo-remove:hover:not(:disabled) { background: var(--surface-raised); }
+.note-photo-remove:disabled { opacity: 0.5; cursor: default; }
+.note-photo-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
+.note-photo-count { color: var(--ink-muted); font-size: 13px; }
+.note-photo-hint { margin: 0; color: var(--ink-muted); font-size: 13px; }

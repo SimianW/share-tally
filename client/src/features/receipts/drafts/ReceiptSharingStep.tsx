@@ -1,4 +1,5 @@
 import { type ReceiptData } from "@share-tally/domain/contracts/receipts";
+import { type ReactNode } from "react";
 import {
   ArrowRight,
   CircleDollarSign,
@@ -25,6 +26,7 @@ export function ReceiptSharingStep({
   enteringTotal,
   setEnteringTotal,
   splitLegendId,
+  notePhotos,
 }: {
   data: ReceiptData;
   group: GroupDetail;
@@ -36,6 +38,8 @@ export function ReceiptSharingStep({
   enteringTotal: boolean;
   setEnteringTotal: (value: boolean) => void;
   splitLegendId: string;
+  /** The Notes block's photo editor. */
+  notePhotos: ReactNode;
 }) {
   const itemTotal = data.items.reduce(
     (sum, item) => sum + (item.finalCents ?? 0),
@@ -199,6 +203,7 @@ export function ReceiptSharingStep({
           <PencilLine size={16} aria-hidden="true" /> Add a note
         </Button>
       )}
+      {notePhotos}
       {missing.length > 0 && (
         <p className="field-error">
           Add{" "}

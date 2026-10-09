@@ -213,6 +213,7 @@
 .bill-notes { margin-top: 14px; }
 .bill-notes h3 { margin: 0 0 4px; font: 700 13px var(--font-body); color: var(--ink-secondary); }
 .bill-notes p { margin: 0; font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.bill-notes .note-photo-list { margin-top: 10px; grid-template-columns: repeat(3, minmax(0, 96px)); }
 .bill-initiator { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line-strong); }
 .bill-initiator:empty { display: none; }
 .bill-initiator .bill-controls { gap: 8px; padding-top: 0; align-items: stretch; }

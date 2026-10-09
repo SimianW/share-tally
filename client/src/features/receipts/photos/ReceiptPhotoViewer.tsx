@@ -8,11 +8,15 @@ let viewerHistoryId = 0;
 
 export type ReceiptViewerImage = { url: string; width: number; height: number };
 
-export function ReceiptPhotoViewer({ image, points, subject, close }: {
+/** A full-screen, zoomable photo. Labels default to the receipt photo's; note photos supply their own. */
+export function ReceiptPhotoViewer({ image, points, subject, close, title, kicker = "SOURCE RECEIPT", imageLabel = "Full-size original receipt" }: {
   image: ReceiptViewerImage;
   points?: string;
   subject?: string;
   close: () => void;
+  title?: string;
+  kicker?: string;
+  imageLabel?: string;
 }) {
   const viewport = useRef<HTMLDivElement>(null);
   const zoom = useRef<ReactZoomPanPinchRef>(null);
@@ -69,18 +73,18 @@ export function ReceiptPhotoViewer({ image, points, subject, close }: {
 
   const fit = Math.min(size.width / image.width, size.height / image.height);
   const maxScale = Math.max(4, 2 / fit);
-  return <Dialog title={subject ? `Receipt photo · ${subject}` : "Receipt photo"} kicker="SOURCE RECEIPT" className="receipt-photo-viewer" closeLabel="Close photo" close={requestClose}>
+  return <Dialog title={title ?? (subject ? `Receipt photo · ${subject}` : "Receipt photo")} kicker={kicker} className="receipt-photo-viewer" closeLabel="Close photo" close={requestClose}>
     <div className="receipt-photo-tools">
       <button type="button" className="button secondary" aria-label="Zoom out" disabled={scale <= 1} onClick={() => void zoom.current?.zoomOut(0.5)}><ZoomOut size={18} /></button>
       <output aria-label="Photo zoom">{Math.round(scale * 100)}%</output>
       <button type="button" className="button secondary" aria-label="Zoom in" disabled={scale >= maxScale} onClick={() => void zoom.current?.zoomIn(0.5)}><ZoomIn size={18} /></button>
       <Button variant="text" onClick={() => void zoom.current?.setTransform((size.width - image.width * fit) / 2, (size.height - image.height * fit) / 2, 1, 0)}>Fit photo</Button>
     </div>
-    <div ref={viewport} className="receipt-photo-viewport" aria-label="Zoomed receipt photo">
+    <div ref={viewport} className="receipt-photo-viewport" aria-label={`Zoomed ${(title ?? "receipt photo").toLowerCase()}`}>
       {fit > 0 && Number.isFinite(fit) && <TransformWrapper key={`${size.width}:${size.height}`} ref={zoom} initialScale={1} minScale={1} maxScale={maxScale} centerOnInit limitToBounds onInit={() => setScale(1)} onTransform={(_, state) => setScale(state.scale)} wheel={{ step: 0.12 }} doubleClick={{ mode: "zoomIn", step: 1 }} keyboard={{ disabled: false, panStep: 60 }}>
         <TransformComponent wrapperClass="receipt-photo-transform" contentClass="receipt-photo-content"
-          wrapperProps={{ role: "group", "aria-label": "Receipt photo. Arrow keys pan; plus and minus zoom." }}>
-          <svg role="img" aria-label="Full-size original receipt" width={image.width * fit} height={image.height * fit} viewBox={`0 0 ${image.width} ${image.height}`}>
+          wrapperProps={{ role: "group", "aria-label": `${title ?? "Receipt photo"}. Arrow keys pan; plus and minus zoom.` }}>
+          <svg role="img" aria-label={imageLabel} width={image.width * fit} height={image.height * fit} viewBox={`0 0 ${image.width} ${image.height}`}>
             <image href={image.url} width={image.width} height={image.height} />
             {/* The zoom is a CSS transform outside the SVG, which non-scaling-stroke does not undo. */}
             {points && <polygon role="img" aria-label="Highlighted receipt line" points={points} style={{ strokeWidth: 2 / scale }} />}

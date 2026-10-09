@@ -6,6 +6,9 @@ import { parseMoney } from "../../shared/money";
 import { Button } from "../../shared/ui/Button";
 import Dialog from "../../shared/ui/Dialog";
 import { Notification } from '../../shared/ui/Notification';
+import { useNotePhotoApi } from '../../shared/api/note-photos';
+import { NotePhotoEditor } from '../../shared/ui/note-photos/NotePhotos';
+import { useNotePhotos } from '../../shared/ui/note-photos/use-note-photos';
 import { ParticipantPicker } from "../../shared/ui/ParticipantPicker";
 import { AmountPortion } from "../../shared/ui/portions/AmountPortion";
 import type { Fraction } from '@share-tally/domain/fractions';
@@ -268,6 +271,14 @@ function EditBill({
   const [validation, setValidation] = useState("");
   const mutation = useBillMutation(saved);
   const review = useBillDraftReview(bill, String(bill.revision), mutation);
+  const notePhotoApi = useNotePhotoApi();
+  // Photos save as they are added or removed, outside this form's revision.
+  const notePhotos = useNotePhotos({
+    photos: bill.notePhotos,
+    upload: (base64) => notePhotoApi.addToBill(bill.id, base64),
+    remove: notePhotoApi.remove,
+    changed: refresh,
+  });
   let totalChanged = true;
   try {
     totalChanged = parseMoney(total) !== bill.totalCents;
@@ -295,7 +306,7 @@ function EditBill({
       title="Edit bill"
       kicker={bill.title}
       close={() => {
-        if (!mutation.busy) close();
+        if (!mutation.busy && !notePhotos.busy) close();
       }}
     >
       <form
@@ -380,6 +391,8 @@ function EditBill({
               onChange={(e) => setNotes(e.target.value)}
             />
           </label>
+          <NotePhotoEditor photos={notePhotos} disabled={review.terminal} />
+          <p className="note-photo-hint">Photos are saved as soon as you add or remove them, and keep everyone’s confirmations.</p>
           {group && (
             <ParticipantPicker
               members={group.members}
@@ -422,7 +435,7 @@ function EditBill({
                 ? "Retry request"
                 : "Save & request confirmations"}
           </Button>
-          <Button variant="secondary" onClick={close} disabled={mutation.busy}>
+          <Button variant="secondary" onClick={close} disabled={mutation.busy || notePhotos.busy}>
             Keep current bill
           </Button>
         </div>

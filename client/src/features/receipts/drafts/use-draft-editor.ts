@@ -198,6 +198,9 @@ export function useDraftEditor({ userId, groupId, id, photoSelected, close, crea
         const { draft } = await api.confirmItem(saved.id, itemId, saved.revision, flag);
         dispatch({ type: "saved", draft });
       }),
+    /** A note photo belongs to a saved draft, so a new bill is saved before its first one. */
+    persist: () => current.current.local.revision > 0 ? Promise.resolve(true)
+      : perform("saving", async () => { await saveLocal(); }),
     saveAndClose: () => perform("saving", async () => {
       await saveLocal();
       end();

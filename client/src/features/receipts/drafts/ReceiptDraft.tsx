@@ -3,6 +3,9 @@ import { ArrowLeft, ArrowRight, Check, Trash2 } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "../../../shared/ui/Button";
 import { Notification } from "../../../shared/ui/Notification";
+import { useNotePhotoApi } from "../../../shared/api/note-photos";
+import { NotePhotoEditor } from "../../../shared/ui/note-photos/NotePhotos";
+import { useNotePhotos } from "../../../shared/ui/note-photos/use-note-photos";
 import { type GroupDetail } from "../../groups/api";
 import { ReceiptCrop } from "../photos/ReceiptCrop";
 import { unassignedReceiptTaxMessage } from "../pricing/receipt-pricing";
@@ -61,7 +64,16 @@ export function ReceiptDraftForm({
   const scan = () => void editor.scan().then((scanned) => { if (scanned) setReplace(false); });
   const data = draft.data;
   const processing = draft.processingStatus === "processing";
-  const locked = running || !!draft.initializationRevision || processing;
+  const notePhotoApi = useNotePhotoApi();
+  // Uploads run beside the editor's own requests: they change no draft revision.
+  const notePhotos = useNotePhotos({
+    photos: state.server?.notePhotos ?? [],
+    prepare: editor.persist,
+    upload: (base64) => notePhotoApi.addToDraft(draft.id, base64),
+    remove: notePhotoApi.remove,
+  });
+  // Leaving, deleting or sharing mid-upload could drop a photo on its way.
+  const locked = running || !!draft.initializationRevision || processing || notePhotos.busy;
   const unassignedTaxMessage = unassignedReceiptTaxMessage(data);
   const splitLegendId = useId();
   const stepDone = [step > 0, step > 1 && itemsReady(data), false];
@@ -90,7 +102,7 @@ export function ReceiptDraftForm({
           noValidate
           onSubmit={(e) => {
             e.preventDefault();
-            if (processing || step !== 2 || unassignedTaxMessage || !e.currentTarget.reportValidity()) return;
+            if (processing || notePhotos.busy || step !== 2 || unassignedTaxMessage || !e.currentTarget.reportValidity()) return;
             if (shareable(state)) void editor.share();
           }}
         >
@@ -148,7 +160,8 @@ export function ReceiptDraftForm({
             {step === 2 && (
               <ReceiptSharingStep data={data} group={group} ownId={me.id} update={editor.edit} setStep={editor.chooseStep}
                 notesOpen={notesOpen} setNotesOpen={setNotesOpen} enteringTotal={enteringTotal}
-                setEnteringTotal={setEnteringTotal} splitLegendId={splitLegendId} />
+                setEnteringTotal={setEnteringTotal} splitLegendId={splitLegendId}
+                notePhotos={<NotePhotoEditor photos={notePhotos} disabled={running || !!draft.initializationRevision || processing} />} />
             )}
           </fieldset>
           {/* The crop is a modal dialog; outside the fieldset its controls stay
@@ -238,7 +251,7 @@ export function ReceiptDraftForm({
               </Button>
             )}
             {step === 2 && (
-              <Button type="submit" disabled={running || !shareable(state)}>
+              <Button type="submit" disabled={running || notePhotos.busy || !shareable(state)}>
                 {draft.initializationRevision ? "Retry sharing" : "Share bill"}
                 <ArrowRight size={16} aria-hidden="true" />
               </Button>
