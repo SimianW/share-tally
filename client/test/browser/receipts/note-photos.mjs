@@ -84,9 +84,20 @@ async function notePhotos(env) {
   // The initiated bill's edit form shares the editor; a photo saves without the form.
   await alice.getByRole('button', { name: 'Edit details & participants', exact: true }).click();
   const dialog = alice.getByRole('dialog', { name: 'Edit bill' });
+  // While the upload is held, browser Back stays on the bill so its progress stays visible.
+  let release;
+  const held = new Promise(resolve => { release = resolve; });
+  await alice.route('**/api/bills/*/note-photos', async route => { await held; await route.continue(); });
+  const billRoute = alice.url();
   await dialog.getByLabel('Choose note photos', { exact: true })
     .setInputFiles({ name: 'forgot.png', mimeType: 'image/png', buffer: await receiptPhoto(120, 90, '#3d3') });
+  await expect(dialog.getByRole('status').filter({ hasText: 'Uploading…' })).toBeVisible();
+  await alice.goBack();
+  await expect(alice).toHaveURL(billRoute);
+  await expect(dialog.getByRole('status').filter({ hasText: 'Uploading…' })).toBeVisible();
+  release();
   await expect(dialog.getByRole('img', { name: 'Note photo 3', exact: true })).toBeVisible();
+  await alice.unroute('**/api/bills/*/note-photos');
   await dialog.getByRole('button', { name: 'Keep current bill', exact: true }).click();
   await expect(notes.getByRole('button', { name: /^View note photo/ })).toHaveCount(3);
   const bill = (await api(`/bills/${billId}`)).bill;

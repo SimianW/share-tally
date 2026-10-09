@@ -7,6 +7,7 @@ import { Button } from "../../shared/ui/Button";
 import Dialog from "../../shared/ui/Dialog";
 import { Notification } from '../../shared/ui/Notification';
 import { useNotePhotoApi } from '../../shared/api/note-photos';
+import { blockRouteNavigation } from '../../shared/browser/route';
 import { NotePhotoEditor } from '../../shared/ui/note-photos/NotePhotos';
 import { useNotePhotos } from '../../shared/ui/note-photos/use-note-photos';
 import { ParticipantPicker } from "../../shared/ui/ParticipantPicker";
@@ -279,6 +280,17 @@ function EditBill({
     remove: notePhotoApi.remove,
     changed: refresh,
   });
+  // Leaving mid-upload would hide its progress or failure, and a reload could drop the photo.
+  useEffect(() => {
+    if (!notePhotos.busy) return;
+    const unblock = blockRouteNavigation(() => true);
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => { unblock(); window.removeEventListener("beforeunload", warn); };
+  }, [notePhotos.busy]);
   let totalChanged = true;
   try {
     totalChanged = parseMoney(total) !== bill.totalCents;
