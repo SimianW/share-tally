@@ -72,7 +72,7 @@ These were the overlapping implementations found in the structure audit. Each ro
 | Overlap | Shared implementation | Preserved differences |
 | --- | --- | --- |
 | Receipt calculations in browser previews and server writes | `packages/domain`: exact fractions, draft pricing, frozen correction pricing | Draft edits can reallocate sibling costs; corrections to initiated bills price only the edited item. Server validation and messages remain local. |
-| Bill, group, receipt and cached JSON requests | `shared/api/transport.ts` | Feature error messages and conflict metadata, fresh versus cached reads, mutation invalidation and group deletion ordering. Binary photos and SSE retain their protocols. |
+| Bill, group, receipt and cached JSON requests | `shared/api/transport.ts` | Feature error messages and conflict metadata, fresh versus cached reads, mutation invalidation and group deletion ordering. Note photo bytes use its `blob` read; receipt photos and SSE retain their protocols. |
 | Pending, busy and error handling for submissions | `shared/api/use-operation.ts` | Bill revision checks, item versions, repayment request persistence and draft initialization retries retain their own policies. |
 | Amount formatting and entry | `shared/money.ts`, `shared/ui/fields/MoneyField.tsx` and `validity.ts` | Positive-sign display, empty-as-zero, signed adjustments, and validation timing. Share/repayment fields still validate at their original stage. |
 | Available portions in item picker, meter and confirmation checks | `features/bills/claims/claim-availability.ts` | Confirmed claims and reservations both consume availability; a participant can edit their own portion. |

@@ -19,15 +19,7 @@ export function useNotePhotoApi() {
       addToDraft: (draftId: string, base64: string) => add(`/receipt-drafts/${encodeURIComponent(draftId)}/note-photos`, base64),
       addToBill: (billId: string, base64: string) => add(`/bills/${encodeURIComponent(billId)}/note-photos`, base64),
       remove: async (id: string) => { await transport.json(`/note-photos/${encodeURIComponent(id)}`, 'DELETE'); },
-      // Binary photos keep their own protocol, as receipt photos do.
-      bytes: async (id: string, signal: AbortSignal) => {
-        const token = await getToken();
-        const response = await fetch(`/api/note-photos/${encodeURIComponent(id)}`, {
-          signal, headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!response.ok) throw new Error('Photo unavailable.');
-        return response.blob();
-      },
+      bytes: (id: string, signal: AbortSignal) => transport.blob(`/note-photos/${encodeURIComponent(id)}`, signal),
     };
   }, [getToken, session]);
 }

@@ -299,15 +299,22 @@ test('adding or removing note photos keeps the revision, every confirmation and 
     await eventually(() => events.frames.slice(removedAt).some(frame => frame.startsWith('event: changed')));
     assert.deepEqual(await json(await api(`/bills/${bill.id}`, 'bob-token')).then(r => r.bill), before);
   }
-  // Draft photos are the initiator's alone, so they announce nothing to the group.
-  const quiet = events.frames.length;
-  const pending = await draft(groupId, ids);
-  await json(await addToDraft(pending.id, await picture('quiet')), 201);
-  await new Promise(resolve => setTimeout(resolve, 200));
-  assert.equal(events.frames.slice(quiet).filter(frame => frame.startsWith('event: changed')).length, 0);
   await events.close();
   const confirmed = (await json(await api(`/bills/${manual.id}`))).bill.participants.find((p: { userId: string }) => p.userId === ids.Bob);
   assert.ok(confirmed.confirmedAt);
+});
+
+test('draft note photos announce nothing to the group', async () => {
+  const { groupId, ids } = await setup();
+  const events = await stream(groupId);
+  const { id } = await draft(groupId, ids);
+  const { notePhoto } = await json(await addToDraft(id, await picture('a')), 201);
+  await json(await removePhoto(notePhoto.id));
+  // Deletion ends the stream with its own event, after anything sent before it.
+  await json(await api(`/groups/${groupId}`, 'alice-token', 'DELETE'));
+  await events.ended;
+  assert.ok(events.frames.at(-1)!.startsWith('event: group-deleted'));
+  assert.deepEqual(events.frames.filter(frame => frame.startsWith('event: changed')), []);
 });
 
 test('deleting a draft deletes its note photos', async () => {
@@ -345,7 +352,7 @@ async function stream(groupId: string, token = 'bob-token') {
     finally { reader.releaseLock(); }
   })();
   await eventually(() => frames.some(frame => frame.startsWith('event: ready')));
-  return { frames, async close() { controller.abort(); await reading; } };
+  return { frames, ended: reading, async close() { controller.abort(); await reading; } };
 }
 async function eventually(check: () => boolean | Promise<boolean>, timeout = 3000) {
   const deadline = Date.now() + timeout;
