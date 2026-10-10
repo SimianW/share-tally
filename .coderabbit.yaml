@@ -5,7 +5,7 @@ language: "en-US"
 tone_instructions: >-
   Be concise and friendly. The owner is learning TypeScript, React and SQL:
   briefly explain why a finding matters, especially for money, concurrency and
-  authorization. Use the glossary terms from CONTEXT.md.
+  authorization. Use the glossary terms from GLOSSARY.md.
 
 reviews:
   profile: "chill"
@@ -100,7 +100,7 @@ reviews:
         of `pull_request_target` / comment triggers, and that untrusted PR content is never interpolated into
         shell scripts.
 
-    - path: "CONTEXT.md"
+    - path: "GLOSSARY.md"
       instructions: |
         Domain glossary. Each term needs a one-paragraph definition and, where useful, an `_Avoid_:` line.
         Check that new terms don't conflict with existing ones or with language used in code and ADRs.
@@ -109,7 +109,7 @@ reviews:
       instructions: |
         Architecture decision records. Each ADR states the decision, its reason and consequences. An accepted
         decision should not be silently rewritten: a change of decision needs a new ADR that names the one it
-        supersedes. Check consistency with CONTEXT.md terminology and other ADRs.
+        supersedes. Check consistency with GLOSSARY.md terminology and other ADRs.
 
     - path: "{docs/drafts,docs/research,research}/**"
       instructions: |
@@ -123,7 +123,7 @@ knowledge_base:
     # A plain string only governs files under the guideline's own directory, so
     # the ADRs need an explicit applyTo to reach the code they constrain.
     filePatterns:
-      - "CONTEXT.md"
+      - "GLOSSARY.md"
       - files: "docs/adr/*.md"
         applyTo: "**/*"
 
