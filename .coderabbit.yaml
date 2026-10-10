@@ -50,7 +50,7 @@ reviews:
         - Read the ADRs in docs/adr that touch the changed behaviour and flag any contradiction, naming
           the ADR.
 
-    - path: "server/src/{receipt-*,azure-receipt}.ts"
+    - path: "server/src/receipts/**/*.ts"
       instructions: |
         Receipt pipeline. Read the receipt-related ADRs in docs/adr and flag changes that contradict them,
         naming the ADR. External provider failures and timeouts must leave the bill draft usable
