@@ -53,5 +53,6 @@ RUN test -n "$VITE_CLERK_PUBLISHABLE_KEY" && pnpm build
 
 FROM public.ecr.aws/docker/library/nginx:1.28-alpine AS web
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
+COPY deploy/nginx-security-headers.conf /etc/nginx/security-headers.conf
 COPY --from=client-build /app/client/dist /usr/share/nginx/html
 EXPOSE 80

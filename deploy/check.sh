@@ -14,3 +14,4 @@ docker run --rm --network host \
 # This synthetic publishable key only enables compilation; it cannot sign users in.
 docker build --target web --tag "$web_check_image" \
   --build-arg VITE_CLERK_PUBLISHABLE_KEY=pk_test_c2hhcmUtdGFsbHkuZXhhbXBsZSQ= .
+sh deploy/check-web.sh "$web_check_image"
