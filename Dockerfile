@@ -34,7 +34,8 @@ CMD ["pnpm", "test"]
 # Run with the host network and Docker socket; see deploy/browser-check.sh.
 FROM client-lint AS browser-checks
 # The infrastructure tests inspect containers with the Docker CLI (static binary).
-COPY --from=public.ecr.aws/docker/library/docker:27-cli /usr/local/bin/docker /usr/local/bin/docker
+# Pinned by digest: this binary runs with the deployment host's Docker socket.
+COPY --from=public.ecr.aws/docker/library/docker:27-cli@sha256:851f91d241214e7c6db86513b270d58776379aacc5eb9c4a87e5b47115e3065c /usr/local/bin/docker /usr/local/bin/docker
 COPY --from=server-build /app/server/ /app/server/
 # The SSE soak scenarios proxy through the production Nginx configuration.
 COPY deploy/nginx.conf /app/deploy/nginx.conf

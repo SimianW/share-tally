@@ -4,8 +4,8 @@ set -eu
 # one at a time. Each check runs even if an earlier one failed, so the output
 # names every failure; any failure stops the release.
 image="share-tally-browser-check:${DRONE_BUILD_NUMBER:-local}"
-docker build --target browser-checks --tag "$image" .
 trap 'docker image rm "$image" >/dev/null 2>&1 || true' EXIT
+docker build --target browser-checks --tag "$image" .
 # The host network lets Chromium's container reach Vite through host-gateway,
 # as on a development machine; Chromium keeps its own network namespace.
 run_check() {
