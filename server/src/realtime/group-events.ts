@@ -4,6 +4,8 @@ import { randomUUID } from 'node:crypto';
 // One API process. Notify only AFTER the database transaction resolves.
 // Events invalidate a group's view; they never carry financial state.
 const subscribers = new Map<string, Set<Response>>();
+// Whose group stream each response is, so departure ends only theirs.
+const streamUsers = new WeakMap<Response, string>();
 // Member streams, by user ID, invalidate views spanning a member's groups, such as Home.
 // Each member's version counts their announcements, so a reconnecting reader
 // rereads only if it missed one. A restart changes every version.
@@ -14,6 +16,8 @@ const memberVersion = (userId: string) => JSON.stringify({ version: `${started}:
 
 function changed(streams: Map<string, Set<Response>>, key: string, data = '{}') {
   for (const response of streams.get(key) ?? []) {
+    // An ended stream stays in its set until its asynchronous close; writing to it would throw.
+    if (response.writableEnded || response.destroyed) continue;
     // A slow reader reconnects and fetches a snapshot instead of buffering history.
     if (!response.write(`event: changed\ndata: ${data}\n\n`)) response.destroy();
   }
@@ -34,6 +38,16 @@ export function notifyGroupDeleted(groupId: string, name: string) {
   for (const response of subscribers.get(groupId) ?? []) {
     // end(data) queues the final event before the stream's EOF, even under backpressure.
     response.end(`event: group-deleted\ndata: ${JSON.stringify({ id: groupId, name })}\n\n`);
+  }
+}
+
+// The member's access to this group ended: they left (perhaps on another
+// device) or the owner removed them. Their open streams receive a final event
+// saying which, and end; other members' streams continue.
+export function notifyMembershipEnded(groupId: string, userId: string, name: string, removed: boolean) {
+  for (const response of subscribers.get(groupId) ?? []) {
+    if (streamUsers.get(response) === userId)
+      response.end(`event: membership-ended\ndata: ${JSON.stringify({ id: groupId, name, removed })}\n\n`);
   }
 }
 
@@ -62,7 +76,8 @@ function openEvents(streams: Map<string, Set<Response>>, key: string, response: 
   response.write(`event: ready\ndata: ${JSON.stringify({ ...JSON.parse(ready), expiresAt, expiresInMs: Math.max(0, expiresAt - Date.now()) })}\n\n`);
 }
 
-export function openGroupEvents(groupId: string, response: Response, expiresAt: number) {
+export function openGroupEvents(groupId: string, userId: string, response: Response, expiresAt: number) {
+  streamUsers.set(response, userId);
   openEvents(subscribers, groupId, response, expiresAt);
 }
 

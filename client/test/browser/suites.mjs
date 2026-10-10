@@ -30,9 +30,10 @@ const receiptScenarios = [...newBill, ...notePhotos, ...drafts, ...editor, ...cl
 
 export const suites = {
   groups: ordered(groupScenarios, [
-    'group-refresh', 'group-invitations', 'appearance', 'bill-sharing', 'navigation-and-account-isolation',
+    'group-refresh', 'group-invitations', 'group-self-departure', 'group-owner-removal',
+    'group-ownership-succession', 'group-departure-blockers', 'appearance', 'bill-sharing', 'navigation-and-account-isolation',
     'bill-corrections', 'repayments', 'group-capacity', 'bill-live-updates', 'attention',
-    'group-page-ledger', 'amount-portion', 'group-deletion', 'member-renames', 'shared-sse-renewal', 'sse-candidate-recovery', 'sse-read-handoff', 'sse-token-background', 'sse-attempt-deadline', 'sse-token-failure', 'sse-nginx-soak-one', 'sse-nginx-soak-twenty', 'sse-deletion-during-renewal', 'sse-authentication-loss', 'sse-token-deadline', 'sse-initial-failure', 'sse-denied-bill-read', 'sse-expired-credentials', 'sse-command-authentication-loss', 'sse-obsolete-command',
+    'group-page-ledger', 'amount-portion', 'group-deletion', 'member-renames', 'shared-sse-renewal', 'sse-candidate-recovery', 'sse-read-handoff', 'sse-token-background', 'sse-attempt-deadline', 'sse-token-failure', 'sse-nginx-soak-one', 'sse-nginx-soak-twenty', 'sse-deletion-during-renewal', 'sse-removal-during-renewal', 'sse-removed-while-disconnected', 'sse-authentication-loss', 'sse-token-deadline', 'sse-initial-failure', 'sse-denied-bill-read', 'sse-expired-credentials', 'sse-command-authentication-loss', 'sse-obsolete-command',
     'sse-post-command-authentication-loss', 'sse-cancelled-authentication-body', 'sse-server-restart', 'sse-deleted-snapshot-before-event', 'sse-deleted-bill-snapshot-before-event', 'sse-deleted-direct-bill-before-event', 'sse-deleted-bill-before-ready', 'sse-denied-new-bill-retry', 'sse-denied-member-refresh', 'sse-missing-bill-with-existing-group',
     'provisional-bill-from-group', 'provisional-direct-bill', 'provisional-new-bill-from-group', 'provisional-new-bill-pre-ready-read', 'provisional-new-bill-direct', 'provisional-new-bill-denied',
   ]),
@@ -42,7 +43,7 @@ export const suites = {
     'scanned-draft-editing', 'compact-review', 'claim-receipt-photo', 'unassigned-tax',
     'legacy-price-correction', 'price-correction', 'scan-fallback', 'low-confidence-hints', 'manual-split-fallback',
     'editor-recovery', 'editor-scan-reordering', 'editor-repeated-initiation', 'editor-storage-failure',
-    'editor-group-deletion', 'editor-removed-draft', 'editor-failed-reads', 'editor-rescan', 'note-photos',
+    'editor-group-deletion', 'editor-membership-ended', 'editor-reconnect-404', 'editor-inactive-recovery', 'editor-removed-draft', 'editor-failed-reads', 'editor-rescan', 'note-photos',
   ]),
   avatar,
 };

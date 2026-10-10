@@ -71,7 +71,7 @@ export function GroupPage({ data, title, drafts, api, refresh, openMembers, sele
     <section className="group-card group-audit" aria-label="Group balances and repayments">
       <h2>Group balances &amp; repayments</h2>
       <GroupBalances data={data} view={view} />
-      <Repayments key={`${data.group.id}:${selectedRepaymentId ?? ''}`} selectedId={selectedRepaymentId} group={data.group} records={view.repayments} api={api} refresh={refresh} />
+      <Repayments key={`${data.group.id}:${selectedRepaymentId ?? ''}`} selectedId={selectedRepaymentId} group={data.group} records={view.repayments} formerMembers={data.ledger.formerMembers} api={api} refresh={refresh} />
     </section>
     {prefill && <RecordRepayment group={data.group} api={api} initial={prefill} close={() => setPrefill(null)} saved={() => { setPrefill(null); refresh(); }} />}
   </section>;

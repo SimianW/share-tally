@@ -12,6 +12,9 @@ export const scenarios = [
   { name: 'editor-repeated-initiation', environment: receiptEnvironment, run: repeatedInitiation },
   { name: 'editor-storage-failure', environment: receiptEnvironment, run: storageFailure },
   { name: 'editor-group-deletion', environment: receiptEnvironment, run: groupDeletion },
+  { name: 'editor-membership-ended', environment: receiptEnvironment, run: membershipEnded },
+  { name: 'editor-reconnect-404', environment: receiptEnvironment, run: reconnect404 },
+  { name: 'editor-inactive-recovery', environment: receiptEnvironment, run: inactiveRecovery },
   { name: 'editor-removed-draft', environment: receiptEnvironment, run: removedDraft },
   { name: 'editor-failed-reads', environment: receiptEnvironment, run: failedReads },
   { name: 'editor-rescan', environment: receiptEnvironment, run: rescan },
@@ -227,6 +230,99 @@ async function groupDeletion(env) {
   await expect(discardDialog(alice)).toHaveCount(0);
   assert.deepEqual(await alice.evaluate(groupId => Object.keys(sessionStorage)
     .filter(key => key.startsWith('receipt-draft:') && key.includes(`:${groupId}:`)), group.id), []);
+}
+
+// The real owner succession endpoint emits membership-ended while Alice is editing.
+async function membershipEnded(env) {
+  const { api, base } = env;
+  const { group, memberIds, newBillRoute, alice } = await receiptGroup(env);
+  const id = await amountDraft(env, group, memberIds, 'Leave during editing');
+  await alice.goto(`${newBillRoute}/${id}`);
+  await titleField(alice).fill('Unsaved before leaving');
+  await expect.poll(async () => (await storedDraft(alice, id))?.data.title).toBe('Unsaved before leaving');
+  const unloadBlocked = await alice.evaluate(() => {
+    const event = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  assert.equal(unloadBlocked, true);
+
+  await api(`/groups/${group.id}/leave`, 'alice-token', 'POST', { successorId: memberIds.Bob });
+  await expect(alice).toHaveURL(`${base}#`);
+  await expect(alice.getByRole('button', { name: 'Create your first group', exact: true })).toBeVisible();
+  await expect(discardDialog(alice)).toHaveCount(0);
+  assert.equal(await alice.evaluate(() => {
+    const event = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  }), false);
+  assert.deepEqual(await alice.evaluate(groupId => Object.keys(sessionStorage)
+    .filter(key => key.startsWith('receipt-draft:') && key.includes(`:${groupId}:`)), group.id), []);
+}
+
+// A reconnect stream 404 maps to the generic unavailable event and ends local recovery.
+async function reconnect404(env) {
+  const { api, base } = env;
+  const { group, memberIds, newBillRoute, alice } = await receiptGroup(env);
+  const id = await amountDraft(env, group, memberIds, 'Unavailable during editing');
+  await alice.goto(`${newBillRoute}/${id}`);
+  await titleField(alice).fill('Unsaved before reconnect failure');
+  await expect.poll(async () => (await storedDraft(alice, id))?.data.title).toBe('Unsaved before reconnect failure');
+  const unloadBlocked = await alice.evaluate(() => {
+    const event = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  assert.equal(unloadBlocked, true);
+
+  // Suspend the already-established stream before revoking membership, so its reconnect gets 404.
+  const eventPath = `**/api/groups/${group.id}/events`;
+  await alice.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await alice.route(eventPath, route => route.fulfill({
+    status: 404, contentType: 'application/json', body: JSON.stringify({ error: 'Group not found.' }),
+  }));
+  await api(`/groups/${group.id}/leave`, 'alice-token', 'POST', { successorId: memberIds.Bob });
+  await alice.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+
+  await expect(alice).toHaveURL(`${base}#`);
+  await expect(alice.getByRole('button', { name: 'Create your first group', exact: true })).toBeVisible();
+  await expect(discardDialog(alice)).toHaveCount(0);
+  assert.equal(await alice.evaluate(() => {
+    const event = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  }), false);
+  assert.deepEqual(await alice.evaluate(groupId => Object.keys(sessionStorage)
+    .filter(key => key.startsWith('receipt-draft:') && key.includes(`:${groupId}:`)), group.id), []);
+  await alice.unroute(eventPath);
+}
+
+// Unsaved copies kept after the editor closed are cleared when Home's list
+// shows the group is gone, so rejoining cannot restore them.
+async function inactiveRecovery(env) {
+  const { api, base } = env;
+  const { group, memberIds, newBillRoute, alice } = await receiptGroup(env);
+  const id = await amountDraft(env, group, memberIds, 'Left on Home');
+  await alice.goto(`${newBillRoute}/${id}`);
+  await titleField(alice).fill('Unsaved before going Home');
+  await expect.poll(async () => (await storedDraft(alice, id))?.data.title).toBe('Unsaved before going Home');
+  const kept = groupId => alice.evaluate(groupId => Object.keys(sessionStorage)
+    .filter(key => key.startsWith('receipt-draft:') && key.includes(`:${groupId}:`)), groupId);
+  // A full load of Home in the same tab keeps the session copy but mounts no editor or group stream.
+  // A query string makes this a full load rather than a guarded hash change.
+  await alice.goto(`${base}?home#`);
+  await expect(alice.getByText('Receipt friends', { exact: true }).first()).toBeVisible();
+  assert.notDeepEqual(await kept(group.id), []);
+
+  await api(`/groups/${group.id}/leave`, 'alice-token', 'POST', { successorId: memberIds.Bob });
+  await expect(alice.getByRole('button', { name: 'Create your first group', exact: true })).toBeVisible();
+  await expect.poll(() => kept(group.id)).toEqual([]);
 }
 
 // A draft deleted elsewhere cannot be saved or reloaded; leaving does not ask to discard it.

@@ -118,10 +118,21 @@ A bill withdrawn by its initiator and retained as a canceled record.
 The amount a member is currently owed or owes within a group after accounting for eligible bills and repayments. Every member having a zero net balance means no repayments are needed at that moment.
 
 **Group creator**:
-The member who created a group. This role is distinct from a bill's initiator. Only the group creator may delete the group, and only when it is cleared.
+The user who originally created a group and became its first group owner. It is a historical fact only and grants no permission once ownership has passed to another member.
+_Avoid_: Using it for the current management role; that is the group owner.
+
+**Group owner**:
+The one current member who manages a group: only they may get or replace its invitation link, remove another member, and delete the group when it is cleared. The group creator is the first owner; an owner who leaves chooses another current member, who becomes owner at once. Ownership is distinct from a bill's initiator and never changes who paid for a bill or what anyone owes.
+_Avoid_: Admin, creator.
+
+**Member departure**:
+A member leaving a group, or the group owner removing them. It needs the departing member's net balance in that group to be exactly zero, no incomplete bill they initiated or take part in, and no pending repayment record they sent or must decide; other members' activity does not block it. Departure ends all access to the group and deletes the departing member's uninitiated bill drafts there, with their receipt photos, raw receipt evidence and note photos. A sole remaining owner deletes the cleared group instead.
+
+**Former member**:
+A user whose membership in a group ended through member departure. Their bills, shares, item claims and repayment records remain under their identity and keep naming them for the remaining members, but they are not a current member, a new participant or a repayment recipient. A valid invitation link lets them rejoin as an ordinary member.
 
 **Deleted group**:
-A group marked as deleted by its creator after every member's net balance is zero, there are no incomplete bills, and there are no pending repayment records. Its financial records remain stored, but the group is gone for all members: it is absent from their group lists and its endpoints and invitation link no longer provide access. There is no read-only history view or restoration workflow. Uninitiated bill drafts, including processing drafts, are deleted and cannot be resumed. Receipt photos, raw receipt evidence and note photos are physically purged during group deletion, including those linked to initiated bills; receipt text and reviewed items are retained.
+A group marked as deleted by its owner after every member's net balance is zero, there are no incomplete bills, and there are no pending repayment records. Its financial records remain stored, but the group is gone for all members: it is absent from their group lists and its endpoints and invitation link no longer provide access. There is no read-only history view or restoration workflow. Uninitiated bill drafts, including processing drafts, are deleted and cannot be resumed. Receipt photos, raw receipt evidence and note photos are physically purged during group deletion, including those linked to initiated bills; receipt text and reviewed items are retained.
 
 **Invitation link**:
 A shareable link through which a signed-in user can join a group.

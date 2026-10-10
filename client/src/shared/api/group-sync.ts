@@ -1,7 +1,12 @@
 import { backoff, type StreamData, type SyncSession } from './notification-channel';
 
 export const groupDeletedEvent = 'share-tally:group-deleted';
-export type GroupDeleted = { id: string; name?: string };
+export const groupMembershipEndedEvent = 'share-tally:membership-ended';
+export const groupUnavailableEvent = 'share-tally:group-unavailable';
+// Every way group access ends; listeners that clear group state hear them all.
+export const groupAccessEndedEvents = [groupDeletedEvent, groupMembershipEndedEvent, groupUnavailableEvent];
+// removed: the owner ended this membership, rather than the member leaving.
+export type GroupDeleted = { id: string; name?: string; removed?: boolean };
 const stale = 'Live updates interrupted. Displayed data may be out of date.';
 
 type SyncOptions<T> = {
@@ -82,9 +87,12 @@ export function startGroupSync<T>(options: SyncOptions<T>) {
     unavailable() { available = false; obsolete(); options.status(stale); },
     suspend() { available = false; obsolete(); },
     denied(status, error) { available = false; obsolete(); options.accessDenied?.(status, error, 'stream'); options.status(status === 401 ? "Please sign in again." : "Group not found."); },
-    deleted(name) {
+    deleted(name, reason = 'deleted') {
       available = false; obsolete();
-      window.dispatchEvent(new CustomEvent<GroupDeleted>(groupDeletedEvent, { detail: { id: options.groupId, name } }));
+      const event = reason === 'left' || reason === 'removed' ? groupMembershipEndedEvent
+        : reason === 'unavailable' ? groupUnavailableEvent : groupDeletedEvent;
+      window.dispatchEvent(new CustomEvent<GroupDeleted>(event, { detail: { id: options.groupId, name, removed: reason === 'removed' } }));
+      // All access-ending reasons clear the same protected component state.
       options.deleted?.();
     },
   });

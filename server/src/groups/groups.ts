@@ -1,4 +1,4 @@
-import type { GroupDeletionReason } from '@share-tally/domain/contracts/groups';
+import type { GroupDeletionReason, MemberDepartureReason } from '@share-tally/domain/contracts/groups';
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
 import { readAttentionInSnapshot } from '../attention/attention.js';
@@ -21,6 +21,7 @@ const publicGroupFields = {
   icon: groups.icon,
   createdBy: groups.createdBy,
   createdAt: groups.createdAt,
+  ownerId: groups.ownerId,
 }
 
 export async function createGroup(
@@ -44,6 +45,7 @@ export async function createGroup(
         name: input.name,
         icon: `${input.icon.type}:${input.icon.value}`,
         createdBy: creatorId,
+        ownerId: creatorId,
       })
       .returning(publicGroupFields)
 
@@ -64,12 +66,12 @@ export async function createGroup(
     // 回调成功结束后，Drizzle 才提交事务。
     // 如果上面的任意操作抛错，整个事务回滚。
     // A new group has no bills yet, so its creator's balance is zero.
-    const creatorName = creator.displayName ?? "Member";
+    const ownerName = creator.displayName ?? "Member";
     return {
-      ...toGroup({ ...group, joinedAt: membership!.joinedAt, creatorName, memberCount: 1 }, creatorId),
+      ...toGroup({ ...group, joinedAt: membership!.joinedAt, ownerName, memberCount: 1 }, creatorId),
       netCents: 0,
       pendingActionCount: 0,
-      memberPreview: [{ id: creatorId, displayName: creatorName }],
+      memberPreview: [{ id: creatorId, displayName: ownerName }],
     }
   })
 };
@@ -78,19 +80,19 @@ export async function createGroup(
 const summaryFields = {
   ...publicGroupFields,
   joinedAt: groupMembers.joinedAt,
-  creatorName: sql<string>`coalesce(${users.displayName}, 'Member')`,
+  ownerName: sql<string>`coalesce(${users.displayName}, 'Member')`,
   memberCount: sql<number>`(select count(*) from ${groupMembers} where ${groupMembers.groupId} = ${groups.id})`.mapWith(Number),
 };
 
 function toGroup(row: {
-  id: string; name: string; icon: string; createdBy: string; createdAt: Date; joinedAt: Date;
-  creatorName: string; memberCount: number;
+  id: string; name: string; icon: string; createdBy: string; createdAt: Date; ownerId: string; joinedAt: Date;
+  ownerName: string; memberCount: number;
 }, userId: string) {
   const separator = row.icon.indexOf(':');
   return {
     ...row,
     icon: parseGroupIcon({ type: row.icon.slice(0, separator), value: row.icon.slice(separator + 1) }),
-    isCreator: row.createdBy === userId,
+    isOwner: row.ownerId === userId,
   };
 }
 
@@ -103,7 +105,7 @@ export async function listGroupsForUser(userId: string) {
   return db.transaction(async tx => {
     const rows = await tx.select(summaryFields).from(groupMembers)
       .innerJoin(groups, eq(groupMembers.groupId, groups.id))
-      .innerJoin(users, eq(groups.createdBy, users.id))
+      .innerJoin(users, eq(groups.ownerId, users.id))
       .where(and(eq(groupMembers.userId, userId), isNull(groups.deletedAt)))
       .orderBy(groupMembers.joinedAt, groups.id);
     const ids = rows.map(row => row.id);
@@ -142,13 +144,13 @@ export async function sharedGroups(tx: Tx, userIds: string[]) {
 }
 
 export class GroupAccessError extends Error {
-  constructor(public status: 403 | 404 | 409, message: string) { super(message); }
+  constructor(public status: 400 | 403 | 404 | 409, message: string) { super(message); }
 }
 
 export async function getGroupForMember(groupId: string, userId: string) {
   const [row] = await db.select(summaryFields).from(groupMembers)
     .innerJoin(groups, eq(groupMembers.groupId, groups.id))
-    .innerJoin(users, eq(groups.createdBy, users.id))
+    .innerJoin(users, eq(groups.ownerId, users.id))
     .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId), isNull(groups.deletedAt)));
   // Do not reveal whether an inaccessible group exists.
   if (!row) throw new GroupAccessError(404, 'Group not found.');
@@ -162,7 +164,7 @@ export async function getGroupForMember(groupId: string, userId: string) {
     ...toGroup(row, userId),
     memberCount: members.length,
     members: members.map(member => ({
-      ...member, isCreator: member.id === row.createdBy, isCurrentUser: member.id === userId,
+      ...member, isOwner: member.id === row.ownerId, isCurrentUser: member.id === userId,
     })),
   };
 }
@@ -170,9 +172,9 @@ export async function getGroupForMember(groupId: string, userId: string) {
 export async function groupInvitation(groupId: string, userId: string, regenerate: boolean) {
   return db.transaction(async tx => {
     // Joining and rotating the token serialize on this same row.
-    const group = await lockGroupForMember(tx, groupId, userId);
-    if (group.createdBy !== userId) throw new GroupAccessError(403, 'Only the group creator can manage invitations.');
-    let token = group.invitationToken;
+    await lockGroupForOwner(tx, groupId, userId, 'Only the group owner can manage invitations.');
+    const [group] = await tx.select({ invitationToken: groups.invitationToken }).from(groups).where(eq(groups.id, groupId));
+    let token = group!.invitationToken;
     if (regenerate || token === null) {
       token = randomBytes(32).toString('hex');
       await tx.update(groups).set({ invitationToken: token }).where(eq(groups.id, groupId));
@@ -237,16 +239,18 @@ async function deletionReasons(tx: Tx, groupId: string, userId: string): Promise
   return reasons;
 }
 
-export async function lockGroupForCreator(tx: Tx, groupId: string, userId: string) {
+// Ownership is reread under the group row lock, so a transfer that committed
+// first is what decides this request, never the role the client last displayed.
+export async function lockGroupForOwner(tx: Tx, groupId: string, userId: string,
+  message = 'Only the group owner can delete this group.') {
   const group = await lockGroupForMember(tx, groupId, userId);
-  if (group.createdBy !== userId)
-    throw new GroupAccessError(403, 'Only the group creator can delete this group.');
+  if (group.ownerId !== userId) throw new GroupAccessError(403, message);
   return group;
 }
 
 export async function groupDeletionEligibility(groupId: string, userId: string) {
   return db.transaction(async tx => {
-    await lockGroupForCreator(tx, groupId, userId);
+    await lockGroupForOwner(tx, groupId, userId);
     const reasons = await deletionReasons(tx, groupId, userId);
     return { eligible: reasons.length === 0, reasons };
   });
@@ -259,4 +263,41 @@ export async function requireGroupDeletionEligibility(tx: Tx, groupId: string, u
 
 export async function markGroupDeleted(tx: Tx, groupId: string) {
   await tx.update(groups).set({ deletedAt: new Date() }).where(eq(groups.id, groupId));
+}
+
+export class MemberDepartureError extends GroupAccessError {
+  constructor(subject: string, public reasons: MemberDepartureReason[]) {
+    const descriptions = reasons.map(reason => {
+      switch (reason.code) {
+        case 'nonzero_balance': return 'the balance in this group is not zero';
+        case 'incomplete_bills': return `${reason.bills.length} incomplete bill${reason.bills.length === 1 ? '' : 's'}`;
+        case 'pending_repayments': return `${reason.repayments.length} pending repayment${reason.repayments.length === 1 ? '' : 's'}`;
+        case 'sole_member': return 'the owner is the only member; delete the cleared group instead';
+      }
+    });
+    super(409, `${subject}: ${descriptions.join('; ')}.`);
+  }
+}
+
+// Caller holds the group row lock, which every membership change, join and
+// financial write also takes first.
+export async function requireCurrentMember(tx: Tx, groupId: string, userId: string) {
+  const [member] = await tx.select({ userId: groupMembers.userId }).from(groupMembers)
+    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)));
+  if (!member) throw new GroupAccessError(404, 'Member not found.');
+}
+
+export async function memberIds(tx: Tx, groupId: string) {
+  return (await tx.select({ userId: groupMembers.userId }).from(groupMembers)
+    .where(eq(groupMembers.groupId, groupId))).map(member => member.userId);
+}
+
+export async function transferOwnership(tx: Tx, groupId: string, successorId: string) {
+  await tx.update(groups).set({ ownerId: successorId }).where(eq(groups.id, groupId));
+}
+
+// Ends access only. Bills, shares, claims and repayment records keep the
+// user's stable identity, and a valid invitation lets them rejoin as a member.
+export async function endMembership(tx: Tx, groupId: string, userId: string) {
+  await tx.delete(groupMembers).where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)));
 }
