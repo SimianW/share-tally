@@ -7,10 +7,11 @@ name: share-tally
 trigger:
   event: [push]
 
-# Run up to three builds at once. This no longer serializes main releases, so
-# overlapping pushes to main can run migrations and deploys concurrently.
+# Run one build at a time. The browser release gate is load-sensitive and must
+# not share the host with another build's gate. Serial builds also stop main's
+# migrations and deploys from overlapping.
 concurrency:
-  limit: 3
+  limit: 1
 
 volumes:
   - name: docker-socket

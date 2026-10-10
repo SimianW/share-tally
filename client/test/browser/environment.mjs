@@ -18,6 +18,7 @@ import { GenericContainer, Wait, getContainerRuntimeClient } from 'testcontainer
 import { createServer } from 'vite';
 import react from '@vitejs/plugin-react';
 import { themeBootstrap } from '../../build/theme-bootstrap.ts';
+import { nginxTestConfig } from './nginx-config.mjs';
 
 export const clientRoot = fileURLToPath(new URL('../../', import.meta.url));
 export const serverRoot = fileURLToPath(new URL('../../../server/', import.meta.url));
@@ -106,14 +107,9 @@ export async function startEnvironment({ backend = true, remoteHost = null, firs
     await once(web, 'listening');
     let applicationPort = web.address().port;
     if (nginx) {
-      // Keep deploy's API proxy directives. Vite supplies the test Clerk bundle;
-      // production serves its built static files in this location instead.
+      // Production's API proxy in front of the test API; Vite serves everything else.
       const deployConfig = await readFile(new URL('../../../deploy/nginx.conf', import.meta.url), 'utf8');
-      const upstream = `http://host.docker.internal:${applicationPort}`;
-      // Vite serves thousands of development modules instead of built assets.
-      // Reuse its static upstream sockets while still allowing its HMR upgrade.
-      const staticUpstream = `upstream test_vite { server host.docker.internal:${applicationPort}; keepalive 64; }\nmap $http_upgrade $test_connection { default upgrade; '' ''; }\n`;
-      const config = staticUpstream + deployConfig.replace('http://api:3000', upstream).replace('try_files $uri $uri/ /index.html;', 'proxy_pass http://test_vite;\n        proxy_http_version 1.1;\n        proxy_set_header Host $host;\n        proxy_set_header Upgrade $http_upgrade;\n        proxy_set_header Connection $test_connection;');
+      const config = nginxTestConfig(deployConfig, applicationPort);
       const proxy = await new GenericContainer('public.ecr.aws/docker/library/nginx:1.28-alpine')
         .withExtraHosts([{ host: 'host.docker.internal', ipAddress: 'host-gateway' }])
         .withCopyContentToContainer([{ content: config, target: '/etc/nginx/conf.d/default.conf' }])
