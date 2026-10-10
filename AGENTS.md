@@ -2,7 +2,7 @@
 
 ### Project context
 
-Before planning or implementing, read `docs/project-brief.md` for ownership and delivery constraints. Current requirements live in GitHub issue #1 and its implementation tickets; domain terms and accepted decisions live in `CONTEXT.md` and `docs/adr/`. Research notes are background, not approved requirements.
+Before planning or implementing, read `docs/project-brief.md` for ownership and delivery constraints. Current requirements live in GitHub issue #1 and its implementation tickets; domain terms and accepted decisions live in `GLOSSARY.md` and `docs/adr/`. Research notes are background, not approved requirements.
 
 ### Issue tracker
 
@@ -14,7 +14,7 @@ Default vocabulary; each label string equals its canonical role name. See `docs/
 
 ### Domain docs
 
-Single-context: `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
 ### Code structure
 
@@ -30,7 +30,7 @@ When delegating frontend design work (UI/UX, layout, visual design) to a subagen
 
 Review the PR diff against its base, reading surrounding code to verify consequences. Identify the originating issue from the PR description or commits and read it with its relevant comments using `docs/agents/issue-tracker.md`. Follow linked requirements and dependencies that govern the change. Issue #1 is the first-release baseline; issue #26 overrides its receipt-extraction and item-claiming scope as described in `docs/project-brief.md`.
 
-Use `CONTEXT.md`, accepted decisions in `docs/adr/`, and applicable repository instructions for domain and standards context. Treat research notes, draft specs, and implementation notes as background unless the accepted requirement explicitly adopts them. If a required source is unavailable or the originating requirement cannot be identified, state the gap in the review summary and limit conclusions to accessible evidence.
+Use `GLOSSARY.md`, accepted decisions in `docs/adr/`, and applicable repository instructions for domain and standards context. Treat research notes, draft specs, and implementation notes as background unless the accepted requirement explicitly adopts them. If a required source is unavailable or the originating requirement cannot be identified, state the gap in the review summary and limit conclusions to accessible evidence.
 
 ### Standards
 

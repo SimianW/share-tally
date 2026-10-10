@@ -195,7 +195,7 @@ project-addition event. It becomes active after merging into the default branch.
 ## Project docs
 
 - [Project background and development guidelines](docs/project-brief.md)
-- [Domain terminology](CONTEXT.md)
+- [Domain terminology](GLOSSARY.md)
 - [Architecture and business decisions](docs/adr/)
 - [Product requirements](https://github.com/SimianW/share-tally/issues/1)
 - [Receipt extraction and item claiming requirements](https://github.com/SimianW/share-tally/issues/26)
