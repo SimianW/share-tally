@@ -16,6 +16,8 @@ const memberVersion = (userId: string) => JSON.stringify({ version: `${started}:
 
 function changed(streams: Map<string, Set<Response>>, key: string, data = '{}') {
   for (const response of streams.get(key) ?? []) {
+    // An ended stream stays in its set until its asynchronous close; writing to it would throw.
+    if (response.writableEnded || response.destroyed) continue;
     // A slow reader reconnects and fetches a snapshot instead of buffering history.
     if (!response.write(`event: changed\ndata: ${data}\n\n`)) response.destroy();
   }
@@ -39,12 +41,13 @@ export function notifyGroupDeleted(groupId: string, name: string) {
   }
 }
 
-// The member's access to this group ended: they left or were removed. Their
-// open streams receive a final event and end; other members' streams continue.
-export function notifyMembershipEnded(groupId: string, userId: string, name: string) {
+// The member's access to this group ended: they left (perhaps on another
+// device) or the owner removed them. Their open streams receive a final event
+// saying which, and end; other members' streams continue.
+export function notifyMembershipEnded(groupId: string, userId: string, name: string, removed: boolean) {
   for (const response of subscribers.get(groupId) ?? []) {
     if (streamUsers.get(response) === userId)
-      response.end(`event: membership-ended\ndata: ${JSON.stringify({ id: groupId, name })}\n\n`);
+      response.end(`event: membership-ended\ndata: ${JSON.stringify({ id: groupId, name, removed })}\n\n`);
   }
 }
 

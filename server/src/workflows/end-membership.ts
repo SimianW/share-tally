@@ -53,8 +53,9 @@ async function endIfEligible(tx: Tx, groupId: string, userId: string, subject: s
   return memberIds(tx, groupId);
 }
 
-function announce(groupId: string, name: string, departedId: string, remainingIds: string[]) {
-  notifyMembershipEnded(groupId, departedId, name);
+function announce(groupId: string, name: string, departedId: string, remainingIds: string[], removed: boolean) {
+  // Ending the leaver's streams first means they hear why, not a change they can no longer read.
+  notifyMembershipEnded(groupId, departedId, name, removed);
   notifyGroupChanged(groupId);
   notifyMembersChanged([departedId, ...remainingIds]);
 }
@@ -80,7 +81,7 @@ export async function leaveGroup(groupId: string, userId: string, successorId?: 
     if (owner) await transferOwnership(tx, groupId, successorId!);
     return { name: group.name, remaining: await endIfEligible(tx, groupId, userId, 'You cannot leave this group yet') };
   });
-  announce(groupId, name, userId, remaining);
+  announce(groupId, name, userId, remaining, false);
 }
 
 export async function removeMember(groupId: string, ownerId: string, userId: string) {
@@ -91,5 +92,5 @@ export async function removeMember(groupId: string, ownerId: string, userId: str
     await requireCurrentMember(tx, groupId, userId);
     return { name: group.name, remaining: await endIfEligible(tx, groupId, userId, 'This member cannot be removed yet') };
   });
-  announce(groupId, name, userId, remaining);
+  announce(groupId, name, userId, remaining, true);
 }

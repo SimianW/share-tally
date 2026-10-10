@@ -35,8 +35,8 @@ function setup(t) {
   return { session, subscription, consumer, requests, events, window, document };
 }
 
-for (const [frame, reason] of [['group-deleted', 'deleted'], ['membership-ended', 'membership-ended']]) {
-  test(`${frame} closes both renewal streams and replays its exact reason to late consumers`, async t => {
+for (const [frame, reason, removed] of [['group-deleted', 'deleted'], ['membership-ended', 'removed', true], ['membership-ended', 'left', false]]) {
+  test(`${frame} (${reason}) closes both renewal streams and replays its exact reason to late consumers`, async t => {
     const { session, subscription, consumer, requests, events, window } = setup(t);
     await nextTurn();
     requests[0].send('ready', ready);
@@ -49,7 +49,7 @@ for (const [frame, reason] of [['group-deleted', 'deleted'], ['membership-ended'
     requests[0].send(frame, { id: 'other-group', name: 'Wrong group' });
     await nextTurn();
     assert.deepEqual(events, [['ready']]);
-    requests[0].send(frame, { id: 'group', name: 'Costco friends' });
+    requests[0].send(frame, { id: 'group', name: 'Costco friends', ...(removed === undefined ? {} : { removed }) });
     await nextTurn();
     assert.deepEqual(events, [['ready'], ['ended', 'Costco friends', reason]]);
     assert.ok(requests.every(request => request.signal.aborted));

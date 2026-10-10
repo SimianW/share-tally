@@ -237,7 +237,7 @@ test('a zero-net member leaves even while pairwise direct debts remain, and rema
   const after = (await json(await api(`/groups/${group.id}/bills`))).ledger;
   assert.deepEqual(after.members.map((m: { displayName: string; netCents: number }) => [m.displayName, m.netCents]).sort(),
     [['Alice', 0], ['Carol', 0]]);
-  assert.deepEqual(after.formerMembers, [{ userId: group.bob, displayName: 'Bob' }]);
+  assert.deepEqual(after.formerMembers, [{ userId: group.bob, displayName: 'Bob', netCents: 0 }]);
   assert.deepEqual(after.suggestions, []);
   assert.deepEqual(after.entries, before.entries);
   assert.deepEqual(after.directDebts, before.directDebts);
@@ -421,7 +421,7 @@ test('departure keeps shared history readable by remaining members, purges only 
   assert.deepEqual(after.bills, before.bills);
   assert.deepEqual(after.repayments, before.repayments);
   assert.deepEqual(after.ledger.entries, before.ledger.entries);
-  assert.deepEqual(after.ledger.formerMembers, [{ userId: group.bob, displayName: 'Bob' }]);
+  assert.deepEqual(after.ledger.formerMembers, [{ userId: group.bob, displayName: 'Bob', netCents: 0 }]);
   const [haul] = after.bills;
   assert.deepEqual(haul.participants.map((p: { displayName: string }) => p.displayName).sort(), ['Alice', 'Bob']);
   assert.equal((await api(`/receipt-drafts/${initiated}/photo`, 'carol-token')).status, 200);
@@ -656,11 +656,11 @@ test('a departed member’s open group streams end with a final event, while the
     for (let i = 0; i < 3; i++) await next(i, 'ready');
     await json(await leave(group.id, 'bob-token'));
     const bob = await next(1, 'membership-ended');
-    assert.match(bob.text, new RegExp(`event: membership-ended\\ndata: ${JSON.stringify(JSON.stringify({ id: group.id, name: 'Costco' })).slice(1, -1)}`));
+    assert.match(bob.text, new RegExp(`event: membership-ended\\ndata: ${JSON.stringify(JSON.stringify({ id: group.id, name: 'Costco', removed: false })).slice(1, -1)}`));
     assert.equal((await readers[1]!.read()).done, true);
     for (const index of [0, 2]) assert.equal((await next(index, 'changed')).ended, false);
     await json(await remove(group.id, group.carol));
-    assert.match((await next(2, 'membership-ended')).text, /membership-ended/);
+    assert.match((await next(2, 'membership-ended')).text, /event: membership-ended\ndata: .*"removed":true/);
     assert.equal((await readers[2]!.read()).done, true);
     assert.equal((await next(0, 'changed')).ended, false);
     // A reconnecting former member is refused.

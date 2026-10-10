@@ -179,7 +179,8 @@ export function groupLedger(
   });
   return {
     members: result,
-    formerMembers: formerMembers.map(member => ({ userId: member.userId, displayName: member.displayName ?? 'Member' })),
+    formerMembers: formerMembers.map(member => ({ userId: member.userId, displayName: member.displayName ?? 'Member',
+      netCents: safeCents(balances.get(member.userId) ?? 0n) })),
     suggestions,
     directDebts,
     incompleteBillIds: bills.filter(bill => !bill.completedAt && !bill.canceledAt).map(bill => bill.id),

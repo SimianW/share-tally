@@ -163,11 +163,9 @@ function LedgerTable({ data, view, trace }: { data: GroupPageData; view: GroupVi
     {cents === undefined ? <span><span aria-hidden="true">—</span><span className="sr-only">Not involved</span></span>
       : <span>{signed(cents)}</span>}
   </td>;
-  // Former members keep a column so retained entries still show every effect;
-  // their balance is the sum of those effects, zero since they left settled.
+  // Former members keep a column so retained entries still show every effect.
   const columns = [...view.members.map(member => ({ ...member, former: false })),
-    ...view.formerMembers.map(member => ({ userId: member.userId, former: true,
-      netCents: entries.reduce((sum, entry) => sum + (entry.effects.find(effect => effect.userId === member.userId)?.netCents ?? 0), 0) }))];
+    ...view.formerMembers.map(member => ({ ...member, former: true }))];
   const reveal = () => { setShowAll(true); scroll.current?.focus({ preventScroll: true }); };
   return <>
     <div ref={scroll} className="ledger-table-scroll" role="region" aria-label="Ledger table" tabIndex={0}>

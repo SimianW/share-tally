@@ -1,7 +1,8 @@
 // One session owns these channels. Consumers keep their own snapshot coordinators.
 import type { TokenProvider } from './transport';
 export type StreamData = { expiresAt: number; expiresInMs: number; version?: string };
-export type GroupAccessEndReason = 'deleted' | 'membership-ended' | 'unavailable';
+// 'left' and 'removed' are both the end of this member's membership.
+export type GroupAccessEndReason = 'deleted' | 'left' | 'removed' | 'unavailable';
 export type Subscription = {
   ready: (data: StreamData) => void;
   changed: (data: StreamData) => void;
@@ -176,7 +177,7 @@ function createChannel(path: string, freshToken: () => Promise<string | null>, a
     try { data = JSON.parse(frame.match(/^data: (.*)$/m)?.[1] ?? ''); } catch { return; }
     if (!data || typeof data !== 'object') return;
     if ((kind === 'group-deleted' || kind === 'membership-ended') && 'id' in data && path === `/api/groups/${encodeURIComponent(String(data.id))}/events` && 'name' in data && typeof data.name === 'string') {
-      deleted(data.name, kind === 'group-deleted' ? 'deleted' : 'membership-ended');
+      deleted(data.name, kind === 'group-deleted' ? 'deleted' : 'removed' in data && data.removed === true ? 'removed' : 'left');
     } else if (kind === 'ready' && 'expiresAt' in data && typeof data.expiresAt === 'number' && Number.isFinite(data.expiresAt) && 'expiresInMs' in data && typeof data.expiresInMs === 'number' && data.expiresInMs > 0 && data.expiresInMs <= 30_000 &&
       (path !== '/api/me/events' || ('version' in data && typeof data.version === 'string'))) {
       promote(stream, { expiresAt: data.expiresAt, expiresInMs: data.expiresInMs, version: 'version' in data && typeof data.version === 'string' ? data.version : undefined });

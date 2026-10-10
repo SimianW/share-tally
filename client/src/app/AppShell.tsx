@@ -60,7 +60,7 @@ export default function AppShell({
   const knownGroups = useRef(new Map<string, GroupView>());
   useEffect(() => {
     function accessEnded(event: Event) {
-      const { id, name } = (event as CustomEvent<GroupDeleted>).detail;
+      const { id, name, removed } = (event as CustomEvent<GroupDeleted>).detail;
       clearGroupDraftRecovery(id);
       if (handledAccessEnds.current.has(id)) return;
       const detail = cache.getQueryData<{ group: GroupDetail }>([`/groups/${id}`])?.group;
@@ -75,7 +75,7 @@ export default function AppShell({
         : event.type === groupMembershipEndedEvent ? leftLocally(id) : deletedLocally(id) || leftLocally(id);
       if (!local) {
         if (event.type === groupMembershipEndedEvent) {
-          setAccessNotice(`You were removed from ${groupName}`);
+          setAccessNotice(removed ? `You were removed from ${groupName}` : `You left ${groupName}`);
         } else if (event.type === groupUnavailableEvent) {
           setAccessNotice(`${groupName} is no longer available. It may have been deleted or your membership ended.`);
         } else if (!detail?.isOwner && !listed?.isOwner) {

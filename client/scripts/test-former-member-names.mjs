@@ -7,7 +7,7 @@ const currentMembers = [
   { id: 'alice', displayName: 'Alice', isCurrentUser: true },
   { id: 'bob', displayName: 'Bob', isCurrentUser: false },
 ];
-const formerMembers = [{ userId: 'carol', displayName: 'Carol' }];
+const formerMembers = [{ userId: 'carol', displayName: 'Carol', netCents: 0 }];
 
 function pageData() {
   return {
