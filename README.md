@@ -154,9 +154,12 @@ Each command runs every scenario in its suite, one after another. A scenario cre
 pnpm test:browser draft-save-and-recovery
 pnpm test:receipts scan-fallback processing-recovery
 pnpm test:browser --list
+pnpm test:browser --all
 ```
 
-A failing scenario is reported by name; screenshots of its open pages are kept in `client/test-results/failures/<scenario>/`. `pnpm test:environment` checks partial-startup cleanup, browser connection failures, normal disposal and browser/`route.fetch` origin behavior. `pnpm test:network-isolation` creates and removes unrelated Docker bridges while a controlled graph of JavaScript modules is loading and fails if any browser resources report `ERR_NETWORK_CHANGED`. Scenarios live in `client/test/browser/`, grouped by business area; `environment.mjs` is the shared environment and `suites.mjs` lists every scenario.
+`--all` runs every scenario in every suite, as the [release gate](#browser-release-gate) does.
+
+A failing scenario is reported by name; screenshots of its open pages are kept in `client/test-results/failures/<scenario>/`. `pnpm test:environment` checks partial-startup cleanup, browser connection failures, normal disposal and browser/`route.fetch` origin behavior. `pnpm test:network-isolation` creates and removes unrelated Docker bridges while a controlled graph of JavaScript modules is loading and fails if any browser resources report `ERR_NETWORK_CHANGED`. Scenarios live in `client/test/browser/`, grouped by business area; `environment.mjs` is the shared environment, `suites.mjs` lists every scenario and `selection.mjs` chooses which ones a command runs.
 
 The browser container uses its own network namespace. Its loopback relay forwards the application's port to Vite through Docker's `host-gateway`, preserving localhost secure contexts, `receipt.test` plain-HTTP contexts and intercepted upstream requests. Vite listens on all interfaces while a scenario runs, so run these test-only identities and services on a trusted development machine. An unrelated remote Docker daemon cannot reach Vite using this setup. Host executable overrides such as `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` no longer apply.
 
@@ -201,3 +204,33 @@ project-addition event. It becomes active after merging into the default branch.
 - [Receipt extraction and item claiming requirements](https://github.com/SimianW/share-tally/issues/26)
 
 The live app is at **https://sharetally.app**. See the [Drone configuration](.drone.yml) and [Docker Compose configuration](deploy/compose.yml) for the deployment setup.
+
+### Browser release gate
+
+A push to `main` runs these steps in order, and any failing step stops the ones after it:
+
+1. `test-and-build`: server tests, client lint and unit tests, and the builds.
+2. `browser-tests`: the browser-infrastructure tests (`test:environment`, `test:network-isolation`), then every browser scenario (`test:browser --all`).
+3. `publish-images`
+4. `deploy`
+
+[`deploy/browser-check.sh`](deploy/browser-check.sh) builds the `browser-checks` image. It runs each check in a container that shares the host network and Docker socket, the setup described in [Checks and tests](#checks-and-tests). Chromium stays in its own container network namespace, so Docker bridge changes made by other jobs do not interrupt it. Scenarios run one at a time. Every check runs even after an earlier one fails. The step then fails with a line such as `Failed: receipts/scan-fallback` naming each failing scenario, and `deploy` does not run. Failure screenshots stay inside the removed container. To get them, rerun the scenario locally.
+
+The step runs only for pushes to `main`. The pipeline is triggered only by `push`, so pull-request events never run it and never reach the host Docker socket or the deployment secrets. While the step runs, Vite listens on all host interfaces and serves test-only identities, so keep the Drone host's test ports firewalled from the internet.
+
+To rerun one failing scenario, run it by name from a checkout of the failing commit:
+
+```bash
+cd client
+pnpm test:browser scan-fallback
+```
+
+To reproduce the CI container instead, run it from the repository root:
+
+```bash
+docker build --target browser-checks --tag share-tally-browser-check .
+docker run --rm --network host --volume /var/run/docker.sock:/var/run/docker.sock \
+  --env TESTCONTAINERS_HOST_OVERRIDE=127.0.0.1 share-tally-browser-check pnpm test:browser scan-fallback
+```
+
+To rerun the whole gate, restart the Drone build. A gate that failed blocks that commit from release. A later push to `main` that passes releases normally.
