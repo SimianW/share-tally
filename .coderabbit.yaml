@@ -123,6 +123,7 @@ knowledge_base:
     # A plain string only governs files under the guideline's own directory, so
     # the ADRs need an explicit applyTo to reach the code they constrain.
     filePatterns:
+      - "CODING_STANDARDS.md"
       - "GLOSSARY.md"
       - files: "docs/adr/*.md"
         applyTo: "**/*"
