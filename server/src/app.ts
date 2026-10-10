@@ -11,6 +11,7 @@ import { createRepaymentsRouter } from './repayments/repayment-routes.js';
 import { profileAvatars } from './identity/avatar-profile.js';
 import { createAvatarReader, type AvatarLookup } from './identity/avatars.js';
 import { createBillsRouter } from './bills/bill-routes.js';
+import { checkDatabase } from './db/index.js';
 import { BillError } from "./shared/bill-error.js";
 import express, { type ErrorRequestHandler, type Request, type RequestHandler } from 'express';
 import { clerkClient, clerkMiddleware, getAuth } from '@clerk/express';
@@ -60,8 +61,19 @@ export function createApp(auth: Authentication = {
     next();
   });
 
+  // Liveness: the process responds, whatever the database's state, so a
+  // database outage alone does not get the API restarted.
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok' });
+  });
+  // Readiness: the API can reach PostgreSQL. Failure details stay server-side.
+  app.get('/api/health/ready', async (_req, res) => {
+    try {
+      await checkDatabase();
+      res.json({ status: 'ok' });
+    } catch {
+      res.status(503).json({ status: 'unavailable' });
+    }
   });
 
   app.use('/api', auth.middleware, (req, res, next) => {

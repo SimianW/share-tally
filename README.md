@@ -211,7 +211,7 @@ A release deploys only the commit at the head of `main`. Before copying the Comp
 - [Product requirements](https://github.com/SimianW/share-tally/issues/1)
 - [Receipt extraction and item claiming requirements](https://github.com/SimianW/share-tally/issues/26)
 
-The live app is at **https://sharetally.app**. See the [Drone configuration](.drone.yml) and [Docker Compose configuration](deploy/compose.yml) for the deployment setup.
+The live app is at **https://sharetally.app**. See the [Drone configuration](.drone.yml) and [Docker Compose configuration](deploy/compose.yml) for the deployment setup. `GET /api/health` is liveness: it succeeds whenever the API process responds. `GET /api/health/ready` is readiness: it returns 503 when PostgreSQL does not answer within its time limit.
 
 ### Browser release gate
 

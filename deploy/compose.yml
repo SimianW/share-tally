@@ -9,8 +9,11 @@ services:
     networks:
       - app
       - database
+    # Readiness: healthy only while PostgreSQL answers, so `up --wait` records
+    # a release and web starts only when the API can serve requests. Compose
+    # does not restart unhealthy containers; liveness is /api/health.
     healthcheck:
-      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/api/health/ready').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 10s
       timeout: 5s
       retries: 6
@@ -26,6 +29,8 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    # Liveness through Nginx: proves the proxy reaches a responding API without
+    # also failing the web container during a database outage.
     healthcheck:
       test: [CMD, wget, -q, --spider, http://127.0.0.1/api/health]
       interval: 10s
