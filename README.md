@@ -195,6 +195,14 @@ estimate for issues; PR-Agent's review effort remains a separate estimate of
 review difficulty. This workflow does not write project fields or wait for a
 project-addition event. It becomes active after merging into the default branch.
 
+## Deployment
+
+Drone runs one build at a time (`concurrency: limit: 1`), so only one release runs at a time; a later push waits in the queue. The [browser release gate](#browser-release-gate) lists a release's steps.
+
+A release deploys only the commit at the head of `main`. Before copying the Compose file, migrating or replacing containers, [`deploy/deploy.sh`](deploy/deploy.sh) reads `main` from GitHub. If `main` has moved on, it logs `Release superseded` and exits successfully without changing the host. The newer commit's own release then deploys it, so an older commit can never finish last. This also applies when an earlier build is restarted, so roll back by pushing a revert to `main`. If the newest commit fails its checks, its release does not run, and an older release that was still waiting is skipped as superseded. The previously deployed release keeps running.
+
+[`server/src/migrate.ts`](server/src/migrate.ts) holds a PostgreSQL advisory lock for the whole migration run. Any other migration run, including `pnpm db:migrate` started by hand, waits for it instead of applying the same migrations concurrently. `server/test/migrate.test.ts` starts two runs together and checks that both succeed and that each migration is applied once.
+
 ## Project docs
 
 - [Project background and development guidelines](docs/project-brief.md)
