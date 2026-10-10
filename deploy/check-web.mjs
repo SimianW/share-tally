@@ -81,7 +81,8 @@ test('a missing file is a 404, not cached index.html', async () => {
   for (const path of ['/assets/index-missing.js', '/fonts/missing.woff2', '/missing.svg']) {
     const response = await get(path, browser);
     assert.equal(response.status, 404, path);
-    assert.equal(response.headers['cache-control'], undefined, path);
+    // A rollback can make the same hashed name valid again; never cache its absence.
+    assert.equal(response.headers['cache-control'], 'no-store', path);
     assert.doesNotMatch(text(response), /id="root"/, path);
   }
 });
