@@ -18,6 +18,11 @@ test('the browser-test Nginx config keeps production API proxying and sends ever
   assert.doesNotMatch(config, /api:3000|try_files/);
 });
 
+test('the Vite location goes inside the server block even when another block follows it', () => {
+  const config = nginxTestConfig('server {\n    listen 80;\n    location /api/ { proxy_pass http://api:3000; }\n}\nupstream later { server example:1; }\n', 5173);
+  assert.match(config, /location \/ \{[^}]*\}\n\}\nupstream later \{ server example:1; \}\n$/);
+});
+
 test('a deploy config without the API location is rejected', () => {
   assert.throws(() => nginxTestConfig('server {\n    listen 80;\n    location / { try_files $uri /index.html; }\n}\n', 5173), /location \/api\//);
 });

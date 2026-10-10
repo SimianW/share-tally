@@ -21,21 +21,38 @@ export function nginxTestConfig(deployConfig, vitePort) {
         proxy_set_header Connection $test_connection;
     }
 `;
-  const close = config.lastIndexOf('}');
+  const close = serverClose(config);
   return upstream + config.slice(0, close) + location + config.slice(close);
+}
+
+// Comments may contain braces; blank them out without moving any offsets.
+const withoutComments = config => config.replace(/#[^\n]*/g, comment => ' '.repeat(comment.length));
+
+// The index just past the brace that closes the block opened at or after `from`.
+function blockEnd(code, from) {
+  let depth = 0, end = from;
+  do {
+    if (code[end] === '{') depth++;
+    if (code[end] === '}') depth--;
+    end++;
+  } while (depth > 0 || code[end - 1] !== '}');
+  return end;
+}
+
+// The index of the server block's closing brace.
+function serverClose(config) {
+  const code = withoutComments(config);
+  const server = /^\s*server\s*\{/m.exec(code);
+  if (!server) throw new Error('deploy/nginx.conf needs a server block');
+  return blockEnd(code, server.index) - 1;
 }
 
 // Location blocks directly inside the server block, with their full extent.
 function serverLocations(config) {
-  const code = config.replace(/#[^\n]*/g, comment => ' '.repeat(comment.length));
+  const code = withoutComments(config);
   const depthAt = index => [...code.slice(0, index)].reduce((depth, char) => depth + (char === '{') - (char === '}'), 0);
   return [...code.matchAll(/^[ \t]*location\s+([^{]+?)\s*\{/gm)].filter(match => depthAt(match.index) === 1).map(match => {
-    let depth = 0, end = match.index;
-    do {
-      if (code[end] === '{') depth++;
-      if (code[end] === '}') depth--;
-      end++;
-    } while (depth > 0 || code[end - 1] !== '}');
+    let end = blockEnd(code, match.index);
     if (code[end] === '\n') end++;
     return { target: match[1], start: match.index, end };
   });
