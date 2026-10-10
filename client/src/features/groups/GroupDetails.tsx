@@ -162,7 +162,7 @@ function DeleteGroupDialog({ group, api, close, onDeleted }: {
       : <Notification tone="warning">This group cannot be deleted yet. Check again to see what needs clearing.</Notification>)}
     {error && <Notification>{error}</Notification>}
     {canDelete && <form className="group-form group-delete-form" onSubmit={event => { event.preventDefault(); void remove(); }}>
-      <label>Type <strong>{group.name}</strong> to confirm
+      <label><span>Type <strong>{group.name}</strong> to confirm</span>
         <input value={name} onChange={event => setName(event.target.value)} autoComplete="off" data-autofocus />
       </label>
       <div className="dialog-actions">

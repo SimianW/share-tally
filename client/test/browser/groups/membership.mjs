@@ -467,6 +467,19 @@ async function groupDeletion(env) {
   await deleteDialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   await deleteOwner.getByRole('button', { name: 'Delete group', exact: true }).click();
   const deleteInput = deleteDialog.getByRole('textbox');
+  // Issue #109: the instruction reads as one sentence on one line above the input.
+  await expect(deleteDialog.getByLabel('Type Deletion smoke group to confirm', { exact: true })).toBeVisible();
+  const instructionLines = await deleteDialog.locator('label').evaluate(label => {
+    const tops = new Set();
+    const walker = document.createTreeWalker(label, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      const range = document.createRange();
+      range.selectNodeContents(walker.currentNode);
+      for (const rect of range.getClientRects()) tops.add(Math.round(rect.top));
+    }
+    return tops.size;
+  });
+  assert.equal(instructionLines, 1);
   const deleteButton = deleteDialog.getByRole('button', { name: 'Delete group', exact: true });
   await expect(deleteButton).toBeDisabled();
   await deleteInput.fill('Wrong group name');
