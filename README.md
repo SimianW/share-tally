@@ -200,4 +200,4 @@ project-addition event. It becomes active after merging into the default branch.
 - [Product requirements](https://github.com/SimianW/share-tally/issues/1)
 - [Receipt extraction and item claiming requirements](https://github.com/SimianW/share-tally/issues/26)
 
-The live app is at **https://sharetally.app**. See the [Drone configuration](.drone.yml) and [Docker Compose configuration](deploy/compose.yml) for the deployment setup.
+The live app is at **https://sharetally.app**. See the [Drone configuration](.drone.yml) and [Docker Compose configuration](deploy/compose.yml) for the deployment setup. `GET /api/health` is liveness: it succeeds whenever the API process responds. `GET /api/health/ready` is readiness: it returns 503 when PostgreSQL does not answer within its time limit.
