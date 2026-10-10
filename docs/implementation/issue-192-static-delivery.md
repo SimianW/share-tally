@@ -12,7 +12,7 @@ The public request path is Cloudflare, then Caddy on the VPS, then FRP, then the
 
 `/api/` turns gzip off and adds no headers, so JSON responses and the group SSE stream pass through as before.
 
-Static responses, including their 404s, send `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY` and `Content-Security-Policy: frame-ancestors 'none'`. These are in `deploy/nginx-security-headers.conf`, which every static location includes. A location that sets its own `add_header` loses the server-level headers, and server-level headers would also reach `/api/`.
+Static responses, including their 404s, send `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY` and `Content-Security-Policy: frame-ancestors 'none'`. These are in `deploy/nginx-static-headers.conf`, which every static location includes. A location that sets its own `add_header` loses the server-level headers, and server-level headers would also reach `/api/`.
 
 Caching:
 
@@ -21,7 +21,7 @@ Caching:
 | `/assets/*` (Vite content-hashed) | `public, max-age=31536000, immutable` |
 | `index.html`, including the fallback for unknown paths | `no-cache` |
 | Unhashed public files: favicon, `/fonts/` | `no-cache` |
-| Missing file: any path whose last segment has an extension | 404 without `Cache-Control` |
+| Missing file: any path whose last segment has an extension | 404 with `no-store` |
 
 App routes are hash URLs, so only extensionless paths still fall back to `index.html`. Before this change, a missing `/assets/` file returned `index.html` with status 200. Cloudflare cached that HTML under the `.js` URL for four hours.
 
@@ -49,6 +49,6 @@ Public-path checks of `ee8ed5e` on 2026-10-10:
 
 - `/` and the entry chunk carry all four security headers. `/` has `Cache-Control: no-cache`, so Cloudflare kept the origin's value. The entry chunk has `public, max-age=31536000, immutable`.
 - `/api/health` still sends only its own `Content-Type`, `Cache-Control: no-store` and `X-Powered-By`, uncompressed.
-- A missing `/assets/` file returns 404 with the security headers. Cloudflare adds `Cache-Control: max-age=14400`, because the origin sends no lifetime on 404s. That doesn't break anything: a content-hashed name that is missing now will never exist later.
+- A missing `/assets/` file returns 404 with the security headers. The origin sent no lifetime on that 404, so Cloudflare added `Cache-Control: max-age=14400`. That breaks rollbacks. A tab still running the old build can request a lazy chunk that the new build lacks, and cache the 404. A rollback makes that name valid again, but the browser keeps serving the cached 404, and purging Cloudflare does not clear browser caches. Static 404s now send `Cache-Control: no-store`, which Cloudflare passes through without substituting its Browser Cache TTL. Check this on the public path after this change deploys.
 - No `Strict-Transport-Security` is sent yet. Enabling it at Cloudflare is still the domain owner's decision; see [HSTS](#hsts).
 - The group SSE stream wasn't checked publicly, because that requires a signed-in user. The container check covers its prompt first event.
