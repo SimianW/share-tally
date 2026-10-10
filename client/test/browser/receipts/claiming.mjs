@@ -1022,13 +1022,16 @@ async function claimReceiptPhoto(env) {
     const zoomIn = viewer.getByRole("button", { name: "Zoom in", exact: true });
     const maxZoom = Math.max(400, 2 * naturalResolutionZoom);
     let buttonClicks = 0;
-    for (; buttonClicks < 50; buttonClicks++) {
-      if (await zoomIn.isDisabled()) break;
+    // The readout rounds, so it can show the maximum while the zoom animation is
+    // still short of it; the button disables only once the animation arrives.
+    while (buttonClicks < 50) {
       await zoomIn.click();
-      await expect(zoomReadout).toHaveText(`${Math.round(Math.min(100 + (buttonClicks + 1) * 50, maxZoom))}%`);
+      const expected = Math.min(100 + ++buttonClicks * 50, maxZoom);
+      await expect(zoomReadout).toHaveText(`${Math.round(expected)}%`);
+      if (expected === maxZoom) break;
     }
     assert.ok(buttonClicks > 1, "Zoom limit exercises multiple button clicks");
-    assert.ok(await zoomIn.isDisabled(), "Zoom in stops at the maximum");
+    await expect(zoomIn, "Zoom in stops at the maximum").toBeDisabled();
     assert.ok(await zoomLevel() > 400, "Long receipt can zoom beyond the former 400% cap");
     assert.ok(await zoomLevel() >= naturalResolutionZoom - 1,
       "Long receipt can reach at least its natural pixel resolution");
