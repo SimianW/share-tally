@@ -32,6 +32,7 @@ const withoutComments = config => config.replace(/#[^\n]*/g, comment => ' '.repe
 function blockEnd(code, from) {
   let depth = 0, end = from;
   do {
+    if (end >= code.length) throw new Error('deploy/nginx.conf has an unclosed block');
     if (code[end] === '{') depth++;
     if (code[end] === '}') depth--;
     end++;

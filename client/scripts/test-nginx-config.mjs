@@ -23,6 +23,10 @@ test('the Vite location goes inside the server block even when another block fol
   assert.match(config, /location \/ \{[^}]*\}\n\}\nupstream later \{ server example:1; \}\n$/);
 });
 
+test('a deploy config with an unclosed block is rejected instead of hanging', () => {
+  assert.throws(() => nginxTestConfig('server {\n    location /api/ { proxy_pass http://api:3000;\n}\n', 5173), /unclosed/);
+});
+
 test('a deploy config without the API location is rejected', () => {
   assert.throws(() => nginxTestConfig('server {\n    listen 80;\n    location / { try_files $uri /index.html; }\n}\n', 5173), /location \/api\//);
 });
