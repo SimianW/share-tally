@@ -1,5 +1,6 @@
 import { routes } from '../../shared/browser/paths';
 import { type Repayment } from "@share-tally/domain/contracts/repayments";
+import { type GroupLedger } from "@share-tally/domain/contracts/ledger";
 import { useState } from 'react';
 import { BillApiError } from "../../shared/api/bill-error";
 import { errorMessage } from "../../shared/api/error-message";
@@ -12,17 +13,19 @@ import { Notification } from '../../shared/ui/Notification';
 import { type BillApi } from "../bills/api";
 import { type GroupDetail } from "../groups/api";
 import { RecordRepayment } from './RecordRepayment';
+import { repaymentDisplayName } from './repayment-names';
 
 const statusLabel = { pending: 'Pending', confirmed: 'Confirmed', rejected: 'Rejected' };
 
-export function Repayments({ group, records, api, refresh, selectedId }: {
-  selectedId?: string; group: GroupDetail; records: Repayment[]; api: BillApi; refresh: () => void;
+export function Repayments({ group, records, formerMembers, api, refresh, selectedId }: {
+  selectedId?: string; group: GroupDetail; records: Repayment[];
+  formerMembers: GroupLedger['formerMembers']; api: BillApi; refresh: () => void;
 }) {
   const [creating, setCreating] = useState(false);
   const [selected, setSelected] = useState<Repayment | null>(() => records.find(record => record.id === selectedId && record.recipientId === group.members.find(member => member.isCurrentUser)?.id) ?? null);
   const { pending, busy, error, setError, execute } = useOperation();
   const me = group.members.find(member => member.isCurrentUser)!;
-  const name = (id: string) => group.members.find(member => member.id === id)?.displayName ?? 'Member';
+  const name = (id: string) => repaymentDisplayName(group, formerMembers, id);
   // Refreshes may reveal a decision made in another tab while this dialog is open.
   const current = selected ? records.find(record => record.id === selected.id) ?? selected : null;
   const pendingRecords = records.filter(record => record.status === 'pending');

@@ -125,7 +125,7 @@ test('creating a group persists its creator membership and returns the same icon
   const group = await create();
   assert.equal(group.name, 'Costco');
   assert.deepEqual(group.icon, { type: 'unicode', value: '👨‍👩‍👧‍👦' });
-  assert.equal(group.isCreator, true);
+  assert.equal(group.isOwner, true);
   assert.equal(group.memberCount, 1);
   const detail = (await json(await api(`/groups/${group.id}`))).group;
   assert.equal(detail.members.length, 1);
@@ -138,7 +138,7 @@ test('creating a group persists its creator membership and returns the same icon
   assert.deepEqual((await json(await api(`/groups/${group.id}`))).group, detail);
 });
 
-test('creator invites a friend, repeated joins preserve membership, and outsiders see no group data', async () => {
+test('the owner invites a friend, repeated joins preserve membership, and outsiders see no group data', async () => {
   const group = await create();
   assert.deepEqual((await json(await api('/groups', 'bob-token'))).groups, []);
   await json(await api(`/groups/${group.id}`, 'bob-token'), 404);
@@ -147,7 +147,7 @@ test('creator invites a friend, repeated joins preserve membership, and outsider
   const token = invitation.path.split('/').at(-1);
   const joined = await json(await api('/groups/join', 'bob-token', 'POST', { token }));
   assert.equal(joined.group.id, group.id);
-  assert.equal(joined.group.isCreator, false);
+  assert.equal(joined.group.isOwner, false);
   const again = await json(await api('/groups/join', 'bob-token', 'POST', { token }));
   assert.deepEqual(again, joined);
   const detail = (await json(await api(`/groups/${group.id}`, 'bob-token'))).group;
@@ -247,7 +247,7 @@ test('concurrent invitation retrieval and repeated joins produce one token and o
   for (const join of joins) assert.equal(join.group.memberCount, 2);
   const creatorJoin = await json(await api('/groups/join', 'alice-token', 'POST', { token }));
   assert.equal(creatorJoin.group.memberCount, 2);
-  assert.equal(creatorJoin.group.isCreator, true);
+  assert.equal(creatorJoin.group.isOwner, true);
   assert.equal((await json(await api('/groups', 'bob-token'))).groups.length, 1);
 });
 
@@ -329,7 +329,7 @@ async function groupBill(groupId: string, aliceId: string, bobId: string) {
   }), 201)).bill;
 }
 
-test('only a creator can delete a cleared group; deletion hides every entry point', async () => {
+test('only the group owner can delete a cleared group; deletion hides every entry point', async () => {
   const group = await create();
   const invitationToken = await inviteMember(group.id);
   const other = await create('bob-token');
@@ -735,7 +735,7 @@ test('displayed names prefer the Clerk Username, then the Profile name, then Mem
   await inviteMember(group.id, 'carol-token');
   assert.deepEqual(await memberNames(group.id, 'bob-token'), ['111wsm', 'Bob Builder', 'Member']);
   const listed = (await json(await api('/groups', 'carol-token'))).groups[0];
-  assert.equal(listed.creatorName, '111wsm');
+  assert.equal(listed.ownerName, '111wsm');
   assert.deepEqual(listed.memberPreview.map((member: Named) => member.displayName), ['111wsm', 'Bob Builder', 'Member']);
 });
 

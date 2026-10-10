@@ -18,6 +18,9 @@ COPY scripts/build-domain.mjs /app/scripts/build-domain.mjs
 COPY client/package.json client/pnpm-lock.yaml client/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY client/ ./
+# The unit tests check the browser-test Nginx config against production's;
+# the SSE soak scenarios in browser-checks also proxy through it.
+COPY deploy/nginx.conf /app/deploy/nginx.conf
 RUN pnpm lint && pnpm test:unit && touch /client-lint-passed
 
 # Run this image with the host Docker socket, so tests can create disposable DBs.
@@ -29,6 +32,14 @@ COPY client/src/ /app/client/src/
 RUN mkdir -p /app/client/node_modules/@share-tally && \
     ln -s /app/packages/domain /app/client/node_modules/@share-tally/domain
 CMD ["pnpm", "test"]
+
+# Browser scenarios need the client and server sources with dev dependencies.
+# Run with the host network and Docker socket; see deploy/browser-check.sh.
+FROM client-lint AS browser-checks
+# The infrastructure tests inspect containers with the Docker CLI (static binary).
+# Pinned by digest: this binary runs with the deployment host's Docker socket.
+COPY --from=public.ecr.aws/docker/library/docker:27-cli@sha256:851f91d241214e7c6db86513b270d58776379aacc5eb9c4a87e5b47115e3065c /usr/local/bin/docker /usr/local/bin/docker
+COPY --from=server-build /app/server/ /app/server/
 
 FROM server-build AS server-production-deps
 RUN pnpm prune --prod
@@ -53,5 +64,6 @@ RUN test -n "$VITE_CLERK_PUBLISHABLE_KEY" && pnpm build
 
 FROM public.ecr.aws/docker/library/nginx:1.28-alpine AS web
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
+COPY deploy/nginx-security-headers.conf /etc/nginx/security-headers.conf
 COPY --from=client-build /app/client/dist /usr/share/nginx/html
 EXPOSE 80

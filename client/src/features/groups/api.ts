@@ -1,11 +1,12 @@
 import type * as Contract from '@share-tally/domain/contracts/groups';
-import type { GroupDeletionEligibility, GroupDeletionReason } from '@share-tally/domain/contracts/groups';
+import type { GroupDeletionEligibility, GroupDeletionReason, MemberDepartureEligibility, MemberDepartureReason } from '@share-tally/domain/contracts/groups';
+import { departureReasons } from './departure-reasons';
 import type { IconName } from 'lucide-react/dynamic';
 export type GroupDraft = Contract.GroupDraft<IconName>;
 export type GroupView = Contract.GroupView<IconName>;
 export type ListedGroup = Contract.ListedGroup<IconName>;
 export type GroupDetail = Contract.GroupDetail<IconName>;
-export type { GroupDeletionEligibility,GroupDeletionReason,MemberPreview } from '@share-tally/domain/contracts/groups';
+export type { GroupDeletionEligibility,GroupDeletionReason,MemberPreview,MemberDepartureEligibility,MemberDepartureReason } from '@share-tally/domain/contracts/groups';
 
 import { useSyncSession } from '../../shared/api/SyncSession';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
@@ -16,6 +17,9 @@ import { createTransport } from '../../shared/api/transport';
 // Mark before the DELETE request: its SSE event can arrive before the HTTP reply.
 const locallyDeletedGroups = new Set<string>();
 export function deletedLocally(id: string) { return locallyDeletedGroups.has(id); }
+// The final membership event can precede the voluntary departure's HTTP reply too.
+const locallyLeftGroups = new Set<string>();
+export function leftLocally(id: string) { return locallyLeftGroups.has(id); }
 
 export async function evictDeletedGroup(cache: QueryClient, id: string) {
   const groupPath = `/groups/${id}`;
@@ -34,6 +38,14 @@ export async function evictDeletedGroup(cache: QueryClient, id: string) {
 export class GroupDeletionAccessError extends AccessError {
   reasons: GroupDeletionReason[];
   constructor(status: number, message: string, reasons: GroupDeletionReason[]) {
+    super(status, message);
+    this.reasons = reasons;
+  }
+}
+
+export class MemberDepartureAccessError extends AccessError {
+  reasons: MemberDepartureReason[];
+  constructor(status: number, message: string, reasons: MemberDepartureReason[]) {
     super(status, message);
     this.reasons = reasons;
   }
@@ -61,6 +73,8 @@ export function useGroupApi() {
       unauthenticated: () => new AccessError(401, 'Please sign in again to continue.'),
       failed: ({ status, body }) => {
         const message = body?.error || `Request failed (${status}). Please try again.`;
+        if (status === 409 && departureReasons(body?.reasons))
+          return new MemberDepartureAccessError(status, message, body.reasons);
         if (status === 409 && deletionReasons(body?.reasons))
           return new GroupDeletionAccessError(status, message, body.reasons);
         return new AccessError(status, message);
@@ -77,6 +91,8 @@ export function useGroupApi() {
       return result;
     }
     async function rememberGroup({ group }: { group: ListedGroup | GroupDetail }) {
+      locallyLeftGroups.delete(group.id);
+      locallyDeletedGroups.delete(group.id);
       // The successful write is authoritative even if the next list read fails.
       // Cancel an older list snapshot before inserting/replacing this membership.
       await cache.cancelQueries({ queryKey: ['/groups'], exact: true });
@@ -96,6 +112,19 @@ export function useGroupApi() {
       create: (draft: GroupDraft) => request<{ group: ListedGroup }>('', 'POST', draft, undefined, rememberGroup),
       detail: (id: string, signal?: AbortSignal) => cachedRead<{ group: GroupDetail }>(cache, `/groups/${encodeURIComponent(id)}`, signal),
       deletion: (id: string, signal?: AbortSignal) => request<GroupDeletionEligibility>(`/${encodeURIComponent(id)}/deletion`, 'GET', undefined, signal),
+      departure: (id: string, userId: string, signal?: AbortSignal) => request<MemberDepartureEligibility>(`/${encodeURIComponent(id)}/members/${encodeURIComponent(userId)}/departure`, 'GET', undefined, signal),
+      leave: async (id: string, successorId?: string) => {
+        locallyLeftGroups.add(id);
+        try {
+          return await request<{ left: true }>(`/${encodeURIComponent(id)}/leave`, 'POST', successorId ? { successorId } : {}, undefined,
+            async () => { await evictDeletedGroup(cache, id); });
+        } catch (error) {
+          locallyLeftGroups.delete(id);
+          throw error;
+        }
+      },
+      removeMember: (id: string, userId: string) => request<{ removed: true }>(`/${encodeURIComponent(id)}/members/${encodeURIComponent(userId)}`, 'DELETE', undefined, undefined,
+        async () => { await refreshFinancialQueries(cache, session.signal); }),
       invitation: (id: string, regenerate = false) => request<{ path: string }>(`/${encodeURIComponent(id)}/invitation`, regenerate ? 'POST' : 'GET'),
       join: (token: string) => request<{ group: GroupDetail }>('/join', 'POST', { token }, undefined, rememberGroup),
       delete: async (id: string) => {

@@ -61,7 +61,7 @@ export function clearRecovery(userId: string, groupId: string, draftId: string, 
   if (step) remove(stepKey(userId, draftId));
 }
 
-/** A deleted group's drafts cannot be resumed; drop every copy kept for them. */
+/** Lost group access ends recovery, even if the editor is not currently mounted. */
 export function clearGroupRecovery(userId: string, groupId: string) {
   const prefix = `receipt-draft:${userId}:${groupId}:`;
   const keys = storedKeys();

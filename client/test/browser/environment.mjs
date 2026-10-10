@@ -18,6 +18,7 @@ import { GenericContainer, Wait, getContainerRuntimeClient } from 'testcontainer
 import { createServer } from 'vite';
 import react from '@vitejs/plugin-react';
 import { themeBootstrap } from '../../build/theme-bootstrap.ts';
+import { nginxTestConfig } from './nginx-config.mjs';
 
 export const clientRoot = fileURLToPath(new URL('../../', import.meta.url));
 export const serverRoot = fileURLToPath(new URL('../../../server/', import.meta.url));
@@ -28,6 +29,9 @@ export const serverRequire = createRequire(`${serverRoot}package.json`);
 const postgresImage = 'postgres:17.6-alpine';
 const apiStartupTimeout = 30_000;
 let browserImage;
+// Labels this runner's browser containers. Concurrent runs in separate
+// containers share the host Docker daemon and can have equal PIDs.
+const runnerId = process.env.SHARE_TALLY_BROWSER_RUNNER ?? randomUUID();
 
 // Options:
 // - backend: start PostgreSQL and the API (default). Component-only scenarios turn it off.
@@ -93,19 +97,19 @@ export async function startEnvironment({ backend = true, remoteHost = null, firs
       },
     });
     disposers.push(() => vite.close());
+    // Transform the app's static module graph and let Vite pre-bundle its
+    // dependencies before any page loads. Otherwise a cold dependency cache
+    // (every CI run) or a busy host spends a scenario's first navigation timeout on it.
+    await vite.environments.client.warmupRequest('/src/main.tsx');
+    await vite.environments.client.waitForRequestsIdle();
     web.on('request', vite.middlewares);
     web.listen(0, '0.0.0.0');
     await once(web, 'listening');
     let applicationPort = web.address().port;
     if (nginx) {
-      // Keep deploy's API proxy directives. Vite supplies the test Clerk bundle;
-      // production serves its built static files in this location instead.
+      // Production's API proxy in front of the test API; Vite serves everything else.
       const deployConfig = await readFile(new URL('../../../deploy/nginx.conf', import.meta.url), 'utf8');
-      const upstream = `http://host.docker.internal:${applicationPort}`;
-      // Vite serves thousands of development modules instead of built assets.
-      // Reuse its static upstream sockets while still allowing its HMR upgrade.
-      const staticUpstream = `upstream test_vite { server host.docker.internal:${applicationPort}; keepalive 64; }\nmap $http_upgrade $test_connection { default upgrade; '' ''; }\n`;
-      const config = staticUpstream + deployConfig.replace('http://api:3000', upstream).replace('try_files $uri $uri/ /index.html;', 'proxy_pass http://test_vite;\n        proxy_http_version 1.1;\n        proxy_set_header Host $host;\n        proxy_set_header Upgrade $http_upgrade;\n        proxy_set_header Connection $test_connection;');
+      const config = nginxTestConfig(deployConfig, applicationPort);
       const proxy = await new GenericContainer('public.ecr.aws/docker/library/nginx:1.28-alpine')
         .withExtraHosts([{ host: 'host.docker.internal', ipAddress: 'host-gateway' }])
         .withCopyContentToContainer([{ content: config, target: '/etc/nginx/conf.d/default.conf' }])
@@ -214,7 +218,7 @@ async function startBrowser(appPort, remoteHost, disposers, checkpoint) {
     await checkpoint('browser-container-created', { browserContainerId });
   })
     .withEnvironment({ APP_PORT: String(appPort), APP_REMOTE_HOST: remoteHost ?? '', BROWSER_WS_PATH: wsPath })
-    .withLabels({ 'share-tally.browser-runner': String(process.pid) })
+    .withLabels({ 'share-tally.browser-runner': runnerId })
     .withExtraHosts([{ host: 'host.docker.internal', ipAddress: 'host-gateway' }])
     .withExposedPorts(3000)
     .withSharedMemorySize(1024 * 1024 * 1024)

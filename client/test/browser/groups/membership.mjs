@@ -1,14 +1,18 @@
-// Group membership scenarios: creating, joining, capacity and deletion.
+// Group membership scenarios: creating, joining, departure, ownership, capacity and deletion.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { expect } from '@playwright/test';
 import { screenshots } from '../environment.mjs';
-import { costcoFriends } from './fixtures.mjs';
+import { aliceBill, billPeople, costcoFriends, observeGroupReady } from './fixtures.mjs';
 import { groupNet, homeRow, openGroupSwitcher } from '../ui.mjs';
 
 export const scenarios = [
   { name: 'group-refresh', run: groupRefresh },
   { name: 'group-invitations', run: groupInvitations },
+  { name: 'group-self-departure', run: groupSelfDeparture },
+  { name: 'group-owner-removal', run: groupOwnerRemoval },
+  { name: 'group-ownership-succession', run: groupOwnershipSuccession },
+  { name: 'group-departure-blockers', run: groupDepartureBlockers },
   { name: 'group-capacity', run: groupCapacity },
   { name: 'group-deletion', run: groupDeletion },
 ];
@@ -204,6 +208,190 @@ async function groupInvitations(env) {
   await expect(carol.locator('.group-member-count')).toContainText('3 members');
 }
 
+// Fresh contexts wait for a real subscription before a different member mutates
+// membership; cached rendering alone would not establish live-refresh coverage.
+async function membershipPage(env, token, url, viewport = { width: 1280, height: 900 }) {
+  const page = await env.pageFor(token, viewport);
+  await observeGroupReady(page);
+  await page.goto(url);
+  return page;
+}
+async function readyForMembership(page, groupId) {
+  await page.waitForFunction(id => window.membershipReadyGroups.includes(id), groupId);
+}
+const memberRow = (dialog, name) => dialog.locator('.member-row').filter({ hasText: name });
+async function expectOwner(dialog, name) {
+  await expect(dialog.locator('.member-row strong').filter({ hasText: /^Owner$/ })).toHaveCount(1);
+  await expect(memberRow(dialog, name).getByText('Owner', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Creator', { exact: true })).toHaveCount(0);
+}
+async function expectDepartureHome(page, base, name) {
+  await expect(page).toHaveURL(`${base}#`);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(homeRow(page, name)).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Where you stand' })).toHaveCount(0);
+}
+
+// Mobile voluntary departure clears the workspace, refreshes current membership,
+// and leaves an unrelated group available in Home and the group switcher.
+async function groupSelfDeparture(env) {
+  const { group, groupUrl, billsUrl, invitationToken } = await costcoFriends(env);
+  await costcoFriends(env, { name: 'Another shopping group' });
+  const owner = await membershipPage(env, 'alice-token', groupUrl);
+  const bob = await membershipPage(env, 'bob-token', billsUrl, { width: 390, height: 844 });
+  const members = owner.getByRole('dialog', { name: group.name, exact: true });
+  await readyForMembership(owner, group.id);
+  await readyForMembership(bob, group.id);
+  await expectOwner(members, 'Alice');
+  await bob.getByRole('button', { name: 'Members & invites', exact: true }).click();
+  const bobMembers = bob.getByRole('dialog', { name: group.name, exact: true });
+  await expectOwner(bobMembers, 'Alice');
+  await expect(bobMembers.getByRole('button', { name: 'Remove', exact: true })).toHaveCount(0);
+  await bobMembers.getByRole('button', { name: 'Leave group', exact: true }).click();
+  const leave = bob.getByRole('dialog', { name: `Leave ${group.name}?`, exact: true });
+  await expect(leave).toContainText(/unpublished bill drafts.*deleted/);
+  await expect(leave.getByLabel('New owner', { exact: true })).toHaveCount(0);
+  await leave.getByRole('button', { name: 'Leave group', exact: true }).click();
+  await expectDepartureHome(bob, env.base, group.name);
+  await expect(homeRow(bob, 'Another shopping group')).toBeVisible();
+  await expect(members).toContainText('2 members');
+  await expect(memberRow(members, 'Bob')).toHaveCount(0);
+  await expectOwner(members, 'Alice');
+  await homeRow(bob, 'Another shopping group').click();
+  await expect((await openGroupSwitcher(bob)).getByRole('option', { name: group.name, exact: true })).toHaveCount(0);
+  await bob.keyboard.press('Escape');
+  // Ending membership is not a ban: the existing invitation still reconnects Bob.
+  await bob.goto(`${env.base}#/join/${invitationToken}`);
+  await bob.getByRole('button', { name: 'Join group', exact: true }).click();
+  await expect(bob.locator('.group-member-count')).toContainText('3 members');
+  await expect(members).toContainText('3 members');
+  await expectOwner(members, 'Alice');
+}
+
+// Only the owner sees per-member removal. An already-open removed workspace
+// returns to Home, while another current member's mobile count updates in place.
+async function groupOwnerRemoval(env) {
+  const { group, groupUrl, billsUrl } = await costcoFriends(env);
+  const owner = await membershipPage(env, 'alice-token', groupUrl);
+  const bob = await membershipPage(env, 'bob-token', billsUrl);
+  const carol = await membershipPage(env, 'carol-token', billsUrl, { width: 390, height: 844 });
+  for (const page of [owner, bob, carol]) await readyForMembership(page, group.id);
+  const members = owner.getByRole('dialog', { name: group.name, exact: true });
+  await expectOwner(members, 'Alice');
+  await expect(memberRow(members, 'Alice').getByRole('button', { name: 'Remove', exact: true })).toHaveCount(0);
+  await expect(members.getByRole('button', { name: 'Remove', exact: true })).toHaveCount(2);
+  await carol.getByRole('button', { name: 'Members & invites', exact: true }).click();
+  const carolMembers = carol.getByRole('dialog', { name: group.name, exact: true });
+  await expect(carolMembers.getByRole('button', { name: 'Remove', exact: true })).toHaveCount(0);
+  await memberRow(members, 'Bob').getByRole('button', { name: 'Remove', exact: true }).click();
+  const remove = owner.getByRole('dialog', { name: 'Remove Bob?', exact: true });
+  await expect(remove).toContainText(/Bob's unpublished bill drafts.*deleted/);
+  await remove.getByRole('button', { name: 'Remove member', exact: true }).click();
+  await expect(remove).toHaveCount(0);
+  await expectDepartureHome(bob, env.base, group.name);
+  for (const dialog of [members, carolMembers]) {
+    await expect(dialog).toContainText('2 members');
+    await expect(memberRow(dialog, 'Bob')).toHaveCount(0);
+    await expectOwner(dialog, 'Alice');
+  }
+  await carolMembers.getByRole('button', { name: 'Close dialog', exact: true }).click();
+  await expect(carol.locator('.group-member-count')).toContainText('2 members');
+  await expect(carol.getByRole('region', { name: 'Where you stand' })).toBeVisible();
+}
+
+// Transfer and departure are one confirmation. A successor's unfinished bill
+// does not block succession, and bill Initiator controls stay bill-specific.
+async function groupOwnershipSuccession(env) {
+  const { group, ids, groupUrl } = await costcoFriends(env);
+  const historical = await aliceBill(env, group.id, 'Settled original-owner purchase', 200,
+    [ids.Alice, ids.Bob], [['alice-token', 100], ['bob-token', 100]]);
+  const { repayment } = await env.api(`/groups/${group.id}/repayments`, 'bob-token', 'POST', {
+    requestId: crypto.randomUUID(), recipientId: ids.Alice, amountCents: 100,
+  });
+  await env.api(`/repayments/${repayment.id}/decision`, 'alice-token', 'POST', { decision: 'confirmed' });
+  const { bill: bobBill } = await env.api(`/groups/${group.id}/bills`, 'bob-token', 'POST', {
+    requestId: crypto.randomUUID(), title: "Bob's ongoing purchase", purchaseDate: '2026-01-01',
+    timeZone: 'America/Toronto', notes: '', totalCents: 200, participantIds: [ids.Bob, ids.Carol],
+  });
+  const owner = await membershipPage(env, 'alice-token', groupUrl);
+  const bob = await membershipPage(env, 'bob-token', groupUrl, { width: 390, height: 844 });
+  const carol = await membershipPage(env, 'carol-token', `${env.base}#/bills/${historical.id}`);
+  for (const page of [owner, bob, carol]) await readyForMembership(page, group.id);
+  const members = owner.getByRole('dialog', { name: group.name, exact: true });
+  const bobMembers = bob.getByRole('dialog', { name: group.name, exact: true });
+  await expectOwner(bobMembers, 'Alice');
+  await expect(bobMembers.getByRole('button', { name: 'Get invitation link', exact: true })).toHaveCount(0);
+  await members.getByRole('button', { name: 'Leave group', exact: true }).click();
+  const leave = owner.getByRole('dialog', { name: `Leave ${group.name}?`, exact: true });
+  const transfer = leave.getByRole('button', { name: 'Transfer and leave', exact: true });
+  await expect(transfer).toBeDisabled();
+  await leave.getByLabel('New owner', { exact: true }).selectOption(ids.Bob);
+  await expect(leave).toContainText('Bob');
+  await transfer.click();
+  await expectDepartureHome(owner, env.base, group.name);
+  await expectOwner(bobMembers, 'Bob');
+  await expect(bobMembers).toContainText('2 members');
+  await expect(bobMembers.getByRole('button', { name: 'Get invitation link', exact: true })).toBeVisible();
+  await expect(bobMembers.getByRole('button', { name: 'Delete group', exact: true })).toBeVisible();
+  await expect(memberRow(bobMembers, 'Carol').getByRole('button', { name: 'Remove', exact: true })).toBeVisible();
+  // Retained bill history continues to identify Alice, not the new group owner.
+  await expect(billPeople(carol).getByRole('listitem').filter({ hasText: 'Alice' })).toContainText('paid the bill');
+  await expect(billPeople(carol).getByRole('listitem').filter({ hasText: 'Bob' })).not.toContainText('paid the bill');
+  await bobMembers.getByRole('button', { name: 'Close dialog', exact: true }).click();
+  await bob.goto(`${env.base}#/bills/${bobBill.id}`);
+  await expect(bob.getByText('INITIATOR CONTROLS', { exact: true })).toBeVisible();
+  await bob.goto(`${env.base}#/bills/${historical.id}`);
+  await expect(bob.getByText('INITIATOR CONTROLS', { exact: true })).toHaveCount(0);
+  // The original creator returns as an ordinary member, without reclaiming ownership.
+  await bob.goto(groupUrl);
+  await bob.getByRole('button', { name: 'Get invitation link', exact: true }).click();
+  const invitation = await bob.getByLabel('Invitation link', { exact: true }).inputValue();
+  await owner.goto(invitation);
+  await owner.getByRole('button', { name: 'Join group', exact: true }).click();
+  await expect(owner.locator('.group-member-count')).toContainText('3 members');
+  await owner.getByRole('button', { name: 'Members & invites', exact: true }).click();
+  const returned = owner.getByRole('dialog', { name: group.name, exact: true });
+  await expectOwner(returned, 'Bob');
+  for (const name of ['Remove', 'Delete group', 'Get invitation link'])
+    await expect(returned.getByRole('button', { name, exact: true })).toHaveCount(0);
+}
+
+// Actionable financial/activity reasons remain in the dialog until resolved.
+// Check again rereads committed eligibility rather than trusting an earlier view.
+async function groupDepartureBlockers(env) {
+  const { group, ids, billsUrl } = await costcoFriends(env);
+  await aliceBill(env, group.id, 'One-dollar share', 200, [ids.Alice, ids.Bob],
+    [['alice-token', 100], ['bob-token', 100]]);
+  const incomplete = await aliceBill(env, group.id, 'Unfinished purchase', 200, [ids.Alice, ids.Bob]);
+  const { repayment } = await env.api(`/groups/${group.id}/repayments`, 'bob-token', 'POST', {
+    requestId: crypto.randomUUID(), recipientId: ids.Alice, amountCents: 100,
+  });
+  const bob = await membershipPage(env, 'bob-token', billsUrl, { width: 390, height: 844 });
+  await readyForMembership(bob, group.id);
+  await bob.getByRole('button', { name: 'Members & invites', exact: true }).click();
+  await bob.getByRole('button', { name: 'Leave group', exact: true }).click();
+  const leave = bob.getByRole('dialog', { name: `Leave ${group.name}?`, exact: true });
+  await expect(leave).toContainText(/owes.*\$1\.00/);
+  await expect(leave).toContainText('Relevant incomplete bills:');
+  await expect(leave).toContainText('Unfinished purchase');
+  await expect(leave).toContainText('The Initiator must complete or cancel this bill');
+  await expect(leave).toContainText('Relevant pending repayments:');
+  await expect(leave).toContainText('Alice must confirm or reject this pending repayment.');
+  await expect(leave.getByRole('button', { name: 'Leave group', exact: true })).toHaveCount(0);
+  await env.api(`/bills/${incomplete.id}/cancel`, 'alice-token', 'POST', { revision: incomplete.revision });
+  await leave.getByRole('button', { name: 'Check again', exact: true }).click();
+  await expect(leave).not.toContainText('Relevant incomplete bills:');
+  await expect(leave).toContainText('Relevant pending repayments:');
+  await expect(leave).toContainText(/owes.*\$1\.00/);
+  await env.api(`/repayments/${repayment.id}/decision`, 'alice-token', 'POST', { decision: 'confirmed' });
+  await leave.getByRole('button', { name: 'Check again', exact: true }).click();
+  const submit = leave.getByRole('button', { name: 'Leave group', exact: true });
+  await expect(submit).toBeEnabled();
+  await expect(leave).not.toContainText('Relevant pending repayments:');
+  await submit.click();
+  await expectDepartureHome(bob, env.base, group.name);
+}
+
 // A group holds at most 16 members.
 async function groupCapacity(env) {
   const { pageFor, base } = env;
@@ -227,12 +415,12 @@ async function groupCapacity(env) {
   await expect(ledger.getByRole('region', { name: "Everyone's balance" }).getByRole('listitem')).toHaveCount(16);
 }
 
-// Creator-only deletion of a cleared group, with eligibility reads and live member navigation (#76).
+// Owner-only deletion of a cleared group, with eligibility reads and live member navigation (#76).
 async function groupDeletion(env) {
   const { pageFor, base, pool } = env;
   // Alice and Bob share another group, so Home still lists their groups once this one is deleted.
   await costcoFriends(env);
-  // Issue #76: creator-only deletion of a cleared group uses its own fixture.
+  // Issue #76: owner-only deletion of a cleared group uses its own fixture.
   const deleteOwner = await pageFor('alice-token', { width: 1280, height: 900 });
   await deleteOwner.goto(base);
   await deleteOwner.getByRole('button', { name: 'New group', exact: true }).first().click();
@@ -279,6 +467,19 @@ async function groupDeletion(env) {
   await deleteDialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   await deleteOwner.getByRole('button', { name: 'Delete group', exact: true }).click();
   const deleteInput = deleteDialog.getByRole('textbox');
+  // Issue #109: the instruction reads as one sentence on one line above the input.
+  await expect(deleteDialog.getByLabel('Type Deletion smoke group to confirm', { exact: true })).toBeVisible();
+  const instructionLines = await deleteDialog.locator('label').evaluate(label => {
+    const tops = new Set();
+    const walker = document.createTreeWalker(label, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      const range = document.createRange();
+      range.selectNodeContents(walker.currentNode);
+      for (const rect of range.getClientRects()) tops.add(Math.round(rect.top));
+    }
+    return tops.size;
+  });
+  assert.equal(instructionLines, 1);
   const deleteButton = deleteDialog.getByRole('button', { name: 'Delete group', exact: true });
   await expect(deleteButton).toBeDisabled();
   await deleteInput.fill('Wrong group name');
@@ -286,14 +487,14 @@ async function groupDeletion(env) {
   await deleteInput.fill('Deletion smoke group');
   await expect(deleteButton).toBeEnabled();
   await deleteButton.click();
-  // Both the creator and a member viewing the group return to Home.
+  // Both the owner and a member viewing the group return to Home.
   await expect(deleteOwner).toHaveURL(`${base}#`);
   await expect(deleteOwner.getByRole('heading', { name: 'Your groups' })).toBeVisible();
   await expect(homeRow(deleteOwner, 'Deletion smoke group')).toHaveCount(0);
   await expect(deleteMember).toHaveURL(`${base}#`);
   await expect(deleteMember.getByRole('heading', { name: 'Your groups' })).toBeVisible();
   await expect(homeRow(deleteMember, 'Deletion smoke group')).toHaveCount(0);
-  await expect(deleteMember.getByRole('status').filter({ hasText: 'Deletion smoke group was deleted by the group creator' })).toBeVisible();
-  await expect(deleteOwner.getByText('Deletion smoke group was deleted by the group creator')).toHaveCount(0);
-  console.log('Delete group smoke passed: creator-only action, eligibility read, 409 race reasons, exact-name confirmation, and live member navigation with a deletion notice.');
+  await expect(deleteMember.getByRole('status').filter({ hasText: 'Deletion smoke group was deleted by the group owner' })).toBeVisible();
+  await expect(deleteOwner.getByText('Deletion smoke group was deleted by the group owner')).toHaveCount(0);
+  console.log('Delete group smoke passed: owner-only action, eligibility read, 409 race reasons, exact-name confirmation, and live member navigation with a deletion notice.');
 }

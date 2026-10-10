@@ -22,3 +22,19 @@ export async function purgeGroupReceiptDrafts(tx: Tx, groupId: string) {
   }
   await tx.delete(receiptDrafts).where(and(eq(receiptDrafts.groupId, groupId), isNull(receiptDrafts.billId)));
 }
+
+// A departing member's uninitiated drafts in this group, including processing
+// drafts, with their photos, evidence and note photos. Caller holds the group
+// row lock, so the member cannot save or initiate a draft meanwhile; a held
+// processing completion finds its draft gone and discards its result.
+export async function purgeMemberReceiptDrafts(tx: Tx, groupId: string, userId: string) {
+  const drafts = await tx.select({ id: receiptDrafts.id }).from(receiptDrafts)
+    .where(and(eq(receiptDrafts.groupId, groupId), eq(receiptDrafts.initiatorId, userId), isNull(receiptDrafts.billId)))
+    .orderBy(receiptDrafts.id).for('update');
+  if (!drafts.length) return;
+  const ids = drafts.map(draft => draft.id);
+  await tx.delete(receiptEvidence).where(inArray(receiptEvidence.draftId, ids));
+  await tx.delete(receiptPhotos).where(inArray(receiptPhotos.draftId, ids));
+  // Note photos on these drafts cascade with them.
+  await tx.delete(receiptDrafts).where(inArray(receiptDrafts.id, ids));
+}
