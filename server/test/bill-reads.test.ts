@@ -90,7 +90,7 @@ async function fixture(size: number) {
       [id, `user_test_${name}`, name[0]!.toUpperCase() + name.slice(1), createdAt]);
   }
   for (const group of ['A', 'B'] as const) {
-    await pool.query('INSERT INTO groups (id, name, icon, created_by, created_at) VALUES ($1,$2,$3,$4,$5)',
+    await pool.query('INSERT INTO groups (id, name, icon, created_by, owner_id, created_at) VALUES ($1,$2,$3,$4,$4,$5)',
       [groups[group], `Group ${group}`, 'lucide:shopping-cart', users.alice, createdAt]);
     for (const user of members(group)) {
       await pool.query('INSERT INTO group_members (group_id,user_id,joined_at) VALUES ($1,$2,$3)', [groups[group], user, createdAt]);

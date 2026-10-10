@@ -6,7 +6,7 @@ import { BillError } from '../shared/bill-error.js';
 
 // Membership rows are retained after deletion, but never authorize access then.
 export async function requireMember(tx: Tx | typeof db, groupId: string, userId: string) {
-  const [group] = await tx.select({ id: groups.id, createdBy: groups.createdBy, name: groups.name })
+  const [group] = await tx.select({ id: groups.id, ownerId: groups.ownerId, name: groups.name })
     .from(groups).innerJoin(groupMembers, eq(groupMembers.groupId, groups.id))
     .where(and(eq(groups.id, groupId), isNull(groups.deletedAt), eq(groupMembers.userId, userId)));
   if (!group) throw new BillError(404, 'Group not found.');

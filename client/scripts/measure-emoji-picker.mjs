@@ -6,8 +6,8 @@
 // Builds production assets outside dist, substitutes only Clerk/API, and measures
 // actual Chromium requests (CDP encodedDataLength includes HTTP headers). Static
 // bodies are served with gzip; decoded bytes come from browser response bodies.
-// deploy/nginx.conf does not enable gzip; the deployed JS was observed uncompressed.
-// These gzip results model compressed delivery, not the current deployment.
+// deploy/nginx.conf gzips these assets too (#192), at a different level, so
+// transfer sizes approximate the deployment rather than reproduce it.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { once } from 'node:events';
@@ -35,10 +35,10 @@ const profiles = [
 ];
 const phases = ['home', 'group', 'icon-picker', 'emoji'];
 const member = { id: 'alice', displayName: 'Alice', imageUrl: null, fallbackImageUrl: null,
-  joinedAt: '2026-01-01T00:00:00.000Z', isCreator: true, isCurrentUser: true };
+  joinedAt: '2026-01-01T00:00:00.000Z', isOwner: true, isCurrentUser: true };
 const group = { id: 'measurement-group', name: 'Measurement friends', icon: { type: 'lucide', value: 'shopping-basket' },
-  createdBy: member.id, creatorName: member.displayName, createdAt: member.joinedAt, joinedAt: member.joinedAt,
-  memberCount: 1, isCreator: true };
+  createdBy: member.id, ownerId: member.id, ownerName: member.displayName, createdAt: member.joinedAt, joinedAt: member.joinedAt,
+  memberCount: 1, isOwner: true };
 const fixtures = {
   '/api/groups': { groups: [{ ...group, netCents: 0, pendingActionCount: 0, memberPreview: [member] }] },
   '/api/attention': { actions: [] },
@@ -46,7 +46,7 @@ const fixtures = {
   '/api/groups/measurement-group/bills': { bills: [], repayments: [],
     summary: { netCents: 0, receivableCents: 0, payableCents: 0 },
     ledger: { members: [{ userId: member.id, displayName: member.displayName, netCents: 0 }],
-      suggestions: [], incompleteBillIds: [], entries: [], directDebts: [] } },
+      formerMembers: [], suggestions: [], incompleteBillIds: [], entries: [], directDebts: [] } },
   '/api/groups/measurement-group/receipt-drafts': { drafts: [] },
 };
 const temp = await mkdtemp(join(tmpdir(), 'share-tally-emoji-'));

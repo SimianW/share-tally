@@ -2,6 +2,7 @@
 // Needs Docker: node --test test/browser/environment.test.mjs
 import assert from 'node:assert/strict';
 import { execFile, spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
 import { setTimeout as delay } from 'node:timers/promises';
 import { test } from 'node:test';
@@ -104,8 +105,9 @@ test('a completed component scenario lets the runner exit naturally', { timeout:
 });
 
 for (const signal of ['SIGTERM', 'SIGINT']) test(`the runner awaits container cleanup on ${signal}`, { timeout: 60_000 }, async () => {
+  const runnerId = randomUUID();
   const runner = spawn(process.execPath, ['test/browser/run.mjs', 'group-refresh'], {
-    cwd: clientRoot, stdio: ['ignore', 'pipe', 'pipe'],
+    cwd: clientRoot, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, SHARE_TALLY_BROWSER_RUNNER: runnerId },
   });
   let output = '';
   for (const stream of [runner.stdout, runner.stderr]) stream.on('data', chunk => { output = (output + chunk).slice(-8000); });
@@ -114,7 +116,7 @@ for (const signal of ['SIGTERM', 'SIGINT']) test(`the runner awaits container cl
     let browserContainerId;
     const deadline = Date.now() + 30_000;
     while (!browserContainerId && Date.now() < deadline) {
-      const { stdout } = await run('docker', ['ps', '-q', '--filter', `label=share-tally.browser-runner=${runner.pid}`]);
+      const { stdout } = await run('docker', ['ps', '-q', '--filter', `label=share-tally.browser-runner=${runnerId}`]);
       browserContainerId = stdout.trim();
       if (runner.exitCode !== null || runner.signalCode !== null) break;
       if (!browserContainerId) await delay(100);

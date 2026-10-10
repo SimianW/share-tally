@@ -28,6 +28,9 @@ export const serverRequire = createRequire(`${serverRoot}package.json`);
 const postgresImage = 'postgres:17.6-alpine';
 const apiStartupTimeout = 30_000;
 let browserImage;
+// Labels this runner's browser containers. Concurrent runs in separate
+// containers share the host Docker daemon and can have equal PIDs.
+const runnerId = process.env.SHARE_TALLY_BROWSER_RUNNER ?? randomUUID();
 
 // Options:
 // - backend: start PostgreSQL and the API (default). Component-only scenarios turn it off.
@@ -93,6 +96,11 @@ export async function startEnvironment({ backend = true, remoteHost = null, firs
       },
     });
     disposers.push(() => vite.close());
+    // Transform the app's static module graph and let Vite pre-bundle its
+    // dependencies before any page loads. Otherwise a cold dependency cache
+    // (every CI run) or a busy host spends a scenario's first navigation timeout on it.
+    await vite.environments.client.warmupRequest('/src/main.tsx');
+    await vite.environments.client.waitForRequestsIdle();
     web.on('request', vite.middlewares);
     web.listen(0, '0.0.0.0');
     await once(web, 'listening');
@@ -214,7 +222,7 @@ async function startBrowser(appPort, remoteHost, disposers, checkpoint) {
     await checkpoint('browser-container-created', { browserContainerId });
   })
     .withEnvironment({ APP_PORT: String(appPort), APP_REMOTE_HOST: remoteHost ?? '', BROWSER_WS_PATH: wsPath })
-    .withLabels({ 'share-tally.browser-runner': String(process.pid) })
+    .withLabels({ 'share-tally.browser-runner': runnerId })
     .withExtraHosts([{ host: 'host.docker.internal', ipAddress: 'host-gateway' }])
     .withExposedPorts(3000)
     .withSharedMemorySize(1024 * 1024 * 1024)

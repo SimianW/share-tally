@@ -16,7 +16,7 @@ import { BillError } from "./shared/bill-error.js";
 import express, { type ErrorRequestHandler, type Request, type RequestHandler } from 'express';
 import { clerkClient, clerkMiddleware, getAuth } from '@clerk/express';
 import { getOrCreateUser } from './identity/users.js';
-import { GroupAccessError, GroupDeletionError } from './groups/groups.js';
+import { GroupAccessError, GroupDeletionError, MemberDepartureError } from './groups/groups.js';
 import { createGroupsRouter } from './groups/group-routes.js';
 import { InvalidGroupIconError } from './groups/group-icon.js';
 import { clerkProfiles, type ProfileReader } from './identity/clerk-profiles.js';
@@ -100,7 +100,16 @@ export function createApp(auth: Authentication = {
     await getGroupForMember(req.params.groupId, user.id);
     const expiresAt = streamExpiry(req);
     if (expiresAt <= Date.now()) { res.status(401).end(); return; }
-    if (!res.destroyed) openGroupEvents(req.params.groupId, res, expiresAt);
+    if (res.destroyed) return;
+    openGroupEvents(req.params.groupId, user.id, res, expiresAt);
+    // A departure or deletion committing between the check above and this
+    // subscription could not end it, so confirm access again now that it is
+    // registered. Ending the stream makes the reader reconnect and see the 404.
+    try { await getGroupForMember(req.params.groupId, user.id); }
+    catch (error) {
+      if (!(error instanceof GroupAccessError)) throw error;
+      res.end();
+    }
   });
   // Announces renamed members of any of this member's groups, for views such as Home.
   app.get('/api/me/events', async (req, res) => {
@@ -142,7 +151,7 @@ export function createApp(auth: Authentication = {
 
     if (error instanceof GroupAccessError || error instanceof BillError) {
       res.status(error.status).json({ error: error.message,
-        ...(error instanceof GroupDeletionError ? { reasons: error.reasons } : {}),
+        ...(error instanceof GroupDeletionError || error instanceof MemberDepartureError ? { reasons: error.reasons } : {}),
         ...(error instanceof BillError && error.conflicts ? { conflicts: error.conflicts } : {}) });
       return;
     }

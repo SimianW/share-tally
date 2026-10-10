@@ -47,9 +47,17 @@ export const groups = pgTable('groups', {
     .notNull()
     .default('lucide:shopping-basket'),
 
+  // The group creator: who originally created the group. Historical only; it
+  // grants no permission once ownership has passed to another member.
   createdBy: uuid('created_by')
     .notNull()
     .references(() => users.id),  // for lazy evaluation of the users table
+
+  // The group owner: the one current member who manages the invitation,
+  // removes members and deletes the cleared group. Starts as the creator.
+  ownerId: uuid('owner_id')
+    .notNull()
+    .references(() => users.id),
 
   createdAt: timestamp('created_at', {
     withTimezone: true

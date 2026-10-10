@@ -7,3 +7,5 @@ A group is eligible for deletion only when every member's net balance is zero, t
 Receipt photos and their raw receipt evidence are physically deleted within the group-deletion transaction, both for uninitiated drafts and for drafts linked to initiated bills. Initiated receipt drafts remain to preserve their receipt text; reviewed bill items and all financial records remain.
 
 This is the first permission specific to the Group creator role. Other members cannot delete the group. Deleting an already deleted group is treated as not found.
+
+(Amended by #214 and [ADR-0021](0021-members-leave-only-when-settled-and-uninvolved.md): deletion belongs to the current Group owner, not the original creator, and a sole remaining owner deletes the cleared group instead of leaving it.)

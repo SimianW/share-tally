@@ -1,28 +1,25 @@
 // Runs browser scenarios one at a time, each in its own environment.
 //   node test/browser/run.mjs groups                  every groups scenario
 //   node test/browser/run.mjs draft-save-and-recovery one scenario, by name
+//   node test/browser/run.mjs --all                   every scenario of every suite
 //   node test/browser/run.mjs --list                  every scenario name
 // A failing scenario does not stop the ones after it; the run fails at the end.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { screenshots, startEnvironment } from './environment.mjs';
+import { selectScenarios } from './selection.mjs';
 import { suites } from './suites.mjs';
 
 const args = process.argv.slice(2);
-const all = Object.entries(suites).flatMap(([suite, scenarios]) => scenarios.map(scenario => ({ suite, ...scenario })));
 if (args.includes('--list') || args.length === 0) {
   for (const [suite, scenarios] of Object.entries(suites)) console.log(`${suite}:\n${scenarios.map(({ name }) => `  ${name}`).join('\n')}`);
   process.exit(args.length === 0 ? 2 : 0);
 }
-const unknown = args.filter(arg => !suites[arg] && !all.some(({ name }) => name === arg));
+const { unknown, scenarios: selected } = selectScenarios(suites, args);
 if (unknown.length) {
   console.error(`Unknown suite or scenario: ${unknown.join(', ')}. Use --list to see every scenario.`);
   process.exit(2);
 }
-// Scenario names select just those scenarios, even after a suite name
-// (`pnpm test:receipts scan-fallback`); suite names alone select whole suites.
-const named = all.filter(({ name }) => args.includes(name));
-const selected = named.length ? named : all.filter(({ suite }) => args.includes(suite));
 
 let active, starting, interrupted = false;
 // After a signal the handler owns shutdown; the scenario loop waits for it to exit the process.

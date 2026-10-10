@@ -35,7 +35,14 @@ function todoFor(bill: Bill): BillTodo | null {
 export function groupView(data: GroupPageData) {
   const me = data.group.members.find(member => member.isCurrentUser)!;
   const members = new Map(data.group.members.map(member => [member.id, member]));
-  const name = (id: string) => id === me.id ? 'You' : members.get(id)?.displayName ?? 'Member';
+  const formerMembers = new Map(data.ledger.formerMembers.map(member => [member.userId, member.displayName]));
+  const name = (id: string) => id === me.id ? 'You' : members.get(id)?.displayName ?? formerMembers.get(id) ?? 'Member';
+  // The group snapshot is authoritative for current membership. Former members
+  // remain nameable in retained entries, but never appear as balance targets.
+  const currentIds = new Set(members.keys());
+  const currentLedgerMembers = data.ledger.members.filter(member => currentIds.has(member.userId));
+  const currentSuggestions = data.ledger.suggestions.filter(suggestion =>
+    currentIds.has(suggestion.fromUserId) && currentIds.has(suggestion.toUserId));
   const open: OpenBill[] = [];
   const history: Bill[] = [];
   for (const bill of data.bills) {
@@ -64,7 +71,7 @@ export function groupView(data: GroupPageData) {
     }
     return entry;
   }
-  for (const suggestion of data.ledger.suggestions) {
+  for (const suggestion of currentSuggestions) {
     if (suggestion.fromUserId === me.id) row(suggestion.toUserId).suggestion = { direction: 'pay', amountCents: suggestion.amountCents };
     else if (suggestion.toUserId === me.id) row(suggestion.fromUserId).suggestion = { direction: 'receive', amountCents: suggestion.amountCents };
   }
@@ -82,8 +89,10 @@ export function groupView(data: GroupPageData) {
     me, name, open, history, rows, repayments,
     netCents: data.summary.netCents,
     uncountedBills: data.ledger.incompleteBillIds.length,
-    members: data.ledger.members,
-    suggestions: data.ledger.suggestions,
+    members: currentLedgerMembers,
+    // Named by retained entries only: never a balance row or repayment target.
+    formerMembers: data.ledger.formerMembers.filter(member => !currentIds.has(member.userId)),
+    suggestions: currentSuggestions,
   };
 }
 
