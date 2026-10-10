@@ -33,20 +33,22 @@ The container does not send `Strict-Transport-Security`, because TLS does not te
 
 Home's JavaScript is a single request: the entry chunk. The group-icon picker and emoji data are lazy chunks.
 
-| Path, entry chunk with browser `Accept-Encoding` | Before | After |
+| Entry chunk, browser `Accept-Encoding` | Before (`afa7962`) | After (`ee8ed5e`) |
 | --- | ---: | ---: |
-| Origin container (`127.0.0.1:11119` before, the new image locally after) | 873,912 B, uncompressed | 251,081 B, gzip |
-| Public `https://sharetally.app`, Cloudflare edge | 286,429 B, gzip from Cloudflare | Pending deployment |
+| Decoded size | 873,912 B | 883,313 B |
+| Origin container to FRP | 873,912 B, uncompressed | 253,340 B, gzip |
+| Public `https://sharetally.app` | 286,429 B, gzip from Cloudflare | 253,340 B, gzip from the origin |
 
-The "before" numbers were taken on 2026-10-10 from the deployed `afa7962` image. Repeated requests and a cache-busting query returned the same public size. Cloudflare served gzip even when the request also accepted `br` and `zstd`. These were `curl` measurements of body bytes, without HTTP headers.
+Both columns were measured on 2026-10-10 with `curl`, counting body bytes without HTTP headers. "Before" is the deployed `afa7962` image. "After" is `ee8ed5e`: PR #234 deployed right after #238 and includes it. #234 also grew the entry chunk by 9,401 B. Before, the origin sent the chunk uncompressed and Cloudflare compressed it. Now Cloudflare forwards the origin's gzip unchanged and caches it, so the public and origin sizes match. Repeated requests returned the same size. Cloudflare served gzip even when the request also accepted `br` and `zstd`.
 
 ## Validation
 
 `deploy/check-web.sh <web image>` runs `deploy/check-web.mjs` beside the built web container. The script also plays the `api` upstream. It checks compression, security and cache headers, missing-file 404s, unchanged `/api/` headers without compression, and the first SSE event arriving without delay. `deploy/check.sh` runs it in CI after building the web image.
 
-After deployment, verify on the public path:
+Public-path checks of `ee8ed5e` on 2026-10-10:
 
-- The entry chunk's transfer size and `Content-Encoding`, to fill in the table.
-- The security headers on `/` and on the entry chunk, and unchanged headers on `/api/health`.
-- `Cache-Control` on `/` and on the entry chunk. Cloudflare replaces origin lifetimes shorter than its Browser Cache TTL, currently four hours. If `index.html` arrives with `max-age=14400` instead of `no-cache`, set Browser Cache TTL to "Respect Existing Headers".
-- A 404 for a missing `/assets/` file. Use a new random name, because Cloudflare cached the old fallback HTML for four hours.
+- `/` and the entry chunk carry all four security headers. `/` has `Cache-Control: no-cache`, so Cloudflare kept the origin's value. The entry chunk has `public, max-age=31536000, immutable`.
+- `/api/health` still sends only its own `Content-Type`, `Cache-Control: no-store` and `X-Powered-By`, uncompressed.
+- A missing `/assets/` file returns 404 with the security headers. Cloudflare adds `Cache-Control: max-age=14400`, because the origin sends no lifetime on 404s. That doesn't break anything: a content-hashed name that is missing now will never exist later.
+- No `Strict-Transport-Security` is sent yet. Enabling it at Cloudflare is still the domain owner's decision; see [HSTS](#hsts).
+- The group SSE stream wasn't checked publicly, because that requires a signed-in user. The container check covers its prompt first event.
