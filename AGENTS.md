@@ -1,8 +1,12 @@
+## Project context
+
+Before planning or implementing, read `docs/project-brief.md` for ownership and delivery constraints. Current requirements live in GitHub issue #1, as overridden by issue #26 for receipt extraction and item claiming, and their implementation tickets; domain terms and accepted decisions live in `GLOSSARY.md` and `docs/adr/`. Research notes are background, not approved requirements.
+
+## Code structure
+
+Before adding a file or a cross-module import, read the README's "Code structure" section. Imports point from `app` to `features` to `shared`; compose screens that combine features in `client/src/app`.
+
 ## Agent skills
-
-### Project context
-
-Before planning or implementing, read `docs/project-brief.md` for ownership and delivery constraints. Current requirements live in GitHub issue #1 and its implementation tickets; domain terms and accepted decisions live in `GLOSSARY.md` and `docs/adr/`. Research notes are background, not approved requirements.
 
 ### Issue tracker
 
@@ -16,14 +20,6 @@ Default vocabulary; each label string equals its canonical role name. See `docs/
 
 Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
-### Code structure
-
-Before adding a file or a cross-module import, read the README's "Code structure" section. Imports point from `app` to `features` to `shared`; compose screens that combine features in `client/src/app`.
-
-### Subagent model for frontend design
-
-When delegating frontend design work (UI/UX, layout, visual design) to a subagent, set the Agent tool's `model` to `"opus"` (Opus 5.5). This overrides the global instruction to leave `model` unset for this kind of task only.
-
 ## Code Review Rules
 
 ### Sources and scope
@@ -36,7 +32,7 @@ Use `GLOSSARY.md`, accepted decisions in `docs/adr/`, and applicable repository 
 
 Check the diff against documented project conventions and accepted design decisions. Cite the source and rule for each violation. Leave formatting, lint, and other mechanical checks to tooling.
 
-Use Fowler code smells as judgment aids: unclear names, duplicated logic, data clumps, primitive obsession, misplaced responsibilities, repeated branching, scattered changes, and speculative abstractions. Repository guidance takes precedence. Report a smell only when it causes a concrete, consequential problem in this change; label the design judgment and explain the failure scenario rather than treating the smell itself as a violation.
+Use Fowler's code smells (_Refactoring_, ch. 3) as judgment aids, alongside any smell baseline the reviewing tool carries. Repository guidance takes precedence. Report a smell only when it causes a concrete, consequential problem in this change; label the design judgment and explain the failure scenario rather than treating the smell itself as a violation.
 
 ### Spec
 
