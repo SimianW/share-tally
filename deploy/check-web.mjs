@@ -61,7 +61,8 @@ const securityHeaders = {
 
 test('HTML and static responses carry security headers', async () => {
   for (const path of ['/', '/index.html', await entryChunk(), '/favicon.svg']) {
-    const { headers } = await get(path, browser);
+    const { status, headers } = await get(path, browser);
+    assert.equal(status, 200, path);
     for (const [name, value] of Object.entries(securityHeaders)) assert.equal(headers[name], value, `${name} on ${path}`);
   }
 });
@@ -76,11 +77,13 @@ test('hashed assets are cached for a year and index.html is revalidated', async 
   }
 });
 
-test('a missing hashed asset is a 404, not cached index.html', async () => {
-  const response = await get('/assets/index-missing.js', browser);
-  assert.equal(response.status, 404);
-  assert.equal(response.headers['cache-control'], undefined);
-  assert.doesNotMatch(text(response), /id="root"/);
+test('a missing file is a 404, not cached index.html', async () => {
+  for (const path of ['/assets/index-missing.js', '/fonts/missing.woff2', '/missing.svg']) {
+    const response = await get(path, browser);
+    assert.equal(response.status, 404, path);
+    assert.equal(response.headers['cache-control'], undefined, path);
+    assert.doesNotMatch(text(response), /id="root"/, path);
+  }
 });
 
 test('API responses keep their own headers and are not compressed', async () => {
@@ -145,11 +148,14 @@ function firstChunk(path, headers) {
 /** Raw request: bodies stay encoded so the checks see exactly what Nginx sent. */
 function get(path, headers = {}) {
   return new Promise((resolve, reject) => {
-    request(new URL(path, web), { headers }, (response) => {
+    // A connection Nginx accepts but never answers must still fail the check.
+    request(new URL(path, web), { headers, timeout: 5000 }, (response) => {
       const chunks = [];
       response.on('data', (chunk) => chunks.push(chunk));
       response.on('end', () => resolve({ status: response.statusCode, headers: response.headers, body: Buffer.concat(chunks) }));
       response.on('error', reject);
+    }).on('timeout', function () {
+      this.destroy(new Error(`no response from ${path} within 5s`));
     }).on('error', reject).end();
   });
 }

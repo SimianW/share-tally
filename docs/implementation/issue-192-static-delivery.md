@@ -21,9 +21,9 @@ Caching:
 | `/assets/*` (Vite content-hashed) | `public, max-age=31536000, immutable` |
 | `index.html`, including the fallback for unknown paths | `no-cache` |
 | Unhashed public files: favicon, `/fonts/` | `no-cache` |
-| Missing `/assets/*` | 404 without `Cache-Control` |
+| Missing file: any path whose last segment has an extension | 404 without `Cache-Control` |
 
-Before this change, a missing `/assets/` file returned `index.html` with status 200. Cloudflare cached that HTML under the `.js` URL for four hours.
+App routes are hash URLs, so only extensionless paths still fall back to `index.html`. Before this change, a missing `/assets/` file returned `index.html` with status 200. Cloudflare cached that HTML under the `.js` URL for four hours.
 
 ## HSTS
 
@@ -42,11 +42,11 @@ The "before" numbers were taken on 2026-10-10 from the deployed `afa7962` image.
 
 ## Validation
 
-`deploy/check-web.sh <web image>` runs `deploy/check-web.mjs` beside the built web container. The script also plays the `api` upstream. It checks compression, security and cache headers, the missing-asset 404, unchanged `/api/` headers without compression, and the first SSE event arriving without delay. `deploy/check.sh` runs it in CI after building the web image.
+`deploy/check-web.sh <web image>` runs `deploy/check-web.mjs` beside the built web container. The script also plays the `api` upstream. It checks compression, security and cache headers, missing-file 404s, unchanged `/api/` headers without compression, and the first SSE event arriving without delay. `deploy/check.sh` runs it in CI after building the web image.
 
 After deployment, verify on the public path:
 
 - The entry chunk's transfer size and `Content-Encoding`, to fill in the table.
 - The security headers on `/` and on the entry chunk, and unchanged headers on `/api/health`.
 - `Cache-Control` on `/` and on the entry chunk. Cloudflare replaces origin lifetimes shorter than its Browser Cache TTL, currently four hours. If `index.html` arrives with `max-age=14400` instead of `no-cache`, set Browser Cache TTL to "Respect Existing Headers".
-- A 404 for a missing `/assets/` file.
+- A 404 for a missing `/assets/` file. Use a new random name, because Cloudflare cached the old fallback HTML for four hours.
