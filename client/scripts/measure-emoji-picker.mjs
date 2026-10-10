@@ -6,8 +6,8 @@
 // Builds production assets outside dist, substitutes only Clerk/API, and measures
 // actual Chromium requests (CDP encodedDataLength includes HTTP headers). Static
 // bodies are served with gzip; decoded bytes come from browser response bodies.
-// deploy/nginx.conf does not enable gzip; the deployed JS was observed uncompressed.
-// These gzip results model compressed delivery, not the current deployment.
+// deploy/nginx.conf gzips these assets too (#192), at a different level, so
+// transfer sizes approximate the deployment rather than reproduce it.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { once } from 'node:events';
