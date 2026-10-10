@@ -135,15 +135,19 @@ function pairDebts(entries: LedgerEntry[]) {
   return pairs;
 }
 
+// members are the group's current members. Retained entries may also affect
+// former members, who left with a zero balance; they stay named in formerMembers
+// but are neither balance rows nor repayment targets.
 export function groupLedger(
   bills: LedgerBill[],
   members: { userId: string; displayName: string | null }[],
   repayments: Repayment[] = [],
+  formerMembers: { userId: string; displayName: string | null }[] = [],
 ): GroupLedger {
   const entries = ledgerEntries(bills, repayments);
   const balances = new Map(members.map(member => [member.userId, 0n]));
   for (const entry of entries) for (const effect of entry.effects)
-    balances.set(effect.userId, balances.get(effect.userId)! + BigInt(effect.netCents));
+    balances.set(effect.userId, (balances.get(effect.userId) ?? 0n) + BigInt(effect.netCents));
   const result = members.map(member => {
     const netCents = safeCents(balances.get(member.userId)!);
     return { userId: member.userId, displayName: member.displayName ?? 'Member', netCents };
@@ -175,6 +179,7 @@ export function groupLedger(
   });
   return {
     members: result,
+    formerMembers: formerMembers.map(member => ({ userId: member.userId, displayName: member.displayName ?? 'Member' })),
     suggestions,
     directDebts,
     incompleteBillIds: bills.filter(bill => !bill.completedAt && !bill.canceledAt).map(bill => bill.id),

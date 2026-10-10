@@ -163,6 +163,11 @@ function LedgerTable({ data, view, trace }: { data: GroupPageData; view: GroupVi
     {cents === undefined ? <span><span aria-hidden="true">—</span><span className="sr-only">Not involved</span></span>
       : <span>{signed(cents)}</span>}
   </td>;
+  // Former members keep a column so retained entries still show every effect;
+  // their balance is the sum of those effects, zero since they left settled.
+  const columns = [...view.members.map(member => ({ ...member, former: false })),
+    ...view.formerMembers.map(member => ({ userId: member.userId, former: true,
+      netCents: entries.reduce((sum, entry) => sum + (entry.effects.find(effect => effect.userId === member.userId)?.netCents ?? 0), 0) }))];
   const reveal = () => { setShowAll(true); scroll.current?.focus({ preventScroll: true }); };
   return <>
     <div ref={scroll} className="ledger-table-scroll" role="region" aria-label="Ledger table" tabIndex={0}>
@@ -170,8 +175,9 @@ function LedgerTable({ data, view, trace }: { data: GroupPageData; view: GroupVi
         <thead>
           <tr>
             <th scope="col"><span>Bill or repayment</span></th>
-            {view.members.map(member => <th scope="col" key={member.userId} className={column(member.userId)}>
+            {columns.map(member => <th scope="col" key={member.userId} className={column(member.userId)}>
               <span className="ledger-column-head">{view.name(member.userId)}
+                {member.former && <small>Former member</small>}
                 {traced(member.userId) && <small>{role(member.userId)}</small>}</span>
             </th>)}
           </tr>
@@ -186,7 +192,7 @@ function LedgerTable({ data, view, trace }: { data: GroupPageData; view: GroupVi
                     {' '}direct between {whom(transfer.fromUserId)} and {whom(transfer.toUserId)}</>}</small>
               </span>
             </th>
-            {view.members.map(member => cell(member.userId, earlier.get(member.userId)))}
+            {columns.map(member => cell(member.userId, earlier.get(member.userId)))}
           </tr>}
           {shown.map(entry => {
             const effects = new Map(entry.effects.map(effect => [effect.userId, effect.netCents]));
@@ -202,17 +208,17 @@ function LedgerTable({ data, view, trace }: { data: GroupPageData; view: GroupVi
                   {transfer && direct.has(entry.id) && <span className="sr-only">, directly between them</span>}
                 </span>
               </th>
-              {view.members.map(member => cell(member.userId, effects.get(member.userId)))}
+              {columns.map(member => cell(member.userId, effects.get(member.userId)))}
             </tr>;
           })}
           {!entries.length && <tr>
-            <td colSpan={view.members.length + 1} className="ledger-table-empty"><span>No complete bills or confirmed repayments yet.</span></td>
+            <td colSpan={columns.length + 1} className="ledger-table-empty"><span>No complete bills or confirmed repayments yet.</span></td>
           </tr>}
         </tbody>
         <tfoot>
           <tr>
             <th scope="row"><span>Balance</span></th>
-            {view.members.map(member => <td key={member.userId} className={column(member.userId, tone(member.netCents))}>
+            {columns.map(member => <td key={member.userId} className={column(member.userId, tone(member.netCents))}>
               <span>{signed(member.netCents)}</span>
             </td>)}
           </tr>

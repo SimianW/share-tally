@@ -1,7 +1,7 @@
 import type { Transaction as Tx } from '../db/types.js';
 import { requireMember, lockGroupForMember } from '../groups/group-access.js';
 import { notifyGroupChanged } from '../realtime/group-events.js';
-import { and, desc, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, isNull, or } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { groupMembers, groups, repayments } from '../db/schema.js';
 import { BillError } from '../shared/bill-error.js';
@@ -69,4 +69,13 @@ export async function decideRepayment(id: string, userId: string, decision: 'con
   });
   notifyGroupChanged(repayment.groupId);
   return repayment;
+}
+
+// Pending records this member sent or must decide, oldest first. They block
+// the member's departure; other members' pending records do not.
+export async function pendingRepaymentsInvolving(tx: Tx, groupId: string, userId: string) {
+  return tx.select({ id: repayments.id, senderId: repayments.senderId, recipientId: repayments.recipientId, amountCents: repayments.amountCents })
+    .from(repayments).where(and(eq(repayments.groupId, groupId), eq(repayments.status, 'pending'),
+      or(eq(repayments.senderId, userId), eq(repayments.recipientId, userId))))
+    .orderBy(repayments.createdAt, repayments.id);
 }

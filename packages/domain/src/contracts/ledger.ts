@@ -14,6 +14,9 @@ export type LedgerEntry =
       effects: { userId: string; netCents: number }[] };
 export type GroupLedger = {
   members: { userId: string; displayName: string; netCents: number }[];
+  // Users who left the group but appear in its bills or repayment records, so
+  // retained history can still name them. They are never repayment targets.
+  formerMembers: { userId: string; displayName: string }[];
   // Each suggestion's amount is what its payer directly owes its recipient plus
   // what the fewest-transfers simplification passed along (either may be negative).
   suggestions: { fromUserId: string; toUserId: string; amountCents: number; explanation: {

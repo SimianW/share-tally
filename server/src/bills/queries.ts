@@ -1,8 +1,8 @@
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, exists, inArray, isNull, or } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { bills, billShares, groupMembers, groups, users } from "../db/schema.js";
 import { requireMember as member } from '../groups/group-access.js';
-import { readMemberBalancesInSnapshot } from "../ledger/accounting.js";
+import { readLedgerPeopleInSnapshot, readMemberBalancesInSnapshot } from "../ledger/accounting.js";
 import { balanceTotals, groupLedger, memberBalances } from "../ledger/group-ledger.js";
 import { selectFrozenTaxRate } from '../receipts/pricing/frozen-receipt-pricing.js';
 import { readRepayments } from '../repayments/repayments.js';
@@ -98,14 +98,23 @@ export async function readBills(userId: string, groupId?: string, id?: string) {
 export async function readGroupBills(userId: string, groupId: string) {
   return db.transaction(async tx => {
     const rows = await readBillsInSnapshot(tx, userId, groupId);
-    const members = await tx.select({ userId: users.id, displayName: users.displayName })
-      .from(groupMembers).innerJoin(users, eq(users.id, groupMembers.userId))
-      .where(eq(groupMembers.groupId, groupId)).orderBy(users.id);
+    const { members, formerMembers } = await readLedgerPeopleInSnapshot(tx, groupId);
     const repayments = await readRepayments(tx, userId, groupId);
-    return { bills: rows, repayments, summary: balanceTotals(memberBalances(rows, userId, repayments)), ledger: groupLedger(rows, members, repayments) };
+    return { bills: rows, repayments, summary: balanceTotals(memberBalances(rows, userId, repayments)), ledger: groupLedger(rows, members, repayments, formerMembers) };
   }, { isolationLevel: "repeatable read", accessMode: "read only" });
 }
 export async function readSummary(userId: string) {
   return db.transaction(async tx => balanceTotals(await readMemberBalancesInSnapshot(tx, userId)),
     { isolationLevel: "repeatable read", accessMode: "read only" });
+}
+
+// Incomplete, non-canceled bills this member initiated or takes part in, oldest
+// first. They block the member's departure; other members' bills do not.
+export async function incompleteBillsInvolving(tx: Tx, groupId: string, userId: string) {
+  const rows = await tx.select({ id: bills.id, title: bills.title, initiatorId: bills.initiatorId }).from(bills)
+    .where(and(eq(bills.groupId, groupId), isNull(bills.completedAt), isNull(bills.canceledAt), or(
+      eq(bills.initiatorId, userId),
+      exists(tx.select().from(billShares).where(and(eq(billShares.billId, bills.id), eq(billShares.userId, userId)))),
+    ))).orderBy(bills.createdAt, bills.id);
+  return rows.map(({ initiatorId, ...bill }) => ({ ...bill, role: initiatorId === userId ? 'initiator' as const : 'participant' as const }));
 }

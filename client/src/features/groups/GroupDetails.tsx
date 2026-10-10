@@ -12,9 +12,10 @@ import { Button } from "../../shared/ui/Button";
 import Dialog from '../../shared/ui/Dialog';
 import { Notification } from '../../shared/ui/Notification';
 import { GroupDeletionAccessError,type GroupApi,type GroupDeletionEligibility,type GroupDeletionReason,type GroupDetail } from "./api";
+import { MemberDepartureDialog } from './MemberDepartureDialog';
 
-export function GroupDetails({ id, api, close, onViewBills, onDeleted }: {
-  id: string; api: GroupApi; close: () => void; onViewBills?: () => void; onDeleted: () => void;
+export function GroupDetails({ id, api, close, onViewBills, onDeleted, onLeft }: {
+  id: string; api: GroupApi; close: () => void; onViewBills?: () => void; onDeleted: () => void; onLeft: () => void;
 }) {
   const session = useSyncSession();
   const cache = useQueryClient();
@@ -25,6 +26,10 @@ export function GroupDetails({ id, api, close, onViewBills, onDeleted }: {
   const [loading, setLoading] = useState(true);
   const live = useRef<ReturnType<typeof startGroupSync> | null>(null);
   const [confirmingDeletion, setConfirmingDeletion] = useState(false);
+  const [departingId, setDepartingId] = useState<string | null>(null);
+  const [message, setMessage] = useState('');
+  const departing = group?.members.find(member => member.id === departingId);
+  const currentMember = group?.members.find(member => member.isCurrentUser);
   useEffect(() => {
     const sync = startGroupSync({ groupId: id, session,
       read: signal => api.detail(id, signal),
@@ -39,6 +44,7 @@ export function GroupDetails({ id, api, close, onViewBills, onDeleted }: {
     <Dialog title={group?.name ?? 'Group'} kicker="YOUR PEOPLE" close={close}>
       {loading && !group && <p role="status">Loading members…</p>}
       {error && <Notification>{error}</Notification>}
+      {message && <Notification tone="success" onDismiss={() => setMessage('')}>{message}</Notification>}
       {group && onViewBills && <div className="group-bills-action">
         <Button onClick={onViewBills}>
           View bills and balance <ArrowRight size={18} aria-hidden="true" />
@@ -54,19 +60,35 @@ export function GroupDetails({ id, api, close, onViewBills, onDeleted }: {
         {group.members.map(member => <div className="member-row" key={member.id}>
           <Avatar name={member.displayName} imageUrl={member.imageUrl} fallbackImageUrl={member.fallbackImageUrl} />
           <span>{member.displayName}{member.isCurrentUser ? ' · You' : ''}</span>
-          {member.isCreator && <strong>Creator</strong>}
+          {member.isOwner && <strong>Owner</strong>}
+          {group.isOwner && !member.isCurrentUser && <Button variant="text" className="member-remove bill-danger"
+            onClick={() => { setMessage(''); setDepartingId(member.id); }}>Remove</Button>}
         </div>)}
-        {group.isCreator && <>
+        <section className="group-leave-controls">
+          <h3>Leave group</h3>
+          {group.isOwner && group.memberCount === 1
+            ? <p>You are the sole group owner and member. Use Delete group below after the group is cleared instead of leaving.</p>
+            : <>
+              <p>{group.isOwner ? 'Choose another current member as the new group owner, then transfer ownership and leave together.' : 'Leave this group without deleting it for the other members.'}</p>
+              <p>Your unpublished bill drafts in this group will be deleted, including their photos.</p>
+              <Button variant="secondary" onClick={() => { setMessage(''); setDepartingId(currentMember?.id ?? null); }}>Leave group</Button>
+            </>}
+        </section>
+        {group.isOwner && <>
           <InvitationControls id={id} api={api} />
           <section className="group-delete-controls">
             <h3>Delete group</h3>
-            <p>Only the group creator can delete a group after all balances, bills and repayments are cleared.</p>
+            <p>Only the group owner can delete a group after all balances, bills and repayments are cleared.</p>
             <Button variant="secondary" className="bill-danger" onClick={() => setConfirmingDeletion(true)}>Delete group</Button>
           </section>
         </>}
       </>}
-      {group?.isCreator && confirmingDeletion &&
+      {group?.isOwner && confirmingDeletion &&
         <DeleteGroupDialog group={group} api={api} close={() => setConfirmingDeletion(false)} onDeleted={onDeleted} />}
+      {group && departing && (departing.isCurrentUser || group.isOwner) &&
+        <MemberDepartureDialog key={departing.id} group={group} member={departing} api={api}
+          close={() => setDepartingId(null)} onLeft={onLeft}
+          onRemoved={() => { setDepartingId(null); setMessage(`${departing.displayName} was removed from the group.`); refresh(); }} />}
     </Dialog>
   );
 }
@@ -180,7 +202,7 @@ function InvitationControls({ id, api }: { id: string; api: GroupApi }) {
   }
   return <section className="invitation-controls">
     <h3>Invite friends</h3>
-    <p>Anyone with this link can sign in and join while the group has fewer than 16 members. Only you can get or replace it here.</p>
+    <p>Anyone with this link can sign in and join while the group has fewer than 16 members. Only the group owner can get or replace it here.</p>
     {error && <Notification>{error}</Notification>}
     {message && (message.startsWith("Select") ? <Notification tone="info" title="Copy the link manually">{message}</Notification> : <Notification tone="success" onDismiss={() => setMessage('')}>{message}</Notification>)}
     {link ? <>

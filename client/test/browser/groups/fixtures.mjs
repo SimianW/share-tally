@@ -2,10 +2,10 @@
 // Clicks and assertions stay in the scenarios.
 import { randomUUID } from 'node:crypto';
 
-// Alice's "Costco friends" group, joined by Bob and Carol in that order.
-export async function costcoFriends(env) {
+// Alice's group, joined by Bob and Carol in that order.
+export async function costcoFriends(env, { name = 'Costco friends' } = {}) {
   const { api, base } = env;
-  const { group } = await api('/groups', 'alice-token', 'POST', { name: 'Costco friends', icon: { type: 'unicode', value: '👨‍👩‍👧‍👦' } });
+  const { group } = await api('/groups', 'alice-token', 'POST', { name, icon: { type: 'unicode', value: '👨‍👩‍👧‍👦' } });
   const invitation = await api(`/groups/${group.id}/invitation`);
   const invitationToken = invitation.path.split('/').at(-1);
   for (const token of ['bob-token', 'carol-token']) await api('/groups/join', token, 'POST', { token: invitationToken });
@@ -16,6 +16,36 @@ export async function costcoFriends(env) {
     groupUrl: `${base}#/groups/${group.id}`,
     billsUrl: `${base}#/group-bills/${group.id}`,
   };
+}
+
+// Observe real ready frames without delaying or substituting the API stream.
+// Membership journeys wait for this before changing access in another context.
+export async function observeGroupReady(page) {
+  await page.addInitScript(() => {
+    window.membershipReadyGroups = [];
+    const original = window.fetch.bind(window);
+    window.fetch = async (url, options) => {
+      const groupId = String(url).match(/\/groups\/([^/]+)\/events$/)?.[1];
+      const response = await original(url, options);
+      if (!groupId || !response.ok || !response.body) return response;
+      let frames = '';
+      const decoder = new TextDecoder();
+      const observed = response.body.pipeThrough(new TransformStream({
+        transform(chunk, controller) {
+          frames += decoder.decode(chunk, { stream: true });
+          let end;
+          while ((end = frames.indexOf('\n\n')) >= 0) {
+            const frame = frames.slice(0, end);
+            frames = frames.slice(end + 2);
+            if (frame.startsWith('event: ready') && !window.membershipReadyGroups.includes(groupId))
+              window.membershipReadyGroups.push(groupId);
+          }
+          controller.enqueue(chunk);
+        },
+      }));
+      return new Response(observed, { status: response.status, headers: response.headers });
+    };
+  });
 }
 
 // A bill Alice initiates; `shares` are [token, cents] submissions made in order.

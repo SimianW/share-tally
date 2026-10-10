@@ -4,6 +4,8 @@ import { randomUUID } from 'node:crypto';
 // One API process. Notify only AFTER the database transaction resolves.
 // Events invalidate a group's view; they never carry financial state.
 const subscribers = new Map<string, Set<Response>>();
+// Whose group stream each response is, so departure ends only theirs.
+const streamUsers = new WeakMap<Response, string>();
 // Member streams, by user ID, invalidate views spanning a member's groups, such as Home.
 // Each member's version counts their announcements, so a reconnecting reader
 // rereads only if it missed one. A restart changes every version.
@@ -37,6 +39,15 @@ export function notifyGroupDeleted(groupId: string, name: string) {
   }
 }
 
+// The member's access to this group ended: they left or were removed. Their
+// open streams receive a final event and end; other members' streams continue.
+export function notifyMembershipEnded(groupId: string, userId: string, name: string) {
+  for (const response of subscribers.get(groupId) ?? []) {
+    if (streamUsers.get(response) === userId)
+      response.end(`event: membership-ended\ndata: ${JSON.stringify({ id: groupId, name })}\n\n`);
+  }
+}
+
 function openEvents(streams: Map<string, Set<Response>>, key: string, response: Response, expiresAt: number, ready = '{}') {
   response.setHeader('Content-Type', 'text/event-stream');
   response.setHeader('Cache-Control', 'no-store');
@@ -62,7 +73,8 @@ function openEvents(streams: Map<string, Set<Response>>, key: string, response: 
   response.write(`event: ready\ndata: ${JSON.stringify({ ...JSON.parse(ready), expiresAt, expiresInMs: Math.max(0, expiresAt - Date.now()) })}\n\n`);
 }
 
-export function openGroupEvents(groupId: string, response: Response, expiresAt: number) {
+export function openGroupEvents(groupId: string, userId: string, response: Response, expiresAt: number) {
+  streamUsers.set(response, userId);
   openEvents(subscribers, groupId, response, expiresAt);
 }
 

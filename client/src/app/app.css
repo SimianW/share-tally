@@ -459,3 +459,11 @@ h1 {
 @keyframes skeleton-pulse {
   50% { opacity: 0.5; }
 }
+
+.group-leave-controls { display: grid; gap: 12px; margin-top: 24px; border-top: 1px solid var(--line); padding-top: 20px; }
+.group-leave-controls h3, .group-leave-controls p { margin: 0; }
+.group-leave-controls > .button { justify-self: start; }
+.member-row > .member-remove { margin-left: auto; flex-shrink: 0; }
+.group-succession-form { margin: 20px 0; gap: 12px; }
+.group-succession-form select { width: 100%; min-width: 0; border: 1px solid var(--line-strong); border-radius: 10px; padding: 12px; background: var(--surface); color: var(--ink-primary); font: inherit; }
+.group-succession-form p { margin: 0; }

@@ -79,10 +79,10 @@ async function observeStreams(page) {
   });
 }
 
-async function setupRenewal(env, lifetime = 7000) {
+async function setupRenewal(env, lifetime = 7000, token = 'alice-token') {
   await env.waitForServer('stream-lifetime-set', { streamLifetimeMs: lifetime });
   const { group, ids } = await costcoFriends(env);
-  const page = await env.pageFor('alice-token', { width: 1280, height: 900 });
+  const page = await env.pageFor(token, { width: 1280, height: 900 });
   await observeStreams(page);
   await page.goto(`${env.base}#/group-bills/${group.id}`);
   await expect(groupNet(page)).toContainText("You're settled up");
@@ -286,6 +286,39 @@ async function deletionDuringRenewal(env) {
   await expect(page.getByRole('link', { name: /Costco friends/ })).toHaveCount(0);
   assert.ok(await page.evaluate(() => window.sseTest.closed.includes(1) && window.sseTest.closed.includes(2)), 'Deletion closes both sides of the handoff');
 }
+async function removalDuringRenewal(env) {
+  const { page, group, ids } = await setupRenewal(env, 7000, 'bob-token');
+  await page.evaluate(() => { window.sseTest.holds[2] = 5000; });
+  await expect.poll(() => page.evaluate(() => window.sseTest.attempts), { timeout: 5000 }).toBe(2);
+  await env.api(`/groups/${group.id}/members/${ids.Bob}`, 'alice-token', 'DELETE');
+  await expect(page.getByRole('heading', { name: /Hey Bob/ })).toBeVisible();
+  await expect(page.getByText('You were removed from Costco friends', { exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Costco friends/ })).toHaveCount(0);
+  assert.ok(await page.evaluate(() => window.sseTest.closed.includes(1) && window.sseTest.closed.includes(2)), 'Removal closes both sides of the handoff');
+  const alice = await env.pageFor('alice-token', { width: 1280, height: 900 });
+  await alice.goto(`${env.base}#/group-bills/${group.id}`);
+  await expect(groupNet(alice)).toContainText("You're settled up");
+}
+
+async function removedWhileDisconnected(env) {
+  const { page, group, ids } = await setupRenewal(env, 30_000, 'bob-token');
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect.poll(() => page.evaluate(() => window.sseTest.active)).toBe(0);
+  await env.api(`/groups/${group.id}/members/${ids.Bob}`, 'alice-token', 'DELETE');
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect(page.getByRole('heading', { name: /Hey Bob/ })).toBeVisible();
+  await expect(page.getByText('Costco friends is no longer available. It may have been deleted or your membership ended.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Costco friends was deleted by the group owner', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /Costco friends/ })).toHaveCount(0);
+  assert.equal((await env.api(`/groups/${group.id}`, 'alice-token')).group.id, group.id, 'The group still exists');
+}
+
 async function confirmedAuthenticationLoss(env) {
   const { page, group, ids } = await setupRenewal(env);
   await createBill(env, group, ids, 'Protected bill');
@@ -307,6 +340,8 @@ async function tokenDeadline(env) {
 }
 scenarios.push(
   { name: 'sse-deletion-during-renewal', run: deletionDuringRenewal },
+  { name: 'sse-removal-during-renewal', run: removalDuringRenewal },
+  { name: 'sse-removed-while-disconnected', run: removedWhileDisconnected },
   { name: 'sse-authentication-loss', run: confirmedAuthenticationLoss },
   { name: 'sse-token-deadline', run: tokenDeadline },
 );
@@ -570,7 +605,7 @@ async function deletedSnapshotBeforeEvent(env, billPage = false, directLink = fa
   await expect.poll(() => page.evaluate(() => window.heldDeletionFrames)).toBe(1);
   release();
   await expect(page.getByRole('heading', { name: /Hey Bob/ })).toBeVisible();
-  if (!directLink) await expect(page.getByText('Costco friends was deleted by the group creator', { exact: true })).toBeVisible();
+  if (!directLink) await expect(page.getByText('Costco friends is no longer available. It may have been deleted or your membership ended.', { exact: true })).toBeVisible();
   if (bill) await expect(page.getByRole('heading', { name: bill.title, exact: true })).toHaveCount(0);
   await expect(page.getByRole('link', { name: /Costco friends/ })).toHaveCount(0);
 }

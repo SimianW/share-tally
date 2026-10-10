@@ -3,19 +3,20 @@ import { routes, parseRoute } from '../shared/browser/paths';
 import './styles.css';
 import { Notification } from '../shared/ui/Notification';
 import { AppearancePicker } from '../theme/AppearancePicker';
-import { refreshFinancialQueries, useCached } from '../shared/api/query-cache';
+import { cachedRead, refreshFinancialQueries, useCached } from '../shared/api/query-cache';
 import { useQueryClient } from '@tanstack/react-query';
-import { groupDeletedEvent, startMemberSync, type GroupDeleted } from '../shared/api/group-sync';
+import { groupAccessEndedEvents, groupDeletedEvent, groupMembershipEndedEvent, groupUnavailableEvent, startMemberSync, type GroupDeleted } from '../shared/api/group-sync';
 import { BillDetails } from '../features/bills/Bills';
 import { Home } from '../features/home/Home';
 import GroupWorkspace from './GroupWorkspace';
 import { NewBillPage } from "../features/receipts/drafts/NewBillPage";
 import { useRoute, leaveDeletedGroup, routeBelongsToDeletedGroup } from '../shared/browser/route';
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
+import { clearGroupRecovery } from '../features/receipts/drafts/draft-recovery';
 import AccountCheck from "../features/account/AccountCheck";
 import { TopBar, type SignedInAccount } from './TopBar';
 import { GroupDetails, JoinGroup } from '../features/groups/GroupDetails';
-import { useGroupApi, evictDeletedGroup, deletedLocally, type GroupDetail, type GroupDraft, type GroupView, type ListedGroup } from "../features/groups/api";
+import { useGroupApi, evictDeletedGroup, deletedLocally, leftLocally, type GroupDetail, type GroupDraft, type GroupView, type ListedGroup } from "../features/groups/api";
 import { errorMessage } from "../shared/api/error-message";
 import { CreateGroupDialog } from "../features/groups/Groups";
 
@@ -34,40 +35,82 @@ export default function AppShell({
 }) {
   const api = useGroupApi();
   const cache = useQueryClient();
-  const [deletionNotice, setDeletionNotice] = useState('');
-  const handledDeletions = useRef(new Set<string>());
+  const session = useSyncSession();
+  const recoveryIdentity = useRef<string | undefined>(undefined);
+  const recoveryCleanup = useRef(new Set<string>());
+  const identityRead = useRef<Promise<void> | undefined>(undefined);
+  const loadRecoveryIdentity = useCallback(() => {
+    if (recoveryIdentity.current || identityRead.current) return;
+    const pending = cachedRead<{ id: string }>(cache, '/me', session.signal).then(({ id }) => {
+      recoveryIdentity.current = id;
+      for (const groupId of recoveryCleanup.current) clearGroupRecovery(id, groupId);
+      recoveryCleanup.current.clear();
+    }).catch(() => {}).finally(() => { if (identityRead.current === pending) identityRead.current = undefined; });
+    identityRead.current = pending;
+  }, [cache, session]);
+  const clearGroupDraftRecovery = useCallback((id: string) => {
+    // Recovery uses the server member ID, not the Clerk account ID.
+    const userId = recoveryIdentity.current
+      ?? cache.getQueryData<{ group: GroupDetail }>([`/groups/${id}`])?.group.members.find(member => member.isCurrentUser)?.id;
+    if (userId) clearGroupRecovery(userId, id);
+    else { recoveryCleanup.current.add(id); loadRecoveryIdentity(); }
+  }, [cache, loadRecoveryIdentity]);
+  const [accessNotice, setAccessNotice] = useState('');
+  const handledAccessEnds = useRef(new Set<string>());
   const knownGroups = useRef(new Map<string, GroupView>());
   useEffect(() => {
-    function deleted(event: Event) {
+    function accessEnded(event: Event) {
       const { id, name } = (event as CustomEvent<GroupDeleted>).detail;
-      if (handledDeletions.current.has(id) || deletedLocally(id)) return;
+      clearGroupDraftRecovery(id);
+      if (handledAccessEnds.current.has(id)) return;
       const detail = cache.getQueryData<{ group: GroupDetail }>([`/groups/${id}`])?.group;
       const listed = cache.getQueryData<{ groups: ListedGroup[] }>(['/groups'])?.groups.find(group => group.id === id)
         ?? knownGroups.current.get(id);
-      // A 404 for an unknown/unauthorized ID is not evidence of a deleted membership.
+      // A 404 for an unknown/unauthorized ID is not evidence of lost membership.
       if (!name && !detail && !listed) return;
-      handledDeletions.current.add(id);
+      handledAccessEnds.current.add(id);
+      knownGroups.current.delete(id);
       const groupName = name ?? detail?.name ?? listed?.name;
-      void evictDeletedGroup(cache, id);
-      if (!detail?.isCreator && !listed?.isCreator) {
-        setDeletionNotice(`${groupName} was deleted by the group creator`);
+      const local = event.type === groupDeletedEvent ? deletedLocally(id)
+        : event.type === groupMembershipEndedEvent ? leftLocally(id) : deletedLocally(id) || leftLocally(id);
+      if (!local) {
+        if (event.type === groupMembershipEndedEvent) {
+          setAccessNotice(`You were removed from ${groupName}`);
+        } else if (event.type === groupUnavailableEvent) {
+          setAccessNotice(`${groupName} is no longer available. It may have been deleted or your membership ended.`);
+        } else if (!detail?.isOwner && !listed?.isOwner) {
+          setAccessNotice(`${groupName} was deleted by the group owner`);
+        }
       }
       const route = window.location.hash;
       const billId = route.match(/^#\/bills\/([^/?#]+)/)?.[1];
       const billGroupId = billId
         ? cache.getQueryData<{ bill: { groupId: string } }>([`/bills/${billId}`])?.bill.groupId
         : undefined;
+      void evictDeletedGroup(cache, id);
       if (routeBelongsToDeletedGroup(route, id, billGroupId)) leaveDeletedGroup();
     }
-    window.addEventListener(groupDeletedEvent, deleted);
-    return () => window.removeEventListener(groupDeletedEvent, deleted);
-  }, [cache]);
+    const events = groupAccessEndedEvents;
+    for (const event of events) window.addEventListener(event, accessEnded);
+    return () => { for (const event of events) window.removeEventListener(event, accessEnded); };
+  }, [cache, clearGroupDraftRecovery]);
   const route = useRoute();
   const { selectedId, billId, newBill, billGroupId, invitationToken, accountPage } = parseRoute(route);
   const groupQuery = useCached<{ groups: ListedGroup[] }>('/groups');
+  const listedGroupIds = useRef(new Set<string>());
   useEffect(() => {
-    for (const group of groupQuery.data?.groups ?? []) knownGroups.current.set(group.id, group);
-  }, [groupQuery.data]);
+    loadRecoveryIdentity();
+    if (!groupQuery.data) return;
+    const currentIds = new Set(groupQuery.data.groups.map(group => group.id));
+    // Home has only a member-wide stream. Its authoritative list also revokes
+    // recovery for groups lost while no group workspace or editor was mounted.
+    for (const id of listedGroupIds.current) if (!currentIds.has(id)) clearGroupDraftRecovery(id);
+    listedGroupIds.current = currentIds;
+    for (const group of groupQuery.data.groups) {
+      if (!knownGroups.current.has(group.id)) handledAccessEnds.current.delete(group.id);
+      knownGroups.current.set(group.id, group);
+    }
+  }, [groupQuery.data, loadRecoveryIdentity, clearGroupDraftRecovery]);
   const groups = groupQuery.data?.groups ?? [];
   // Group details open over that group's page. A stale or foreign link has no page behind it.
   const detailsGroupListed = !!selectedId && groups.some(group => group.id === selectedId);
@@ -86,7 +129,6 @@ export default function AppShell({
   // elsewhere: reread Home's groups and actions and this account's own names.
   // Pages within a group hear of renames from that group's stream instead, so
   // each tab holds one stream.
-  const session = useSyncSession();
   const renamed = useEffectEvent(() => {
     // Replace any group read already in flight: it may predate the rename.
     void refreshFinancialQueries(cache);
@@ -112,7 +154,12 @@ export default function AppShell({
       document.removeEventListener('visibilitychange', visible);
     };
   }, [spansGroups]);
-  const notice = deletionNotice && <Notification tone="info" onDismiss={() => setDeletionNotice('')}>{deletionNotice}</Notification>;
+  const notice = accessNotice && <Notification tone="info" onDismiss={() => setAccessNotice('')}>{accessNotice}</Notification>;
+
+  function leftGroup(id: string) {
+    clearGroupDraftRecovery(id);
+    leaveDeletedGroup();
+  }
 
   async function createGroup(draft: GroupDraft) {
     const { group } = await api.create(draft);
@@ -133,7 +180,7 @@ export default function AppShell({
           </div>
         </header>}
         {!home && notice}
-        {billId ? <BillDetails key={billId} id={billId} /> : newBill ? <NewBillPage key={`${newBill[1]}:${newBill[2] ?? "new"}`} groupId={newBill[1]} draftId={newBill[2]} /> : groupPageId ? <GroupWorkspace groups={groups} selectedId={groupPageId} selectedRepaymentId={new URLSearchParams(route.split('?')[1]).get('repayment') ?? undefined} loading={loading} error={error} retry={() => setRevision(value => value + 1)} onDeleted={goHome} /> : accountPage ? (
+        {billId ? <BillDetails key={billId} id={billId} /> : newBill ? <NewBillPage key={`${newBill[1]}:${newBill[2] ?? "new"}`} groupId={newBill[1]} draftId={newBill[2]} /> : groupPageId ? <GroupWorkspace groups={groups} selectedId={groupPageId} selectedRepaymentId={new URLSearchParams(route.split('?')[1]).get('repayment') ?? undefined} loading={loading} error={error} retry={() => setRevision(value => value + 1)} onDeleted={() => leftGroup(groupPageId)} /> : accountPage ? (
           <section className="account-panel">
             <AppearancePicker />
             <AccountCheck />
@@ -152,7 +199,7 @@ export default function AppShell({
       )}
       {selectedId && <GroupDetails key={selectedId} id={selectedId} api={api}
         close={() => { if (detailsGroupListed) openGroupPage(selectedId); else goHome(); }}
-        onDeleted={goHome} onViewBills={() => openGroupPage(selectedId)} />}
+        onDeleted={() => leftGroup(selectedId)} onLeft={() => leftGroup(selectedId)} onViewBills={() => openGroupPage(selectedId)} />}
       {invitationToken !== null && <JoinGroup key={invitationToken} token={invitationToken} api={api} close={goHome}
         joined={group => openGroupPage(group.id)} />}
 

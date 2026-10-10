@@ -3,7 +3,7 @@ import { type ReceiptData, type ReceiptDraft } from "@share-tally/domain/contrac
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BillApiError } from "../../../shared/api/bill-error";
 import { errorMessage } from "../../../shared/api/error-message";
-import { groupDeletedEvent, type GroupDeleted } from "../../../shared/api/group-sync";
+import { groupAccessEndedEvents, type GroupDeleted } from "../../../shared/api/group-sync";
 import { blockRouteNavigation, replaceRoute } from "../../../shared/browser/route";
 import { useReceiptApi } from "../api";
 import {
@@ -139,15 +139,16 @@ export function useDraftEditor({ userId, groupId, id, photoSelected, uploading, 
   useReceiptDraftSync(groupId, state.local.id, applyRemote, setSyncError,
     state.local.revision > 0 && opened(state) && state.operation !== "ended");
 
-  // A deleted group's drafts cannot be saved or resumed; the app leaves its route.
+  // Lost group access ends the editor and clears copies that rejoining must not restore.
   useEffect(() => {
-    function deleted(event: Event) {
+    function accessEnded(event: Event) {
       if ((event as CustomEvent<GroupDeleted>).detail.id !== groupId) return;
       dispatch({ type: "ended" });
       clearGroupRecovery(userId, groupId);
     }
-    window.addEventListener(groupDeletedEvent, deleted);
-    return () => window.removeEventListener(groupDeletedEvent, deleted);
+    const events = groupAccessEndedEvents;
+    for (const event of events) window.addEventListener(event, accessEnded);
+    return () => { for (const event of events) window.removeEventListener(event, accessEnded); };
   }, [dispatch, userId, groupId]);
 
   // `destination` is null when leaving through the editor's own close action.

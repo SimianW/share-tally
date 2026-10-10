@@ -46,7 +46,7 @@ server/src/
   bills/              commands, validation, queries and item accounting
   receipts/           drafts, photos, pricing, processing and external providers
   note-photos/        note photo storage, re-encoding and access for drafts and bills
-  groups/             membership, invitations and deletion
+  groups/             membership, ownership, invitations and deletion
   ledger/             balances, effects and repayment suggestions
   repayments/         repayment lifecycle
   identity/           users and avatars
@@ -61,7 +61,7 @@ The frontend directory is feature-oriented; `AppShell` replaces the old `PlayApp
 
 Both applications link `@share-tally/domain` ([ADR-0016](docs/adr/0016-share-financial-calculations-through-a-domain-package.md)). Their dev, build and test commands compile it using the invoking application's TypeScript compiler; it has no runtime dependencies. After editing that package while a dev server is running, run `node ../scripts/build-domain.mjs` from `client/` or `server/` to refresh its output. Server database types stay internal; compile-time checks in `server/test/wire-contracts.ts` verify that server projections serialize to the shared contracts.
 
-Server routes call workflows for operations spanning business modules. A workflow owns the transaction and passes its transaction to module operations; those operations do not import routes or workflows. Group deletion is the first such workflow: it locks the group before checking eligibility and purging note photos and receipt drafts, then publishes the deletion event after commit.
+Server routes call workflows for operations spanning business modules. A workflow owns the transaction and passes its transaction to module operations; those operations do not import routes or workflows. Group deletion is the first such workflow: it locks the group before checking eligibility and purging note photos and receipt drafts, then publishes the deletion event after commit. Member departure follows the same pattern: it locks the group, checks the departing member's ledger balance, bills and repayments, transfers ownership if the owner is leaving, purges that member's drafts and ends the membership, then notifies after commit.
 
 The group-icon picker's compact emoji metadata is generated; do not edit `client/src/features/groups/icons/emoji-data.json` by hand. After upgrading `emojibase-data`, regenerate it with `pnpm --dir client generate:emoji` and run `pnpm --dir client test:unit`.
 

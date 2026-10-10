@@ -71,6 +71,6 @@ export function GroupBills({ id, selectedRepaymentId, onDeleted, title }: {
         <LoadingFinancials label="Loading group" />
       </section>}
     {data && error && <Notification><p>{error}</p><Button onClick={() => live.current?.retry()}>Try again</Button></Notification>}
-    {membersOpen && <GroupDetails id={id} api={groups} close={closeMembers} onDeleted={onDeleted} />}
+    {membersOpen && <GroupDetails id={id} api={groups} close={closeMembers} onDeleted={onDeleted} onLeft={onDeleted} />}
   </>;
 }

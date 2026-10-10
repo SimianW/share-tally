@@ -1,13 +1,14 @@
 // One session owns these channels. Consumers keep their own snapshot coordinators.
 import type { TokenProvider } from './transport';
 export type StreamData = { expiresAt: number; expiresInMs: number; version?: string };
+export type GroupAccessEndReason = 'deleted' | 'membership-ended' | 'unavailable';
 export type Subscription = {
   ready: (data: StreamData) => void;
   changed: (data: StreamData) => void;
   unavailable: () => void;
   suspend: () => void;
   denied: (status: number, error?: Error) => void;
-  deleted: (name?: string) => void;
+  deleted: (name?: string, reason?: GroupAccessEndReason) => void;
 };
 type Stream = {
   controller: AbortController;
@@ -106,7 +107,7 @@ function createChannel(path: string, freshToken: () => Promise<string | null>, a
   let seenReady = false;
   let terminalStatus: number | undefined;
   let deletedName: string | undefined;
-  let wasDeleted = false;
+  let accessEndReason: GroupAccessEndReason | undefined;
   let lastAttempt = -Infinity;
   const visible = () => document.visibilityState === 'visible';
   const each = (callback: (consumer: Subscription) => void) => { for (const consumer of consumers) callback(consumer); };
@@ -125,21 +126,22 @@ function createChannel(path: string, freshToken: () => Promise<string | null>, a
     close(old); close(pending);
   }
   function deny(status: number, error?: Error) {
-    // A missing snapshot after membership was established has the same deletion
-    // semantics as a replacement GET returning 404, even before its final frame.
-    if (status === 404 && seenReady && path !== '/api/me/events') { deleted(); return; }
+    // A missing snapshot after access was established ends the workspace, but
+    // a 404 alone cannot distinguish deletion from the end of membership.
+    if (status === 404 && seenReady && path !== '/api/me/events') { deleted(undefined, 'unavailable'); return; }
     terminalStatus = status;
     cancel();
     each(consumer => consumer.denied(status, error));
   }
-  function deleted(name?: string) {
-    wasDeleted = true;
+  function deleted(name?: string, reason: GroupAccessEndReason = 'deleted') {
+    if (accessEndReason || terminalStatus) return;
+    accessEndReason = reason;
     deletedName = name;
     cancel();
-    each(consumer => consumer.deleted(name));
+    each(consumer => consumer.deleted(name, reason));
   }
   function schedule(delay: number) {
-    if (stopped || terminalStatus || wasDeleted || !visible() || candidate || retryTimer) return;
+    if (stopped || terminalStatus || accessEndReason || !visible() || candidate || retryTimer) return;
     retryTimer = setTimeout(() => { retryTimer = undefined; void connect(); }, delay);
   }
   function failed(stream: Stream) {
@@ -173,8 +175,8 @@ function createChannel(path: string, freshToken: () => Promise<string | null>, a
     let data: unknown;
     try { data = JSON.parse(frame.match(/^data: (.*)$/m)?.[1] ?? ''); } catch { return; }
     if (!data || typeof data !== 'object') return;
-    if (kind === 'group-deleted' && 'id' in data && path === `/api/groups/${encodeURIComponent(String(data.id))}/events` && 'name' in data && typeof data.name === 'string') {
-      deleted(data.name);
+    if ((kind === 'group-deleted' || kind === 'membership-ended') && 'id' in data && path === `/api/groups/${encodeURIComponent(String(data.id))}/events` && 'name' in data && typeof data.name === 'string') {
+      deleted(data.name, kind === 'group-deleted' ? 'deleted' : 'membership-ended');
     } else if (kind === 'ready' && 'expiresAt' in data && typeof data.expiresAt === 'number' && Number.isFinite(data.expiresAt) && 'expiresInMs' in data && typeof data.expiresInMs === 'number' && data.expiresInMs > 0 && data.expiresInMs <= 30_000 &&
       (path !== '/api/me/events' || ('version' in data && typeof data.version === 'string'))) {
       promote(stream, { expiresAt: data.expiresAt, expiresInMs: data.expiresInMs, version: 'version' in data && typeof data.version === 'string' ? data.version : undefined });
@@ -189,7 +191,7 @@ function createChannel(path: string, freshToken: () => Promise<string | null>, a
     }
   }
   async function connect() {
-    if (stopped || terminalStatus || wasDeleted || !visible() || candidate) return;
+    if (stopped || terminalStatus || accessEndReason || !visible() || candidate) return;
     const stream: Stream = { controller: new AbortController() };
     candidate = stream;
     lastAttempt = performance.now();
@@ -211,7 +213,7 @@ function createChannel(path: string, freshToken: () => Promise<string | null>, a
       if (response.status === 401) { authenticationLost(); return; }
       if (response.status === 403) { deny(403); return; }
       if (response.status === 404 && path !== '/api/me/events') {
-        if (seenReady) deleted(); else deny(404);
+        if (seenReady) deleted(undefined, 'unavailable'); else deny(404);
         return;
       }
       if (!response.ok || !response.body || !response.headers.get('content-type')?.includes('text/event-stream')) throw new Error('Stream unavailable');
@@ -252,7 +254,7 @@ function createChannel(path: string, freshToken: () => Promise<string | null>, a
     add(consumer: Subscription) {
       consumers.add(consumer);
       if (terminalStatus) consumer.denied(terminalStatus);
-      else if (wasDeleted) consumer.deleted(deletedName);
+      else if (accessEndReason) consumer.deleted(deletedName, accessEndReason);
       else if (visible()) {
         if (current?.data) consumer.ready(current.data);
         else void connect();
