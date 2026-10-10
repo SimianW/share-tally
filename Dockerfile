@@ -30,6 +30,12 @@ RUN mkdir -p /app/client/node_modules/@share-tally && \
     ln -s /app/packages/domain /app/client/node_modules/@share-tally/domain
 CMD ["pnpm", "test"]
 
+# Browser scenarios need the client and server sources with dev dependencies.
+# Run with the host network and Docker socket; see deploy/browser-check.sh.
+FROM client-lint AS browser-checks
+COPY --from=server-build /app/server/ /app/server/
+COPY deploy/nginx.conf /app/deploy/nginx.conf
+
 FROM server-build AS server-production-deps
 RUN pnpm prune --prod
 
