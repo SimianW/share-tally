@@ -33,7 +33,10 @@ CMD ["pnpm", "test"]
 # Browser scenarios need the client and server sources with dev dependencies.
 # Run with the host network and Docker socket; see deploy/browser-check.sh.
 FROM client-lint AS browser-checks
+# The infrastructure tests inspect containers with the Docker CLI (static binary).
+COPY --from=public.ecr.aws/docker/library/docker:27-cli /usr/local/bin/docker /usr/local/bin/docker
 COPY --from=server-build /app/server/ /app/server/
+# The SSE soak scenarios proxy through the production Nginx configuration.
 COPY deploy/nginx.conf /app/deploy/nginx.conf
 
 FROM server-build AS server-production-deps
