@@ -146,6 +146,20 @@ test('a failed pooled connection is logged without its connection details', asyn
   assert.match(serverErrors.slice(logged), /^Unexpected PostgreSQL error \S+\n$/);
 });
 
+test('a failed request is logged without its query or values', async () => {
+  const logged = serverErrors.length;
+  setDatabase('refusing');
+  const me = await fetch(`${baseUrl}/api/me`, { headers: { authorization: 'Bearer alice-token' } });
+  assert.equal(me.status, 500);
+  await new Promise(resolve => setTimeout(resolve, 200));
+  const output = serverErrors.slice(logged);
+  assert.ok(output.includes('Request failed'), 'the request failure was not logged');
+  // Only error names and codes: no SQL, bound values, host or port.
+  for (const line of output.trimEnd().split('\n'))
+    assert.match(line, /^(Request failed|Unexpected PostgreSQL error) \S+$/);
+  assert.ok(!output.includes('user_test_alice'));
+});
+
 test('readiness recovers once PostgreSQL answers again', async () => {
   setDatabase('silent');
   assert.equal((await check('/api/health/ready')).response.status, 503);

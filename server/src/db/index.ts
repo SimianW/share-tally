@@ -1,5 +1,6 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
+import { errorCode } from '../shared/error-code.js';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -11,10 +12,9 @@ const pool = new Pool({
   connectionString: databaseUrl,
 });
 
-// The error carries its client, with the host, user, database and cancellation
-// key, and connection messages name the host and port. Log only its code.
-pool.on('error', (error: Error & { code?: string }) => {
-  console.error('Unexpected PostgreSQL error', error.code ?? error.name);
+// The error carries its client, with the host, user, database and cancellation key.
+pool.on('error', (error) => {
+  console.error('Unexpected PostgreSQL error', errorCode(error));
 });
 
 export const db = drizzle(pool);
