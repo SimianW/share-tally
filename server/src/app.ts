@@ -13,6 +13,7 @@ import { createAvatarReader, type AvatarLookup } from './identity/avatars.js';
 import { createBillsRouter } from './bills/bill-routes.js';
 import { checkDatabase } from './db/index.js';
 import { BillError } from "./shared/bill-error.js";
+import { errorCode } from "./shared/error-code.js";
 import express, { type ErrorRequestHandler, type Request, type RequestHandler } from 'express';
 import { clerkClient, clerkMiddleware, getAuth } from '@clerk/express';
 import { getOrCreateUser } from './identity/users.js';
@@ -176,8 +177,7 @@ export function createApp(auth: Authentication = {
       }
     }
 
-    // Database exceptions can contain bound photo bytes; never retain them in logs.
-    console.error('Request failed', (_req.path.includes('receipt-drafts') || _req.path.includes('receipt-preview') || _req.path.includes('note-photos')) ? (error instanceof Error ? error.name : 'UnknownError') : error);
+    console.error('Request failed', errorCode(error));
 
     res.status(500).json({
       error: 'Internal Server Error'

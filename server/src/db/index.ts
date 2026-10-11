@@ -1,5 +1,6 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
+import { errorCode } from '../shared/error-code.js';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -11,8 +12,17 @@ const pool = new Pool({
   connectionString: databaseUrl,
 });
 
+// The error carries its client, with the host, user, database and cancellation key.
 pool.on('error', (error) => {
-  console.error('Unexpected PostgreSQL error', error);
+  console.error('Unexpected PostgreSQL error', errorCode(error));
+});
+
+// A connection checked out for a transaction has no pool listener, so its
+// unexpected end would be an unhandled 'error' event that stops the API. The
+// queries waiting on it already fail with that error, and the pool reports
+// idle connections above.
+pool.on('connect', (client) => {
+  client.on('error', () => {});
 });
 
 export const db = drizzle(pool);

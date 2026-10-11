@@ -2,7 +2,7 @@ import { editable, ownDraft } from './access.js';
 import { RECEIPT_MODEL_TIMEOUT_MS } from "../providers/receipt-names.js";
 import type { ExtractedReceipt, extractionDefaults } from "../processing/receipt-extraction.js";
 import { applyReceiptModelResult } from "../processing/receipt-processing.js";
-import { and, eq, lte } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { receiptDrafts, receiptEvidence, receiptPhotos } from "../../db/schema.js";
 import { checked, draftInput, type ReceiptDraftData } from "../receipt-input.js";
@@ -83,23 +83,26 @@ export async function completeProcessingDraft(
   if (result) notifyGroupChanged(result.groupId);
   return result;
 }
+// Settles processing drafts past the model deadline. Returns whether the sweep
+// saw any processing draft, stale or not, so restart recovery knows to continue.
 export async function sweepStaleProcessingDrafts(
   scope: { id?: string; groupId?: string; userId?: string } = {},
 ) {
-  const stale = await db.select({ id: receiptDrafts.id, startedAt: receiptDrafts.processingStartedAt })
+  const processing = await db.select({ id: receiptDrafts.id, startedAt: receiptDrafts.processingStartedAt })
     .from(receiptDrafts).where(and(
       eq(receiptDrafts.processingStatus, "processing"),
-      lte(receiptDrafts.processingStartedAt, new Date(Date.now() - RECEIPT_MODEL_TIMEOUT_MS)),
       scope.id ? eq(receiptDrafts.id, scope.id) : undefined,
       scope.groupId ? eq(receiptDrafts.groupId, scope.groupId) : undefined,
       scope.userId ? eq(receiptDrafts.initiatorId, scope.userId) : undefined,
     ));
-  for (const draft of stale) {
-    if (!draft.startedAt) continue;
+  const staleBefore = Date.now() - RECEIPT_MODEL_TIMEOUT_MS;
+  for (const draft of processing) {
+    if (!draft.startedAt || draft.startedAt.getTime() > staleBefore) continue;
     const result = await completeProcessingDraft(draft.id, draft.startedAt, { kind: "timeout" });
     if (result) console.info("Receipt processing recovered", {
       outcome: result.outcome, reason: result.reason,
       elapsedMs: Date.now() - draft.startedAt.getTime(),
     });
   }
+  return processing.length > 0;
 }

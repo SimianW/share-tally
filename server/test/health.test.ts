@@ -1,63 +1,38 @@
 import assert from 'node:assert/strict';
 import { after, afterEach, before, test } from 'node:test';
-import { fork, type ChildProcess } from 'node:child_process';
+import { execFile, fork, type ChildProcess } from 'node:child_process';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import { once } from 'node:events';
-import { createConnection, createServer, type Server, type Socket } from 'node:net';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import { startDatabaseProxy, type DatabaseProxy, type DatabaseState } from './database-proxy.js';
 
 let container: StartedPostgreSqlContainer | undefined;
 let child: ChildProcess | undefined;
-let proxy: Server | undefined;
+let proxy: DatabaseProxy | undefined;
 let baseUrl: string;
-
-// The API reaches PostgreSQL only through this proxy, so a test can make the
-// database refuse connections, accept them and never answer, or keep
-// established connections open while ignoring their queries.
-type DatabaseState = 'up' | 'refusing' | 'silent' | 'stalled';
-let databaseState: DatabaseState = 'up';
-const sockets = new Set<Socket>();
-function track(socket: Socket) {
-  sockets.add(socket);
-  socket.once('close', () => sockets.delete(socket));
-  socket.on('error', () => {});
-}
-function setDatabase(state: DatabaseState) {
-  databaseState = state;
-  // Existing pooled connections fail too, as they would in a real outage.
-  if (state === 'refusing' || state === 'silent') for (const socket of sockets) socket.destroy();
-}
-
-async function startProxy(host: string, port: number) {
-  const server = createServer(client => {
-    track(client);
-    if (databaseState === 'refusing') { client.destroy(); return; }
-    if (databaseState === 'silent') return;
-    const upstream = createConnection({ host, port });
-    track(upstream);
-    client.on('data', chunk => { if (databaseState !== 'stalled') upstream.write(chunk); });
-    upstream.pipe(client);
-    client.once('close', () => upstream.destroy());
-    upstream.once('close', () => client.destroy());
-  });
-  server.listen(0, '127.0.0.1');
-  await once(server, 'listening');
-  proxy = server;
-  const address = server.address();
-  assert.ok(address && typeof address !== 'string');
-  return address.port;
-}
+// The API's error output, still shown on this runner's stderr.
+let serverErrors = '';
+const setDatabase = (state: DatabaseState) => proxy!.set(state);
 
 async function startServer(databaseUrl: string) {
   // Never read .env or use the developer's DATABASE_URL in this suite.
   const processUnderTest = fork(new URL('./server-process.ts', import.meta.url), {
     execArgv: ['--import=tsx'],
     env: { PATH: process.env.PATH, DATABASE_URL: databaseUrl },
-    stdio: ['ignore', 'inherit', 'inherit', 'ipc'],
+    stdio: ['ignore', 'inherit', 'pipe', 'ipc'],
   });
   child = processUnderTest;
+  processUnderTest.stderr!.on('data', (chunk: Buffer) => {
+    serverErrors += chunk.toString();
+    process.stderr.write(chunk);
+  });
   const port = await new Promise<number>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('Test server startup timed out')), 10_000);
     processUnderTest.once('message', (message) => {
@@ -89,11 +64,8 @@ before(async () => {
   const pool = new Pool({ connectionString: container.getConnectionUri() });
   try { await migrate(drizzle(pool), { migrationsFolder: './drizzle' }); }
   finally { await pool.end(); }
-  const proxyPort = await startProxy(container.getHost(), container.getPort());
-  const url = new URL(container.getConnectionUri());
-  url.hostname = '127.0.0.1';
-  url.port = String(proxyPort);
-  await startServer(url.toString());
+  proxy = await startDatabaseProxy(container.getHost(), container.getPort());
+  await startServer(proxy.url(container.getConnectionUri()));
 }, { timeout: 120_000 });
 
 afterEach(() => setDatabase('up'));
@@ -101,10 +73,15 @@ afterEach(() => setDatabase('up'));
 after(async () => {
   try { await stopServer(); }
   finally {
-    for (const socket of sockets) socket.destroy();
     proxy?.close();
     await container?.stop();
   }
+});
+
+test('an idle API sends no database traffic', async () => {
+  // Startup has finished with no processing drafts, and this suite's server
+  // process does not run the hourly tasks. Wait several former sweep intervals.
+  assert.equal(await proxy!.trafficDuring(7_000), 0);
 });
 
 async function check(path: string) {
@@ -153,6 +130,36 @@ test('liveness keeps succeeding while PostgreSQL is down', async () => {
   }
 });
 
+test('a failed pooled connection is logged without its connection details', async () => {
+  // A signed-in read leaves an application connection idle in the pool.
+  const me = await fetch(`${baseUrl}/api/me`, { headers: { authorization: 'Bearer alice-token' } });
+  assert.equal(me.status, 200);
+  const logged = serverErrors.length;
+  setDatabase('refusing');
+  const deadline = Date.now() + 5_000;
+  while (!serverErrors.includes('Unexpected PostgreSQL error', logged)) {
+    assert.ok(Date.now() < deadline, 'the pool error was not logged');
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  await new Promise(resolve => setTimeout(resolve, 200));
+  // One line naming the failure: no client, host, port, user, database or secret key.
+  assert.match(serverErrors.slice(logged), /^Unexpected PostgreSQL error \S+\n$/);
+});
+
+test('a failed request is logged without its query or values', async () => {
+  const logged = serverErrors.length;
+  setDatabase('refusing');
+  const me = await fetch(`${baseUrl}/api/me`, { headers: { authorization: 'Bearer alice-token' } });
+  assert.equal(me.status, 500);
+  await new Promise(resolve => setTimeout(resolve, 200));
+  const output = serverErrors.slice(logged);
+  assert.ok(output.includes('Request failed'), 'the request failure was not logged');
+  // Only error names and codes: no SQL, bound values, host or port.
+  for (const line of output.trimEnd().split('\n'))
+    assert.match(line, /^(Request failed|Unexpected PostgreSQL error) \S+$/);
+  assert.ok(!output.includes('user_test_alice'));
+});
+
 test('readiness recovers once PostgreSQL answers again', async () => {
   setDatabase('silent');
   assert.equal((await check('/api/health/ready')).response.status, 503);
@@ -160,4 +167,38 @@ test('readiness recovers once PostgreSQL answers again', async () => {
   const { response, body } = await check('/api/health/ready');
   assert.equal(response.status, 200);
   assert.deepEqual(JSON.parse(body), { status: 'ok' });
+});
+
+// Runs the API image's Compose health check program against this suite's API.
+async function healthcheck(marker: string) {
+  try {
+    await promisify(execFile)(process.execPath, ['--import=tsx', fileURLToPath(new URL('../src/healthcheck.ts', import.meta.url))], {
+      env: { PATH: process.env.PATH, HEALTHCHECK_ORIGIN: baseUrl, HEALTHCHECK_MARKER: marker },
+      timeout: 15_000,
+    });
+    return 0;
+  } catch (error) {
+    return (error as { code?: number }).code ?? 1;
+  }
+}
+
+test('the health check gates on readiness until it first succeeds, then checks liveness only', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'share-tally-health-'));
+  try {
+    const marker = join(directory, 'ready');
+    setDatabase('refusing');
+    assert.notEqual(await healthcheck(marker), 0);
+    setDatabase('up');
+    assert.equal(await healthcheck(marker), 0);
+    setDatabase('refusing');
+    const since = proxy!.checkpoint();
+    assert.equal(await healthcheck(marker), 0);
+    assert.equal(since(), 0);
+    // A new container starts without the marker and checks readiness again.
+    const fresh = proxy!.checkpoint();
+    assert.notEqual(await healthcheck(join(directory, 'fresh')), 0);
+    assert.ok(fresh() > 0);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
