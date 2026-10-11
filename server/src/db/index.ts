@@ -11,8 +11,10 @@ const pool = new Pool({
   connectionString: databaseUrl,
 });
 
-pool.on('error', (error) => {
-  console.error('Unexpected PostgreSQL error', error);
+// The error carries its client, with the host, user, database and cancellation
+// key, and connection messages name the host and port. Log only its code.
+pool.on('error', (error: Error & { code?: string }) => {
+  console.error('Unexpected PostgreSQL error', error.code ?? error.name);
 });
 
 export const db = drizzle(pool);

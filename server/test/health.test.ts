@@ -17,6 +17,8 @@ let container: StartedPostgreSqlContainer | undefined;
 let child: ChildProcess | undefined;
 let proxy: DatabaseProxy | undefined;
 let baseUrl: string;
+// The API's error output, still shown on this runner's stderr.
+let serverErrors = '';
 const setDatabase = (state: DatabaseState) => proxy!.set(state);
 
 async function startServer(databaseUrl: string) {
@@ -24,9 +26,13 @@ async function startServer(databaseUrl: string) {
   const processUnderTest = fork(new URL('./server-process.ts', import.meta.url), {
     execArgv: ['--import=tsx'],
     env: { PATH: process.env.PATH, DATABASE_URL: databaseUrl },
-    stdio: ['ignore', 'inherit', 'inherit', 'ipc'],
+    stdio: ['ignore', 'inherit', 'pipe', 'ipc'],
   });
   child = processUnderTest;
+  processUnderTest.stderr!.on('data', (chunk: Buffer) => {
+    serverErrors += chunk.toString();
+    process.stderr.write(chunk);
+  });
   const port = await new Promise<number>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('Test server startup timed out')), 10_000);
     processUnderTest.once('message', (message) => {
@@ -122,6 +128,22 @@ test('liveness keeps succeeding while PostgreSQL is down', async () => {
     assert.deepEqual(JSON.parse(body), { status: 'ok' });
     assert.ok(elapsed < 1_000, `liveness took ${elapsed} ms`);
   }
+});
+
+test('a failed pooled connection is logged without its connection details', async () => {
+  // A signed-in read leaves an application connection idle in the pool.
+  const me = await fetch(`${baseUrl}/api/me`, { headers: { authorization: 'Bearer alice-token' } });
+  assert.equal(me.status, 200);
+  const logged = serverErrors.length;
+  setDatabase('refusing');
+  const deadline = Date.now() + 5_000;
+  while (!serverErrors.includes('Unexpected PostgreSQL error', logged)) {
+    assert.ok(Date.now() < deadline, 'the pool error was not logged');
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  await new Promise(resolve => setTimeout(resolve, 200));
+  // One line naming the failure: no client, host, port, user, database or secret key.
+  assert.match(serverErrors.slice(logged), /^Unexpected PostgreSQL error \S+\n$/);
 });
 
 test('readiness recovers once PostgreSQL answers again', async () => {
