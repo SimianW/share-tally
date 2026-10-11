@@ -3316,7 +3316,7 @@ test('production startup sequence recovers processing drafts left stale by a sto
 // The model answers, after holding for answerAfterMs, while PostgreSQL
 // refuses connections, so the completion write fails. Returns once the draft
 // is confirmed to be still processing.
-async function interruptCompletion(answerAfterMs = 0) {
+async function interruptCompletion(answerAfterMs = 0, outage: 'refusing' | 'stalled' = 'refusing') {
   const { group, id, saved } = await scannedDraft();
   await modelControl('recorded-evidence', 'recorded-evidence-ready');
   await modelControl('hold-model', 'holding-model');
@@ -3330,7 +3330,7 @@ async function interruptCompletion(answerAfterMs = 0) {
   await eventually(() => watching.frames.some(frame => frame.includes('event: ready')));
   const events = () => watching.frames.filter(frame => frame.includes('event: changed')).length;
   const eventsBefore = events();
-  proxy!.set('refusing');
+  proxy!.set(outage);
   await releaseHeldModel();
   // Long enough for the first write and a retry to fail.
   await new Promise(resolve => setTimeout(resolve, 2_500));
@@ -3339,10 +3339,10 @@ async function interruptCompletion(answerAfterMs = 0) {
   return { id, scanned, watching, row, settled: () => events() > eventsBefore };
 }
 
-async function settleAfterOutage(interrupted: Awaited<ReturnType<typeof interruptCompletion>>, status: string) {
+async function settleAfterOutage(interrupted: Awaited<ReturnType<typeof interruptCompletion>>, status: string, withinMs = 5_000) {
   const { id, scanned, watching, row, settled } = interrupted;
   try {
-    await eventually(async () => (await row()).processing_status !== 'processing', 5_000);
+    await eventually(async () => (await row()).processing_status !== 'processing', withinMs);
     assert.equal((await row()).processing_status, status);
     assert.equal((await row()).revision, scanned.revision + 1);
     await eventually(settled);
@@ -3368,6 +3368,26 @@ test('a completion write that fails during a database outage applies the model r
   // Retries end once the draft settles.
   await new Promise(resolve => setTimeout(resolve, 2_500));
   assert.equal(await proxy!.trafficDuring(4_000), 0);
+});
+
+test('a completion write left unanswered by a stalled database is retried on another connection', { timeout: 30_000 }, async () => {
+  // The first write's connection stays open but its query is never answered.
+  const interrupted = await interruptCompletion(0, 'stalled');
+  try {
+    proxy!.set('up');
+    const draft = await settleAfterOutage(interrupted, 'ready', 12_000);
+    assert.deepEqual(draft.data.items.map((item: { name: string }) => item.name), ['Friendly item 1', 'Friendly item 2', 'Friendly item 3']);
+  } finally {
+    proxy!.set('up');
+    child!.send('release-model');
+  }
+  await new Promise(resolve => setTimeout(resolve, 2_500));
+  assert.equal(await proxy!.trafficDuring(4_000), 0);
+  // The abandoned attempt's connection dies later; the API keeps serving.
+  proxy!.set('refusing');
+  proxy!.set('up');
+  await new Promise(resolve => setTimeout(resolve, 500));
+  assert.equal((await api(`/receipt-drafts/${interrupted.id}`)).status, 200);
 });
 
 test('a model answer whose completion is retried past the 40-second deadline falls back', { timeout: 70_000 }, async () => {

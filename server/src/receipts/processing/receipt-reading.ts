@@ -84,11 +84,30 @@ async function runReceiptModel(
 async function completeUntilSettled(...args: Parameters<typeof completeProcessingDraft>) {
   while (true) {
     try {
-      return await completeProcessingDraft(...args);
+      return await withinAttemptLimit(completeProcessingDraft(...args));
     } catch {
       // Database errors can include connection strings or receipt contents.
       console.error("Receipt processing completion failed; retrying");
       await sleep(2_000, undefined, { signal: shutdown.signal, ref: false });
     }
+  }
+}
+
+// A database that keeps a connection open but never answers would leave an
+// attempt waiting forever, so an unanswered attempt counts as failed and the
+// retry takes another connection. If the abandoned attempt answers later, the
+// row lock and start time still allow only one outcome.
+const COMPLETION_ATTEMPT_MS = 5_000;
+async function withinAttemptLimit<T>(attempt: Promise<T>) {
+  attempt.catch(() => {});
+  const limit = new AbortController();
+  try {
+    return await Promise.race([
+      attempt,
+      sleep(COMPLETION_ATTEMPT_MS, undefined, { signal: limit.signal, ref: false })
+        .then(() => { throw new Error("Receipt processing completion timed out"); }),
+    ]);
+  } finally {
+    limit.abort();
   }
 }
