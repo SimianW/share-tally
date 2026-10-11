@@ -4,6 +4,13 @@ import { interpretReceiptNames } from "../providers/receipt-names.js";
 import { receiptModelEvidence, type ReceiptModelAttempt } from "./receipt-processing.js";
 import { completeProcessingDraft } from "../drafts/processing.js";
 import { RECEIPT_MODEL_TIMEOUT_MS } from "../providers/receipt-names.js";
+import { setTimeout as sleep } from "node:timers/promises";
+
+// Completion retries end when the server closes, so they never hold up shutdown.
+const shutdown = new AbortController();
+export function stopReceiptCompletionRetries() {
+  shutdown.abort();
+}
 
 // Work belongs to the saved draft, not the request or the initiator. Another
 // bill can be created/scanned as soon as the Azure-stage request returns.
@@ -14,8 +21,9 @@ export function startReceiptModel(
   onSettled?: () => void,
 ) {
   void runReceiptModel(draft, scanned, interpret).catch(() => {
-    // A persistence outage leaves the processing row recoverable on read/startup.
-    // Never log provider exceptions, which can include receipt content.
+    // Only shutdown ends completion retries; the processing row stays
+    // recoverable on read/startup. Never log provider exceptions, which can
+    // include receipt content.
     console.error("Receipt processing completion failed");
   }).finally(onSettled);
 }
@@ -55,7 +63,7 @@ async function runReceiptModel(
     controller.abort();
   }
   const modelMs = performance.now() - modelStart;
-  const result = await completeProcessingDraft(draft.id, startedAt, attempt);
+  const result = await completeUntilSettled(draft.id, startedAt, attempt);
   // The group may have been deleted while interpretation was in flight. Its
   // draft is gone; do not report a fabricated timeout or publish a result.
   if (!result) return;
@@ -67,4 +75,20 @@ async function runReceiptModel(
     outcome: result.outcome,
     reason: result.reason,
   }));
+}
+
+// A failed completion write retries until the draft settles or no longer needs
+// completing (null: settled elsewhere, deleted or reprocessed). The row lock
+// and start time keep a retry from applying a second outcome, and a write
+// after the deadline falls back as it would on time.
+async function completeUntilSettled(...args: Parameters<typeof completeProcessingDraft>) {
+  while (true) {
+    try {
+      return await completeProcessingDraft(...args);
+    } catch {
+      // Database errors can include connection strings or receipt contents.
+      console.error("Receipt processing completion failed; retrying");
+      await sleep(2_000, undefined, { signal: shutdown.signal, ref: false });
+    }
+  }
 }

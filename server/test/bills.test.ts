@@ -9,15 +9,19 @@ import {
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
+import { startDatabaseProxy, type DatabaseProxy } from "./database-proxy.js";
 
 let container: StartedPostgreSqlContainer | undefined;
+// The API reaches PostgreSQL through the proxy; the suite's own pool connects
+// directly, so test reads and setup never count as API traffic.
+let proxy: DatabaseProxy | undefined;
 let pool: Pool;
 let child: ChildProcess | undefined;
 let baseUrl: string;
 const scanLogs: string[] = [];
 
 async function startServer() {
-  assert.ok(container);
+  assert.ok(container && proxy);
   // Never read .env or use the developer's DATABASE_URL in this suite.
   const processUnderTest = fork(
     new URL("./server-process.ts", import.meta.url),
@@ -25,7 +29,7 @@ async function startServer() {
       execArgv: ["--import=tsx"],
       env: {
         PATH: process.env.PATH,
-        DATABASE_URL: container.getConnectionUri(),
+        DATABASE_URL: proxy.url(container.getConnectionUri()),
       },
       stdio: ["ignore", "pipe", "inherit", "ipc"],
     },
@@ -85,6 +89,7 @@ before(
     pool = new Pool({ connectionString: container.getConnectionUri() });
     // Apply the committed migration history, rather than creating a test-only schema.
     await migrate(drizzle(pool), { migrationsFolder: "./drizzle" });
+    proxy = await startDatabaseProxy(container.getHost(), container.getPort());
     await startServer();
   },
   { timeout: 120_000 },
@@ -95,6 +100,7 @@ after(async () => {
     await stopServer();
   } finally {
     try {
+      proxy?.close();
       await pool?.end();
     } finally {
       await container?.stop();
@@ -3258,7 +3264,7 @@ test('reading a stale processing draft falls back without a restart', async () =
   }
 });
 
-test('a near-deadline draft recovers promptly after restart without any draft read', { timeout: 20_000 }, async () => {
+test('a near-deadline draft recovers promptly after restart without any draft read', { timeout: 30_000 }, async () => {
   const { group, id, saved } = await scannedDraft();
   await modelControl('recorded-evidence', 'recorded-evidence-ready');
   await modelControl('hold-model', 'holding-model');
@@ -3282,6 +3288,9 @@ test('a near-deadline draft recovers promptly after restart without any draft re
   } finally {
     await watching.close();
   }
+  // With no processing draft left, recovery stops within one two-second sweep.
+  await new Promise(resolve => setTimeout(resolve, 2_500));
+  assert.equal(await proxy!.trafficDuring(5_000), 0);
 });
 
 test('production startup sequence recovers processing drafts left stale by a stopped server', async () => {
@@ -3301,6 +3310,80 @@ test('production startup sequence recovers processing drafts left stale by a sto
   assert.equal(row.rows[0].revision, scanned.draft.revision + 1);
   const recovered = (await json(await api(`/receipt-drafts/${id}`))).draft;
   assert.ok(recovered.data.items.every((item: { taxable: boolean; taxNotChecked: boolean }) => item.taxable && item.taxNotChecked));
+});
+
+// The model answers, after holding for answerAfterMs, while PostgreSQL
+// refuses connections, so the completion write fails. Returns once the draft
+// is confirmed to be still processing.
+async function interruptCompletion(answerAfterMs = 0) {
+  const { group, id, saved } = await scannedDraft();
+  await modelControl('recorded-evidence', 'recorded-evidence-ready');
+  await modelControl('hold-model', 'holding-model');
+  const held = once(child!, 'message');
+  const scanned = (await json(await api(`/receipt-drafts/${id}/extract`, 'alice-token', 'POST', { revision: saved.revision }))).draft;
+  assert.equal((await held)[0], 'model-held');
+  const answerAt = new Date(scanned.processingStartedAt).getTime() + answerAfterMs;
+  await new Promise(resolve => setTimeout(resolve, Math.max(0, answerAt - Date.now())));
+  // Opened late: a stream lasts at most 30 seconds.
+  const watching = await stream(group.id);
+  await eventually(() => watching.frames.some(frame => frame.includes('event: ready')));
+  const events = () => watching.frames.filter(frame => frame.includes('event: changed')).length;
+  const eventsBefore = events();
+  proxy!.set('refusing');
+  await releaseHeldModel();
+  // Long enough for the first write and a retry to fail.
+  await new Promise(resolve => setTimeout(resolve, 2_500));
+  const row = async () => (await pool.query('SELECT processing_status, revision FROM receipt_drafts WHERE id = $1', [id])).rows[0];
+  assert.equal((await row()).processing_status, 'processing');
+  return { id, scanned, watching, row, settled: () => events() > eventsBefore };
+}
+
+async function settleAfterOutage(interrupted: Awaited<ReturnType<typeof interruptCompletion>>, status: string) {
+  const { id, scanned, watching, row, settled } = interrupted;
+  try {
+    await eventually(async () => (await row()).processing_status !== 'processing', 5_000);
+    assert.equal((await row()).processing_status, status);
+    assert.equal((await row()).revision, scanned.revision + 1);
+    await eventually(settled);
+    const draft = (await json(await api(`/receipt-drafts/${id}`))).draft;
+    assert.equal(draft.revision, scanned.revision + 1);
+    return draft;
+  } finally {
+    await watching.close();
+    await modelControl('recorded-evidence-off', 'recorded-evidence-stopped');
+  }
+}
+
+test('a completion write that fails during a database outage applies the model result once the database returns', async () => {
+  const interrupted = await interruptCompletion();
+  try {
+    proxy!.set('up');
+    const draft = await settleAfterOutage(interrupted, 'ready');
+    assert.deepEqual(draft.data.items.map((item: { name: string }) => item.name), ['Friendly item 1', 'Friendly item 2', 'Friendly item 3']);
+  } finally {
+    proxy!.set('up');
+    child!.send('release-model');
+  }
+  // Retries end once the draft settles.
+  await new Promise(resolve => setTimeout(resolve, 2_500));
+  assert.equal(await proxy!.trafficDuring(4_000), 0);
+});
+
+test('a model answer whose completion is retried past the 40-second deadline falls back', { timeout: 70_000 }, async () => {
+  const interrupted = await interruptCompletion(36_000);
+  try {
+    const deadline = new Date(interrupted.scanned.processingStartedAt).getTime() + 40_000;
+    await new Promise(resolve => setTimeout(resolve, deadline - Date.now() + 500));
+    assert.equal((await interrupted.row()).processing_status, 'processing');
+    proxy!.set('up');
+    const draft = await settleAfterOutage(interrupted, 'fallback');
+    assert.ok(draft.data.items.every((item: { taxable: boolean; taxNotChecked: boolean }) => item.taxable && item.taxNotChecked));
+  } finally {
+    proxy!.set('up');
+    child!.send('release-model');
+  }
+  await new Promise(resolve => setTimeout(resolve, 2_500));
+  assert.equal(await proxy!.trafficDuring(4_000), 0);
 });
 
 test('an unassigned positive receipt tax saves as a draft but blocks initiation until tax is assignable', async () => {
