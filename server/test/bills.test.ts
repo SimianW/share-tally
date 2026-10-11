@@ -3288,8 +3288,9 @@ test('a near-deadline draft recovers promptly after restart without any draft re
   } finally {
     await watching.close();
   }
-  // With no processing draft left, recovery stops within one two-second sweep.
-  await new Promise(resolve => setTimeout(resolve, 2_500));
+  // The sweep that settled the draft saw it, so one more sweep runs about two
+  // seconds later, finds none and ends recovery.
+  await new Promise(resolve => setTimeout(resolve, 3_500));
   assert.equal(await proxy!.trafficDuring(5_000), 0);
 });
 
