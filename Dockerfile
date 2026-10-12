@@ -12,15 +12,18 @@ COPY server/ ./
 RUN pnpm typecheck && pnpm build
 
 FROM node-base AS client-lint
+# Release checks exercise the real Git supersession guard in temporary repos.
+RUN apt-get update && apt-get install --no-install-recommends --yes git && \
+    rm -rf /var/lib/apt/lists/*
 WORKDIR /app/client
 COPY packages/domain/ /app/packages/domain/
 COPY scripts/build-domain.mjs /app/scripts/build-domain.mjs
 COPY client/package.json client/pnpm-lock.yaml client/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY client/ ./
-# The unit tests check the browser-test Nginx config against production's;
-# the SSE soak scenarios in browser-checks also proxy through it.
-COPY deploy/nginx.conf /app/deploy/nginx.conf
+# Unit checks read the Nginx template and release scripts. Browser HTTP/SSE
+# checks inherit the same template, entrypoint and static-header include.
+COPY deploy/ /app/deploy/
 RUN pnpm lint && pnpm test:unit && touch /client-lint-passed
 
 # Run this image with the host Docker socket, so tests can create disposable DBs.
@@ -63,7 +66,8 @@ ARG VITE_CLERK_PUBLISHABLE_KEY
 RUN test -n "$VITE_CLERK_PUBLISHABLE_KEY" && pnpm build
 
 FROM public.ecr.aws/docker/library/nginx:1.28-alpine AS web
-COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
+COPY deploy/nginx.conf /etc/nginx/templates/default.conf.template
+COPY --chmod=755 deploy/05-configure-api.envsh /docker-entrypoint.d/05-configure-api.envsh
 COPY deploy/nginx-static-headers.conf /etc/nginx/static-headers.conf
 COPY --from=client-build /app/client/dist /usr/share/nginx/html
 EXPOSE 80

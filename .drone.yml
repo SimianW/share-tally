@@ -3,7 +3,7 @@ type: docker
 name: share-tally
 
 # Socket access requires a trusted repository. Do not enable this pipeline for
-# untrusted pull_request events: its steps control the deployment host's Docker.
+# untrusted pull_request events: check/publish steps control the CI host's Docker.
 trigger:
   event: [push]
 
@@ -62,18 +62,20 @@ steps:
       event: [push]
 
   - name: deploy
-    image: docker:27-cli
-    volumes:
-      - name: docker-socket
-        path: /var/run/docker.sock
-      - name: deployment
-        path: /opt/repo/share-tally
+    image: public.ecr.aws/docker/library/node:24-alpine
     environment:
-      GHCR_USERNAME:
-        from_secret: GHCR_USERNAME
-      GHCR_TOKEN:
-        from_secret: GHCR_TOKEN
+      RAILWAY_PROJECT_TOKEN:
+        from_secret: RAILWAY_PROJECT_TOKEN
+      RAILWAY_PROJECT_ID:
+        from_secret: RAILWAY_PROJECT_ID
+      RAILWAY_ENVIRONMENT_ID:
+        from_secret: RAILWAY_ENVIRONMENT_ID
+      RAILWAY_API_SERVICE_ID:
+        from_secret: RAILWAY_API_SERVICE_ID
+      RAILWAY_WEB_SERVICE_ID:
+        from_secret: RAILWAY_WEB_SERVICE_ID
     commands:
+      - apk add --no-cache git
       - sh deploy/deploy.sh
     when:
       branch: [main]

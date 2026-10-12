@@ -10,7 +10,10 @@ test('the browser-test Nginx config keeps production API proxying and sends ever
   const config = nginxTestConfig(deployConfig, 5173);
   assert.deepEqual(locations(config), ['/api/', '/']);
   const api = config.slice(config.indexOf('location /api/'), config.indexOf('location / {'));
-  assert.match(api, /proxy_pass http:\/\/host\.docker\.internal:5173;/);
+  assert.ok(config.includes(deployConfig.match(/    location \/api\/ \{[\s\S]*?\n    \}/)[0]), 'The entire production API location stays unchanged');
+  assert.match(api, /proxy_pass http:\/\/api_backend;/);
+  assert.match(config, /server \$\{API_UPSTREAM\} resolve;/);
+  assert.match(config, /resolver \$\{NGINX_LOCAL_RESOLVERS\} valid=5s ipv6=off;/);
   assert.match(api, /proxy_buffering off;/);
   assert.match(api, /proxy_read_timeout 180s;/);
   assert.match(config, /upstream test_vite \{ server host\.docker\.internal:5173;/);

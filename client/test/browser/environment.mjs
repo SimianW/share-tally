@@ -112,7 +112,14 @@ export async function startEnvironment({ backend = true, remoteHost = null, firs
       const config = nginxTestConfig(deployConfig, applicationPort);
       const proxy = await new GenericContainer('public.ecr.aws/docker/library/nginx:1.28-alpine')
         .withExtraHosts([{ host: 'host.docker.internal', ipAddress: 'host-gateway' }])
-        .withCopyContentToContainer([{ content: config, target: '/etc/nginx/conf.d/default.conf' }])
+        .withCopyContentToContainer([
+          { content: config, target: '/etc/nginx/templates/default.conf.template' },
+          { content: await readFile(new URL('../../../deploy/05-configure-api.envsh', import.meta.url), 'utf8'), target: '/docker-entrypoint.d/05-configure-api.envsh', mode: 0o755 },
+          // Nginx's asynchronous DNS resolver does not read /etc/hosts. The test
+          // API runs on the Docker host, not a named service, so resolve the
+          // host-gateway mapping once. nginx.test.mjs exercises real DNS changes.
+          { content: `#!/bin/sh\nexport API_UPSTREAM="$(getent hosts host.docker.internal | awk '{print $1; exit}'):${applicationPort}"\n`, target: '/docker-entrypoint.d/06-test-api.envsh', mode: 0o755 },
+        ])
         .withExposedPorts(80)
         .withWaitStrategy(Wait.forHttp('/', 80))
         .start();
