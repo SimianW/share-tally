@@ -2,7 +2,8 @@
 set -eu
 # Usage: sh deploy/check-web.sh <web image>
 # Runs deploy/check-web.mjs next to the web container. That script also plays
-# the `api` upstream, so it starts first: Nginx resolves proxy_pass at startup.
+# the `api` upstream. Start it first so API responses are ready for the checks;
+# Nginx resolves the service again while running, including after API redeploys.
 web_image="${1:?Usage: check-web.sh <web image>}"
 node_image=public.ecr.aws/docker/library/node:24-bookworm-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20
 run_id="share-tally-web-check-${DRONE_BUILD_NUMBER:-local}-$$"

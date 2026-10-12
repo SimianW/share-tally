@@ -1,5 +1,6 @@
 // The Nginx config for the SSE soak scenarios: production's server settings
-// and /api/ proxy, pointed at the test API. Every other production location
+// and /api/ proxy (API_UPSTREAM selects the test API at container start-up).
+// Every other production location
 // serves built files, which tests do not have; Vite serves those paths instead.
 // Proxy the test-only Clerk bundle and the dev modules through one upstream.
 export function nginxTestConfig(deployConfig, vitePort) {
@@ -7,9 +8,8 @@ export function nginxTestConfig(deployConfig, vitePort) {
   let config = deployConfig;
   for (const { target, start, end } of serverLocations(deployConfig).reverse())
     if (target !== '/api/') config = config.slice(0, start) + config.slice(end);
-  if (!serverLocations(config).length || !config.includes('http://api:3000'))
-    throw new Error('deploy/nginx.conf needs a location /api/ block proxying to http://api:3000');
-  config = config.replace('http://api:3000', `http://${vite}`);
+  if (!serverLocations(config).some(({ target }) => target === '/api/'))
+    throw new Error('deploy/nginx.conf needs a location /api/ block');
   // Vite serves thousands of development modules instead of built assets.
   // Reuse its upstream sockets while still allowing its HMR upgrade.
   const upstream = `upstream test_vite { server ${vite}; keepalive 64; }\nmap $http_upgrade $test_connection { default upgrade; '' ''; }\n`;

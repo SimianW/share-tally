@@ -1,0 +1,8 @@
+#!/bin/sh
+# Sourced by the official Nginx entrypoint before template rendering.
+export API_UPSTREAM="${API_UPSTREAM:-api:3000}"
+# Enable the image's 15-local-resolvers.envsh, which exports nameservers from
+# /etc/resolv.conf (including the brackets required for IPv6 resolver addresses).
+export NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
+# Render only our settings, never Nginx's own $host, $uri, etc.
+export NGINX_ENVSUBST_FILTER='^(API_UPSTREAM|NGINX_LOCAL_RESOLVERS)$'
