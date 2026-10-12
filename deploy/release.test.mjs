@@ -12,9 +12,12 @@ const token = 'test-project-token-must-never-be-logged'
 
 async function releaseFixture(t, {
   apiStatuses = ['BUILDING', 'DEPLOYING', 'SUCCESS'],
+  webStatuses = ['DEPLOYING', 'SUCCESS'],
+  pollError = false,
   stallOperation,
   stallResponseBody = false,
   hostileResponse,
+  cancelResponse = 'success',
 } = {}) {
   const remote = await mkdtemp(join(tmpdir(), 'share-tally-release-'))
   t.after(() => rm(remote, { recursive: true, force: true }))
@@ -28,7 +31,7 @@ async function releaseFixture(t, {
   const requests = []
   const redirectedTokens = []
   let webBeforeApiSuccess = false
-  const statuses = { 'api-service': [...apiStatuses], 'web-service': ['DEPLOYING', 'SUCCESS'] }
+  const statuses = { 'api-service': [...apiStatuses], 'web-service': [...webStatuses] }
   const server = createServer(async (request, response) => {
     let body = ''
     for await (const chunk of request) body += chunk
@@ -80,7 +83,22 @@ async function releaseFixture(t, {
       const id = hostileResponse === 'deployment-id' ? `${serviceId}-${token}` : `${serviceId}-deployment`
       deploymentServices.set(id, serviceId)
       data = { serviceInstanceDeployV2: id }
+    } else if (query.includes('deploymentCancel')) {
+      if (cancelResponse === 'http-error') {
+        response.writeHead(401).end(token)
+        return
+      }
+      if (cancelResponse === 'graphql-error') {
+        response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ errors: [{ message: token }] }))
+        return
+      }
+      if (cancelResponse === 'stalled') return
+      data = { deploymentCancel: cancelResponse === 'success' }
     } else if (query.includes('deployment(')) {
+      if (pollError) {
+        response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ errors: [{ message: token }] }))
+        return
+      }
       const serviceId = deploymentServices.get(variables.id)
       const sequence = statuses[serviceId]
       const status = sequence.length > 1 ? sequence.shift() : sequence[0]
@@ -141,6 +159,14 @@ test('deploys the commit-tagged API image and waits for it to become active', as
   assert.equal(release.active.get('api-service'), `ghcr.io/simianw/share-tally-api:${release.sha}`)
 })
 
+test('the default deployment deadline leaves 900 seconds per service for migration, health checks and pulls', async (t) => {
+  const release = await releaseFixture(t)
+  const result = await release.run({ RAILWAY_DEPLOYMENT_TIMEOUT_MS: undefined })
+  assert.equal(result.code, 0, result.output)
+  assert.match(result.output, /Railway deployment deadline: 900s per service\./)
+  assert.equal(release.webBeforeApiSuccess, false)
+})
+
 test('activates the matching web image only after the API deployment succeeds', async (t) => {
   const release = await releaseFixture(t)
   const result = await release.run()
@@ -156,14 +182,57 @@ test('a failed API deployment fails the release without changing web', async (t)
   assert.equal(result.code, 1, result.output)
   assert.equal(result.signal, null)
   assert.equal(release.images.has('web-service'), false)
+  assert.equal(release.requests.some(({ query }) => query.includes('deploymentCancel')), false)
 })
 
-test('an API deployment that stays queued times out without changing web', async (t) => {
+test('an API deployment that stays queued is cancelled on timeout without changing web', async (t) => {
   const release = await releaseFixture(t, { apiStatuses: ['QUEUED'] })
   const result = await release.run({ RAILWAY_DEPLOYMENT_TIMEOUT_MS: '100' })
   assert.equal(result.code, 1, result.output)
   assert.equal(result.signal, null)
   assert.equal(release.images.has('web-service'), false)
+  assert.deepEqual(release.requests.filter(({ query }) => query.includes('deploymentCancel')).map(({ variables }) => variables.id), ['api-service-deployment'])
+})
+
+test('a rejected cancellation fails the release and warns that the deployment may still activate', async (t) => {
+  const release = await releaseFixture(t, { apiStatuses: ['QUEUED'], cancelResponse: 'rejected' })
+  const result = await release.run({ RAILWAY_DEPLOYMENT_TIMEOUT_MS: '100' })
+  assert.equal(result.code, 1, result.output)
+  assert.equal(result.signal, null)
+  assert.match(result.output, /cancellation failed; deployment may still activate/)
+  assert.equal(result.output.includes(token), false)
+  assert.equal(release.images.has('web-service'), false)
+})
+
+for (const cancelResponse of ['http-error', 'graphql-error', 'stalled']) {
+  test(`a ${cancelResponse} cancellation remains bounded and warns without exposing the token`, async (t) => {
+    const release = await releaseFixture(t, { apiStatuses: ['QUEUED'], cancelResponse })
+    const result = await release.run({ RAILWAY_DEPLOYMENT_TIMEOUT_MS: '100', RAILWAY_REQUEST_TIMEOUT_MS: '50' })
+    assert.equal(result.code, 1, result.output)
+    assert.equal(result.signal, null)
+    assert.match(result.output, /cancellation failed; deployment may still activate/)
+    assert.equal(result.output.includes(token), false)
+    assert.equal(release.images.has('web-service'), false)
+    assert.ok(result.duration < 1500, `Release took ${result.duration}ms`)
+  })
+}
+
+test('a polling error cancels the created API deployment before failing without deploying web', async (t) => {
+  const release = await releaseFixture(t, { pollError: true })
+  const result = await release.run()
+  assert.equal(result.code, 1, result.output)
+  assert.equal(result.output.includes(token), false)
+  assert.equal(release.images.has('web-service'), false)
+  assert.deepEqual(release.requests.filter(({ query }) => query.includes('deploymentCancel')).map(({ variables }) => variables.id), ['api-service-deployment'])
+})
+
+test('a web timeout cancels only web after the API succeeded', async (t) => {
+  const release = await releaseFixture(t, { webStatuses: ['QUEUED'] })
+  const result = await release.run({ RAILWAY_DEPLOYMENT_TIMEOUT_MS: '100' })
+  assert.equal(result.code, 1, result.output)
+  assert.equal(release.active.get('api-service'), `ghcr.io/simianw/share-tally-api:${release.sha}`)
+  assert.equal(release.active.has('web-service'), false)
+  assert.deepEqual(release.requests.filter(({ query }) => query.includes('deploymentCancel')).map(({ variables }) => variables.id), ['web-service-deployment'])
 })
 
 test('a Railway request that never answers times out and never deploys web', async (t) => {
@@ -181,6 +250,7 @@ test('the API deployment deadline also bounds a stalled status request', async (
   assert.equal(result.signal, null)
   assert.ok(result.duration < 1500, `Release took ${result.duration}ms`)
   assert.equal(release.images.has('web-service'), false)
+  assert.deepEqual(release.requests.filter(({ query }) => query.includes('deploymentCancel')).map(({ variables }) => variables.id), ['api-service-deployment'])
 })
 
 test('a superseded commit exits successfully without contacting Railway', async (t) => {
