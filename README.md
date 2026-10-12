@@ -32,7 +32,7 @@ Captured from the local app using sample data for Alice, Bob, and Carol.
 - Backend: Node.js, Express, PostgreSQL, and Drizzle ORM.
 - Authentication: Clerk with Google sign-in.
 - Receipts: Azure Document Intelligence for extraction and an OpenAI-compatible API for clearer item names.
-- Deployment: Docker Compose, Nginx, and Drone CI.
+- Deployment: Railway (API/web), Neon (PostgreSQL), Nginx, and Drone CI; Docker Compose for local runs.
 
 ## Code structure
 
@@ -139,7 +139,7 @@ pnpm --dir server typecheck
 pnpm --dir server test
 ```
 
-Backend tests require Docker and create isolated PostgreSQL test containers. Browser tests require Docker on the machine running Vite, or a test runner sharing that machine's host network. They build a cached browser image matching the installed Playwright version and start a fresh Chromium container for each scenario. The first run downloads the official Playwright image and installs its matching Node package; subsequent runs reuse Docker's build cache. No host Chromium installation is needed:
+Client unit tests also run the release script against a local stub Railway HTTP API and temporary Git repositories; those checks require Git but no Docker socket. Backend tests require Docker and create isolated PostgreSQL test containers. Browser tests require Docker on the machine running Vite, or a test runner sharing that machine's host network. They build a cached browser image matching the installed Playwright version and start a fresh Chromium container for each scenario. The first run downloads the official Playwright image and installs its matching Node package; subsequent runs reuse Docker's build cache. No host Chromium installation is needed:
 
 ```bash
 cd client
@@ -159,7 +159,7 @@ pnpm test:browser --all
 
 `--all` runs every scenario in every suite, as the [release gate](#browser-release-gate) does.
 
-A failing scenario is reported by name; screenshots of its open pages are kept in `client/test-results/failures/<scenario>/`. `pnpm test:environment` checks partial-startup cleanup, browser connection failures, normal disposal and browser/`route.fetch` origin behavior. `pnpm test:network-isolation` creates and removes unrelated Docker bridges while a controlled graph of JavaScript modules is loading and fails if any browser resources report `ERR_NETWORK_CHANGED`. Scenarios live in `client/test/browser/`, grouped by business area; `environment.mjs` is the shared environment, `suites.mjs` lists every scenario and `selection.mjs` chooses which ones a command runs.
+A failing scenario is reported by name; screenshots of its open pages are kept in `client/test-results/failures/<scenario>/`. `pnpm test:environment` checks partial-startup cleanup, browser connection failures, normal disposal, browser/`route.fetch` origin behavior, and HTTP through the production Nginx template with default/custom upstreams and an API replacement at a new IP. `pnpm test:network-isolation` creates and removes unrelated Docker bridges while a controlled graph of JavaScript modules is loading and fails if any browser resources report `ERR_NETWORK_CHANGED`. Scenarios live in `client/test/browser/`, grouped by business area; `environment.mjs` is the shared environment, `suites.mjs` lists every scenario and `selection.mjs` chooses which ones a command runs.
 
 The browser container uses its own network namespace. Its loopback relay forwards the application's port to Vite through Docker's `host-gateway`, preserving localhost secure contexts, `receipt.test` plain-HTTP contexts and intercepted upstream requests. Vite listens on all interfaces while a scenario runs, so run these test-only identities and services on a trusted development machine. An unrelated remote Docker daemon cannot reach Vite using this setup. Host executable overrides such as `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` no longer apply.
 
@@ -199,9 +199,33 @@ project-addition event. It becomes active after merging into the default branch.
 
 Drone runs one build at a time (`concurrency: limit: 1`), so only one release runs at a time; a later push waits in the queue. The [browser release gate](#browser-release-gate) lists a release's steps.
 
-A release deploys only the commit at the head of `main`. Before copying the Compose file, migrating or replacing containers, [`deploy/deploy.sh`](deploy/deploy.sh) reads `main` from GitHub. If `main` has moved on, it logs `Release superseded` and exits successfully without changing the host. The newer commit's own release then deploys it, so an older commit can never finish last. This also applies when an earlier build is restarted, so roll back by pushing a revert to `main`. If the newest commit fails its checks, its release does not run, and an older release that was still waiting is skipped as superseded. The previously deployed release keeps running.
+Production deployment targets Railway Hobby, with `api` and `web` services in **US East Metal (Virginia)** and the database on **Neon AWS us-east-1**. [ADR-0022](docs/adr/0022-host-on-railway-near-neon.md) records the decision.
 
-[`server/src/migrate.ts`](server/src/migrate.ts) holds a PostgreSQL advisory lock for the whole migration run. Any other migration run, including `pnpm db:migrate` started by hand, waits for it instead of applying the same migrations concurrently. `server/test/migrate.test.ts` starts two runs together and checks that both succeed and that each migration is applied once.
+A release deploys only the commit at the head of `main`. Before changing Railway, [`deploy/deploy.sh`](deploy/deploy.sh) reads `main` from GitHub. If `main` has moved on, it logs `Release superseded` and exits successfully without deploying anything. The newer commit's own release then deploys it. This also applies when an earlier build is restarted. If the newest commit fails its checks, its release does not run, and an older release that was still waiting is skipped as superseded. The previously deployed release keeps running.
+
+After the browser gate, Drone publishes public `ghcr.io/simianw/share-tally-api:<sha>` and `ghcr.io/simianw/share-tally-web:<sha>` images. The release sets the API's image through Railway's API, starts a deployment and waits for activation. Only a successful API deployment allows the matching web deployment. A failure or timeout fails the release; no web deployment follows an API failure. The deploy step has no Docker socket or home deployment-directory mount. Production application variables belong only in Railway service settings, not Drone, the images or this repository.
+
+### Railway service settings
+
+Create both services in the same project and production environment, in US East Metal. Use an environment created after 2025-10-16 so private DNS supports IPv4 as well as IPv6. Deploy each service from its public GHCR image; Drone updates the image to each released commit's tag.
+
+| Setting | `api` | `web` |
+| --- | --- | --- |
+| Listening/health-check port | `PORT=3000`; the image already sets `HOST=0.0.0.0` | `PORT=80`; Nginx listens on 80 |
+| Pre-deploy command | `node dist/migrate.js` | None |
+| Pre-deploy timeout | 300 seconds | Not applicable |
+| Health-check path | `/api/health/ready` | `/index.html` (static; never touches PostgreSQL) |
+| Health-check timeout | 300 seconds | 300 seconds |
+| Public domain | None; private network only | Railway-generated domain and `sharetally.app` |
+| API upstream | Not applicable | `API_UPSTREAM=api.railway.internal:3000` |
+
+Enter the API's production variables using [`deploy/.env.production.example`](deploy/.env.production.example) as a placeholder reference. `DATABASE_URL` must be the **direct**, non-pooled Neon Virginia endpoint (no `-pooler` suffix), with `sslmode=verify-full` and a URL-encoded password. [`server/src/migrate.ts`](server/src/migrate.ts) holds a session-level PostgreSQL advisory lock on the migration connection; Neon's transaction-mode pooler does not support that lock. The application already pools at most ten application connections plus one readiness connection per API process. Overlapping releases and the pre-deploy migration can temporarily add connections.
+
+Railway's pre-deploy timeout is separate from its activation health-check timeout and the release script's polling deadline. A migration waiting indefinitely for the advisory lock must fail within the configured 300-second limit. A failed pre-deploy command or readiness check prevents activation, keeping the previous API serving. The migration lock also serializes a manual `pnpm db:migrate` with deployment migrations; `server/test/migrate.test.ts` verifies concurrent runs.
+
+The web image renders the shared [`deploy/nginx.conf`](deploy/nginx.conf) through the official Nginx entrypoint, defaulting `API_UPSTREAM` to `api:3000` for Compose. The entrypoint reads DNS servers from `/etc/resolv.conf`; Nginx's shared upstream zone uses `server ... resolve` with `valid=5s`, so an API address is not fixed at web startup. Resolution uses IPv4 answers (`ipv6=off`) because the API binds `0.0.0.0`. A named upstream with no URI suffix preserves the original request URI without the URI-handling changes of a variable `proxy_pass`. SSE pass-through and static headers are unchanged; the browser harness uses the same configuration source. Retain [`deploy/compose.yml`](deploy/compose.yml) for local runs and the initial home-server fallback; Drone no longer deploys it.
+
+Before cutover, verify real sign-in, group pages and live updates in two browsers, receipt scanning, and database latency from inside the API. In the Railway web container, confirm its `/etc/resolv.conf` nameserver answers `api.railway.internal` with an IPv4 address, then redeploy only API and confirm web continues proxying requests and SSE without restarting. Also verify a failing migration leaves the previous release active. These are live Railway checks, not guarantees supplied by local tests. Dashboard rollback is separate from CI: do not restart an old Drone build to roll back, because the head-of-main guard skips it; push a revert to `main` for a gated rollback.
 
 ## Project docs
 
@@ -211,7 +235,7 @@ A release deploys only the commit at the head of `main`. Before copying the Comp
 - [Product requirements](https://github.com/SimianW/share-tally/issues/1)
 - [Receipt extraction and item claiming requirements](https://github.com/SimianW/share-tally/issues/26)
 
-The live app is at **https://sharetally.app**. See the [Drone configuration](.drone.yml) and [Docker Compose configuration](deploy/compose.yml) for the deployment setup. `GET /api/health` is liveness: it succeeds whenever the API process responds. `GET /api/health/ready` is readiness: it returns 503 when PostgreSQL does not answer within its time limit. The API container's health check uses readiness only until its first success, then liveness, so after startup container health is not evidence that the database is reachable; check `/api/health/ready` by hand during an incident.
+The live app is at **https://sharetally.app**. See the [Drone configuration](.drone.yml) and [Railway settings](#railway-service-settings) for the selected release setup. `GET /api/health` is liveness: it succeeds whenever the API process responds. `GET /api/health/ready` is readiness: it returns 503 when PostgreSQL does not answer within its time limit. Railway uses readiness only during deployment activation, not continuous monitoring. The retained Compose setup uses readiness until the API container's first success, then liveness. Neither is evidence that the database remains reachable after activation; check `/api/health/ready` by hand during an incident.
 
 ### Browser release gate
 

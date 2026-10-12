@@ -16,6 +16,6 @@ Agents may implement core logic when assigned a specified task; the owner does n
 
 - The owner retired the earlier time and effort budgets on 2026-09-15 because AI now leads implementation. Do not use the earlier 30-hour cap to limit scope.
 - Receipt extraction and item claiming in issue #26 must be completed before the first release. Its separate specification states the changes to issue #1's original scope and rules without editing issue #1.
-- Hosting: the owner's existing server, exposed through a public-IP VPS and FRP. Network topology, domain, HTTPS termination, process placement, database backups, and any additional service budget remain to be worked out.
+- Hosting: Railway Hobby, with one API and one web service in US East Metal (Virginia), and PostgreSQL on Neon AWS us-east-1. Drone stays on the owner's home server and releases tested GHCR images after the browser gate. [ADR-0022](adr/0022-host-on-railway-near-neon.md) records the hosting decision; Railway setup and the public-domain cutover are separate owner actions.
 
 Google sign-in and the deployed friend-group trial are requirements in the specification. The selected stack and its rationale are in [ADR-0003](adr/0003-typescript-relational-backend.md).
