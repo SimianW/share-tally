@@ -112,27 +112,6 @@ try {
   await expect(groupNet(mobile)).toContainText('$30.00');
   assert.ok(await mobile.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await capture(mobile, 'group-balances-mobile.png');
-
-  const { repayment } = await env.api(`/groups/${group.id}/repayments`, 'carol-token', 'POST', {
-    requestId: randomUUID(), recipientId: ids.Alice, amountCents: 1500,
-  });
-  await alice.getByRole('button', { name: 'Review repayment', exact: true }).click();
-  await expect(alice.getByRole('dialog', { name: 'Review repayment' })).toContainText('$15.00');
-  await capture(alice, 'repayment-review-desktop.png', false);
-  // Confirm through the UI and verify only the confirmed record changes balances.
-  await alice.getByRole('button', { name: 'Confirm receipt', exact: true }).click();
-  await expect(groupNet(alice)).toContainText('$15.00');
-  assert.equal((await env.api(`/groups/${group.id}/bills`)).repayments.find(record => record.id === repayment.id).status, 'confirmed');
-
-  await alice.getByRole('button', { name: 'Account menu', exact: true }).click();
-  await alice.getByRole('menuitem', { name: 'Account', exact: true }).click();
-  await alice.getByRole('radiogroup', { name: 'Mode' }).getByRole('radio', { name: 'Dark', exact: true }).check();
-  await alice.setViewportSize({ width: 1440, height: 1400 });
-  await alice.goto(`${env.base}#/bills/${bill.id}`);
-  await expect(alice.getByRole('heading', { name: 'Items & claims' })).toBeVisible();
-  await expect(alice.locator('.claim-list')).toContainText('Your claim');
-  await expect.poll(() => alice.evaluate(() => document.documentElement.dataset.scheme)).toBe('dark');
-  await capture(alice, 'item-claims-dark-desktop.png', false);
   assert.deepEqual(env.errors, []);
   assert.equal(env.networkChangeFailures.size, 0);
 } finally {

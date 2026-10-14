@@ -4,6 +4,12 @@ Split shared purchases with friends and work out who owes whom. Built for Costco
 
 **Try it: [sharetally.app](https://sharetally.app)**
 
+## Demo
+
+https://github.com/user-attachments/assets/015d0bca-19ba-416f-a414-3a761ddbe565
+
+A 60-second tour with fictional people and a made-up receipt: scanning a receipt, claiming items, live updates, and confirming a repayment.
+
 ## Features
 
 - Create groups and invite friends with a link.
@@ -30,14 +36,6 @@ Captured from the local app on 2026-10-13 using fictional data for Alice, Bob, a
 ### Receipt review
 
 ![Fictional receipt beside four editable items, with tax-inclusive costs matching the receipt total](docs/images/receipt-review-desktop.png)
-
-### Item claims in dark mode
-
-![Shared shopping bill in dark mode showing Alice's confirmed share and Alice and Bob's whole-item and fractional claims](docs/images/item-claims-dark-desktop.png)
-
-### Repayment confirmation
-
-![Alice reviewing Carol's recorded repayment, with options to confirm receipt or reject the record](docs/images/repayment-review-desktop.png)
 
 ### Mobile
 
