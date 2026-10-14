@@ -65,8 +65,8 @@ ShareTally 不直接实现 Google OAuth。`@clerk/react` 的 `ClerkProvider` 使
 1. 回到 Clerk Dashboard 的同一个 Production Google connection。
 2. 将 Google Web client 的 Client ID 和 Client Secret 分别粘入对应字段并 Save。
 3. 从 Clerk Dashboard **Account Portal** 打开生产 sign-in 页面，URL 形如 `https://accounts.<your-domain>/sign-in`，再点击 Google 测试；Clerk 官方建议用 Account Portal 做最小连接测试。[Clerk：Add Google as a social connection](https://clerk.com/docs/guides/configure/auth-strategies/social-connections/google)
-4. 部署 ShareTally 时确认前端 bundle 使用 Production `VITE_CLERK_PUBLISHABLE_KEY`，后端运行时 `CLERK_PUBLISHABLE_KEY` 和 `CLERK_SECRET_KEY` 属于同一个 Production 实例。生产 build 只从 Drone secret `VITE_CLERK_PUBLISHABLE_KEY` 注入公开 key，见 [`deploy/README.md`](../deploy/README.md#L29-L38)。
-5. 通过实际公开 HTTPS 域名测试 ShareTally 的 Sign in、回到应用和 `/api/me`；`/api/health` 通过不等于 Google 登录已验证，仓库部署文档也明确指出二者不同。[`deploy/README.md`](../deploy/README.md#L82-L90)
+4. 部署 ShareTally 时确认前端 bundle 使用 Production `VITE_CLERK_PUBLISHABLE_KEY`，后端运行时 `CLERK_PUBLISHABLE_KEY` 和 `CLERK_SECRET_KEY` 属于同一个 Production 实例。生产 build 只从 Drone secret `VITE_CLERK_PUBLISHABLE_KEY` 注入公开 key，见 [发布配置](../.drone.yml)。
+5. 通过实际公开 HTTPS 域名测试 ShareTally 的 Sign in、回到应用和 `/api/me`；`/api/health` 通过不等于 Google 登录已验证，仓库部署文档也明确指出二者不同。[健康检查说明](../docs/operations.md#health-endpoints-and-incident-checks)
 
 ## Development 与 Production 要求对照
 
