@@ -125,6 +125,12 @@ knowledge_base:
     filePatterns:
       - "CODING_STANDARDS.md"
       - "GLOSSARY.md"
+      - files: "docs/architecture.md"
+        applyTo: "**/*"
+      - files: "docs/development.md"
+        applyTo: "**/*"
+      - files: "docs/operations.md"
+        applyTo: "**/*"
       - files: "docs/adr/*.md"
         applyTo: "**/*"
 

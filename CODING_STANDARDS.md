@@ -10,6 +10,8 @@ Use `GLOSSARY.md`, accepted decisions in `docs/adr/`, and applicable repository 
 
 ## Standards
 
+`README.md` is for visitors; operational and developer reference belongs in the matching `docs/` file. One-time conditions such as "don't merge until X" belong in the PR description, not committed docs.
+
 Check the diff against documented project conventions and accepted design decisions. Cite the source and rule for each violation. Leave formatting, lint, and other mechanical checks to tooling.
 
 Use Fowler's code smells (_Refactoring_, ch. 3) as judgment aids, alongside any smell baseline the reviewing tool carries. Repository guidance takes precedence. Report a smell only when it causes a concrete, consequential problem in this change; label the design judgment and explain the failure scenario rather than treating the smell itself as a violation.

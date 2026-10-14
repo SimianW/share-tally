@@ -4,7 +4,9 @@ Before planning or implementing, read `docs/project-brief.md` for ownership and 
 
 ## Code structure
 
-Before adding a file or a cross-module import, read the README's "Code structure" section. Imports point from `app` to `features` to `shared`; compose screens that combine features in `client/src/app`.
+Before adding a file or a cross-module import, read [docs/architecture.md](docs/architecture.md).
+Before running checks or tests, read [docs/development.md](docs/development.md).
+Before changing deployment, CI or releases, read [docs/operations.md](docs/operations.md).
 
 ## Agent skills
 
