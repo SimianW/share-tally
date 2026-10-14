@@ -61,6 +61,8 @@ pnpm test:browser --all
 
 `--all` runs every scenario in every suite, as the [release gate](operations.md#browser-release-gate) does.
 
+To refresh the README screenshots with fictional data, run `cd client && node ../scripts/build-domain.mjs && node scripts/capture-readme.mjs`; it reuses the browser harness and is outside the release gate.
+
 A failing scenario is reported by name; screenshots of its open pages are kept in `client/test-results/failures/<scenario>/`. `pnpm test:environment` checks partial-startup cleanup, browser connection failures, normal disposal, browser/`route.fetch` origin behavior, and HTTP through the production Nginx template with default/custom upstreams and an API replacement at a new IP. `pnpm test:network-isolation` creates and removes unrelated Docker bridges while a controlled graph of JavaScript modules is loading and fails if any browser resources report `ERR_NETWORK_CHANGED`. Scenarios live in `client/test/browser/`, grouped by business area; `environment.mjs` is the shared environment, `suites.mjs` lists every scenario and `selection.mjs` chooses which ones a command runs.
 
 The browser container uses its own network namespace. Its loopback relay forwards the application's port to Vite through Docker's `host-gateway`, preserving localhost secure contexts, `receipt.test` plain-HTTP contexts and intercepted upstream requests. Vite listens on all interfaces while a scenario runs, so run these test-only identities and services on a trusted development machine. An unrelated remote Docker daemon cannot reach Vite using this setup. Host executable overrides such as `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` no longer apply.
