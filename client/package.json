@@ -2,6 +2,14 @@
   "name": "client",
   "private": true,
   "version": "0.0.0",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.3.4",
+      "onFail": "download"
+    }
+  },
+  "packageManager": "pnpm@12.3.4",
   "type": "module",
   "scripts": {
     "dev": "node ../scripts/build-domain.mjs && vite",

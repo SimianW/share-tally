@@ -33,6 +33,8 @@ Defects that local reviews passed and review bots later caught. When the diff to
 - **Cached data after access loss:** a stream denial hides the group's protected cached reads (`hideProtectedQueries`), so another page cannot render them before its own denial. A successful retry clears errors from earlier attempts (PR #218).
 - **Exit paths during in-flight work:** every way off a page (the page's own back action, the router navigation blocker, `beforeunload`) treats a running upload or request as busy. Check each exit path on every page that hosts the work (PR #222).
 - **Files the checks read:** a test or script that reads a file at runtime has that file copied into each Dockerfile stage that runs it. A change to a shared file such as `deploy/nginx.conf`, `Dockerfile` or `.drone.yml` is checked against the tests that read or rewrite it (PRs #239, #240).
+- **Silent and late remote work:** a retry or timeout around a database, Railway or other remote call handles every failure shape: a refused connection, a connection that accepts and never answers, one that ends mid-transaction, and work that completes after the caller stops waiting. The awaited operation itself is bounded, and the caller's deadline covers the sum of the remote phases it waits on. Stopping the wait leaves the remote work running, so a release that times out can still go live (PRs #245, #247).
+- **Cached error responses:** a cached 404 outlives the deploy that produced it. After a deploy and a rollback, an old tab's lazy chunk exists again, but the browser keeps serving its cached 404. Error responses for static files carry `Cache-Control: no-store` (PR #238, caught on #242).
 
 ## Findings
 
