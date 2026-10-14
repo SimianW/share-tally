@@ -4,27 +4,44 @@ Split shared purchases with friends and work out who owes whom. Built for Costco
 
 **Try it: [sharetally.app](https://sharetally.app)**
 
-## How it works
+## Features
 
-1. Sign in, create a group, and invite friends with a link.
-2. Add a bill. Enter amounts manually, or upload a receipt and review the extracted items before publishing.
-3. Each person enters and confirms their own share, or claims whole items or fractions of an item.
-4. Once a bill is complete, check the group's balances and repayment suggestions.
-5. Transfer money outside the app, then record the repayment. The recipient confirms receipt to update the balances.
+- Create groups and invite friends with a link.
+- Split a bill by amount: each participant enters their own share or chooses a portion of the total, then confirms it.
+- Scan a receipt, crop its photo, and review item names, prices, tax and discounts before sharing the bill. You can also enter items manually.
+- Split by item: claim whole items or exact fractions, check what others have claimed, and confirm your own share.
+- Save private bill drafts and resume them later. Attach up to three note photos to show the purchases or how they were divided.
+- Find bills and repayments that need your attention. Shared bills and balances update live.
+- See each group's net balances and repayment suggestions using the fewest transfers, with explanations of how the amounts add up.
+- Record repayments made outside the app. The recipient confirms receipt or rejects an incorrect record.
+- Leave a group once your balance is zero and your unfinished activity is resolved. Group owners can remove eligible members, pass on ownership when leaving, or delete a cleared group.
+- Choose group icons and appearance palettes, with light, dark and match-device modes.
 
 ShareTally does not move money. It currently supports CAD and groups of up to 16 people. Completed bills are final. Repayments affect balances only after the recipient confirms them.
 
 ## Screenshots
 
-Captured from the local app using sample data for Alice, Bob, and Carol.
+Captured from the local app on 2026-10-13 using fictional data for Alice, Bob, and Carol, including a synthetic receipt.
 
 ### Group bills and balances
 
-![Group bills, current balance, and repayment suggestions](docs/images/group-desktop.png)
+![Weekend shopping group with open and completed bills, Alice's net balance, and a suggested transfer from Carol](docs/images/group-balances-desktop.png)
+
+### Receipt review
+
+![Fictional receipt beside four editable items, with tax-inclusive costs matching the receipt total](docs/images/receipt-review-desktop.png)
+
+### Item claims in dark mode
+
+![Shared shopping bill in dark mode showing Alice's confirmed share and Alice and Bob's whole-item and fractional claims](docs/images/item-claims-dark-desktop.png)
+
+### Repayment confirmation
+
+![Alice reviewing Carol's recorded repayment, with options to confirm receipt or reject the record](docs/images/repayment-review-desktop.png)
 
 ### Mobile
 
-<img src="docs/images/group-mobile.png" alt="Group bills and balances on mobile" width="390">
+<img src="docs/images/group-balances-mobile.png" alt="Weekend shopping group on mobile with Alice's balance, an open item-based bill, completed bills, and suggested transfers" width="390">
 
 ## Tech stack
 
