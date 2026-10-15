@@ -44,6 +44,36 @@ test("a failed save keeps the local edit, and reopening recovers it against the 
   assert.equal(hasUnsavedChanges(reopened), true);
 });
 
+test("importing a bill replaces scanned data without keeping scan warnings or a pending receipt photo", () => {
+  const scanned = run(open(saved(3)),
+    { type: "started", operation: "scanning" },
+    { type: "scanned", draft: saved(4), warnings: ["Check the receipt total"] },
+    { type: "finished" },
+    { type: "stepChosen", step: 0 },
+    { type: "photoCropped", base64: "b2xkLXBob3Rv" });
+  assert.deepEqual(scanned.warnings, ["Check the receipt total"]);
+  for (const mode of ["items", "manual"]) {
+    const data = saved(4, {
+      mode, title: "Imported lunch", totalCents: 500, participantIds: [],
+      items: mode === "items" ? [item({ id: "imported-item" })] : [],
+      receipt: mode === "items" ? saved(4).data.receipt : undefined,
+    }).data;
+    const imported = run(scanned, { type: "imported", data });
+    assert.deepEqual(imported.warnings, []);
+    assert.equal(imported.local.pendingPhoto, undefined);
+    assert.deepEqual(imported.local.data, data);
+    assert.equal(hasUnsavedChanges(imported), true);
+    const savedImport = run(imported,
+      { type: "started", operation: "saving" },
+      { type: "saved", draft: saved(5, data) },
+      { type: "finished" },
+      { type: "stepChosen", step: 2 });
+    assert.equal(savedImport.step, 2);
+    assert.deepEqual(savedImport.warnings, []);
+    assert.equal(hasUnsavedChanges(savedImport), false);
+  }
+});
+
 test("a recovery entry from an older saved revision is discarded for the newer saved draft", () => {
   const edited = run(open(saved(3)), { type: "edited", patch: { title: "Old local title" } });
   const reopened = open(saved(4, { title: "Saved elsewhere" }), recoveryEntry(edited));

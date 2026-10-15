@@ -31,6 +31,7 @@ export type EditorEvent =
   | { type: "reopened" }
   | { type: "removed"; message: string }
   | { type: "edited"; patch: Partial<ReceiptData> }
+  | { type: "imported"; data: ReceiptData }
   | { type: "photoCropped"; base64: string }
   | { type: "stepChosen"; step: Step }
   | { type: "started"; operation: Activity }
@@ -287,6 +288,12 @@ export function reduceEditor(state: EditorState, event: EditorEvent): EditorStat
       const priced = data.mode === "items" ? { ...data, items: priceReceiptDraft(data).items } : data;
       return { ...state, local: { ...state.local, data: priced }, notice: "" };
     }
+    case "imported":
+      if (!editable(state)) return state;
+      return {
+        ...state, warnings: [], error: "", notice: "",
+        local: { ...state.local, data: event.data, pendingPhoto: undefined, photo: state.server?.photo },
+      };
     case "photoCropped":
       if (!editable(state)) return state;
       return {

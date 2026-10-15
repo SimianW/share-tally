@@ -194,7 +194,7 @@ export function useDraftEditor({ userId, groupId, id, photoSelected, uploading, 
     scan,
     async importBill(data: BillFileDraft) {
       const before = current.current;
-      const changed = dispatch({ type: "edited", patch: {
+      const changed = dispatch({ type: "imported", data: {
         ...data, receipt: data.receipt, items: data.items.map(item => ({ ...item, id: requestId() })),
         purchaseDate: localToday(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, participantIds: [],
       } });
