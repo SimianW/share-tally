@@ -44,5 +44,7 @@ function subscribe(onChange: () => void) {
   window.addEventListener('hashchange', changed);
   return () => window.removeEventListener('hashchange', changed);
 }
-const snapshot = () => window.location.hash;
+// Render only routes the guard has seen: another update can re-render before the
+// hashchange event, and the editor shown early would then take it for leaving.
+const snapshot = () => currentHash;
 export function useRoute() { return useSyncExternalStore(subscribe, snapshot); }
