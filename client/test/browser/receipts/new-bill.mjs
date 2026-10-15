@@ -9,6 +9,7 @@ import { groupSwitcher, openGroupSwitcher, expectSegmentSlide } from '../ui.mjs'
 export const scenarios = [
   { name: 'scan-retry', environment: { ...receiptEnvironment, firstExtractionFails: true }, run: scanRetry },
   { name: 'new-bill-during-refresh', environment: receiptEnvironment, run: newBillDuringRefresh },
+  { name: 'new-bill-late-route-event', environment: receiptEnvironment, run: newBillLateRouteEvent },
   { name: 'receipt-crop', environment: receiptEnvironment, run: receiptCrop },
   { name: 'unassigned-tax', environment: receiptEnvironment, run: unassignedTax },
   { name: 'manual-split-fallback', environment: receiptEnvironment, run: manualSplitFallback },
@@ -310,6 +311,19 @@ async function manualSplitFallback(env) {
     (await api(`/bills/${alice.url().split("/").at(-1)}`)).bill.mode,
     "manual",
   );
+}
+
+async function newBillLateRouteEvent(env) {
+  const { newBillRoute, alice } = await receiptGroup(env);
+  // Returning to the tab re-renders the page; the new route's hashchange event comes later.
+  await alice.evaluate(async hash => {
+    history.pushState(null, '', hash);
+    window.dispatchEvent(new Event('focus'));
+    await new Promise(resolve => setTimeout(resolve, 500));
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+  }, new URL(newBillRoute).hash);
+  await alice.getByRole('button', { name: 'Type the items in', exact: true }).click();
+  await expect(alice.getByRole('heading', { name: 'Check your items' })).toBeVisible();
 }
 
 // A write refreshes group reads by cancelling those in flight and reading again. Opening

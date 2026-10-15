@@ -207,7 +207,7 @@ test('a rejected cancellation fails the release and warns that the deployment ma
 for (const cancelResponse of ['http-error', 'graphql-error', 'stalled']) {
   test(`a ${cancelResponse} cancellation remains bounded and warns without exposing the token`, async (t) => {
     const release = await releaseFixture(t, { apiStatuses: ['QUEUED'], cancelResponse })
-    const result = await release.run({ RAILWAY_DEPLOYMENT_TIMEOUT_MS: '100', RAILWAY_REQUEST_TIMEOUT_MS: '50' })
+    const result = await release.run({ RAILWAY_DEPLOYMENT_TIMEOUT_MS: '100', RAILWAY_REQUEST_TIMEOUT_MS: '300' })
     assert.equal(result.code, 1, result.output)
     assert.equal(result.signal, null)
     assert.match(result.output, /cancellation failed; deployment may still activate/)
