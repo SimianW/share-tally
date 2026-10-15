@@ -175,6 +175,7 @@ export function PortionChoices({ label, totalCents, choices, pressed, custom, cu
   const [customError, setCustomError] = useState("");
   const price = (f: Fraction) => totalCents === null ? null : money(cost(totalCents, f));
   function pick(value: Fraction, isCustom: boolean) {
+    if (inline && customOpen) trigger.current?.focus();
     onPick(value, isCustom);
     setCustomOpen(false);
   }
@@ -187,7 +188,8 @@ export function PortionChoices({ label, totalCents, choices, pressed, custom, cu
   }
   const customPrice = custom && price(custom);
   return <>
-    <div className="claim-portion-choices" role="group" aria-label={label}>
+    <div className="claim-portion-choices" role="group" aria-label={label}
+      style={inline ? { gridTemplateColumns: `repeat(${choices.length + 1}, minmax(0, 1fr))` } : undefined}>
       {choices.map((choice) => {
         const amount = price(choice.fraction);
         return <button type="button" key={choice.key} className={choice.tag ? "claim-portion-tagged" : undefined}

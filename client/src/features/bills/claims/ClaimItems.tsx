@@ -2,7 +2,7 @@ import { type Bill } from "@share-tally/domain/contracts/bills";
 import type { BillItem } from "@share-tally/domain/contracts/receipts";
 import { fraction, type Fraction } from '@share-tally/domain/fractions';
 import { ArrowRight, Check, CircleAlert, Sparkles, Trash2 } from "lucide-react";
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { claimable, cost, lessOrEqual, one, parse, shortText, subtract, text, zero } from "../../../shared/fractions";
 import { money } from "../../../shared/money";
 import { Avatar } from "../../../shared/ui/Avatar";
@@ -18,6 +18,7 @@ import { roomFor, unclaimedPortion } from './claim-availability';
 import { useClaimChanges } from "./claim-changes";
 import { share, signed } from "./claim-fractions";
 import { needsReview, type Blocker, type ClaimReview, type ItemAttention, type RemovedItem } from "./claim-review";
+import { ClaimDetail } from "./ClaimDetail";
 import { ClaimPortion, ItemPortionBar } from "./ClaimPortion";
 
 // Long enough to see the chosen portion fill the bar before the sheet moves on.
@@ -27,6 +28,12 @@ const plural = (count: number, singular: string, many: string) => `${count} ${co
 
 const itemChoices = (count: number) => amountChoices(count, "All of it");
 
+const desktopQuery = window.matchMedia("(min-width: 1100px)");
+const subscribeDesktop = (notify: () => void) => {
+  desktopQuery.addEventListener("change", notify);
+  return () => desktopQuery.removeEventListener("change", notify);
+};
+
 export function ClaimItems({ bill, selection, review, change, acknowledge, dismissRemoved, busy, terminal, confirmAction, error }: {
   bill: Bill; selection: Record<string, string>; review: ClaimReview;
   change: (id: string, fraction: string) => void;
@@ -35,6 +42,10 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
   dismissRemoved: (id: string) => void;
   busy: boolean; terminal: boolean; confirmAction: ReactNode; error: string;
 }) {
+  const desktop = useSyncExternalStore(subscribeDesktop, () => desktopQuery.matches);
+  const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [popoverId, setPopoverId] = useState<string | null>(null);
+  const table = useRef<HTMLTableElement>(null);
   const items = bill.items ?? [];
   const choices = itemChoices(bill.participants.length);
   const own = bill.participants.find((p) => p.isCurrentUser);
@@ -68,12 +79,13 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
   const unclaimed = items.filter((i) => left(i).n > 0n);
   const myItems = items.filter(mine);
   const displayed = filter === "unclaimed" ? unclaimed : filter === "mine" ? myItems : items;
-  const sequence = order.filter((id) => items.some((item) => item.id === id));
+  const sequence = (desktop ? displayed.map((item) => item.id) : order).filter((id) => items.some((item) => item.id === id));
   const position = active ? sequence.indexOf(active.id) : -1;
   // Located in the opening list, so a pending advance still finds the next item if this one was removed.
-  const index = activeId ? order.indexOf(activeId) : -1;
-  const before = index < 0 ? [] : order.slice(0, index).reverse();
-  const after = index < 0 ? [] : order.slice(index + 1);
+  const navigationOrder = desktop ? sequence : order;
+  const index = activeId ? navigationOrder.indexOf(activeId) : -1;
+  const before = index < 0 ? [] : navigationOrder.slice(0, index).reverse();
+  const after = index < 0 ? [] : navigationOrder.slice(index + 1);
   const itemFor = (id: string) => items.find((item) => item.id === id);
   const previousId = before.find(itemFor) ?? null;
   const nextId = after.find(itemFor) ?? null;
@@ -90,31 +102,49 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
   useEffect(() => () => window.clearTimeout(advance.current), []);
   // Moving to another item replaces the sheet content; if focus was in it, the heading takes over.
   useEffect(() => {
-    const dialog = heading.current?.closest("dialog");
-    if (activeId && dialog && !dialog.contains(document.activeElement)) heading.current?.focus({ preventScroll: true });
-  }, [activeId]);
+    const container = heading.current?.closest(desktop ? ".claim-detail" : "dialog");
+    if (activeId && container && (desktop ? document.activeElement === document.body : !container.contains(document.activeElement)))
+      heading.current?.focus({ preventScroll: true });
+  }, [activeId, desktop]);
   // Shows an item's sheet, or closes it with null, cancelling any pending advance. Seeing an item
   // acknowledges it if it is new or changed without a pick on it; a changed pick needs its own confirmation.
   // A pending advance passes the latest bill; handlers use the one on screen.
   function showItem(id: string | null, { items: current, attention: now, blockers: pending } = { items, attention, blockers }) {
     window.clearTimeout(advance.current);
     setActiveId(id);
-    setAnnouncement("");
+    setAnnouncement(desktop && id ? `${current.find((entry) => entry.id === id)?.name ?? "Item"}` : "");
+    heading.current?.closest(".claim-detail")?.scrollTo({ top: 0 });
     setReviewedHere(null);
     setCustomOpen(false);
+    setPopoverId(null);
     const item = id ? current.find((entry) => entry.id === id) : undefined;
     const state = id ? now[id] : undefined;
     setOpened(id ? { id, isNew: !!state?.isNew, attention: pending.length > 0 } : null);
     if (item && state && (state.isNew || state.updated)) acknowledge(item);
   }
+  function focusRow(id: string, scroll = false) {
+    const button = table.current?.querySelector<HTMLButtonElement>(`[data-item="${CSS.escape(id)}"] .claim-table-open`);
+    button?.focus({ preventScroll: true });
+    if (scroll) button?.scrollIntoView({ block: "nearest" });
+  }
+  function closeItem() {
+    showItem(null);
+    if (desktop && activeId) focusRow(activeId);
+  }
   function open(item: BillItem) {
     setOrder(displayed.map((entry) => entry.id));
     showItem(item.id);
+    if (desktop) {
+      setFocusedId(item.id);
+      focusRow(item.id);
+      setAnnouncement(`${item.name}, item ${displayed.indexOf(item) + 1} of ${displayed.length}`);
+    }
   }
   // At either end of the list there is nowhere to go, but the press still cancels a pending advance.
   function navigateToItem(id: string | null, now?: Parameters<typeof showItem>[1]) {
     window.clearTimeout(advance.current);
     if (!id) return;
+    if (desktop) setFocusedId(id);
     showItem(id, now);
     const item = itemFor(id);
     if (item) setAnnouncement(`${item.name}, item ${sequence.indexOf(id) + 1} of ${sequence.length}`);
@@ -123,11 +153,12 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
   // Moves on to the next item with room after a short pause; after the last one the list and its Confirm button return.
   function advanceFrom(item: BillItem) {
     window.clearTimeout(advance.current);
+    if (desktop) return;
     advance.current = window.setTimeout(() => {
       const { activeId: current, nextOpenId: next, terminal: ended, items: now, attention: state, blockers: pending } = latest.current;
       // A bill that completed or was canceled during the pause stays on the item just picked,
       // and so does an item whose price or name changed or that ran out meanwhile.
-      if (current !== item.id || ended) return;
+      if (current !== item.id || ended || desktopQuery.matches) return;
       const live = now.find((entry) => entry.id === item.id);
       if (live && (live.version !== item.version || state[item.id]?.over)) return;
       if (next) navigateToItem(next, { items: now, attention: state, blockers: pending }); else showItem(null);
@@ -141,6 +172,7 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
     if (custom) setCustomChoices((previous) => ({ ...previous, [item.id]: value }));
     setSelectedCustom((previous) => ({ ...previous, [item.id]: custom }));
     setCustomOpen(false);
+    setPopoverId(null);
     window.clearTimeout(advance.current);
     if (value) advanceFrom(item);
   }
@@ -168,6 +200,13 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
     } else if (!activeId) setOrder(displayed.map((item) => item.id));
     const item = itemFor(blocker.itemId);
     showItem(blocker.itemId);
+    if (desktop) {
+      setFocusedId(blocker.itemId);
+      requestAnimationFrame(() => {
+        const panel = heading.current?.closest(".claim-detail");
+        if (panel && !panel.contains(document.activeElement)) heading.current?.focus();
+      });
+    }
     if (activeId && item) {
       setAnnouncement(item.name);
       heading.current?.closest("dialog")?.scrollTo({ top: 0 });
@@ -182,7 +221,7 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
     goTo(others.find((blocker) => position(blocker) > here) ?? others[0]);
   }
   useEffect(() => {
-    if (!activeId) return;
+    if (!activeId || desktop) return;
     function arrows(event: KeyboardEvent) {
       if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
@@ -209,16 +248,112 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
       document.removeEventListener("keydown", arrows);
     };
   });
+  // Desktop shortcuts stay local to the claim workspace, away from dialogs and text entry.
+  useEffect(() => {
+    if (!desktop) return;
+    function keys(event: KeyboardEvent) {
+      const target = event.target instanceof Element ? event.target : null;
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey ||
+        (event.shiftKey && !["J", "K"].includes(event.key)) || !target?.closest(".claim-workspace") || target.closest("dialog, [popover], input, textarea, select, [contenteditable]")) return;
+      const focused = displayed.find((item) => item.id === focusedId) ?? displayed[0];
+      if (!focused) return;
+      const move = ["ArrowDown", "j", "J", "ArrowUp", "k", "K"].includes(event.key);
+      if (move) {
+        event.preventDefault();
+        const delta = event.key === "ArrowDown" || event.key.toLowerCase() === "j" ? 1 : -1;
+        const next = displayed[Math.max(0, Math.min(displayed.length - 1, displayed.indexOf(focused) + delta))];
+        setFocusedId(next.id);
+        focusRow(next.id, true);
+      } else if (event.key === "Escape" && active) {
+        event.preventDefault();
+        closeItem();
+      } else if (active && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+        event.preventDefault();
+        navigateToItem(event.key === "ArrowLeft" ? previousId : nextId);
+      } else if (event.key === "Enter" && target.classList.contains("claim-table-open")) {
+        event.preventDefault();
+        open(focused);
+      } else if (/^[1-7]$/.test(event.key) && reviewing) {
+        event.preventDefault();
+        table.current?.querySelector<HTMLButtonElement>(`[data-item="${CSS.escape(focused.id)}"] .claim-portion-choices button:nth-child(${event.key})`)?.click();
+      }
+    }
+    document.addEventListener("keydown", keys);
+    return () => document.removeEventListener("keydown", keys);
+  });
+  function portionChoices(item: BillItem, inline = false) {
+    const picked = parse(selection[item.id] ?? "");
+    const even = choices[0];
+    const isEven = picked?.n === even.fraction.n && picked?.d === even.fraction.d;
+    const pressed = selectedCustom[item.id] ? (isEven ? even.key : "custom")
+      : choices.find((choice) => picked?.n === choice.fraction.n && picked?.d === choice.fraction.d)?.key ?? null;
+    const over = attention[item.id]?.over;
+    const remainder = over && claimable(over.left) ? over.left : null;
+    return <PortionChoices label="Your portion" totalCents={item.finalCents} choices={choices} pressed={pressed}
+      custom={customChoices[item.id] ? parse(customChoices[item.id]) : null}
+      customStart={customChoices[item.id] || selection[item.id] || ""}
+      customOpen={inline ? popoverId === item.id : customOpen}
+      setCustomOpen={inline ? (value) => setPopoverId(value ? item.id : null) : setCustomOpen}
+      inline={inline} cap={room(item)} disabled={busy}
+      takeLeft={!inline && remainder ? { fraction: remainder, label: `Take the ${shortText(remainder)} left · ${money(cost(item.finalCents, remainder))}` } : null}
+      onPick={(value, custom) => choose(item, custom ? text(value) : shortText(value), custom)} />;
+  }
   // When a pick no longer fits, the sheet offers whatever is still left in one tap, but only if
   // that remainder is itself a claimable fraction. It is never rounded to make it one.
   const activeOver = active ? attention[active.id]?.over : null;
-  const activeLeft = activeOver && claimable(activeOver.left) ? activeOver.left : null;
   return <>
     <div className="claim-filters" aria-label="Filter items">
       {([ ["unclaimed", `Unclaimed (${unclaimed.length})`], ["mine", `Mine (${myItems.length})`], ["all", `All (${items.length})`] ] as const).map(([key, label]) =>
         <button type="button" key={key} aria-pressed={filter === key} onClick={() => setFilter(key)}>{label}</button>)}
     </div>
-    <div className="receipt-item-list claim-list">
+    <div className={`claim-workspace${desktop && active ? " has-detail" : ""}`}>
+    {desktop ? <div className="claim-table-wrap"><table ref={table} className={`claim-table${reviewing ? "" : " is-readonly"}`} aria-label="Items & claims">
+      <thead><tr><th>Item / original receipt text</th><th>Final cost</th>{!active && <th>Everyone's portions</th>}{reviewing && <th>Your portion</th>}<th>Your amount</th></tr></thead>
+      <tbody>{(() => {
+        const rows: ReactNode[] = [];
+        const removedAt = (index: number) => (reviewing ? review.removed : []).filter((entry) => index < 0 ? entry.index >= items.length : entry.index === index)
+          .forEach((entry) => rows.push(<tr key={`removed-${entry.itemId}`}><td colSpan={(active ? 3 : 4) + Number(reviewing)}><RemovedRow removed={entry} dismiss={() => dismissRemoved(entry.itemId)} /></td></tr>));
+        items.forEach((item, index) => {
+          removedAt(index);
+          if (!displayed.includes(item)) return;
+          const selected = parse(selection[item.id] ?? "");
+          const myClaim = item.claims.find((claim) => claim.userId === own?.userId);
+          const state = attention[item.id];
+          const free = selected && lessOrEqual(selected, room(item)) ? subtract(room(item), selected) : selected ? zero : room(item);
+          const pending = selected && (!myClaim || text(selected) !== `${myClaim.numerator}/${myClaim.denominator}`);
+          rows.push(<tr key={item.id} data-item={item.id} aria-label={item.name} aria-current={activeId === item.id ? "true" : undefined}
+            className={state?.over || state?.invalid ? "is-over" : state && needsReview(state) ? "is-review" : undefined}
+            onFocus={() => setFocusedId(item.id)} onClick={(event) => {
+              if (event.target instanceof Element && event.target.closest(".claim-table-left")) open(item);
+            }}>
+            <td className="claim-table-left"><button type="button" className="claim-table-open" aria-label={`View ${item.name} · ${money(item.finalCents)}`}
+              aria-describedby={`claim-status-${item.id}`} aria-expanded={activeId === item.id} tabIndex={item.id === (displayed.some((entry) => entry.id === focusedId) ? focusedId : displayed[0]?.id) ? 0 : -1}>
+              <Icon name="right" size={16} /><span><strong>{item.name}</strong>{!active && item.originalText && <small>{item.originalText}</small>}
+                <span id={`claim-status-${item.id}`} className="receipt-row-badges">{state && <AttentionBadges attention={state} initiatorName={initiatorName} />}{state?.over && <span className="sr-only">Over by {shortText(state.over.by)}</span>}</span>
+                {state?.over && <span className="claim-left is-over">Over by {shortText(state.over.by)}</span>}
+              </span></button></td>
+            <td className="claim-table-left claim-table-cost">{money(item.finalCents)}</td>
+            {!active && <td className="claim-table-left"><span role="img" aria-label={`${item.name}: ${text(subtract(one, room(item)))} claimed by others${selected ? `; ${text(selected)} picked by you` : ""}; ${text(free)} free`}>
+              <ItemPortionBar item={item} participants={bill.participants} ownId={own?.userId} mine={selected} changes={changes} /></span>
+              <span className="claim-table-legend"><span className="claim-avatars">{item.claims.map((claim) => {
+                const person = bill.participants.find((p) => p.userId === claim.userId);
+                return person && <span key={claim.userId} title={`${person.displayName}: ${claim.numerator}/${claim.denominator}${claim.confirmedAt ? "" : " · reserved, needs reconfirmation"}`}><Avatar name={person.displayName} imageUrl={person.imageUrl} fallbackImageUrl={person.fallbackImageUrl} small /></span>;
+              })}</span>{shortText(free)} free</span>
+            </td>}
+            {reviewing && <td className="claim-inline-options">{portionChoices(item, true)}</td>}
+            <td className="claim-table-amount"><strong>{selected ? money(cost(item.finalCents, selected)) : "—"}</strong>{selected && <span className="sr-only">Your portion {text(selected)}</span>}
+              {state?.over ? <small className="claim-left is-over">Over by {shortText(state.over.by)}</small>
+                : pending ? <small>not submitted</small> : myClaim && !myClaim.confirmedAt ? <small>reserved · reconfirm</small> : null}
+              {reviewing && selected && <button type="button" className="claim-table-remove" onClick={() => choose(item, "")}>Remove<span className="sr-only"> claim for {item.name}</span></button>}
+            </td>
+          </tr>);
+        });
+        removedAt(-1);
+        return rows;
+      })()}</tbody>
+    </table>{!displayed.length && <p className="receipt-list-empty">No items in this filter.</p>}
+      <p className="claim-table-help">↑ / ↓ or J / K to focus a row · 1–7 to pick a portion · Enter for details · Esc to close</p>
+    </div> : <div className="receipt-item-list claim-list">
       {(() => {
         const rows: ReactNode[] = [];
         const removedAt = (index: number) => (reviewing ? review.removed : []).filter((entry) => index < 0 ? entry.index >= items.length : entry.index === index)
@@ -254,9 +389,9 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
         return rows;
       })()}
       {!displayed.length && !(reviewing && review.removed.length) && <p className="receipt-list-empty">No items in this filter.</p>}
-    </div>
-    {active && <Dialog title={active.name} kicker={sequence.length > 1 && position >= 0 ? `CLAIM AN ITEM · ${position + 1} OF ${sequence.length}` : "CLAIM AN ITEM"}
-      className="receipt-sheet claim-sheet" closeLabel="Close claim" close={() => showItem(null)} headingRef={heading}
+    </div>}
+    {active && <ClaimDetail desktop={desktop} title={active.name} kicker={sequence.length > 1 && position >= 0 ? `CLAIM AN ITEM · ${position + 1} OF ${sequence.length}` : "CLAIM AN ITEM"}
+      className="receipt-sheet claim-sheet" closeLabel="Close claim" close={closeItem} headingRef={heading}
       actions={sequence.length > 1 && <div className="claim-sheet-nav">
         <button type="button" className="icon-button" aria-label="Previous item" aria-keyshortcuts="ArrowLeft" aria-disabled={!previousId} onClick={() => navigateToItem(previousId)}><Icon name="left" size={18} /></button>
         <button type="button" className="icon-button" aria-label="Next item" aria-keyshortcuts="ArrowRight" aria-disabled={!nextId} onClick={() => navigateToItem(nextId)}><Icon name="right" size={18} /></button>
@@ -287,19 +422,7 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
         {!terminal && own && <div className="claim-options">
           <ClaimPortion item={active} participants={bill.participants} ownId={own.userId} mine={parse(selection[active.id] ?? "")}
             changes={changes} over={activeOver ?? null} />
-          {(() => {
-            const picked = parse(selection[active.id] ?? "");
-            const even = choices[0];
-            const isEven = picked?.n === even.fraction.n && picked?.d === even.fraction.d;
-            const pressed = selectedCustom[active.id] ? (isEven ? even.key : "custom")
-              : choices.find((choice) => picked?.n === choice.fraction.n && picked?.d === choice.fraction.d)?.key ?? null;
-            return <PortionChoices label="Your portion" totalCents={active.finalCents} choices={choices} pressed={pressed}
-              custom={customChoices[active.id] ? parse(customChoices[active.id]) : null}
-              customStart={customChoices[active.id] || selection[active.id] || ""} customOpen={customOpen} setCustomOpen={setCustomOpen}
-              cap={room(active)} disabled={busy}
-              takeLeft={activeLeft && { fraction: activeLeft, label: `Take the ${shortText(activeLeft)} left · ${money(cost(active.finalCents, activeLeft))}` }}
-              onPick={(value, custom) => choose(active, custom ? text(value) : shortText(value), custom)} />;
-          })()}
+          {portionChoices(active)}
           {!!selection[active.id] && <Button variant="text" className="claim-remove" onClick={() => choose(active, "")}>Remove my claim</Button>}
         </div>}
       </div>
@@ -313,10 +436,11 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
                 : <><Check size={16} aria-hidden="true" />Nothing else needs review</>}
           </span>
           {remaining ? <Button variant="secondary" onClick={nextToReview}>Next to review<ArrowRight size={16} aria-hidden="true" /></Button>
-            : !here && <Button onClick={() => showItem(null)}>Done</Button>}
+            : !here && <Button onClick={closeItem}>Done</Button>}
         </div>;
       })()}
-    </Dialog>}
+    </ClaimDetail>}
+    </div>
     {summary && <Dialog title="Receipt summary" kicker="PRINTED TOTALS · CAD" className="receipt-sheet" closeLabel="Close summary" close={() => setSummary(false)}>
       <div className="receipt-sheet-content"><p className="receipt-field-help">Read-only receipt totals from the initiated bill.</p>
         {bill.receipt ? <dl className="receipt-cost-breakdown">
