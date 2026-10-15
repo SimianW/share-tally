@@ -17,7 +17,8 @@ purge();
 setInterval(purge, 60 * 60 * 1000).unref();
 
 // Members' own edits sync when they save them. Startup and hourly passes also bring
-// in users who are not signed in, and edits made outside ShareTally.
+// in users who are not signed in, and edits made outside ShareTally. The release
+// migration marks old name rules for a one-time rewrite through this same path.
 const syncNames = () => void syncDisplayNames(clerkProfiles).catch(() => console.error('Display name synchronization failed'));
 syncNames();
 setInterval(syncNames, 60 * 60 * 1000).unref();

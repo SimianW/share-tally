@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "display_name_version" integer DEFAULT 0 NOT NULL;

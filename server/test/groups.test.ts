@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { after, before, beforeEach, test } from 'node:test';
 import { fork, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
+import { readFile } from 'node:fs/promises';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { Pool, type PoolClient } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
@@ -726,17 +727,28 @@ type Named = { id: string; displayName: string };
 const memberNames = async (groupId: string, token = 'alice-token') =>
   ((await json(await api(`/groups/${groupId}`, token))).group.members as Named[]).map(member => member.displayName);
 
-test('displayed names prefer the Clerk Username, then the Profile name, then Member', async () => {
+test('displayed names prefer the Clerk Profile name, then the Username, then Member', async () => {
   await setProfile('user_test_alice', { username: '111wsm', firstName: 'Simian', lastName: 'Wang' });
   await setProfile('user_test_bob', { username: null, firstName: ' Bob ', lastName: 'Builder' });
   await setProfile('user_test_carol', { username: '  ', firstName: null, lastName: ' ' });
   const group = await create();
   await inviteMember(group.id);
   await inviteMember(group.id, 'carol-token');
-  assert.deepEqual(await memberNames(group.id, 'bob-token'), ['111wsm', 'Bob Builder', 'Member']);
+  assert.deepEqual(await memberNames(group.id, 'bob-token'), ['Simian Wang', 'Bob Builder', 'Member']);
   const listed = (await json(await api('/groups', 'carol-token'))).groups[0];
-  assert.equal(listed.ownerName, '111wsm');
-  assert.deepEqual(listed.memberPreview.map((member: Named) => member.displayName), ['111wsm', 'Bob Builder', 'Member']);
+  assert.equal(listed.ownerName, 'Simian Wang');
+  assert.deepEqual(listed.memberPreview.map((member: Named) => member.displayName), ['Simian Wang', 'Bob Builder', 'Member']);
+  for (const [profile, expected] of [
+    [{ username: ' builder ', firstName: '', lastName: ' \t ' }, 'builder'],
+    [{ username: 'builder', firstName: ' 王思民 ', lastName: '' }, '王思民'],
+    [{ username: 'builder', firstName: ' ', lastName: ' Builder ' }, 'Builder'],
+    [{ username: '', firstName: '', lastName: '' }, 'Member'],
+    [{ username: null, firstName: null, lastName: null }, 'Member'],
+  ] as const) {
+    await setProfile('user_test_bob', profile);
+    await json(await api('/me/profile', 'bob-token', 'POST'));
+    assert.equal((await memberNames(group.id))[1], expected);
+  }
 });
 
 test('a saved Clerk edit renames the member in every group after it is stored, notifying only those groups', async () => {
@@ -765,22 +777,22 @@ test('a saved Clerk edit renames the member in every group after it is stored, n
     const saved = await json(await api('/me/profile', 'alice-token', 'POST', {
       displayName: 'Mallory', username: 'mallory', clerkUserId: 'user_test_bob',
     }));
-    assert.deepEqual(saved, { displayName: '111wsm', changed: true });
+    assert.deepEqual(saved, { displayName: 'Simian Wang', changed: true });
     await eventually(() => [sharedGroup, otherGroup, aliceHome, bobHome, carolHome].every(watcher => watcher!.changes() === 1));
-    assert.deepEqual(await memberNames(shared.id, 'bob-token'), ['111wsm', 'Bob']);
-    assert.deepEqual(await memberNames(other.id, 'carol-token'), ['111wsm', 'Carol']);
+    assert.deepEqual(await memberNames(shared.id, 'bob-token'), ['Simian Wang', 'Bob']);
+    assert.deepEqual(await memberNames(other.id, 'carol-token'), ['Simian Wang', 'Carol']);
     assert.deepEqual((await json(await api('/groups', 'bob-token'))).groups[0].memberPreview
-      .map((member: Named) => member.displayName), ['111wsm', 'Bob']);
+      .map((member: Named) => member.displayName), ['Simian Wang', 'Bob']);
     // Renaming grants nothing: outsiders hear nothing and the deleted group stays gone.
     for (const token of ['alice-token', 'bob-token']) await json(await api(`/groups/${deleted.id}`, token), 404);
     await json(await api(`/groups/${shared.id}`, 'member-1-token'), 404);
 
-    // Removing the Username falls back to the Profile name; repeating the save changes nothing.
-    await setProfile('user_test_alice', { username: null, firstName: 'Simian', lastName: 'Wang' });
-    assert.deepEqual(await json(await api('/me/profile', 'alice-token', 'POST')), { displayName: 'Simian Wang', changed: true });
-    assert.deepEqual(await json(await api('/me/profile', 'alice-token', 'POST')), { displayName: 'Simian Wang', changed: false });
+    // Removing the Profile name falls back to the Username; repeating the save changes nothing.
+    await setProfile('user_test_alice', { username: '111wsm', firstName: '', lastName: ' ' });
+    assert.deepEqual(await json(await api('/me/profile', 'alice-token', 'POST')), { displayName: '111wsm', changed: true });
+    assert.deepEqual(await json(await api('/me/profile', 'alice-token', 'POST')), { displayName: '111wsm', changed: false });
     await eventually(() => bobHome!.changes() === 2 && sharedGroup!.changes() === 2);
-    assert.deepEqual(await memberNames(shared.id, 'bob-token'), ['Simian Wang', 'Bob']);
+    assert.deepEqual(await memberNames(shared.id, 'bob-token'), ['111wsm', 'Bob']);
     // Wait for any stray notification before checking the uninvolved streams.
     await new Promise(resolve => setTimeout(resolve, 200));
     assert.equal(bobHome!.changes(), 2);
@@ -829,7 +841,7 @@ test('initial synchronization corrects stale cached names of members without a s
     await clerk('sync-profiles', 'profiles-synced');
     // Each renamed member is stored and announced on their own.
     await eventually(() => watching.changes() === 2);
-    assert.deepEqual(await memberNames(group.id), ['Alice', 'builder', 'Member']);
+    assert.deepEqual(await memberNames(group.id), ['Alice', 'Bob Builder', 'Member']);
     await clerk('sync-profiles', 'profiles-synced');
     await new Promise(resolve => setTimeout(resolve, 200));
     assert.equal(watching.changes(), 2);
@@ -925,4 +937,63 @@ test('a first cached name keeps its Clerk version, so a lagging pass cannot repl
   child!.send('release-profiles');
   await pass;
   assert.deepEqual(await memberNames(group.id, 'member-3-token'), ['second-handle']);
+});
+
+// Fixture setup models the pre-release schema; the release runs its real migrator.
+async function runReleaseMigrations() {
+  assert.ok(container);
+  const migration = fork(new URL('../src/migrate.ts', import.meta.url), {
+    execArgv: ['--import=tsx'],
+    env: { PATH: process.env.PATH, DATABASE_URL: container.getConnectionUri() },
+    stdio: ['ignore', 'inherit', 'inherit', 'ipc'],
+  });
+  const [code] = await once(migration, 'exit');
+  assert.equal(code, 0);
+}
+
+test('release rewrites unchanged Clerk names once and notifies open group and member views', async () => {
+  const updatedAt = Date.now();
+  const current = { username: 'builder', firstName: 'Bob', lastName: 'Builder', updatedAt };
+  await setProfile('user_test_bob', current);
+  const group = await create();
+  await inviteMember(group.id);
+  // The old release cached the Username from exactly the same Clerk data.
+  await pool.query("UPDATE users SET display_name = 'builder' WHERE clerk_user_id = 'user_test_bob'");
+  assert.deepEqual(await memberNames(group.id), ['Alice', 'builder']);
+  const watchers = await Promise.all([
+    stream(`/groups/${group.id}/events`, 'alice-token'),
+    stream('/me/events', 'alice-token'), stream('/me/events', 'bob-token'),
+  ]);
+  try {
+    await eventually(() => watchers.every(watcher => watcher.frames.length === 1));
+    const journal = JSON.parse(await readFile('./drizzle/meta/_journal.json', 'utf8')) as {
+      entries: { tag: string; when: number }[];
+    };
+    const rewrite = journal.entries.find(entry => entry.tag === '0020_profile_name_rule');
+    await pool.query('ALTER TABLE users DROP COLUMN IF EXISTS display_name_version');
+    if (rewrite) await pool.query('DELETE FROM drizzle.__drizzle_migrations WHERE created_at = $1', [rewrite.when]);
+    await runReleaseMigrations();
+    // Pending rows still reject Clerk data older than their cached version.
+    await setProfile('user_test_bob', { firstName: 'Older Bob', updatedAt: updatedAt - 1 });
+    await clerk('sync-profiles', 'profiles-synced');
+    assert.deepEqual(await memberNames(group.id), ['Alice', 'builder']);
+    // No Clerk edit or sign-in: the startup pass reads the unchanged profile.
+    await setProfile('user_test_bob', current);
+    await clerk('sync-profiles', 'profiles-synced');
+    assert.deepEqual(await memberNames(group.id), ['Alice', 'Bob Builder']);
+    await eventually(() => watchers.every(watcher => watcher.changes() === 1));
+    // Rerunning migrations and sync must not force a second equal-version write.
+    await runReleaseMigrations();
+    await setProfile('user_test_bob', { firstName: 'Unexpected', updatedAt });
+    await clerk('sync-profiles', 'profiles-synced');
+    assert.deepEqual(await memberNames(group.id), ['Alice', 'Bob Builder']);
+    await new Promise(resolve => setTimeout(resolve, 200));
+    assert.ok(watchers.every(watcher => watcher.changes() === 1));
+  } finally { await Promise.all(watchers.map(watcher => watcher.close())); }
+  // The once-only marker survives API restarts.
+  await stopServer();
+  await startServer();
+  await setProfile('user_test_bob', { firstName: 'Unexpected', updatedAt });
+  await clerk('sync-profiles', 'profiles-synced');
+  assert.deepEqual(await memberNames(group.id), ['Alice', 'Bob Builder']);
 });

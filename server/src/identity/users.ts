@@ -5,6 +5,10 @@ import type { Transaction } from "../db/types.js";
 import type { ProfileReader } from "./clerk-profiles.js";
 import { resolveDisplayName } from "@share-tally/domain/display-name";
 
+// Version 1 applies the Profile-name-first resolver. Version 0 rows are rewritten
+// through normal synchronization, including its post-commit rename notifications.
+const DISPLAY_NAME_VERSION = 1;
+
 export async function getOrCreateUser(clerkUserId: string,): Promise<AppUser> {
   const [createdUser] = await db
     .insert(users)
@@ -40,6 +44,7 @@ export async function getGroupUser(clerkUserId: string, profiles: ProfileReader)
   // have stored a newer one meanwhile, and a lagging one must not replace this one.
   const [updated] = await db.update(users).set({
     displayName: resolveDisplayName(profile ?? {}),
+    displayNameVersion: DISPLAY_NAME_VERSION,
     clerkUpdatedAt: profile ? new Date(profile.updatedAt) : null,
   }).where(and(eq(users.id, user.id), isNull(users.displayName))).returning();
   if (updated) return updated;
@@ -54,15 +59,18 @@ export async function allClerkUserIds() {
 }
 
 // Stores each user's current name, unless the stored one came from Clerk data saved
-// later. Returns the IDs of users whose name changed.
+// later. Equal Clerk versions are rewritten once when the display rule changes.
+// Returns the IDs of users whose name changed.
 export async function saveDisplayNames(tx: Transaction, names: { clerkUserId: string; displayName: string; updatedAt: Date }[]) {
   const renamed: string[] = [];
   for (const { clerkUserId, displayName, updatedAt } of names) {
     // Lock the row so a concurrent save cannot slip in between this check and the write.
-    const [stored] = await tx.select({ id: users.id, displayName: users.displayName, clerkUpdatedAt: users.clerkUpdatedAt })
+    const [stored] = await tx.select({ id: users.id, displayName: users.displayName, clerkUpdatedAt: users.clerkUpdatedAt, displayNameVersion: users.displayNameVersion })
       .from(users).where(eq(users.clerkUserId, clerkUserId)).for('update');
-    if (!stored || (stored.clerkUpdatedAt && stored.clerkUpdatedAt >= updatedAt)) continue;
-    await tx.update(users).set({ displayName, clerkUpdatedAt: updatedAt }).where(eq(users.id, stored.id));
+    if (!stored) continue;
+    if (stored.clerkUpdatedAt && (stored.clerkUpdatedAt > updatedAt ||
+      (stored.clerkUpdatedAt.getTime() === updatedAt.getTime() && stored.displayNameVersion >= DISPLAY_NAME_VERSION))) continue;
+    await tx.update(users).set({ displayName, clerkUpdatedAt: updatedAt, displayNameVersion: DISPLAY_NAME_VERSION }).where(eq(users.id, stored.id));
     if (stored.displayName !== displayName) renamed.push(stored.id);
   }
   return renamed;

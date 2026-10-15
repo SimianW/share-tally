@@ -30,6 +30,10 @@ Railway's pre-deploy timeout is separate from its activation health-check timeou
 
 The web image renders the shared [`deploy/nginx.conf`](../deploy/nginx.conf) through the official Nginx entrypoint; [`deploy/05-configure-api.envsh`](../deploy/05-configure-api.envsh) supplies the Compose default upstream and container DNS servers. Nginx's shared upstream zone re-resolves the API address so it is not fixed at web startup. Resolution uses IPv4 answers because the API binds `0.0.0.0`. A named upstream with no URI suffix preserves the original request URI without the URI-handling changes of a variable `proxy_pass`. SSE pass-through and static headers are unchanged; the browser harness uses the same configuration source. Retain [`deploy/compose.yml`](../deploy/compose.yml) for local runs.
 
+### Displayed-name rule releases
+
+Migration `0020_profile_name_rule` marks existing name caches with rule version 0. The API's startup Clerk synchronization rewrites each cache with the Profile-name-first rule and advances its version to 1, publishing the usual rename notifications after commit. It retains Clerk's timestamp and row lock, so older reads cannot replace newer data during the rewrite. Unchanged names advance the rule version without sending notifications. Failed or missing Clerk reads remain pending for the next synchronization; completed rows are not forced again on startup.
+
 ### Health endpoints and incident checks
 
 `GET /api/health` is liveness: it succeeds whenever the API process responds. `GET /api/health/ready` is readiness: it returns 503 when PostgreSQL does not answer within its time limit. Railway uses readiness only during deployment activation, not continuous monitoring. See the [Compose health-check configuration](../deploy/compose.yml) for local probes. Neither is evidence that the database remains reachable after activation; check `/api/health/ready` by hand during an incident.

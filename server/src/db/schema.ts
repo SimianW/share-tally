@@ -14,6 +14,10 @@ export const users = pgTable('users', {
   // by workflows/sync-display-names.ts; never an identity or financial input.
   displayName: text('display_name'),
 
+  // 0 marks a pre-Profile-name cache. Sync advances this once without discarding
+  // clerkUpdatedAt, so even the release rewrite still rejects older Clerk reads.
+  displayNameVersion: integer('display_name_version').notNull().default(0),
+
   // Clerk's updatedAt for the account data displayName came from. A name read
   // from Clerk before this is stale and is never stored, whichever process read it.
   clerkUpdatedAt: timestamp('clerk_updated_at', { withTimezone: true }),
