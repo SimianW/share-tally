@@ -18,6 +18,7 @@ const messages: Record<BillFileReason, string> = {
 /** A separate picker keeps bill files out of the receipt photo/cropping path. */
 export function BillFileImport({ draft, apply, typeItems }: {
   draft: ReceiptData;
+  /** False only when the draft was left unchanged; save errors belong to the editor. */
   apply: (data: BillFileDraft) => Promise<boolean>;
   typeItems: () => void;
 }) {
@@ -29,6 +30,10 @@ export function BillFileImport({ draft, apply, typeItems }: {
   const [reading, setReading] = useState(false);
   const [error, setError] = useState('');
   const [pending, setPending] = useState<{ filename: string; data: BillFileDraft } | null>(null);
+
+  async function applyBill(data: BillFileDraft) {
+    if (!await apply(data)) setError("Couldn't import the bill right now. Try again.");
+  }
 
   async function choose(file: File) {
     const selection = ++pick.current;
@@ -48,7 +53,7 @@ export function BillFileImport({ draft, apply, typeItems }: {
       const current = latestDraft.current;
       if (current.title || current.items.length || current.totalCents !== null)
         setPending({ filename: file.name, data: result.draft });
-      else void apply(result.draft);
+      else void applyBill(result.draft);
     } catch {
       if (selection === pick.current) setError(messages.invalid);
     } finally {
@@ -74,7 +79,7 @@ export function BillFileImport({ draft, apply, typeItems }: {
       <p>Your current items and details will be replaced by <strong>{pending.filename}</strong>.</p>
       <div className="dialog-actions">
         <Button variant="secondary" onClick={() => setPending(null)}>Keep draft</Button>
-        <Button onClick={() => { const data = pending.data; setPending(null); void apply(data); }}>Replace draft</Button>
+        <Button onClick={() => { const data = pending.data; setPending(null); void applyBill(data); }}>Replace draft</Button>
       </div>
     </Dialog>}
   </>;

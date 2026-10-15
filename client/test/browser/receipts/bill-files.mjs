@@ -11,7 +11,81 @@ export const scenarios = [
   { name: 'bill-file-replace', environment: receiptEnvironment, run: replaceDraft },
   { name: 'bill-file-import', environment: receiptEnvironment, run: importBillFile },
   { name: 'bill-file-export', environment: receiptEnvironment, run: exportBillFile },
+  { name: 'bill-file-busy', environment: receiptEnvironment, run: importWhileSaving },
+  { name: 'bill-file-save-failure', environment: receiptEnvironment, run: importSaveFailure },
 ];
+
+async function importWhileSaving(env) {
+  const { alice, newBillRoute, group, stepButton } = await receiptGroup(env);
+  await alice.goto(newBillRoute);
+  // A user can start saving while the picker is still reading a file.
+  await alice.evaluate(() => {
+    const text = File.prototype.text;
+    File.prototype.text = function () {
+      return new Promise(resolve => { window.finishBillRead = () => resolve(text.call(this)); });
+    };
+  });
+  await alice.getByLabel('Import a bill file', { exact: true }).setInputFiles({
+    name: 'dinner.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({
+      format: 'sharetally.bill', version: 1, mode: 'manual', title: 'Dinner', totalCents: 1234, notes: '',
+    })),
+  });
+  await expect.poll(() => alice.evaluate(() => typeof window.finishBillRead)).toBe('function');
+  let finishSave;
+  const saving = new Promise(resolve => { finishSave = resolve; });
+  await alice.route(`**/api/groups/${group.id}/receipt-drafts/*`, async route => {
+    await saving;
+    await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Saving is unavailable.' }) });
+  });
+  try {
+    await alice.getByRole('button', { name: 'Save draft & close', exact: true }).click();
+    await expect(alice.getByText('Saving draft…', { exact: true })).toBeVisible();
+    await alice.evaluate(() => window.finishBillRead());
+    await expect(alice.getByRole('alert')).toContainText("Couldn't import the bill right now. Try again.");
+    await expect(alice.getByRole('alert')).toContainText('Nothing has been filled in.');
+    await expect(alice.getByRole('dialog')).toHaveCount(0);
+  } finally {
+    finishSave();
+  }
+  await expect(alice.getByText('Saving is unavailable.', { exact: true })).toBeVisible();
+  await expect(stepButton('People')).toBeDisabled();
+  await alice.getByRole('radio', { name: 'By amount', exact: true }).check();
+  await expect(alice.getByLabel('Total to split', { exact: true })).toHaveValue('');
+  assert.deepEqual((await env.api(`/groups/${group.id}/receipt-drafts`)).drafts, []);
+}
+
+async function importSaveFailure(env) {
+  for (const replace of [false, true]) {
+    const { alice, newBillRoute, groupRoute, titledDraft, stepButton, group } = await receiptGroup(env);
+    const id = replace ? await titledDraft('Original draft') : null;
+    await alice.goto(id ? `${newBillRoute}/${id}` : newBillRoute);
+    const original = id ? (await env.api(`/receipt-drafts/${id}`)).draft : null;
+    let saves = 0;
+    await alice.route(`**/api/groups/${group.id}/receipt-drafts/*`, route => ++saves === 1
+      ? route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Saving is unavailable.' }) })
+      : route.continue());
+    await alice.getByLabel('Import a bill file', { exact: true }).setInputFiles({
+      name: 'dinner.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({
+        format: 'sharetally.bill', version: 1, mode: 'manual', title: 'Dinner', totalCents: 1234, notes: '',
+      })),
+    });
+    if (replace) await alice.getByRole('button', { name: 'Replace draft', exact: true }).click();
+    await expect(alice.getByRole('alert')).toContainText('Draft needs attention');
+    await expect(alice.getByRole('alert')).toContainText('Saving is unavailable.');
+    await expect(alice.getByText('Nothing has been filled in.', { exact: true })).toHaveCount(0);
+    await expect(alice.getByRole('heading', { name: 'How do you want to split it?' })).toBeVisible();
+    if (original) assert.deepEqual((await env.api(`/receipt-drafts/${id}`)).draft, original);
+    else assert.deepEqual((await env.api(`/groups/${group.id}/receipt-drafts`)).drafts, []);
+    await stepButton('People').click();
+    await expect(alice.getByLabel('Bill title', { exact: true })).toHaveValue('Dinner');
+    await expect(alice.getByLabel('Total paid (CAD)', { exact: true })).toHaveValue('12.34');
+    await alice.getByRole('button', { name: 'Save draft & close', exact: true }).click();
+    await expect(alice).toHaveURL(groupRoute);
+    const [saved] = (await env.api(`/groups/${group.id}/receipt-drafts`)).drafts;
+    assert.equal(saved.data.title, 'Dinner');
+    assert.equal(saves, 2);
+  }
+}
 
 async function savedItemBill(env, group, memberIds) {
   const id = randomUUID();

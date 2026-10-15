@@ -201,7 +201,8 @@ export function useDraftEditor({ userId, groupId, id, photoSelected, uploading, 
       if (changed === before) return false;
       const saved = await perform("saving", async () => { await saveLocal(); });
       if (saved) dispatch({ type: "stepChosen", step: 2 });
-      return saved;
+      // The local import took effect even if saving failed; state.error reports that failure.
+      return true;
     },
     cropPhoto(base64: string) {
       if (dispatch({ type: "photoCropped", base64 }).local.pendingPhoto !== base64) return Promise.resolve(false);
