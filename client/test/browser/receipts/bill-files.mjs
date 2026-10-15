@@ -212,14 +212,19 @@ async function largeBillFile(env) {
 }
 
 async function wrongBillFileType(env) {
-  const { alice, newBillRoute, group, stepButton } = await receiptGroup(env);
-  await alice.goto(newBillRoute);
+  const { alice, group, stepButton } = await receiptGroup(env);
+  await alice.getByRole('button', { name: 'New bill', exact: true }).click();
   const file = JSON.stringify({ format: 'sharetally.bill', version: 1, mode: 'manual', title: 'Dinner', totalCents: 1234, notes: '' });
-  // Valid contents cannot bypass either the filename or MIME type check.
-  for (const [name, mimeType] of [['bill.txt', 'text/plain'], ['bill.json', 'image/png']]) {
-    await alice.getByLabel('Import a bill file', { exact: true }).setInputFiles({ name, mimeType, buffer: Buffer.from(file) });
-    await expect(alice.getByRole('alert')).toContainText("This file isn't a sharetally bill", { timeout: 3000 });
-    await expect(stepButton('People')).toBeDisabled();
-  }
+  // A JSON MIME type cannot make a non-JSON filename eligible.
+  await alice.getByLabel('Import a bill file', { exact: true }).setInputFiles({ name: 'bill.txt', mimeType: 'application/json', buffer: Buffer.from(file) });
+  await expect(alice.getByRole('alert')).toContainText("This file isn't a sharetally bill", { timeout: 3000 });
+  await expect(stepButton('People')).toBeDisabled();
   assert.deepEqual((await env.api(`/groups/${group.id}/receipt-drafts`)).drafts, []);
+  // Browsers may report valid JSON as plain text; content validation decides.
+  await alice.getByLabel('Import a bill file', { exact: true }).setInputFiles({ name: 'bill.json', mimeType: 'text/plain', buffer: Buffer.from(file) });
+  await expect(alice.getByRole('heading', { name: 'Who’s sharing this bill?' })).toBeVisible();
+  await expect(alice.getByRole('alert')).toHaveCount(0);
+  await expect(alice.getByLabel('Bill title', { exact: true })).toHaveValue('Dinner');
+  const [saved] = (await env.api(`/groups/${group.id}/receipt-drafts`)).drafts;
+  assert.equal(saved.data.title, 'Dinner');
 }

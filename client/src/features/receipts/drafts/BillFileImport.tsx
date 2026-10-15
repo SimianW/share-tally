@@ -32,7 +32,7 @@ export function BillFileImport({ draft, apply, typeItems }: {
     setError('');
     setPending(null);
     if (file.size > 1024 * 1024) { setError('This file is too large (max 1 MB)'); return; }
-    if (!file.name.toLowerCase().endsWith('.json') || (file.type && file.type !== 'application/json')) {
+    if (!file.name.toLowerCase().endsWith('.json')) {
       setError(messages.invalid);
       return;
     }
