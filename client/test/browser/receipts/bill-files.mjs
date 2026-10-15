@@ -190,6 +190,15 @@ async function invalidBillFile(env) {
   assert.deepEqual((await env.api(`/groups/${group.id}/receipt-drafts`)).drafts, []);
   await mkdir('/tmp/bill-file-impl', { recursive: true });
   await alice.screenshot({ path: '/tmp/bill-file-impl/step01-error-1440.png', fullPage: true, animations: 'disabled' });
+  await input.setInputFiles({ name: 'over-limit.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({
+    format: 'sharetally.bill', version: 1, mode: 'items', title: 'Equipment', totalCents: 1_000_000, notes: '',
+    receipt: { subtotalCents: null, taxCents: 0, discountCents: 0, extraCents: 0, pricesIncludeTax: false },
+    items: ['First', 'Second'].map(name => ({ name, quantity: '1', amountCents: 600_000, discountCents: 0, taxable: false })),
+  })) });
+  await expect(alice.getByRole('alert')).toContainText('This bill is over the $10,000 limit');
+  await expect(alice.getByRole('alert')).toContainText('Nothing has been filled in.');
+  await expect(stepButton('People')).toBeDisabled();
+  assert.deepEqual((await env.api(`/groups/${group.id}/receipt-drafts`)).drafts, []);
   await alice.getByRole('radio', { name: 'By amount', exact: true }).check();
   await expect(alice.getByLabel('Total to split', { exact: true })).toHaveValue('');
   await input.setInputFiles({ name: 'valid.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({

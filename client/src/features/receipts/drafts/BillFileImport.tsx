@@ -1,4 +1,6 @@
 import { readBillFile, type BillFileDraft, type BillFileReason } from '@share-tally/domain/bill-file';
+import { MAX_BILL_ITEM_TOTAL_CENTS } from '@share-tally/domain/draft-pricing';
+import { money } from '../../../shared/money';
 import type { ReceiptData } from '@share-tally/domain/contracts/receipts';
 import { CircleAlert, FileJson, PencilLine } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -10,6 +12,7 @@ const messages: Record<BillFileReason, string> = {
   'newer-version': 'This file was made by a newer version of sharetally',
   'too-many-items': 'This bill has more than 200 items',
   numbers: "The numbers in this file don't add up",
+  'over-limit': `This bill is over the ${money(MAX_BILL_ITEM_TOTAL_CENTS).replace(/\.00$/, '')} limit`,
 };
 
 /** A separate picker keeps bill files out of the receipt photo/cropping path. */

@@ -16,7 +16,7 @@ export type BillFile = BillFileBase & ({ mode: 'manual' } | { mode: 'items'; rec
 export type BillFileDraft = Pick<ReceiptData, 'mode' | 'title' | 'totalCents' | 'notes' | 'receipt'> & {
   items: Omit<ReceiptDraftItem, 'id'>[];
 };
-export type BillFileReason = 'invalid' | 'newer-version' | 'too-many-items' | 'numbers';
+export type BillFileReason = 'invalid' | 'newer-version' | 'too-many-items' | 'numbers' | 'over-limit';
 export type BillFileResult = { ok: true; draft: BillFileDraft } | { ok: false; reason: BillFileReason };
 
 export function toBillFile(bill: Bill): BillFile {
@@ -101,7 +101,8 @@ export function readBillFile(text: string): BillFileResult {
     !item.name.trim() || item.finalCents === null || item.finalCents < 0 ||
     item.allocatedDiscountCents === null || item.allocatedTaxCents === null || item.allocatedExtraCents === null ||
     item.amountCents - item.discountCents - item.allocatedDiscountCents < 0) ||
-    priced.items.reduce((sum, item) => sum + (item.finalCents ?? 0), 0) > MAX_BILL_ITEM_TOTAL_CENTS ||
     hasUnassignedReceiptTax(draft)) return { ok: false, reason: 'numbers' };
+  if (priced.items.reduce((sum, item) => sum + item.finalCents!, 0) > MAX_BILL_ITEM_TOTAL_CENTS)
+    return { ok: false, reason: 'over-limit' };
   return { ok: true, draft };
 }

@@ -215,7 +215,7 @@ test('bill files reject combined repriced item costs above CAD 10,000 and accept
     receipt: { subtotalCents: null, taxCents: 0, discountCents: 0, extraCents: 0, pricesIncludeTax: false },
     items: ['First', 'Second'].map(name => ({ name, quantity: '1', amountCents: 600_000, discountCents: 0, taxable: false })),
   };
-  assert.deepEqual(readBillFile(JSON.stringify(file)), { ok: false, reason: 'numbers' });
+  assert.deepEqual(readBillFile(JSON.stringify(file)), { ok: false, reason: 'over-limit' });
   const atLimit = readBillFile(JSON.stringify({ ...file, items: file.items.map(item => ({ ...item, amountCents: 500_000 })) }));
   assert.equal(atLimit.ok, true);
   if (!atLimit.ok) return;
@@ -223,7 +223,7 @@ test('bill files reject combined repriced item costs above CAD 10,000 and accept
   // The aggregate is checked after repricing, including manual final overrides.
   const discounted = readBillFile(JSON.stringify({ ...file, receipt: { ...file.receipt, discountCents: 200_000 } }));
   assert.equal(discounted.ok, true);
-  assert.deepEqual(readBillFile(JSON.stringify({ ...file, items: file.items.map(item => ({ ...item, amountCents: 100, manualFinalCents: 600_000 })) })), { ok: false, reason: 'numbers' });
+  assert.deepEqual(readBillFile(JSON.stringify({ ...file, items: file.items.map(item => ({ ...item, amountCents: 100, manualFinalCents: 600_000 })) })), { ok: false, reason: 'over-limit' });
 });
 
 test('version 1 purchase fields pass through the current empty upgrade chain unchanged', async () => {
