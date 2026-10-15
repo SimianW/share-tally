@@ -208,6 +208,24 @@ test('inconsistent pricing and failed People prerequisites reject the whole bill
   assert.deepEqual(readBillFile(JSON.stringify({ ...toBillFile({ ...itemBill, mode: 'manual' }), totalCents: 0 })), { ok: false, reason: 'numbers' });
 });
 
+test('bill files reject combined repriced item costs above CAD 10,000 and accept the limit', async () => {
+  const { readBillFile } = await import('@share-tally/domain/bill-file');
+  const file = {
+    format: 'sharetally.bill', version: 1, mode: 'items', title: 'Equipment', notes: '', totalCents: 1_000_000,
+    receipt: { subtotalCents: null, taxCents: 0, discountCents: 0, extraCents: 0, pricesIncludeTax: false },
+    items: ['First', 'Second'].map(name => ({ name, quantity: '1', amountCents: 600_000, discountCents: 0, taxable: false })),
+  };
+  assert.deepEqual(readBillFile(JSON.stringify(file)), { ok: false, reason: 'numbers' });
+  const atLimit = readBillFile(JSON.stringify({ ...file, items: file.items.map(item => ({ ...item, amountCents: 500_000 })) }));
+  assert.equal(atLimit.ok, true);
+  if (!atLimit.ok) return;
+  assert.deepEqual(atLimit.draft.items.map(item => item.finalCents), [500_000, 500_000]);
+  // The aggregate is checked after repricing, including manual final overrides.
+  const discounted = readBillFile(JSON.stringify({ ...file, receipt: { ...file.receipt, discountCents: 200_000 } }));
+  assert.equal(discounted.ok, true);
+  assert.deepEqual(readBillFile(JSON.stringify({ ...file, items: file.items.map(item => ({ ...item, amountCents: 100, manualFinalCents: 600_000 })) })), { ok: false, reason: 'numbers' });
+});
+
 test('version 1 purchase fields pass through the current empty upgrade chain unchanged', async () => {
   const { readBillFile } = await import('@share-tally/domain/bill-file');
   const file = {

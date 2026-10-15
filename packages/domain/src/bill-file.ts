@@ -1,6 +1,6 @@
 import type { Bill } from './contracts/bills.js';
 import type { ReceiptData, ReceiptDraftItem, ReceiptPricing } from './contracts/receipts.js';
-import { hasUnassignedReceiptTax, priceReceiptDraft } from './draft-pricing.js';
+import { hasUnassignedReceiptTax, MAX_BILL_ITEM_TOTAL_CENTS, priceReceiptDraft } from './draft-pricing.js';
 
 type BillFileItem = {
   name: string;
@@ -101,6 +101,7 @@ export function readBillFile(text: string): BillFileResult {
     !item.name.trim() || item.finalCents === null || item.finalCents < 0 ||
     item.allocatedDiscountCents === null || item.allocatedTaxCents === null || item.allocatedExtraCents === null ||
     item.amountCents - item.discountCents - item.allocatedDiscountCents < 0) ||
+    priced.items.reduce((sum, item) => sum + (item.finalCents ?? 0), 0) > MAX_BILL_ITEM_TOTAL_CENTS ||
     hasUnassignedReceiptTax(draft)) return { ok: false, reason: 'numbers' };
   return { ok: true, draft };
 }

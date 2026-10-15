@@ -1,5 +1,7 @@
 import { allocate } from './fractions.js';
 
+export const MAX_BILL_ITEM_TOTAL_CENTS = 1_000_000;
+
 export type PricingItem = {
   amountCents: number | null; discountCents: number; finalCents: number | null;
   taxable?: boolean | null; manualFinal?: boolean | null;
