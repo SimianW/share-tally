@@ -68,6 +68,7 @@ function AccountMenu({ account, openAccount }: { account: SignedInAccount; openA
           <small>{account.email || 'Personal account'}</small>
         </span>
       </div>
+      <p className="account-menu-name-hint">Your displayed name is your Profile name. Change it in Profile &amp; security.</p>
       <div ref={menu} id={menuId} role="menu" aria-labelledby={triggerId}>
         <button type="button" role="menuitem" tabIndex={-1} onClick={() => choose(openAccount)}>
           <UserRound size={18} aria-hidden="true" />Account
