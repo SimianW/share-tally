@@ -75,9 +75,10 @@ function ShareEditor({ bill, api, saved, refresh }: Props) {
   const [custom, setCustom] = useState<Fraction | null>(null);
   const mutation = useBillMutation(saved);
   const review = useBillDraftReview(bill, `${bill.revision}:${currentOwn?.amountCents}:${!!currentOwn}`, mutation);
+  const empty = !amount.trim();
   let parsedAmount: number | null = null;
   try {
-    parsedAmount = parseMoney(amount);
+    parsedAmount = empty ? 0 : parseMoney(amount);
   } catch {
     /* Show validation on submit. */
   }
@@ -91,7 +92,7 @@ function ShareEditor({ bill, api, saved, refresh }: Props) {
         setValidation("");
         let amountCents: number;
         try {
-          amountCents = parseMoney(amount);
+          amountCents = empty ? 0 : parseMoney(amount);
           if (amountCents > bill.totalCents)
             throw new Error("Your share cannot exceed the bill total.");
         } catch (error) {
@@ -126,7 +127,6 @@ function ShareEditor({ bill, api, saved, refresh }: Props) {
         custom={custom}
         setCustom={setCustom}
         inputId="my-share-amount"
-        required
         busy={mutation.busy}
         readOnly={mutation.locked || review.terminal || !currentOwn}
       />
@@ -136,7 +136,7 @@ function ShareEditor({ bill, api, saved, refresh }: Props) {
           : changed
           ? "Saving confirms your new amount. Everyone else’s confirmation stays."
           : own.amountCents === null
-            ? "Include your tax, discounts, and rounding. Enter 0 if you have no cost."
+            ? "Include your tax, discounts, and rounding. Leave this empty if you purchased nothing."
             : own.confirmedAt
               ? "You can still edit your amount above. Saving a change confirms it and keeps everyone else’s confirmation."
               : "Confirming the same amount keeps everyone else’s confirmation."}
@@ -157,11 +157,13 @@ function ShareEditor({ bill, api, saved, refresh }: Props) {
           ? "Saving..."
           : mutation.retry
             ? "Retry confirmation"
-            : changed
-              ? "Save changed amount"
-              : own.amountCents === null
-                ? "Submit and confirm my share"
-                : "Confirm my share"}
+            : empty
+              ? "Confirm I purchased nothing"
+              : changed
+                ? "Save changed amount"
+                : own.amountCents === null
+                  ? "Submit and confirm my share"
+                  : "Confirm my share"}
       </Button>
     </form>
   );
