@@ -39,7 +39,7 @@ export const suites = {
     'provisional-bill-from-group', 'provisional-direct-bill', 'provisional-new-bill-from-group', 'provisional-new-bill-pre-ready-read', 'provisional-new-bill-direct', 'provisional-new-bill-denied',
   ]),
   receipts: ordered(receiptScenarios, [
-    'bill-file-export', 'bill-file-import', 'bill-file-replace', 'bill-file-invalid', 'bill-file-large', 'bill-file-type', 'bill-file-busy', 'bill-file-save-failure', 'scan-retry', 'split-method-entry', 'new-bill-during-refresh', 'receipt-crop', 'draft-save-and-recovery', 'item-claims', 'claim-controls',
+    'bill-file-export', 'bill-file-import', 'bill-file-replace', 'bill-file-invalid', 'bill-file-large', 'bill-file-type', 'bill-file-busy', 'bill-file-save-failure', 'scan-retry', 'split-method-entry', 'new-bill-during-refresh', 'new-bill-late-route-event', 'receipt-crop', 'draft-save-and-recovery', 'item-claims', 'claim-controls',
     'correction-races', 'claim-auto-advance', 'claiming-conflicts', 'claim-review', 'processing-recovery',
     'scanned-draft-editing', 'compact-review', 'claim-receipt-photo', 'unassigned-tax',
     'legacy-price-correction', 'price-correction', 'scan-fallback', 'low-confidence-hints', 'manual-split-fallback',
