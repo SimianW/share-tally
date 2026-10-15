@@ -106,7 +106,7 @@ export function ReceiptDraftForm({
           onSubmit={(e) => {
             e.preventDefault();
             if (processing || notePhotos.busy || step !== 2 || unassignedTaxMessage || !e.currentTarget.reportValidity()) return;
-            if (shareable(state)) void editor.share();
+            if (data.participantIds.includes(me.id) && shareable(state)) void editor.share();
           }}
         >
           <nav aria-label="New bill steps" className="receipt-steps">
@@ -153,7 +153,7 @@ export function ReceiptDraftForm({
           <fieldset disabled={running || !!draft.initializationRevision || (processing && step !== 1)}>
             {step === 0 && (
               <ReceiptSourceStep key={`${reloads}:${state.baseline?.revision ?? 0}`} draft={draft} setFile={setFile} replace={replace} setReplace={setReplace}
-                scan={scan} update={editor.edit} setStep={editor.chooseStep} />
+                scan={scan} update={editor.edit} setStep={editor.chooseStep} importBill={editor.importBill} />
             )}
             {step === 1 && data.mode === "items" && (
               <ReceiptItemsStep draft={draft} unassignedTaxMessage={unassignedTaxMessage} replace={replace}
@@ -254,7 +254,7 @@ export function ReceiptDraftForm({
               </Button>
             )}
             {step === 2 && (
-              <Button type="submit" disabled={running || notePhotos.busy || !shareable(state)}>
+              <Button type="submit" disabled={running || notePhotos.busy || !data.participantIds.includes(me.id) || !shareable(state)}>
                 {draft.initializationRevision ? "Retry sharing" : "Share bill"}
                 <ArrowRight size={16} aria-hidden="true" />
               </Button>

@@ -1,8 +1,10 @@
+import type { BillFileDraft } from '@share-tally/domain/bill-file';
+import { BillFileImport } from './BillFileImport';
 import {
   type ReceiptData,
   type ReceiptDraft,
 } from "@share-tally/domain/contracts/receipts";
-import { Camera, Divide, ListChecks, PencilLine, ReceiptText, Upload } from "lucide-react";
+import { Camera, Divide, ListChecks, ReceiptText, Upload } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { useRef, useState } from "react";
 import { amountText } from "../../../shared/money";
@@ -32,7 +34,9 @@ export function ReceiptSourceStep({
   scan,
   update,
   setStep,
+  importBill,
 }: {
+  importBill: (data: BillFileDraft) => Promise<boolean>;
   draft: ReceiptDraft;
   setFile: (file: File | null) => void;
   replace: boolean;
@@ -67,11 +71,12 @@ export function ReceiptSourceStep({
       >
         {mode === "items" ? (
           <ItemSource draft={draft} setFile={setFile} replace={replace} setReplace={setReplace}
-            scan={scan} update={update} setStep={setStep} />
+            scan={scan} update={update} />
         ) : (
           <SplitTotalPanel mode={draft.data.mode} text={totalText} setText={setTotalText} update={update} setStep={setStep} />
         )}
       </motion.div>
+      <BillFileImport draft={draft.data} apply={importBill} typeItems={() => { update({ mode: "items" }); setStep(1); }} />
     </div>
   );
 }
@@ -83,8 +88,7 @@ function ItemSource({
   setReplace,
   scan,
   update,
-  setStep,
-}: Parameters<typeof ReceiptSourceStep>[0]) {
+}: Pick<Parameters<typeof ReceiptSourceStep>[0], "draft" | "setFile" | "replace" | "setReplace" | "scan" | "update">) {
   const data = draft.data;
   const cameraInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -131,7 +135,7 @@ function ItemSource({
           <ReceiptPhoto
             id={draft.id}
             version={draft.revision}
-            localPhoto={draft.pendingPhoto}
+            localPhoto={draft.pendingPhoto ?? undefined}
             expired={draft.photo.expired}
           />
         )}
@@ -148,18 +152,6 @@ function ItemSource({
           />
         )}
       </div>
-      <p className="receipt-entry-alternative">
-        No receipt to hand?
-        <Button
-          variant="text"
-          onClick={() => {
-            update({ mode: "items" });
-            setStep(1);
-          }}
-        >
-          <PencilLine size={17} aria-hidden="true" /> Type the items in
-        </Button>
-      </p>
     </section>
   );
 }

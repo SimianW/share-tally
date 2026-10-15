@@ -1,3 +1,4 @@
+import { MAX_BILL_ITEM_TOTAL_CENTS } from '@share-tally/domain/draft-pricing';
 import { editable, ownDraft } from './access.js';
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -67,7 +68,7 @@ export async function publishDraft(tx: Tx, id: string, userId: string, revision:
     throw new BillError(400, "Select members of this group.");
   if (
     mode === "items" &&
-    (!items.length || items.reduce((s, i) => s + i.finalCents, 0) > 1_000_000)
+    (!items.length || items.reduce((s, i) => s + i.finalCents, 0) > MAX_BILL_ITEM_TOTAL_CENTS)
   )
     throw new BillError(
       400,

@@ -15,6 +15,10 @@ _Avoid_: Debtor, since participation does not necessarily mean the person owes m
 **Bill**:
 A record of a purchase paid for by its initiator and shared among its selected participants.
 
+**Bill file**:
+A versioned JSON file describing what a bill bought (title, total paid, notes, items and receipt pricing), with no people, claims, photos or IDs.
+_Avoid_: Bill export, backup.
+
 **Group**:
 A collection of distinct members who record shared bills and settle their debts together. Each group's debts are calculated independently of other groups.
 

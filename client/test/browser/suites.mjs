@@ -15,6 +15,7 @@ import { scenarios as claiming } from './receipts/claiming.mjs';
 import { scenarios as corrections } from './receipts/corrections.mjs';
 import { scenarios as drafts } from './receipts/drafts.mjs';
 import { scenarios as editor } from './receipts/editor.mjs';
+import { scenarios as billFiles } from './receipts/bill-files.mjs';
 import { scenarios as newBill } from './receipts/new-bill.mjs';
 import { scenarios as notePhotos } from './receipts/note-photos.mjs';
 import { scenarios as processing } from './receipts/processing.mjs';
@@ -26,7 +27,7 @@ const ordered = (scenarios, names) => names.map(name => {
 });
 
 const groupScenarios = [...membership, ...appearance, ...bills, ...navigation, ...ledger, ...groupPage, ...amountPortion, ...names, ...renewal, ...provisional];
-const receiptScenarios = [...newBill, ...notePhotos, ...drafts, ...editor, ...claiming, ...corrections, ...processing];
+const receiptScenarios = [...billFiles, ...newBill, ...notePhotos, ...drafts, ...editor, ...claiming, ...corrections, ...processing];
 
 export const suites = {
   groups: ordered(groupScenarios, [
@@ -38,7 +39,7 @@ export const suites = {
     'provisional-bill-from-group', 'provisional-direct-bill', 'provisional-new-bill-from-group', 'provisional-new-bill-pre-ready-read', 'provisional-new-bill-direct', 'provisional-new-bill-denied',
   ]),
   receipts: ordered(receiptScenarios, [
-    'scan-retry', 'split-method-entry', 'new-bill-during-refresh', 'receipt-crop', 'draft-save-and-recovery', 'item-claims', 'claim-controls',
+    'bill-file-export', 'bill-file-import', 'bill-file-replace', 'bill-file-invalid', 'bill-file-large', 'bill-file-type', 'bill-file-busy', 'bill-file-save-failure', 'scan-retry', 'split-method-entry', 'new-bill-during-refresh', 'receipt-crop', 'draft-save-and-recovery', 'item-claims', 'claim-controls',
     'correction-races', 'claim-auto-advance', 'claiming-conflicts', 'claim-review', 'processing-recovery',
     'scanned-draft-editing', 'compact-review', 'claim-receipt-photo', 'unassigned-tax',
     'legacy-price-correction', 'price-correction', 'scan-fallback', 'low-confidence-hints', 'manual-split-fallback',

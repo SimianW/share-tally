@@ -1,3 +1,6 @@
+import { toBillFile } from '@share-tally/domain/bill-file';
+import { Download } from 'lucide-react';
+import { downloadFile } from '../../shared/browser/download';
 import { useSyncSession } from '../../shared/api/SyncSession';
 import { routes } from '../../shared/browser/paths';
 import { leaveDeletedGroup } from '../../shared/browser/route';
@@ -115,12 +118,20 @@ export function BillDetails({ id }: { id: string }) {
     <section className={`bill-page${bill.canceledAt ? " bill-page-canceled" : ""}`}>
       <header className="bill-header">
         <a className="bill-back" href={routes.groupBills(bill.groupId)}><Icon name="left" size={16} />Group bills</a>
-        <h1 ref={heading} tabIndex={-1}>
-          {bill.title}
-        </h1>
-        <p className="bill-meta">
-          {bill.purchaseDate}, paid by {isInitiator ? "you" : initiator.displayName}, in CAD
-        </p>
+        <div className="bill-title-actions">
+          <div>
+            <h1 ref={heading} tabIndex={-1}>
+              {bill.title}
+            </h1>
+            <p className="bill-meta">
+              {bill.purchaseDate}, paid by {isInitiator ? "you" : initiator.displayName}, in CAD
+            </p>
+          </div>
+          <Button variant="secondary" onClick={() => {
+            const slug = bill.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'bill';
+            downloadFile(JSON.stringify(toBillFile(bill), null, 2), `${slug}-${bill.purchaseDate}.sharetally.json`, 'application/json');
+          }}><Download size={17} aria-hidden="true" /> Export bill file</Button>
+        </div>
       </header>
       <div className="bill-main">
         {error && <Notification><p>{error}</p><Button onClick={refresh}>Retry bill</Button></Notification>}

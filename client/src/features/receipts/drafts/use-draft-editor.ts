@@ -1,3 +1,6 @@
+import type { BillFileDraft } from '@share-tally/domain/bill-file';
+import { localToday } from '../../../shared/browser/date';
+import { requestId } from '../../../shared/browser/request-id';
 import { type Bill } from "@share-tally/domain/contracts/bills";
 import { type ReceiptData, type ReceiptDraft } from "@share-tally/domain/contracts/receipts";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -189,6 +192,18 @@ export function useDraftEditor({ userId, groupId, id, photoSelected, uploading, 
     edit: (patch: Partial<ReceiptData>) => dispatch({ type: "edited", patch }),
     chooseStep: (step: Step) => dispatch({ type: "stepChosen", step }),
     scan,
+    async importBill(data: BillFileDraft) {
+      const before = current.current;
+      const changed = dispatch({ type: "imported", data: {
+        ...data, receipt: data.receipt, items: data.items.map(item => ({ ...item, id: requestId() })),
+        purchaseDate: localToday(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, participantIds: [],
+      } });
+      if (changed === before) return false;
+      const saved = await perform("saving", async () => { await saveLocal(); });
+      if (saved) dispatch({ type: "stepChosen", step: 2 });
+      // The local import took effect even if saving failed; state.error reports that failure.
+      return true;
+    },
     cropPhoto(base64: string) {
       if (dispatch({ type: "photoCropped", base64 }).local.pendingPhoto !== base64) return Promise.resolve(false);
       return scan();

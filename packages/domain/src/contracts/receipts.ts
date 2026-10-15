@@ -102,7 +102,8 @@ export type ReceiptData = {
 export type ReceiptDraft = {
   initializationRevision?: number;
   updatedAt?: string;
-  pendingPhoto?: string;
+  /** Unsaved photo bytes; null requests removal of the saved receipt photo and evidence. */
+  pendingPhoto?: string | null;
   id: string;
   revision: number;
   processingStatus: "ready" | "processing" | "fallback";

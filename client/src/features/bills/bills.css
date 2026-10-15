@@ -15,6 +15,9 @@
 
 /* Header */
 .bill-header { grid-area: header; min-width: 0; }
+.bill-title-actions { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--space-4); }
+.bill-title-actions > div { min-width: 0; flex: 1 1 240px; }
+.bill-title-actions > .button { flex-shrink: 0; }
 .bill-back {
   display: inline-flex; align-items: center; gap: 4px; margin-left: -4px;
   color: var(--ink-secondary); font-size: 13px; font-weight: 600; text-decoration: none;
