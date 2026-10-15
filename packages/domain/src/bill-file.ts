@@ -99,7 +99,8 @@ export function readBillFile(text: string): BillFileResult {
   const draft = { ...base, receipt: cleanReceipt, items: priced.items };
   if (priced.warnings.length || !items.length || priced.items.some(item =>
     !item.name.trim() || item.finalCents === null || item.finalCents < 0 ||
-    item.allocatedDiscountCents === null || item.allocatedTaxCents === null || item.allocatedExtraCents === null) ||
+    item.allocatedDiscountCents === null || item.allocatedTaxCents === null || item.allocatedExtraCents === null ||
+    item.amountCents - item.discountCents - item.allocatedDiscountCents < 0) ||
     hasUnassignedReceiptTax(draft)) return { ok: false, reason: 'numbers' };
   return { ok: true, draft };
 }

@@ -118,6 +118,30 @@ test('invalid JSON is rejected as a non-sharetally bill without throwing', async
   assert.deepEqual(readBillFile('{ broken'), { ok: false, reason: 'invalid' });
 });
 
+test('manual final overrides do not hide invalid discount bases in bill files', async (t) => {
+  const { readBillFile } = await import('@share-tally/domain/bill-file');
+  const file = {
+    format: 'sharetally.bill', version: 1, mode: 'items', title: 'Lunch', notes: '', totalCents: 100,
+    receipt: { subtotalCents: 100, taxCents: 0, discountCents: 0, extraCents: 0, pricesIncludeTax: false },
+    items: [{ name: 'Lunch', quantity: '1', amountCents: 100, discountCents: 0, taxable: false, manualFinalCents: 100 }],
+  };
+  await t.test('item discount cannot exceed the printed price, even without receipt adjustments', () => {
+    const invalid = { ...file, items: [{ ...file.items[0], discountCents: 101 }] };
+    assert.deepEqual(readBillFile(JSON.stringify(invalid)), { ok: false, reason: 'numbers' });
+  });
+  await t.test('receipt discount cannot exceed the basis left after item discounts', () => {
+    const invalid = { ...file, receipt: { ...file.receipt, discountCents: 91 }, items: [{ ...file.items[0], discountCents: 10 }] };
+    assert.deepEqual(readBillFile(JSON.stringify(invalid)), { ok: false, reason: 'numbers' });
+  });
+  await t.test('valid item and receipt discounts still preserve a manual final', () => {
+    const valid = { ...file, receipt: { ...file.receipt, discountCents: 90 }, items: [{ ...file.items[0], discountCents: 10 }] };
+    const result = readBillFile(JSON.stringify(valid));
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.deepEqual(result.draft.items.map(item => [item.manualFinal, item.finalCents]), [[true, 100]]);
+  });
+});
+
 test('wrong or missing format markers and non-object JSON are rejected', async () => {
   const { toBillFile, readBillFile } = await import('@share-tally/domain/bill-file');
   for (const value of [null, [], 42, { ...toBillFile(itemBill), format: 'other.bill' }, { ...toBillFile(itemBill), format: undefined }]) {
