@@ -6,12 +6,12 @@ import { readAttention } from './attention/attention.js';
 import { openGroupEvents, openMemberEvents } from './realtime/group-events.js';
 import { syncDisplayNames } from './workflows/sync-display-names.js';
 import { getGroupUser } from './identity/users.js';
-import { getGroupForMember } from './groups/groups.js';
+import { requireMember } from './groups/group-access.js';
 import { createRepaymentsRouter } from './repayments/repayment-routes.js';
 import { profileAvatars } from './identity/avatar-profile.js';
 import { createAvatarReader, type AvatarLookup } from './identity/avatars.js';
 import { createBillsRouter } from './bills/bill-routes.js';
-import { checkDatabase } from './db/index.js';
+import { checkDatabase, db } from './db/index.js';
 import { BillError } from "./shared/bill-error.js";
 import { errorCode } from "./shared/error-code.js";
 import express, { type ErrorRequestHandler, type Request, type RequestHandler } from 'express';
@@ -98,7 +98,7 @@ export function createApp(auth: Authentication = {
       res.status(404).json({ error: 'Group not found.' }); return;
     }
     const user = await getGroupUser(res.locals.clerkUserId, profiles);
-    await getGroupForMember(req.params.groupId, user.id);
+    await requireMember(db, req.params.groupId, user.id);
     const expiresAt = streamExpiry(req);
     if (expiresAt <= Date.now()) { res.status(401).end(); return; }
     if (res.destroyed) return;
@@ -106,9 +106,9 @@ export function createApp(auth: Authentication = {
     // A departure or deletion committing between the check above and this
     // subscription could not end it, so confirm access again now that it is
     // registered. Ending the stream makes the reader reconnect and see the 404.
-    try { await getGroupForMember(req.params.groupId, user.id); }
+    try { await requireMember(db, req.params.groupId, user.id); }
     catch (error) {
-      if (!(error instanceof GroupAccessError)) throw error;
+      if (!(error instanceof BillError && error.status === 404)) throw error;
       res.end();
     }
   });

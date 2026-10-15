@@ -34,7 +34,7 @@ export type Bill = {
   revision: number;
   participants: {
     userId: string;
-    displayName: string;
+    displayName: string; username?: string;
     imageUrl?: string | null; fallbackImageUrl?: string | null;
     isCurrentUser: boolean;
     amountCents: number | null;

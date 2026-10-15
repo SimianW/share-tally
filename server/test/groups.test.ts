@@ -970,8 +970,8 @@ test('release rewrites unchanged Clerk names once and notifies open group and me
       entries: { tag: string; when: number }[];
     };
     const rewrite = journal.entries.find(entry => entry.tag === '0020_profile_name_rule');
-    await pool.query('ALTER TABLE users DROP COLUMN IF EXISTS display_name_version');
-    if (rewrite) await pool.query('DELETE FROM drizzle.__drizzle_migrations WHERE created_at = $1', [rewrite.when]);
+    await pool.query('ALTER TABLE users DROP COLUMN IF EXISTS display_name_version, DROP COLUMN IF EXISTS username');
+    if (rewrite) await pool.query('DELETE FROM drizzle.__drizzle_migrations WHERE created_at >= $1', [rewrite.when]);
     await runReleaseMigrations();
     // Pending rows still reject Clerk data older than their cached version.
     await setProfile('user_test_bob', { firstName: 'Older Bob', updatedAt: updatedAt - 1 });
@@ -996,4 +996,109 @@ test('release rewrites unchanged Clerk names once and notifies open group and me
   await setProfile('user_test_bob', { firstName: 'Unexpected', updatedAt });
   await clerk('sync-profiles', 'profiles-synced');
   assert.deepEqual(await memberNames(group.id), ['Alice', 'Bob Builder']);
+});
+
+test('Usernames disambiguate current full names only within each group and change live', async () => {
+  await setProfile('user_test_alice', { username: 'alice-handle', firstName: 'Alex', lastName: 'Friend' });
+  await setProfile('user_test_bob', { username: 'bob-handle', firstName: ' alex ', lastName: 'FRIEND ' });
+  await setProfile('user_test_carol', { username: 'carol-handle', firstName: 'Alex', lastName: 'Other' });
+  const group = await create();
+  await inviteMember(group.id);
+  await inviteMember(group.id, 'carol-token');
+  const other = await create();
+  await inviteMember(other.id, 'carol-token');
+  // Cached names can include surrounding whitespace from an older resolver.
+  await pool.query("UPDATE users SET display_name = '  Alex Friend  ' WHERE clerk_user_id = 'user_test_alice'");
+  const members = async (id: string) => (await json(await api(`/groups/${id}`))).group.members;
+  assert.deepEqual((await members(group.id)).map((m: { username?: string }) => m.username), ['alice-handle', 'bob-handle', undefined]);
+  assert.ok((await members(other.id)).every((m: object) => !('username' in m)));
+  const listed = (await json(await api('/groups'))).groups;
+  assert.equal(listed.find((g: { id: string }) => g.id === group.id).memberPreview[0].username, 'alice-handle');
+  assert.equal(listed.find((g: { id: string }) => g.id === group.id).ownerUsername, 'alice-handle');
+  assert.ok(!('ownerUsername' in listed.find((g: { id: string }) => g.id === other.id)));
+  const watcher = await stream(`/groups/${group.id}/events`, 'alice-token');
+  try {
+    await eventually(() => watcher.frames.length === 1);
+    await setProfile('user_test_bob', { username: 'new-bob', firstName: 'alex', lastName: 'FRIEND' });
+    assert.equal((await json(await api('/me/profile', 'bob-token', 'POST'))).changed, true);
+    await eventually(() => watcher.changes() === 1);
+    assert.equal((await members(group.id))[1].username, 'new-bob');
+    await setProfile('user_test_bob', { username: 'new-bob', firstName: 'Robert' });
+    await json(await api('/me/profile', 'bob-token', 'POST'));
+    await eventually(() => watcher.changes() === 2);
+    assert.ok((await members(group.id)).every((m: object) => !('username' in m)));
+  } finally { await watcher.close(); }
+});
+
+test('an unchanged account from the previous release gets its Username without signing in', async () => {
+  const updatedAt = Date.now();
+  await setProfile('user_test_alice', { username: 'alex-one', firstName: 'Alex', updatedAt });
+  await setProfile('user_test_bob', { username: 'alex-two', firstName: 'Alex', updatedAt });
+  const group = await create();
+  await inviteMember(group.id);
+  await pool.query('UPDATE users SET display_name_version = 1, username = NULL');
+  await setProfile('user_test_bob', { username: 'stale', firstName: 'Alex', updatedAt: updatedAt - 1 });
+  await clerk('sync-profiles', 'profiles-synced');
+  assert.equal((await json(await api(`/groups/${group.id}`))).group.members[1].username, undefined);
+  await setProfile('user_test_bob', { username: 'alex-two', firstName: 'Alex', updatedAt });
+  await clerk('sync-profiles', 'profiles-synced');
+  const members = (await json(await api(`/groups/${group.id}`))).group.members;
+  assert.deepEqual(members.map((m: { username?: string }) => m.username), ['alex-one', 'alex-two']);
+  for (const version of [updatedAt, updatedAt - 1]) {
+    await setProfile('user_test_bob', { username: 'wrong', firstName: 'Alex', updatedAt: version });
+    await clerk('sync-profiles', 'profiles-synced');
+    assert.equal((await json(await api(`/groups/${group.id}`))).group.members[1].username, 'alex-two');
+  }
+});
+
+test('bill and ledger names include collisions with retained former members, whose edits notify the group', async () => {
+  await setProfile('user_test_alice', { username: 'alex-one', firstName: 'Alex' });
+  await setProfile('user_test_bob', { username: 'alex-two', firstName: 'Alex' });
+  const group = await create();
+  await inviteMember(group.id);
+  const members = (await json(await api(`/groups/${group.id}`))).group.members;
+  const bill = (await json(await api(`/groups/${group.id}/bills`, 'alice-token', 'POST', {
+    requestId: crypto.randomUUID(), title: 'History', purchaseDate: '2026-10-01', timeZone: 'America/Toronto', notes: '', totalCents: 100,
+    participantIds: members.map((m: { id: string }) => m.id),
+  }), 201)).bill;
+  // A canceled bill leaves settled history without blocking departure.
+  await json(await api(`/bills/${bill.id}/cancel`, 'alice-token', 'POST', { revision: bill.revision }));
+  await json(await api(`/groups/${group.id}/leave`, 'bob-token', 'POST', {}));
+  const detail = (await json(await api(`/groups/${group.id}`))).group;
+  assert.equal(detail.members[0].username, 'alex-one');
+  const read = async () => json(await api(`/groups/${group.id}/bills`));
+  let snapshot = await read();
+  assert.equal(snapshot.ledger.members[0].username, 'alex-one');
+  assert.equal(snapshot.ledger.formerMembers[0].username, 'alex-two');
+  for (const path of [`/groups/${group.id}/bills`, `/bills/${bill.id}`]) {
+    const result = await json(await api(path));
+    const record = result.bill ?? result.bills[0];
+    assert.deepEqual(record.participants.map((p: { username?: string }) => p.username),
+      record.participants.map((p: { userId: string }) => p.userId === members[0].id ? 'alex-one' : 'alex-two'));
+  }
+  const watcher = await stream(`/groups/${group.id}/events`, 'alice-token');
+  try {
+    await eventually(() => watcher.frames.length === 1);
+    await setProfile('user_test_bob', { username: 'alex-two', firstName: 'Robert' });
+    await json(await api('/me/profile', 'bob-token', 'POST'));
+    await eventually(() => watcher.changes() === 1);
+    snapshot = await read();
+    assert.ok([...snapshot.ledger.members, ...snapshot.ledger.formerMembers, ...snapshot.bills[0].participants]
+      .every((m: object) => !('username' in m)));
+  } finally { await watcher.close(); }
+});
+
+test('repayment attention uses the same group-specific collision scope', async () => {
+  await setProfile('user_test_alice', { username: 'alice-handle', firstName: 'Alex' });
+  await setProfile('user_test_bob', { username: 'bob-handle', firstName: 'Alex' });
+  const group = await create();
+  await inviteMember(group.id);
+  const other = await create();
+  await inviteMember(other.id, 'carol-token');
+  for (const id of [group.id, other.id]) {
+    const recipientId = (await json(await api(`/groups/${id}`))).group.members[1].id;
+    await json(await api(`/groups/${id}/repayments`, 'alice-token', 'POST', { requestId: crypto.randomUUID(), recipientId, amountCents: 100 }), 201);
+  }
+  assert.equal((await json(await api('/attention', 'bob-token'))).actions[0].senderUsername, 'alice-handle');
+  assert.ok(!('senderUsername' in (await json(await api('/attention', 'carol-token'))).actions[0]));
 });
