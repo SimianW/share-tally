@@ -152,7 +152,7 @@ function asListed(group: ListedGroup | GroupDetail, listed?: ListedGroup): Liste
     netCents: listed?.netCents ?? null,
     pendingActionCount: listed?.pendingActionCount ?? null,
     memberPreview: listed?.memberPreview ?? members.slice(0, 4).map(member => ({
-      id: member.id, displayName: member.displayName,
+      id: member.id, displayName: member.displayName, ...(member.username ? { username: member.username } : {}),
       imageUrl: member.imageUrl ?? null, fallbackImageUrl: member.fallbackImageUrl ?? null,
     })),
   };

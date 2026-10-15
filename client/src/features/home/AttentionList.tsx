@@ -1,3 +1,4 @@
+import { memberName } from "../../shared/member-name";
 import { routes } from '../../shared/browser/paths';
 import { ChevronRight } from 'lucide-react';
 import { Notification } from '../../shared/ui/Notification';
@@ -29,7 +30,7 @@ export function AttentionList({ attention: { actions, error, loading, refresh } 
         const href = draft ? routes.newBill(action.groupId, action.draftId)
           : repayment ? routes.groupBills(action.groupId, action.repaymentId)
           : routes.bill(action.billId);
-        const detail = repayment ? `From ${action.senderName}` : action.title;
+        const detail = repayment ? `From ${memberName({ displayName: action.senderName, username: action.senderUsername })}` : action.title;
         const key = draft ? `draft:${action.draftId}` : repayment ? `repayment:${action.repaymentId}` : `share:${action.billId}`;
         const type = draft ? 'draft' : repayment ? 'repayment' : 'share';
         return <li key={key}>

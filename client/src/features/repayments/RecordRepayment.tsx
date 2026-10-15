@@ -1,3 +1,4 @@
+import { memberName } from '../../shared/member-name';
 import { type RepaymentDraft, type RepaymentPrefill } from "@share-tally/domain/contracts/repayments";
 import { amountText } from '../../shared/money';
 import { useState } from 'react';
@@ -48,9 +49,9 @@ export function RecordRepayment({ group, api, close, saved, initial }: {
   }
   return <Dialog title="Record repayment" kicker={group.name} close={() => { if (!pending.current) close(); }}>
     <form className="bill-form" onSubmit={event => { event.preventDefault(); void submit(); }}>
-      <p>You are recording money already sent by {me.displayName}. ShareTally moves no money. You may record a partial or excess payment, even without a matching suggestion.</p>
+      <p>You are recording money already sent by {memberName(me)}. ShareTally moves no money. You may record a partial or excess payment, even without a matching suggestion.</p>
       <fieldset disabled={busy || request !== null}>
-        <label htmlFor="repayment-recipient">Recipient</label><select id="repayment-recipient" required value={recipientId} onChange={event => setRecipientId(event.target.value)}><option value="">Choose a member</option>{group.members.filter(member => !member.isCurrentUser).map(member => <option key={member.id} value={member.id}>{member.displayName}</option>)}</select>
+        <label htmlFor="repayment-recipient">Recipient</label><select id="repayment-recipient" required value={recipientId} onChange={event => setRecipientId(event.target.value)}><option value="">Choose a member</option>{group.members.filter(member => !member.isCurrentUser).map(member => <option key={member.id} value={member.id}>{memberName(member)}</option>)}</select>
         <label>Amount sent · CAD<input required inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} /></label>
       </fieldset>
       {request && <p>The saved details are locked for retry. Retrying records this transfer only once, even if the previous request succeeded.</p>}

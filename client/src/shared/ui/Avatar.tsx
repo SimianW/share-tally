@@ -1,12 +1,15 @@
+import { memberName } from "../member-name";
 import { useState, type CSSProperties } from "react";
 import { avatarTint } from "../../theme/appearance";
 export function Avatar({
   name,
+  username,
   small = false,
   imageUrl,
   fallbackImageUrl,
 }: {
   name: string;
+  username?: string;
   small?: boolean;
   imageUrl?: string | null;
   fallbackImageUrl?: string | null;
@@ -18,7 +21,7 @@ export function Avatar({
     <span
       className={`avatar ${small ? "small" : ""}`}
       style={{ "--avatar-color": color } as CSSProperties}
-      title={name}
+      title={memberName({ displayName: name, username })}
     >
       {source ? (
         <img src={source} alt="" referrerPolicy="no-referrer" onError={() => setFailedUrls(urls => [...urls, source])} />

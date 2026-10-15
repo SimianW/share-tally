@@ -89,7 +89,7 @@ function GroupRow({ group, count }: { group: ListedGroup; count: number | null }
       <strong className="home-group-name">{group.name}</strong>
       <span className="home-group-members">
         <span className="home-group-faces" aria-hidden="true">
-          {group.memberPreview.map(member => <Avatar key={member.id} name={member.displayName} small
+          {group.memberPreview.map(member => <Avatar key={member.id} name={member.displayName} username={member.username} small
             imageUrl={member.imageUrl} fallbackImageUrl={member.fallbackImageUrl} />)}
         </span>
         {group.memberCount} {group.memberCount === 1 ? 'member' : 'members'}

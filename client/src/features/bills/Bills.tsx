@@ -1,3 +1,4 @@
+import { memberName } from '../../shared/member-name';
 import { toBillFile } from '@share-tally/domain/bill-file';
 import { Download } from 'lucide-react';
 import { downloadFile } from '../../shared/browser/download';
@@ -124,7 +125,7 @@ export function BillDetails({ id }: { id: string }) {
               {bill.title}
             </h1>
             <p className="bill-meta">
-              {bill.purchaseDate}, paid by {isInitiator ? "you" : initiator.displayName}, in CAD
+              {bill.purchaseDate}, paid by {isInitiator ? "you" : memberName(initiator)}, in CAD
             </p>
           </div>
           <Button variant="secondary" onClick={() => {

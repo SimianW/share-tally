@@ -1,3 +1,4 @@
+import { memberName } from '../../../shared/member-name';
 import { type Bill } from "@share-tally/domain/contracts/bills";
 import type { BillItem } from "@share-tally/domain/contracts/receipts";
 import { fraction, type Fraction } from '@share-tally/domain/fractions';
@@ -43,7 +44,7 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
   const reviewing = !terminal && !!own;
   const attention = reviewing ? review.attention : {};
   const blockers = reviewing ? review.blockers : [];
-  const initiatorName = own?.userId === bill.initiatorId ? "You" : bill.participants.find((p) => p.userId === bill.initiatorId)?.displayName ?? "The initiator";
+  const initiatorName = own?.userId === bill.initiatorId ? "You" : memberName(bill.participants.find((p) => p.userId === bill.initiatorId));
   const [filter, setFilter] = useState<"unclaimed" | "mine" | "all">("all");
   const [activeId, setActiveId] = useState<string | null>(null);
   // The list the sheet was opened from, so Previous and Next follow what was on screen.
@@ -241,7 +242,7 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
             secondary={<span className="claim-row-details">
               <span className="claim-avatars">{item.claims.map((claim) => {
                 const participant = bill.participants.find((p) => p.userId === claim.userId);
-                return participant && <span key={claim.userId} className={claim.confirmedAt ? "" : "claim-reserved-avatar"} title={`${participant.displayName}: ${text(fraction(BigInt(claim.numerator), BigInt(claim.denominator)))} · ${claim.confirmedAt ? "confirmed" : "reserved, needs reconfirmation"}`}><Avatar name={participant.displayName} imageUrl={participant.imageUrl} fallbackImageUrl={participant.fallbackImageUrl} small /></span>;
+                return participant && <span key={claim.userId} className={claim.confirmedAt ? "" : "claim-reserved-avatar"} title={`${memberName(participant)}: ${text(fraction(BigInt(claim.numerator), BigInt(claim.denominator)))} · ${claim.confirmedAt ? "confirmed" : "reserved, needs reconfirmation"}`}><Avatar name={participant.displayName} username={participant.username} imageUrl={participant.imageUrl} fallbackImageUrl={participant.fallbackImageUrl} small /></span>;
               })}</span>
               <span className="claim-meter" role="img" aria-label={`${text(subtract(one, room(item)))} claimed by others${selected ? `; ${text(selected)} picked by you` : ""}; ${text(free)} free`}>
                 <ItemPortionBar item={item} participants={bill.participants} ownId={own?.userId} mine={selected} changes={changes} />
@@ -270,7 +271,7 @@ export function ClaimItems({ bill, selection, review, change, acknowledge, dismi
           fallback={<ReceiptPhoto id={bill.photo.draftId} subject={active.name} />} />}
         <div className="receipt-original-text"><span className="eyebrow">ON THE RECEIPT</span><p>{active.originalText || "Manually added item"}</p></div>
         <div><span className="eyebrow">HOW THIS COST WAS CALCULATED</span>
-          {active.manualFinal === true ? <p>Set manually by {bill.participants.find((p) => p.userId === bill.initiatorId)?.displayName ?? "the initiator"}</p>
+          {active.manualFinal === true ? <p>Set manually by {memberName(bill.participants.find((p) => p.userId === bill.initiatorId))}</p>
             : !bill.receipt || active.manualFinal == null || active.allocatedDiscountCents == null || active.allocatedTaxCents == null || active.allocatedExtraCents == null ? <p>Cost calculation not available for this older bill.</p>
               : <dl className="receipt-cost-breakdown">
                 <div><dt>Printed price</dt><dd>{money(active.amountCents)}</dd></div>

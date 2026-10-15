@@ -1,3 +1,4 @@
+import { memberName } from '../../shared/member-name';
 import { errorMessage } from '../../shared/api/error-message';
 import { useSyncSession } from '../../shared/api/SyncSession';
 import { ArrowRight,RefreshCw } from 'lucide-react';
@@ -58,8 +59,8 @@ export function GroupDetails({ id, api, close, onViewBills, onDeleted, onLeft }:
       </div>
       {group && <>
         {group.members.map(member => <div className="member-row" key={member.id}>
-          <Avatar name={member.displayName} imageUrl={member.imageUrl} fallbackImageUrl={member.fallbackImageUrl} />
-          <span>{member.displayName}{member.isCurrentUser ? ' · You' : ''}</span>
+          <Avatar name={member.displayName} username={member.username} imageUrl={member.imageUrl} fallbackImageUrl={member.fallbackImageUrl} />
+          <span>{memberName(member)}{member.isCurrentUser ? ' · You' : ''}</span>
           {member.isOwner && <strong>Owner</strong>}
           {group.isOwner && !member.isCurrentUser && <Button variant="text" className="member-remove bill-danger"
             onClick={() => { setMessage(''); setDepartingId(member.id); }}>Remove</Button>}
@@ -88,7 +89,7 @@ export function GroupDetails({ id, api, close, onViewBills, onDeleted, onLeft }:
       {group && departing && (departing.isCurrentUser || group.isOwner) &&
         <MemberDepartureDialog key={departing.id} group={group} member={departing} api={api}
           close={() => setDepartingId(null)} onLeft={onLeft}
-          onRemoved={() => { setDepartingId(null); setMessage(`${departing.displayName} was removed from the group.`); refresh(); }} />}
+          onRemoved={() => { setDepartingId(null); setMessage(`${memberName(departing)} was removed from the group.`); refresh(); }} />}
     </Dialog>
   );
 }
@@ -103,7 +104,7 @@ function DeletionReasons({ reasons }: { reasons: GroupDeletionReason[] }) {
         {reason.code === 'nonzero_balances' && <>
           {reason.members.length === 1 ? 'One member has' : `${reason.members.length} members have`} a non-zero balance:
           <ul>{reason.members.map(member => <li key={member.userId}>
-            {member.displayName} {member.netCents > 0 ? 'is owed' : 'owes'} {money(Math.abs(member.netCents))}.
+            {memberName(member)} {member.netCents > 0 ? 'is owed' : 'owes'} {money(Math.abs(member.netCents))}.
           </li>)}</ul>
         </>}
       </li>)}

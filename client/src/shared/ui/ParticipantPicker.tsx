@@ -1,3 +1,4 @@
+import { memberName } from "../member-name";
 import { useId } from "react";
 import { Check } from "lucide-react";
 import { Avatar } from "./Avatar";
@@ -5,6 +6,7 @@ import { Avatar } from "./Avatar";
 type Member = {
   id: string;
   displayName: string;
+  username?: string;
   imageUrl?: string | null;
   fallbackImageUrl?: string | null;
   isCurrentUser: boolean;
@@ -17,10 +19,10 @@ function chipNames(members: Member[]) {
   const others = members.filter((m) => !m.isCurrentUser);
   return new Map(
     members.map((m): [string, string] => {
-      if (m.isCurrentUser) return [m.id, "You"];
+      if (m.isCurrentUser) return [m.id, memberName(m, "You")];
       const shared = others.some((o) => o.id !== m.id && first(o).toLowerCase() === first(m).toLowerCase());
       const last = words(m).slice(1).pop();
-      return [m.id, shared && last ? `${first(m)} ${last[0].toUpperCase()}.` : first(m)];
+      return [m.id, memberName(m, shared && last ? `${first(m)} ${last[0].toUpperCase()}.` : first(m))];
     }),
   );
 }
@@ -68,7 +70,7 @@ export function ParticipantPicker({
       </div>
       <div className="people-chips">
         {ordered.map((m) => (
-          <label className="person-chip" key={m.id} title={m.displayName}>
+          <label className="person-chip" key={m.id} title={memberName(m)}>
             <input
               type="checkbox"
               aria-label={names.get(m.id)}
@@ -78,7 +80,7 @@ export function ParticipantPicker({
                 change(e.target.checked ? [...selected, m.id] : selected.filter((id) => id !== m.id))
               }
             />
-            <Avatar name={m.displayName} small imageUrl={m.imageUrl} fallbackImageUrl={m.fallbackImageUrl} />
+            <Avatar name={m.displayName} username={m.username} small imageUrl={m.imageUrl} fallbackImageUrl={m.fallbackImageUrl} />
             <span className="person-chip-name">{names.get(m.id)}</span>
             <Check className="person-chip-check" size={16} strokeWidth={3} aria-hidden="true" />
           </label>
