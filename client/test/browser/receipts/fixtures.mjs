@@ -55,7 +55,7 @@ export function receiptPhoto(width, height, background = '#f8f8f2') {
   return serverRequire('sharp')({ create: { width, height, channels: 3, background } }).png().toBuffer();
 }
 
-export const claimSheet = (page, name = 'Apples') => page.getByRole('dialog', { name, exact: true });
+export const claimSheet = (page, name = 'Apples') => page.getByRole('dialog', { name, exact: true }).or(page.getByRole('region', { name, exact: true }));
 export const itemOption = (page, label, name = 'Apples') => claimSheet(page, name).getByRole('button', { name: label, exact: true });
 // The Items step's receipt summary button.
 export const reconciliationButton = page => page.getByRole('button', { name: /Matches receipt|Off by|Receipt summary/ }).filter({ hasText: /Items/ });

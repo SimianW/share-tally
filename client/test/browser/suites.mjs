@@ -11,6 +11,7 @@ import { scenarios as membership } from './groups/membership.mjs';
 import { scenarios as names } from './groups/names.mjs';
 import { scenarios as navigation } from './groups/navigation.mjs';
 import { scenarios as provisional } from './groups/provisional-display.mjs';
+import { scenarios as desktopClaiming } from './receipts/desktop-claiming.mjs';
 import { scenarios as claiming } from './receipts/claiming.mjs';
 import { scenarios as corrections } from './receipts/corrections.mjs';
 import { scenarios as drafts } from './receipts/drafts.mjs';
@@ -27,7 +28,7 @@ const ordered = (scenarios, names) => names.map(name => {
 });
 
 const groupScenarios = [...membership, ...appearance, ...bills, ...navigation, ...ledger, ...groupPage, ...amountPortion, ...names, ...renewal, ...provisional];
-const receiptScenarios = [...billFiles, ...newBill, ...notePhotos, ...drafts, ...editor, ...claiming, ...corrections, ...processing];
+const receiptScenarios = [...billFiles, ...newBill, ...notePhotos, ...drafts, ...editor, ...claiming, ...desktopClaiming, ...corrections, ...processing];
 
 export const suites = {
   groups: ordered(groupScenarios, [
@@ -40,7 +41,7 @@ export const suites = {
   ]),
   receipts: ordered(receiptScenarios, [
     'bill-file-export', 'bill-file-import', 'bill-file-replace', 'bill-file-invalid', 'bill-file-large', 'bill-file-type', 'bill-file-busy', 'bill-file-save-failure', 'scan-retry', 'split-method-entry', 'new-bill-during-refresh', 'new-bill-late-route-event', 'receipt-crop', 'draft-save-and-recovery', 'item-claims', 'claim-controls',
-    'correction-races', 'claim-auto-advance', 'claiming-conflicts', 'claim-review', 'processing-recovery',
+    'desktop-claim-table', 'correction-races', 'claim-auto-advance', 'claiming-conflicts', 'claim-review', 'processing-recovery',
     'scanned-draft-editing', 'compact-review', 'claim-receipt-photo', 'unassigned-tax',
     'legacy-price-correction', 'price-correction', 'scan-fallback', 'low-confidence-hints', 'manual-split-fallback',
     'editor-recovery', 'editor-scan-reordering', 'editor-repeated-initiation', 'editor-storage-failure',
