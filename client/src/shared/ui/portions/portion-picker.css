@@ -1,0 +1,4 @@
+/* The compact portion picker shares the sheet editor in a top-layer popover. */
+.claim-custom-popover { position: fixed; position-area: bottom span-left; position-try-fallbacks: flip-block, flip-inline; inset: auto; width: 290px; margin: var(--space-2) 0; padding: var(--space-4); border: 1px solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-floating); }
+.claim-custom-popover label { display: grid; gap: var(--space-2); }
+.claim-custom-popover input { width: 100%; min-width: 0; box-sizing: border-box; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: var(--space-3); background: var(--surface); color: var(--ink); font: inherit; }
