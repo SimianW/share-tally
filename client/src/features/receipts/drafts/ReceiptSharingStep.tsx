@@ -76,10 +76,12 @@ export function ReceiptSharingStep({
           />
         </label>
       </div>
+      <p className="split-hint">You paid this bill · You’re the initiator</p>
       <ParticipantPicker
         members={group.members}
         selected={data.participantIds}
         lockedId={ownId}
+        lockSelectedOnly
         change={(participantIds) => update({ participantIds })}
         shortcuts
       />

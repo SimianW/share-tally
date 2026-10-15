@@ -32,7 +32,10 @@ export function ParticipantPicker({
   change,
   readOnly = false,
   shortcuts = false,
+  lockSelectedOnly = false,
 }: {
+  /** Imported drafts start empty; the initiator locks once selected. */
+  lockSelectedOnly?: boolean;
   members: Member[];
   selected: string[];
   lockedId: string;
@@ -69,8 +72,8 @@ export function ParticipantPicker({
             <input
               type="checkbox"
               aria-label={names.get(m.id)}
-              checked={m.id === lockedId || selected.includes(m.id)}
-              disabled={readOnly || m.id === lockedId}
+              checked={(!lockSelectedOnly && m.id === lockedId) || selected.includes(m.id)}
+              disabled={readOnly || (m.id === lockedId && (!lockSelectedOnly || selected.includes(m.id)))}
               onChange={(e) =>
                 change(e.target.checked ? [...selected, m.id] : selected.filter((id) => id !== m.id))
               }

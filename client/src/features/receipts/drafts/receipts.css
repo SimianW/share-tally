@@ -951,3 +951,8 @@
   .receipt-crop-dialog .dialog-heading h2 { font-size: 22px; }
   .receipt-crop-frame { padding: var(--space-5); }
 }
+
+/* Bill file rejections stay quiet and directly below the entry links. */
+.bill-file-error { display: flex; align-items: flex-start; gap: var(--space-2); margin: var(--space-3) auto 0; width: fit-content; max-width: 100%; color: var(--status-danger); font-size: 14px; }
+.bill-file-error > svg { flex-shrink: 0; margin-top: 1px; }
+.bill-file-error p { margin: var(--space-1) 0 0; color: var(--ink-muted); }
