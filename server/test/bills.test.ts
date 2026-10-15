@@ -2812,6 +2812,43 @@ test('explicit draft save atomically replaces data and photo; previews leave the
   await json(await api(`/groups/${group.id}/receipt-preview/extract`, 'bob-token', 'POST', { draftId: id, revision: replaced.revision }), 404);
 });
 
+test('draft save can remove a receipt photo and its evidence atomically without removing note photos', async () => {
+  const { group, id, saved } = await scannedDraft();
+  await modelControl('recorded-evidence', 'recorded-evidence-ready');
+  let scanned;
+  try {
+    await json(await api(`/receipt-drafts/${id}/extract`, 'alice-token', 'POST', { revision: saved.revision }));
+    scanned = await awaitModelDraft(id);
+  } finally {
+    await modelControl('recorded-evidence-off', 'recorded-evidence-stopped');
+  }
+  assert.ok(scanned.photo);
+  assert.ok(scanned.data.receipt.evidence);
+  assert.equal((await pool.query('SELECT * FROM receipt_evidence WHERE draft_id = $1', [id])).rowCount, 1);
+  const sharp = (await import('sharp')).default;
+  const bytes = await sharp({ create: { width: 8, height: 8, channels: 3, background: 'blue' } }).png().toBuffer();
+  const note = await json(await api(`/receipt-drafts/${id}/note-photos`, 'alice-token', 'POST', { base64: bytes.toString('base64') }), 201);
+  const path = `/groups/${group.id}/receipt-drafts/${id}`;
+  const body = { revision: scanned.revision, data: scanned.data, photoBase64: null };
+  await json(await api(path, 'bob-token', 'PUT', body), 404);
+  await json(await api(path, 'alice-token', 'PUT', { ...body, revision: scanned.revision - 1 }), 409);
+  assert.equal((await api(`/receipt-drafts/${id}/photo`)).status, 200);
+  const removed = (await json(await api(path, 'alice-token', 'PUT', body))).draft;
+  assert.equal(removed.photo, null);
+  assert.equal(removed.data.receipt.evidence, undefined);
+  assert.ok(removed.data.items.every((item: { evidence?: unknown }) => item.evidence === undefined));
+  assert.equal((await pool.query('SELECT * FROM receipt_evidence WHERE draft_id = $1', [id])).rowCount, 0);
+  assert.equal((await pool.query('SELECT * FROM receipt_photos WHERE draft_id = $1', [id])).rowCount, 0);
+  assert.equal((await api(`/receipt-drafts/${id}/photo`)).status, 404);
+  assert.deepEqual(removed.notePhotos, [note.notePhoto]);
+  const retry = (await json(await api(path, 'alice-token', 'PUT', body))).draft;
+  assert.equal(retry.revision, removed.revision);
+  const bill = (await json(await api(`/receipt-drafts/${id}/initialize`, 'alice-token', 'POST', { revision: removed.revision }))).bill;
+  assert.equal(bill.photo, null);
+  assert.deepEqual(bill.notePhotos, removed.notePhotos);
+  assert.equal((await api(`/receipt-drafts/${id}/photo`, 'bob-token')).status, 404);
+});
+
 test('draft deletion is owner-only, revision checked, retryable, and removes photos without changing bills', async () => {
   const { group, draft } = await setup();
   const { requestId: _requestId, ...fields } = draft;

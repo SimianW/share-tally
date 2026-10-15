@@ -151,7 +151,7 @@ export function recoverable(recovered: ReceiptDraft | null, server: ReceiptDraft
     recovered.revision === server.revision &&
     (!!recovered.initializationRevision ||
       comparable(recovered.data) !== comparable(server.data) ||
-      !!recovered.pendingPhoto);
+      recovered.pendingPhoto !== undefined);
 }
 
 // A reply never replaces a newer draft already delivered over the live stream.
@@ -163,7 +163,7 @@ function adopt(state: EditorState, draft: ReceiptDraft): EditorState {
 }
 
 function clean(state: EditorState) {
-  return !state.local.pendingPhoto && !!state.baseline &&
+  return state.local.pendingPhoto === undefined && !!state.baseline &&
     comparable(state.local.data) === comparable(state.baseline.data);
 }
 
@@ -185,7 +185,7 @@ export function editable(state: EditorState) {
 export function hasUnsavedChanges(state: EditorState, photoSelected = false) {
   const { local, baseline } = state;
   return !!baseline && state.operation !== "ended" && !local.initializationRevision && (
-    photoSelected || !!local.pendingPhoto ||
+    photoSelected || local.pendingPhoto !== undefined ||
     comparable(local.data) !== comparable(baseline.data)
   );
 }
@@ -268,7 +268,7 @@ export function reduceEditor(state: EditorState, event: EditorEvent): EditorStat
       const recovered = recoverable(state.local, server) ? state.local : null;
       // Keep the base revision so a newer server edit still triggers the save conflict check.
       const local = recovered
-        ? { ...recovered, photo: recovered.pendingPhoto ? recovered.photo : server.photo }
+        ? { ...recovered, photo: recovered.pendingPhoto !== undefined ? recovered.photo : server.photo }
         : server;
       return {
         ...state, server, baseline: server, local, operation: "idle",
@@ -292,7 +292,7 @@ export function reduceEditor(state: EditorState, event: EditorEvent): EditorStat
       if (!editable(state)) return state;
       return {
         ...state, warnings: [], error: "", notice: "",
-        local: { ...state.local, data: event.data, pendingPhoto: undefined, photo: state.server?.photo },
+        local: { ...state.local, data: event.data, pendingPhoto: null, photo: null },
       };
     case "photoCropped":
       if (!editable(state)) return state;

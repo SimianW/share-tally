@@ -135,7 +135,7 @@ function ItemSource({
           <ReceiptPhoto
             id={draft.id}
             version={draft.revision}
-            localPhoto={draft.pendingPhoto}
+            localPhoto={draft.pendingPhoto ?? undefined}
             expired={draft.photo.expired}
           />
         )}

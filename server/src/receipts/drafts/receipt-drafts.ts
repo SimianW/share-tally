@@ -2,7 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { isDeepStrictEqual } from "node:util";
 import { z } from "zod";
 import { db } from "../../db/index.js";
-import { groupMembers, receiptDrafts, receiptPhotos } from "../../db/schema.js";
+import { groupMembers, receiptDrafts, receiptEvidence, receiptPhotos } from "../../db/schema.js";
 import { lockGroupForMember, requireMember } from '../../groups/group-access.js';
 import { notifyGroupChanged } from "../../realtime/group-events.js";
 import { BillError } from "../../shared/bill-error.js";
@@ -13,6 +13,7 @@ import { checked, draftInput, revisionInput, withoutLegacyShare, type ReceiptDra
 import { itemWasEdited } from "../receipt-needs-check.js";
 import { editable, ownDraft } from './access.js';
 import { storePhoto } from './photos.js';
+import { withoutEvidence } from './evidence.js';
 import { readDraft } from './queries.js';
 import { draftNotePhotos } from '../../note-photos/note-photos.js';
 // A client cannot clear (or invent) a review marker by merely echoing a flag.
@@ -47,7 +48,8 @@ export async function saveDraft(
       .object({
         revision: z.number().int().min(0),
         data: draftInput,
-        photoBase64: z.string().max(11_184_812).optional(),
+        // Omit to retain, send bytes to replace, or null to remove photo and evidence.
+        photoBase64: z.string().max(11_184_812).nullable().optional(),
       })
       .strict(),
     body,
@@ -56,6 +58,7 @@ export async function saveDraft(
     new Set(input.data.items.map((i) => i.id)).size !== input.data.items.length
   )
     throw new BillError(400, "Item IDs must be unique.");
+  if (input.photoBase64 === null) input.data = withoutEvidence(input.data);
   // Canonicalize before the idempotency comparison as well as persistence.
   // A supplied final cost matters only when its manual override is enabled.
   input.data.items = priceDraft(input.data).items;
@@ -66,8 +69,8 @@ export async function saveDraft(
   }
   await db.transaction((tx) => requireMember(tx, groupId, userId));
   const photo =
-    input.photoBase64 === undefined
-      ? undefined
+    input.photoBase64 == null
+      ? input.photoBase64
       : await normalizeReceiptPhoto(input.photoBase64);
   return db.transaction(async (tx) => {
     await lockGroupForMember(tx, groupId, userId);
@@ -94,7 +97,7 @@ export async function saveDraft(
       if (
         !old.billId &&
         isDeepStrictEqual(withoutLegacyShare(old.data), input.data) &&
-        (photo === undefined || oldPhoto?.base64 === photo.toString("base64"))
+        (photo === undefined || (photo === null ? !oldPhoto : oldPhoto?.base64 === photo.toString("base64")))
       )
         return {
           ...old,
@@ -117,7 +120,10 @@ export async function saveDraft(
         })
         .where(eq(receiptDrafts.id, id))
         .returning();
-      if (photo) await storePhoto(tx, id, photo);
+      if (photo === null) {
+        await tx.delete(receiptEvidence).where(eq(receiptEvidence.draftId, id));
+        await tx.delete(receiptPhotos).where(eq(receiptPhotos.draftId, id));
+      } else if (photo) await storePhoto(tx, id, photo);
       const [savedPhoto] = await tx
         .select({ expiresAt: receiptPhotos.expiresAt })
         .from(receiptPhotos)

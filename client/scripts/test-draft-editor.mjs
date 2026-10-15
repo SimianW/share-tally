@@ -60,7 +60,7 @@ test("importing a bill replaces scanned data without keeping scan warnings or a 
     }).data;
     const imported = run(scanned, { type: "imported", data });
     assert.deepEqual(imported.warnings, []);
-    assert.equal(imported.local.pendingPhoto, undefined);
+    assert.equal(imported.local.pendingPhoto, null);
     assert.deepEqual(imported.local.data, data);
     assert.equal(hasUnsavedChanges(imported), true);
     const savedImport = run(imported,

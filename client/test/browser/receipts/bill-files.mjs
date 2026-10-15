@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { readFile, mkdir } from 'node:fs/promises';
 import { expect } from '@playwright/test';
-import { receiptEnvironment, receiptGroup } from './fixtures.mjs';
+import { receiptEnvironment, receiptGroup, receiptPhoto } from './fixtures.mjs';
 
 export const scenarios = [
   { name: 'bill-file-type', environment: receiptEnvironment, run: wrongBillFileType },
@@ -113,11 +113,22 @@ async function replaceDraft(env) {
   await alice.setViewportSize({ width: 1440, height: 1000 });
   const id = await titledDraft('Draft to keep');
   await alice.goto(`${newBillRoute}/${id}`);
+  await alice.getByLabel('Choose a receipt image').setInputFiles({
+    name: 'old-receipt.png', mimeType: 'image/png', buffer: await receiptPhoto(300, 500),
+  });
+  await alice.getByRole('button', { name: 'Use this photo', exact: true }).click();
+  await expect(alice.getByRole('heading', { name: 'Check your items' })).toBeVisible();
+  await expect.poll(async () => (await env.api(`/receipt-drafts/${id}`)).draft.processingStatus).toBe('ready');
+  await stepButton('Receipt').click();
+  await expect(alice.getByRole('img', { name: 'Original cropped receipt' })).toBeVisible();
   await alice.getByRole('radio', { name: 'By amount', exact: true }).check();
   await alice.getByLabel('Total to split', { exact: true }).fill('55');
   const original = (await env.api(`/receipt-drafts/${id}`)).draft;
+  assert.ok(original.photo);
   const file = { name: 'dinner.sharetally.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({
-    format: 'sharetally.bill', version: 1, mode: 'manual', title: 'Dinner', notes: 'Split dessert too', totalCents: 8765,
+    format: 'sharetally.bill', version: 1, mode: 'items', title: 'Dinner', notes: 'Split dessert too', totalCents: 8765,
+    receipt: { subtotalCents: 8765, taxCents: 0, discountCents: 0, extraCents: 0, pricesIncludeTax: false },
+    items: [{ name: 'Dinner', quantity: '1', amountCents: 8765, discountCents: 0, taxable: false }],
   })) };
   const pick = () => alice.getByLabel('Import a bill file', { exact: true }).setInputFiles(file);
   await pick();
@@ -140,16 +151,31 @@ async function replaceDraft(env) {
   await expect(alice.getByRole('heading', { name: 'Who’s sharing this bill?' })).toBeVisible();
   await expect(alice.getByLabel('Bill title', { exact: true })).toHaveValue('Dinner');
   await expect(alice.getByLabel('Total paid (CAD)', { exact: true })).toHaveValue('87.65');
-  await expect(alice.getByRole('radio', { name: 'By amount', exact: true })).toBeChecked();
+  await expect(alice.getByRole('radio', { name: 'By item', exact: true })).toBeChecked();
   await expect(alice.getByRole('checkbox', { checked: true })).toHaveCount(0);
   const saved = (await env.api(`/receipt-drafts/${id}`)).draft;
   assert.equal(saved.data.notes, 'Split dessert too');
-  assert.deepEqual(saved.data.items, []);
+  assert.deepEqual(saved.data.items.map(item => item.name), ['Dinner']);
   assert.deepEqual(saved.data.participantIds, []);
-  assert.equal(saved.data.receipt, undefined);
+  assert.equal(saved.data.receipt.subtotalCents, 8765);
+  assert.equal(saved.data.receipt.evidence, undefined);
+  assert.ok(saved.data.items.every(item => item.evidence === undefined));
+  assert.equal(saved.photo, null);
+  // The current editor must drop the previous scan too, before any reload.
+  await stepButton('Receipt').click();
+  await alice.getByRole('radio', { name: 'By item', exact: true }).check();
+  await expect(alice.getByRole('heading', { name: 'Scan a receipt' })).toBeVisible();
+  await expect(alice.getByRole('img', { name: 'Original cropped receipt' })).toHaveCount(0);
+  await stepButton('People').click();
   await alice.reload();
   await expect(alice.getByLabel('Bill title', { exact: true })).toHaveValue('Dinner');
-  await expect(alice.getByRole('radio', { name: 'By amount', exact: true })).toBeChecked();
+  await expect(alice.getByRole('radio', { name: 'By item', exact: true })).toBeChecked();
+  await alice.getByRole('button', { name: 'Everyone', exact: true }).click();
+  await alice.getByRole('button', { name: 'Share bill', exact: true }).click();
+  await expect(alice.getByRole('heading', { name: 'Dinner', exact: true })).toBeVisible();
+  const billId = alice.url().split('/').at(-1);
+  assert.equal((await env.api(`/bills/${billId}`, 'bob-token')).bill.photo, null);
+  await expect(alice.getByRole('button', { name: 'View receipt', exact: true })).toHaveCount(0);
 }
 
 async function invalidBillFile(env) {
