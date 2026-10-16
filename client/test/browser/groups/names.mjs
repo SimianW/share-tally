@@ -295,7 +295,7 @@ async function sameNamedMembers(env) {
   });
   const claims = await openAlice(`${base}#/bills/${fruit.id}`);
   await claims.getByRole('button', { name: 'View Apples · $3.00', exact: true }).click();
-  const legend = claims.getByRole('dialog', { name: 'Apples', exact: true }).locator('.claim-legend');
+  const legend = claims.getByRole('region', { name: 'Apples', exact: true }).locator('.claim-legend');
   await expect(legend).toContainText('Alex Friend @alex_friend_long_username_bob · 1/2');
   const completedBill = await openAlice(`${base}#/bills/${complete.id}`);
   await expect(billPeople(completedBill)).toContainText('Alex Friend @alex_friend_long_username_bob');
