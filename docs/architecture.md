@@ -15,7 +15,7 @@ server/src/
   groups/             membership, ownership, invitations and deletion
   ledger/             balances, effects and repayment suggestions
   repayments/         repayment lifecycle
-  identity/           users and avatars
+  identity/           users, avatars, Clerk profile sync and group-scoped names (reads bills and repayments for former members)
   attention/          pending actions
   realtime/           group event streams
   workflows/          transactions that coordinate business modules
@@ -42,6 +42,7 @@ Each row records the shared owner and the differences deliberately retained to p
 | Pending, busy and error handling for submissions | `shared/api/use-operation.ts` | Bill revision checks, item versions, repayment request persistence and draft initialization retries retain their own policies. |
 | Amount formatting and entry | `shared/money.ts`, `shared/ui/fields/MoneyField.tsx` and `validity.ts` | Positive-sign display, empty-as-zero, signed adjustments, and validation timing. Share/repayment fields still validate at their original stage. |
 | Available portions in item picker, meter and confirmation checks | `features/bills/claims/claim-availability.ts` | Confirmed claims and reservations both consume availability; a participant can edit their own portion. |
+| Displayed names and Username tags | `packages/domain/src/display-name.ts` (rule), `server/src/identity/group-names.ts` (collisions), `client/src/shared/member-name.ts` (label) | Member lists and pickers count current members only; bills, ledger, repayments and attention also count former members in retained history ([ADR-0020](adr/0020-display-profile-names-and-find-users-by-username.md), [ADR-0021](adr/0021-members-leave-only-when-settled-and-uninvolved.md)). |
 | Repeated fraction parsing and picker arithmetic | `shared/fractions.ts`, `shared/ui/portions/` | UI input limits and error wording remain separate from exact domain arithmetic. |
 | Receipt scan buttons and photo resource cleanup | `drafts/ScanActions.tsx`, `shared/browser/photo-resource.ts` (also used by note photos) | Processing-specific disabled states, full-photo expiry and line-photo positioning. |
 | URLs assembled in several pages | `shared/browser/paths.ts` | Existing hash URLs, query strings, navigation guards and invitation return links. |
