@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { AnimatePresence, motion, type Transition } from "motion/react";
 import { money } from "../../money";
 import { type Bill } from "@share-tally/domain/contracts/bills";
@@ -141,7 +141,9 @@ export type PortionChoice = { key: string; fraction: Fraction; name: string; tag
  * The row of portion choices, then an optional "Take … left" button and the Custom fraction input.
  * A choice's price shows under its fraction; with no total yet there is no price to show.
  */
-export function PortionChoices({ label, totalCents, choices, pressed, custom, customStart, customOpen, setCustomOpen, cap, disabled, takeLeft, onPick }: {
+export function PortionChoices({ label, totalCents, choices, pressed, custom, customStart, customOpen, setCustomOpen, cap, disabled, takeLeft, onPick, inline = false }: {
+  /** Compact table choices use the same editor in an anchored, dismissible popover. */
+  inline?: boolean;
   /** Names the group of toggle buttons. */
   label: string;
   totalCents: number | null;
@@ -160,10 +162,20 @@ export function PortionChoices({ label, totalCents, choices, pressed, custom, cu
   takeLeft?: { fraction: Fraction; label: string } | null;
   onPick: (value: Fraction, custom: boolean) => void;
 }) {
+  const editor = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const anchor = `--portion-${useId().replace(/:/g, "")}`;
+  useLayoutEffect(() => {
+    if (inline && customOpen) {
+      editor.current?.showPopover();
+      editor.current?.querySelector("input")?.focus();
+    }
+  }, [inline, customOpen]);
   const [customText, setCustomText] = useState("");
   const [customError, setCustomError] = useState("");
   const price = (f: Fraction) => totalCents === null ? null : money(cost(totalCents, f));
   function pick(value: Fraction, isCustom: boolean) {
+    if (inline && customOpen) trigger.current?.focus();
     onPick(value, isCustom);
     setCustomOpen(false);
   }
@@ -176,28 +188,39 @@ export function PortionChoices({ label, totalCents, choices, pressed, custom, cu
   }
   const customPrice = custom && price(custom);
   return <>
-    <div className="claim-portion-choices" role="group" aria-label={label}>
+    <div className="claim-portion-choices" role="group" aria-label={label}
+      style={inline ? { gridTemplateColumns: `repeat(${choices.length + 1}, minmax(0, 1fr))` } : undefined}>
       {choices.map((choice) => {
         const amount = price(choice.fraction);
         return <button type="button" key={choice.key} className={choice.tag ? "claim-portion-tagged" : undefined}
           aria-label={amount ? `${choice.name} · ${amount}` : choice.name}
           aria-pressed={!customOpen && pressed === choice.key}
+          title={inline && cap && !lessOrEqual(choice.fraction, cap) ? `Only ${shortText(cap)} left` : undefined}
           disabled={disabled || (!!cap && !lessOrEqual(choice.fraction, cap))} onClick={() => pick(choice.fraction, false)}>
           {choice.tag && <span className="claim-portion-tag" aria-hidden="true">{choice.tag}</span>}
           <b>{choice.fraction.n === choice.fraction.d ? "All" : <FractionText value={choice.fraction} />}</b><small>{amount ?? "—"}</small>
         </button>;
       })}
-      <button type="button" className="claim-portion-custom"
+      <button ref={trigger} style={inline ? { anchorName: anchor } : undefined} type="button" className="claim-portion-custom"
+        aria-haspopup={inline ? "dialog" : undefined} aria-expanded={inline ? customOpen : undefined}
         aria-label={custom ? `Custom · ${text(custom)}${customPrice ? ` · ${customPrice}` : ""}` : "Custom"}
         aria-pressed={!customOpen && pressed === "custom"} disabled={disabled || (!!cap && cap.n <= 0n)}
         onClick={() => { setCustomOpen(true); setCustomText(customStart); setCustomError(""); }}>
-        <b>{custom ? <FractionText value={custom} /> : "…"}</b><small>{custom ? customPrice ?? "—" : "Custom"}</small>
+        <b>{custom ? <FractionText value={custom} /> : "…"}</b><small>{inline ? "Custom" : custom ? customPrice ?? "—" : "Custom"}</small>
       </button>
     </div>
     {takeLeft && <Button variant="secondary" className="claim-take-left" disabled={disabled} onClick={() => pick(takeLeft.fraction, false)}>
       {takeLeft.label}
     </Button>}
-    {customOpen && <div className="claim-custom"><label>Custom fraction<input autoFocus aria-label="Custom fraction" placeholder="4/5" value={customText} readOnly={disabled}
+    {customOpen && <div ref={editor} className={`claim-custom${inline ? " claim-custom-popover" : ""}`}
+      popover={inline ? "auto" : undefined} role={inline ? "dialog" : undefined} aria-label={inline ? "Custom portion" : undefined}
+      style={inline ? { positionAnchor: anchor } : undefined}
+      onToggle={(event) => { if (inline && event.newState === "closed") setCustomOpen(false); }}
+      onKeyDown={(event) => {
+        if (inline && event.key === "Escape") {
+          event.preventDefault(); event.stopPropagation(); setCustomOpen(false); trigger.current?.focus();
+        }
+      }}><label>Custom fraction<input autoFocus aria-label="Custom fraction" placeholder="4/5" value={customText} readOnly={disabled}
       onChange={(event) => setCustomText(event.target.value)}
       // Inside a share form, Enter would otherwise submit the whole form.
       onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); saveCustom(); } }} /></label>

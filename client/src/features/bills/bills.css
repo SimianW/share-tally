@@ -348,3 +348,79 @@
     padding: 20px;
   }
 }
+
+/* By item desktop: the bill summary becomes a strip, leaving the full width for claims. */
+@media (min-width: 1100px) {
+  .bill-page-items { max-width: none; grid-template-columns: minmax(0, 1fr); grid-template-areas: "header" "panel" "main"; gap: var(--space-5); }
+  .bill-page-items .bill-panel { position: static; max-height: none; overflow: visible; grid-template-columns: minmax(240px, 1fr) minmax(0, 2fr); }
+  .bill-page-items .bill-summary, .bill-page-items .bill-details { padding: var(--space-4) var(--space-5); }
+  .bill-page-items .bill-details { border-top: 0; border-left: 1px solid var(--line); }
+  .bill-page-items .bill-people { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); }
+  .bill-page-items .bill-person { border: 0; padding: var(--space-2) 0; }
+  .bill-page-items .bill-total { margin-top: var(--space-2); }
+  .bill-page-items .bill-total strong { font-size: var(--text-xl); }
+  .bill-page-items .bill-rows { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+  .bill-page-items .bill-rows > div { border: 0; gap: var(--space-2); padding: 0; }
+  .bill-page-items .bill-confirmed { padding-top: var(--space-2); }
+  .bill-page-items .bill-explanation { margin-top: var(--space-2); }
+  .bill-page-items .bill-explain { margin: 0; }
+  .bill-page-items .bill-main { gap: var(--space-4); }
+  .bill-page-items .share-ticket-figure { font-size: var(--text-xl); }
+
+  .bill-page-items .bill-initiator { margin-top: var(--space-3); padding-top: var(--space-3); }
+  .bill-page-items .bill-controls { display: flex; flex-direction: row; justify-content: flex-start; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+  .bill-page-items .bill-controls > .eyebrow { flex-basis: auto; align-self: center; }
+  .bill-page-items .bill-controls .button { width: auto; min-height: 32px; padding: var(--space-2) var(--space-3); }
+  .bill-page-items .share-ticket { grid-template-columns: minmax(220px, 30%) minmax(0, 1fr); }
+  .bill-page-items .share-ticket-stub, .bill-page-items .share-ticket-body { gap: var(--space-2); padding: var(--space-3) var(--space-5); }
+  .bill-page-items .share-ticket-stamp { margin-top: 0; }
+  .bill-page-items .share-ticket-words { font-size: var(--text-xl); }
+  .bill-page-items .share-ticket-ledger { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+  .bill-page-items .share-ticket-ledger > div { gap: var(--space-2); padding: var(--space-2) 0 0; }
+  .claim-inline-options .claim-portion-choices button { width: 100%; align-content: center; }
+  .claim-inline-options .claim-portion-tagged > b { display: block; font-size: var(--text-xs); }
+  .claim-inline-options .claim-portion-custom b { display: block; }
+  .claim-detail .receipt-sheet-content { animation: none; }
+
+  .claim-workspace { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: var(--space-4); }
+  .claim-workspace.has-detail { grid-template-columns: minmax(0, 1fr) 400px; }
+  .claim-table-wrap { min-width: 0; }
+  .claim-table { border-collapse: separate; border-spacing: 0; width: 100%; table-layout: fixed; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); font-size: var(--text-sm); }
+  .claim-table th { text-align: left; padding: var(--space-3); color: var(--ink-muted); font-size: var(--text-xs); font-weight: 600; }
+  .claim-table th:first-child { width: 26%; }
+  .claim-table th:nth-child(2) { width: 9%; }
+  .claim-table th:nth-last-child(3) { width: 18%; }
+  .claim-table th:last-child { width: 12%; text-align: right; }
+  .claim-table:not(.is-readonly) th:nth-last-child(2) { width: 35%; }
+  .has-detail .claim-table th:first-child { width: 28%; }
+  .has-detail .claim-table th:nth-child(2) { width: 11%; }
+  .has-detail .claim-table:not(.is-readonly) th:nth-last-child(2) { width: 44%; }
+  .has-detail .claim-table th:last-child { width: 17%; }
+  .claim-table td { padding: var(--space-3); border-top: 1px solid var(--line); vertical-align: middle; overflow-wrap: anywhere; }
+  .claim-table tr[aria-current="true"] td { background: var(--surface-selected); }
+  .claim-table tr.is-review td:first-child { box-shadow: inset 3px 0 var(--status-warning); }
+  .claim-table tr.is-over td:first-child { box-shadow: inset 3px 0 var(--status-danger); }
+  .claim-table-left { cursor: pointer; }
+  .claim-table-open { scroll-margin-block: calc(var(--top-bar-height) + var(--space-4)) 120px; display: flex; align-items: center; gap: var(--space-2); width: 100%; padding: 0; text-align: left; border: 0; background: transparent; color: var(--ink); font: inherit; }
+  .claim-table-open > svg { flex: none; color: var(--ink-muted); }
+  .claim-table-open > span { min-width: 0; }
+  .claim-table-open small { display: block; margin-top: var(--space-1); color: var(--ink-muted); font-size: var(--text-xs); }
+  .claim-table-cost, .claim-table-amount { font-variant-numeric: tabular-nums; }
+  .claim-table-legend { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: var(--space-2); color: var(--ink-muted); font-size: var(--text-xs); }
+  .claim-table-legend .claim-avatars { min-width: 0; flex-wrap: wrap; padding-left: 0; }
+  .claim-table-amount { text-align: right; }
+  .claim-table-amount small { display: block; color: var(--ink-muted); font-size: var(--text-xs); }
+  .claim-table-remove { padding: var(--space-1) 0 0; border: 0; background: transparent; color: var(--accent-ink); font: inherit; font-size: var(--text-xs); text-decoration: underline; }
+  .claim-inline-options .claim-portion-choices { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; margin: 0; }
+  .claim-inline-options .claim-portion-choices button { min-width: 0; min-height: 44px; padding: var(--space-1); border-radius: var(--radius-sm); }
+  .claim-inline-options .claim-portion-choices b { font-size: var(--text-sm); }
+  .claim-inline-options .claim-portion-choices small { display: none; }
+  .claim-inline-options .claim-portion-custom small { display: block; font-size: 10px; }
+  .claim-inline-options .claim-portion-tag { transform: none; border: 0; box-shadow: none; text-transform: none; letter-spacing: normal; position: static; font-size: 10px; padding: 0; background: transparent; color: inherit; }
+  .claim-table-help { color: var(--ink-muted); font-size: var(--text-xs); }
+  .claim-detail { position: sticky; top: calc(var(--top-bar-height) + var(--space-4)); height: calc(100dvh - var(--top-bar-height) - 120px); box-sizing: border-box; overflow: auto; scrollbar-width: thin; min-width: 0; padding: var(--space-5); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
+  .claim-detail .dialog-heading { display: flex; justify-content: space-between; }
+  .claim-detail .dialog-heading h2 { margin: var(--space-2) 0 0; }
+  .claim-detail .dialog-heading-actions { display: flex; align-items: center; gap: var(--space-3); }
+  .claim-detail .receipt-photo { position: static; }
+}
