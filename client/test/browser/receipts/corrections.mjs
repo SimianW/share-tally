@@ -67,7 +67,7 @@ async function correctionRaces(env) {
   await expect(alice.getByRole("button", { name: "Keep current items", exact: true })).toHaveCount(0);
   assert.deepEqual(racePatches, [raceApples.id]);
   await expect(alice.getByRole("button", { name: "View Milk · $4.00", exact: true })).toBeVisible();
-  const raceRow = (name) => alice.locator(".claim-list .receipt-compact-row").filter({ has: alice.getByRole("button", { name: new RegExp(`^View ${name} ·`) }) });
+  const raceRow = (name) => alice.getByRole("row", { name, exact: true });
   await expect(raceRow("Milk")).toContainText("Price $3.00 → $4.00");
   await expect(raceRow("Apples")).not.toContainText("Price");
   await expect(alice.getByRole("button", { name: "Confirm my item claims" })).toBeDisabled();
@@ -81,10 +81,10 @@ async function correctionRaces(env) {
   await expect(raceRow("Milk")).toContainText("Price $3.00 → $4.00");
   await expect(alice.getByRole("button", { name: "Confirm my item claims" })).toBeDisabled();
   // A successful claim does not mark an unselected item's concurrent change as reviewed.
-  await raceRow("Milk").getByRole("button").click();
+  await raceRow("Milk").getByRole("button", { name: /^View Milk/ }).click();
   await claimSheet(alice, "Milk").getByRole("button", { name: "I've seen the new price", exact: true }).click();
-  // Acknowledging moves on like a pick does, to Bread.
-  await claimSheet(alice, "Bread").getByRole("button", { name: "Close claim", exact: true }).click();
+  // Desktop acknowledgment stays on Milk until the participant closes the panel.
+  await claimSheet(alice, "Milk").getByRole("button", { name: "Close claim", exact: true }).click();
   await expect(raceRow("Milk")).not.toContainText("Price");
   await alice.route(`**/api/bills/${raceBill.id}/claims`, async (route) => {
     try { await correctElsewhere(raceBread, 360); } catch (error) { raceError = error; }
@@ -101,7 +101,7 @@ async function correctionRaces(env) {
   await alice.getByRole("button", { name: "View Bread · $3.60", exact: true }).click();
   await expect(raceRow("Bread")).not.toContainText("Updated");
   await itemOption(alice, "1/4 · $0.90", "Bread").click();
-  await expect(claimSheet(alice, "Bread")).toBeHidden();
+  await expect(claimSheet(alice, "Bread")).toBeVisible();
   await expect(alice.getByRole("button", { name: "Confirm my item claims" })).toBeEnabled();
 
 }
@@ -147,7 +147,7 @@ async function priceCorrection(env) {
   for (const viewport of [{ width: 1280, height: 1000 }, { width: 390, height: 844 }]) {
     await alice.setViewportSize(viewport);
     await alice.getByRole("button", { name: /View Taxable pears · \$/ }).click();
-    const derivation = alice.getByRole("dialog", { name: "Taxable pears", exact: true });
+    const derivation = claimSheet(alice, "Taxable pears");
     await expect(derivation).toContainText("PEARS RECEIPT LINE");
     await expect(derivation).toContainText("Receipt discount share");
     await expect(derivation).toContainText("Tax share");

@@ -2,14 +2,90 @@
 import assert from 'node:assert/strict';
 import { expect } from '@playwright/test';
 import { screenshots } from '../environment.mjs';
-import { costcoFriends, weekendGroceries, shareTicket, billSummary, billPanel, billPeople } from './fixtures.mjs';
+import { aliceBill, costcoFriends, weekendGroceries, shareTicket, billSummary, billPanel, billPeople } from './fixtures.mjs';
 import { groupNet, homeRow, homeGroupNames, openGroupSwitcher, splitByAmount, splitMethod } from '../ui.mjs';
 
 export const scenarios = [
   { name: 'bill-sharing', run: billSharing },
+  { name: 'manual-share-nothing', run: manualShareNothing },
+  { name: 'manual-share-cleared', run: manualShareCleared },
   { name: 'bill-corrections', run: billCorrections },
   { name: 'bill-live-updates', run: billLiveUpdates },
 ];
+
+async function manualShareNothing(env) {
+  const { pageFor, base } = env;
+  const { group, ids } = await costcoFriends(env);
+  const bill = await aliceBill(env, group.id, 'Nothing purchased', 10000, [ids.Alice, ids.Bob]);
+  const bob = await pageFor('bob-token', { width: 1280, height: 900 });
+  await bob.goto(`${base}#/bills/${bill.id}`);
+  const input = bob.getByLabel('Your share (CAD)', { exact: true });
+  const nothing = bob.getByRole('button', { name: 'Confirm I purchased nothing', exact: true });
+  const submit = bob.getByRole('button', { name: 'Submit and confirm my share', exact: true });
+  const ownRow = billPeople(bob).getByRole('listitem').filter({ hasText: 'Bob (you)' });
+  await expect(input).toHaveValue('');
+  await expect(nothing).toBeEnabled();
+  await expect(bob.getByText('Include your tax, discounts, and rounding. Leave this empty if you purchased nothing.', { exact: true })).toBeVisible();
+  for (const amount of ['25.00', '0', '0.00']) {
+    await input.fill(amount);
+    await expect(submit).toBeEnabled();
+    await expect(nothing).toHaveCount(0);
+  }
+  for (const [amount, message] of [
+    ['oops', 'Enter an amount with at most two decimal places.'],
+    ['101.00', 'Your share cannot exceed the bill total.'],
+  ]) {
+    await input.fill(amount);
+    await expect(submit).toBeEnabled();
+    await expect(nothing).toHaveCount(0);
+    await submit.click();
+    await expect(bob.getByText(message, { exact: true })).toBeVisible();
+    await bob.reload();
+    await expect(ownRow).toContainText('Not confirmed');
+    await expect(ownRow).toContainText('—');
+    await expect(input).toHaveValue('');
+  }
+  await nothing.click();
+  await expect(bob.getByRole('heading', { name: 'Your share is confirmed.' })).toBeVisible();
+  await bob.reload();
+  await expect(ownRow.getByText('Confirmed', { exact: true })).toBeVisible();
+  await expect(ownRow).toContainText('$0.00');
+  await bob.context().close();
+}
+
+async function manualShareCleared(env) {
+  const { pageFor, base } = env;
+  const { group, ids } = await costcoFriends(env);
+  const bill = await aliceBill(env, group.id, 'Changed my share to nothing', 10000, [ids.Alice, ids.Bob, ids.Carol], [
+    ['alice-token', 4000], ['bob-token', 2000],
+  ]);
+  const alice = await pageFor('alice-token', { width: 1280, height: 900 });
+  await alice.goto(`${base}#/bills/${bill.id}`);
+  const input = alice.getByLabel('Your share (CAD)', { exact: true });
+  const nothing = alice.getByRole('button', { name: 'Confirm I purchased nothing', exact: true });
+  const people = billPeople(alice).getByRole('listitem');
+  const ownRow = people.filter({ hasText: 'Alice (you)' });
+  const bobRow = people.filter({ hasText: 'Bob' });
+  await expect(input).toHaveValue('40.00');
+  await input.fill('');
+  await expect(nothing).toBeEnabled();
+  await input.fill('   ');
+  await expect(nothing).toBeEnabled();
+  await nothing.click();
+  await expect(ownRow).toContainText('$0.00');
+  await expect(ownRow).toContainText('Confirmed, paid the bill');
+  await expect(bobRow.getByText('Confirmed', { exact: true })).toBeVisible();
+  await expect(bobRow).toContainText('$20.00');
+  await input.fill('   ');
+  await expect(nothing).toBeDisabled();
+  await alice.reload();
+  await expect(ownRow).toContainText('$0.00');
+  await expect(ownRow).toContainText('Confirmed, paid the bill');
+  await expect(bobRow.getByText('Confirmed', { exact: true })).toBeVisible();
+  await input.fill('');
+  await expect(nothing).toBeDisabled();
+  await alice.context().close();
+}
 
 // Creating a bill with a response-loss retry, live snapshots, share confirmation, the initiator adjustment and balances (#4).
 async function billSharing(env) {

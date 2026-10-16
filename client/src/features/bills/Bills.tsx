@@ -116,7 +116,7 @@ export function BillDetails({ id }: { id: string }) {
     : <ShareActions key={`share:${bill.id}:${savedVersion}`} bill={bill} api={api} saved={saved} refresh={refresh} />;
 
   return (
-    <section className={`bill-page${bill.canceledAt ? " bill-page-canceled" : ""}`}>
+    <section className={`bill-page${bill.mode === "items" ? " bill-page-items" : ""}${bill.canceledAt ? " bill-page-canceled" : ""}`}>
       <header className="bill-header">
         <a className="bill-back" href={routes.groupBills(bill.groupId)}><Icon name="left" size={16} />Group bills</a>
         <div className="bill-title-actions">

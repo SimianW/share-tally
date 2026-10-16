@@ -99,12 +99,12 @@ async function memberRenames(env) {
   await expect(explanation.getByRole('columnheader', { name: /^Bob/ })).toBeVisible();
   const aliceFruit = await newTab(env, alice, `${base}#/bills/${fruit.id}`);
   await aliceFruit.getByRole('button', { name: 'View Apples · $3.00', exact: true }).click();
-  const sheet = aliceFruit.getByRole('dialog', { name: 'Apples', exact: true });
+  const sheet = aliceFruit.getByRole('region', { name: 'Apples', exact: true });
   await expect(sheet.locator('.claim-legend')).toContainText('Bob · 1/2');
   await sheet.getByRole('button', { name: '1/4 · $0.75', exact: true }).click();
-  // Picking the only item's portion closes its sheet, leaving the pick unsubmitted.
-  await expect(sheet).toHaveCount(0);
-  const unsubmitted = aliceFruit.getByText('Your portion 1/4 · not submitted');
+  // Desktop keeps the detail panel open; the row still holds the unsubmitted pick.
+  await sheet.getByRole('button', { name: 'Close claim', exact: true }).click();
+  const unsubmitted = aliceFruit.getByRole('row', { name: 'Apples', exact: true }).getByText('not submitted', { exact: true });
   await expect(unsubmitted).toBeVisible();
   // Carol on the open bill with an unsaved share, and on Home in another tab.
   const carol = await pageFor('carol-token', { width: 390, height: 844 });
