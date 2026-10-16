@@ -128,10 +128,20 @@ export function BillDetails({ id }: { id: string }) {
               {bill.purchaseDate}, paid by {isInitiator ? "you" : memberName(initiator)}, in CAD
             </p>
           </div>
-          <Button variant="secondary" onClick={() => {
-            const slug = bill.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'bill';
-            downloadFile(JSON.stringify(toBillFile(bill), null, 2), `${slug}-${bill.purchaseDate}.sharetally.json`, 'application/json');
-          }}><Download size={17} aria-hidden="true" /> Export bill file</Button>
+          <div className="bill-header-actions" role="group" aria-label="Bill actions">
+            <Button variant="secondary" onClick={() => {
+              const slug = bill.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'bill';
+              downloadFile(JSON.stringify(toBillFile(bill), null, 2), `${slug}-${bill.purchaseDate}.sharetally.json`, 'application/json');
+            }}>
+              <Download size={17} aria-hidden="true" />
+              <span className="bill-action-full">Export bill file</span>
+              <span className="bill-action-short" aria-hidden="true">Export</span>
+            </Button>
+            {isInitiator && <InitiatorActions
+              key={`initiator:${bill.id}:${savedVersion}`}
+              bill={bill} api={api} saved={saved} refresh={refresh}
+            />}
+          </div>
         </div>
       </header>
       <div className="bill-main">
@@ -173,12 +183,7 @@ export function BillDetails({ id }: { id: string }) {
       </div>
       {/* After the main column so focus and reading order follow the page;
           on mobile only the non-interactive summary strip is moved up by CSS. */}
-      <BillPanel bill={bill} needsAmountCorrection={needsAmountCorrection} initiatorActions={isInitiator && (
-        <InitiatorActions
-          key={`initiator:${bill.id}:${savedVersion}`}
-          bill={bill} api={api} saved={saved} refresh={refresh}
-        />
-      )} />
+      <BillPanel bill={bill} needsAmountCorrection={needsAmountCorrection} />
     </section>
   );
 }

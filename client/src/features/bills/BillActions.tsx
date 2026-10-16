@@ -180,10 +180,10 @@ export function InitiatorActions({ bill, api, saved, refresh }: Props) {
   const terminal = !!(bill.canceledAt || bill.completedAt);
   if (terminal && !panel) return null;
   return (
-    <section className="bill-controls">
-      <span className="eyebrow">INITIATOR CONTROLS</span>
+    <div className="bill-initiator-actions" role="group" aria-label="Initiator controls">
       <Button variant="secondary" disabled={terminal} onClick={() => setPanel("edit")}>
-        Edit details & participants
+        <span className="bill-action-full">Edit details & participants</span>
+        <span className="bill-action-short" aria-hidden="true">Edit details</span>
       </Button>
       {!terminal && (
         <Button variant="secondary" className="bill-danger" onClick={() => setPanel("cancel")}>
@@ -208,7 +208,7 @@ export function InitiatorActions({ bill, api, saved, refresh }: Props) {
           close={() => setPanel(null)}
         />
       )}
-    </section>
+    </div>
   );
 }
 function CancelBill({

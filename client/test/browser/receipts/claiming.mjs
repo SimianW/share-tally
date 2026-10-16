@@ -587,6 +587,8 @@ async function claimReview(env) {
     await reviewer.screenshot({ path: `/tmp/share-tally-receipt-smoke/claim-review-${name}-desktop.png` });
     const subjectName = await subject?.getAttribute("aria-label");
     await reviewer.setViewportSize({ width: 390, height: 844 });
+    // Wait for the media-query subscription to replace the desktop table.
+    await expect(reviewer.getByRole("table", { name: "Items & claims" })).toHaveCount(0);
     assert.equal(await reviewer.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${name} fits a phone`);
     if (subjectName) await reviewer.getByRole("button", { name: new RegExp(`^View ${subjectName} ·`) }).evaluate((element) => element.scrollIntoView({ block: "center" }));
     await settle();

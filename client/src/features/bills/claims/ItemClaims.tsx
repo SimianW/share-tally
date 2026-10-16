@@ -191,14 +191,6 @@ export function ItemClaims({
           {busy ? "Saving…" : Object.values(selection).some((value) => value.trim())
             ? "Confirm my item claims" : "Confirm I purchased nothing"}
         </Button> : null} />
-      {!terminal && own && (
-        <p>
-          Confirm submits all your selections and calculates your share. Empty
-          selections confirm that you purchased nothing and release your
-          existing claims or reservations. Fractions use integers from 1 to
-          10,000.
-        </p>
-      )}
       {!terminal && own?.userId === bill.initiatorId && (
         <>
           <Button

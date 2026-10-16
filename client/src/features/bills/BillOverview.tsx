@@ -29,7 +29,7 @@ function shareState(bill: Bill, own: Participant | undefined, needsAmountCorrect
   const isInitiator = own?.userId === bill.initiatorId;
   const adjustment = bill.adjustmentCents ?? 0;
   const waiting = waitingFor(bill);
-  let state: { tone: Tone; stamp: string; label: string; figure: ReactNode; line: ReactNode };
+  let state: { tone: Tone; stamp: string; label: string; figure: ReactNode; line?: ReactNode };
   if (!own) {
     state = {
       tone: "quiet", stamp: "Viewing only", label: "You're not on this bill", figure: words("No share for you"),
@@ -62,7 +62,7 @@ function shareState(bill: Bill, own: Participant | undefined, needsAmountCorrect
     state = {
       tone: "act", stamp: "Needs your confirmation", label: "Your share",
       figure: amount(bill.mode === "items" ? "Nothing claimed yet" : "Not submitted yet"),
-      line: bill.mode === "items" ? "Pick the items you bought, then confirm. An empty pick confirms you bought nothing."
+      line: bill.mode === "items" ? undefined
         : own.amountCents === null ? "Enter what you owe, including tax, and confirm it." : "Check the saved amount and confirm it.",
     };
   }
@@ -103,8 +103,8 @@ export function ShareTicket({ bill, own, needsAmountCorrection, children }: {
         <p className="share-ticket-figure">{figure}</p>
         <span className="share-ticket-stamp"><Icon name={stampIcons[tone]} size={14} />{stamp}</span>
       </div>
-      <div className="share-ticket-body">
-        <p className="share-ticket-line">{line}</p>
+      {(line || ledger) && <div className="share-ticket-body">
+        {line && <p className="share-ticket-line">{line}</p>}
         {ledger && <dl className="share-ticket-ledger">
           {ledger.rows.map(([term, value]) => <div key={term}><dt>{term}</dt><dd>{value}</dd></div>)}
           <div className="share-ticket-ledger-total"><dt>Effective cost</dt><dd>{money(ledger.cost)}</dd></div>
@@ -112,7 +112,7 @@ export function ShareTicket({ bill, own, needsAmountCorrection, children }: {
         {ledger && ledger.cost < 0 && <p className="share-ticket-alert">
           Your effective cost is negative, which blocks completion. Correct item prices or the paid total.
         </p>}
-      </div>
+      </div>}
     </div>
     {children && <div className="share-card-action">{children}</div>}
   </section>;
@@ -128,11 +128,10 @@ function balanceRow(bill: Bill): [label: string, value: string, tone?: "ok" | "o
   return ["Matched", "✓", "ok"];
 }
 
-/** The whole bill: a summary, then everyone's share, the rules and initiator controls. */
-export function BillPanel({ bill, needsAmountCorrection, initiatorActions }: {
+/** The whole bill: a summary, then everyone's share and the rules. */
+export function BillPanel({ bill, needsAmountCorrection }: {
   bill: Bill;
   needsAmountCorrection: boolean;
-  initiatorActions: ReactNode;
 }) {
   const initiator = bill.participants.find(p => p.userId === bill.initiatorId)!;
   const count = bill.participants.length;
@@ -203,7 +202,6 @@ export function BillPanel({ bill, needsAmountCorrection, initiatorActions }: {
         {bill.notes && <p>{bill.notes}</p>}
         {bill.notePhotos.length > 0 && <NotePhotoGallery photos={bill.notePhotos} />}
       </div>}
-      {initiatorActions && <div className="bill-initiator">{initiatorActions}</div>}
     </section>
   </aside>;
 }

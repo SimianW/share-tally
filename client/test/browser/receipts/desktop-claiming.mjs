@@ -39,6 +39,47 @@ async function desktopClaimTable(env) {
   const open = name => row(name).getByRole('button', { name: new RegExp(`^View ${name} ·`) });
   const fits = async () => assert.equal(await alice.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'Bill fits the viewport');
   await expect(table).toBeVisible();
+  const headerActions = alice.locator('.bill-header').getByRole('group', { name: 'Bill actions', exact: true });
+  await expect(headerActions.getByRole('group', { name: 'Initiator controls', exact: true }).getByRole('button', { name: 'Edit details & participants' })).toBeVisible();
+  await expect(headerActions.getByRole('button', { name: 'Export bill file' })).toBeVisible();
+  await expect(alice.locator('.share-ticket-line')).toHaveCount(0);
+  await expect(alice.locator('.share-ticket-ledger')).toContainText('Effective cost');
+  await expect(alice.getByText('Confirm submits all your selections', { exact: false })).toHaveCount(0);
+  const even = pick('Milk', 'Even · 1/3 · $2.33');
+  const alignedChoices = async () => {
+    const metrics = await row('Milk').locator('.claim-portion-choices').evaluate(element => {
+      const tag = element.querySelector('.claim-portion-tag');
+      const style = getComputedStyle(tag);
+      return {
+        heights: [...element.children].map(button => button.getBoundingClientRect().height),
+        fractions: [...element.children].map(button => button.querySelector('b').getBoundingClientRect().y),
+        tagBottom: tag.getBoundingClientRect().bottom,
+        fractionTop: tag.nextElementSibling.getBoundingClientRect().top,
+        background: style.backgroundColor, shadow: style.boxShadow, radius: style.borderRadius,
+      };
+    });
+    assert.ok(Math.max(...metrics.heights) - Math.min(...metrics.heights) < 1, 'Portion choices have equal height');
+    assert.ok(Math.max(...metrics.fractions) - Math.min(...metrics.fractions) < 1, 'Fractions align across choices');
+    assert.ok(metrics.tagBottom <= metrics.fractionTop, 'Even label stays above the fraction');
+    assert.equal(metrics.background, 'rgba(0, 0, 0, 0)');
+    assert.equal(metrics.shadow, 'none');
+    assert.equal(metrics.radius, '0px');
+  };
+  await expect(even).toHaveAttribute('aria-pressed', 'false');
+  await alignedChoices();
+  await even.click();
+  await expect(even).toHaveAttribute('aria-pressed', 'true');
+  await alignedChoices();
+  await mkdir('/tmp/share-tally-ui-cleanups', { recursive: true });
+  await alice.evaluate(() => scrollTo(0, 0));
+  await alice.screenshot({ path: '/tmp/share-tally-ui-cleanups/bill-items-desktop-1440.png' });
+  await alice.setViewportSize({ width: 390, height: 844 });
+  await fits();
+  await expect(headerActions.getByRole('button', { name: 'Edit details & participants' })).toBeVisible();
+  await expect(headerActions.getByRole('button', { name: 'Cancel this bill', exact: true })).toBeVisible();
+  await alice.screenshot({ path: '/tmp/share-tally-ui-cleanups/bill-items-mobile-390.png' });
+  await alice.setViewportSize({ width: 1440, height: 900 });
+  await row('Milk').getByRole('button', { name: 'Remove claim for Milk', exact: true }).click();
   await expect(table.getByRole('row')).toHaveCount(45);
   await expect(row('Apples').getByText('APPLES RECEIPT LINE', { exact: true })).toBeVisible();
   await expect(table.getByRole('columnheader', { name: "Everyone's portions" })).toBeVisible();
@@ -59,7 +100,7 @@ async function desktopClaimTable(env) {
   await expect(popover.getByRole('alert')).toHaveText('Only 1/2 is available to you.');
   await popover.getByLabel('Custom fraction', { exact: true }).fill('invalid');
   await popover.getByRole('button', { name: 'Use custom fraction', exact: true }).click();
-  await expect(popover.getByRole('alert')).toContainText('Use a positive fraction up to 1');
+  await expect(popover.getByRole('alert')).toHaveText('Use a positive fraction up to 1, with numerator and denominator at most 10,000.');
   await popover.getByLabel('Custom fraction', { exact: true }).fill('2/7');
   await alice.keyboard.press('Escape');
   await pick('Apples', 'Custom').click();

@@ -16,8 +16,11 @@
 /* Header */
 .bill-header { grid-area: header; min-width: 0; }
 .bill-title-actions { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--space-4); }
-.bill-title-actions > div { min-width: 0; flex: 1 1 240px; }
-.bill-title-actions > .button { flex-shrink: 0; }
+.bill-title-actions > div:first-child { min-width: 0; flex: 1 1 240px; }
+.bill-header-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-left: auto; max-width: 100%; }
+.bill-header-actions > .button, .bill-initiator-actions > .button { min-height: 40px; padding: var(--space-2) var(--space-3); font-size: var(--text-sm); white-space: nowrap; }
+.bill-initiator-actions { display: contents; }
+.bill-action-short { display: none; }
 .bill-back {
   display: inline-flex; align-items: center; gap: 4px; margin-left: -4px;
   color: var(--ink-secondary); font-size: 13px; font-weight: 600; text-decoration: none;
@@ -106,14 +109,28 @@
 .share-card-warn .share-ticket-stamp { border-color: transparent; background: var(--status-warning-bg); color: var(--status-warning); }
 .share-card-void .share-ticket-stamp, .share-card-quiet .share-ticket-stamp { border-color: var(--line); color: var(--ink-secondary); }
 .share-ticket-body { display: grid; align-content: center; gap: 16px; padding: 24px 28px 26px; min-width: 0; }
+.share-ticket:not(:has(.share-ticket-body)) { grid-template-columns: minmax(0, 1fr); }
+.share-ticket:not(:has(.share-ticket-body)) .share-ticket-stub { border-right: 0; border-bottom: 0; }
+.share-ticket:not(:has(.share-ticket-body)) .share-ticket-stub::before,
+.share-ticket:not(:has(.share-ticket-body)) .share-ticket-stub::after { display: none; }
 .share-ticket-line { margin: 0; max-width: 58ch; font-size: 15px; line-height: 1.5; }
-.share-ticket-ledger { display: grid; margin: 0; font-size: 14px; }
-.share-ticket-ledger > div { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
-.share-ticket-ledger dt { color: var(--ink-secondary); }
-.share-ticket-ledger dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
-.share-ticket-ledger > .share-ticket-ledger-total { border-top-color: var(--line-strong); }
+/* The ledger reads across as a sum in equal, centred columns: a light rule
+   between the parts, a stronger one before the effective cost they add up to,
+   which carries the only heavy figure. Labels and amounts each share a row. */
+.share-ticket-ledger {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); grid-template-rows: auto auto;
+  row-gap: var(--space-2); margin: 0;
+}
+.share-ticket-ledger > div {
+  display: grid; grid-template-rows: subgrid; grid-row: span 2; align-items: end; justify-items: center;
+  min-width: 0; padding: var(--space-1) var(--space-3); text-align: center;
+}
+.share-ticket-ledger > div + div { border-left: 1px solid var(--line); }
+.share-ticket-ledger > .share-ticket-ledger-total { border-left-color: var(--line-strong); }
+.share-ticket-ledger dt { color: var(--ink-secondary); font-size: var(--text-sm); line-height: 1.35; text-wrap: balance; }
+.share-ticket-ledger dd { align-self: last baseline; margin: 0; font: 600 var(--text-lg)/1.15 var(--font-heading); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .share-ticket-ledger-total dt { color: var(--ink); font-weight: 700; }
-.share-ticket-ledger-total dd { font-weight: 800; }
+.share-ticket-ledger-total dd { font-size: var(--text-xl); font-weight: 900; }
 .share-ticket-alert { margin: 0; color: var(--status-warning); font-size: 14px; font-weight: 600; }
 
 /* The share form continues inside the card, below the ticket. */
@@ -137,6 +154,7 @@
 }
 .share-card-action .share-form > p { margin: 8px 0 16px; max-width: 60ch; }
 .bill-claims .item-claims { margin-top: 0; }
+.bill-claims .item-claims > .button { margin-top: var(--space-4); }
 .bill-claims .item-claims > h2 { margin-top: 4px; font: 800 20px var(--font-heading); }
 
 /* Bill panel: stays in view below the top bar, scrolling itself if too tall. */
@@ -217,14 +235,17 @@
 .bill-notes h3 { margin: 0 0 4px; font: 700 13px var(--font-body); color: var(--ink-secondary); }
 .bill-notes p { margin: 0; font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .bill-notes .note-photo-list { margin-top: 10px; grid-template-columns: repeat(3, minmax(0, 96px)); }
-.bill-initiator { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line-strong); }
-.bill-initiator:empty { display: none; }
-.bill-initiator .bill-controls { gap: 8px; padding-top: 0; align-items: stretch; }
-.bill-initiator .bill-controls .eyebrow { margin: 0; }
-.bill-initiator .bill-controls > .button { justify-content: center; }
 
 /* Mobile: a summary strip first, then my share, then people and details. */
 @media (max-width: 900px) {
+  .bill-header-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-1) var(--space-2); width: 100%; margin-left: 0; }
+  .bill-header-actions > .button, .bill-initiator-actions > .button { min-width: 0; min-height: 48px; justify-content: center; }
+  /* Shorter visible labels keep each action on one line; the full label stays the accessible name. */
+  .bill-action-full { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .bill-action-short { display: inline; }
+  .bill-header-actions > .button:only-child { grid-column: 1 / -1; justify-self: start; }
+  .bill-header-actions .button.bill-danger { grid-column: 1 / -1; min-height: 44px; border-color: transparent; background: transparent; }
+  .bill-header-actions .button.bill-danger:hover:not(:disabled) { border-color: transparent; background: var(--status-danger-bg); text-decoration: underline; text-underline-offset: 3px; }
   .bill-page { display: flex; flex-direction: column; align-items: stretch; gap: 18px; }
   .bill-panel { display: contents; }
   .bill-summary {
@@ -258,8 +279,26 @@
   .share-ticket-stub::before { left: -11px; }
   .share-ticket-stub::after { right: -11px; }
   .share-ticket-body { padding: 18px 20px 20px; }
+  /* Too narrow for columns, the ledger stacks into rows. */
+  .share-ticket-ledger { grid-auto-flow: row; grid-auto-columns: auto; grid-template-rows: none; row-gap: 0; }
+  .share-ticket-ledger > div { display: flex; grid-row: auto; align-items: baseline; justify-content: space-between; gap: 12px; padding: 10px 0; text-align: left; }
+  .share-ticket-ledger > div + div { border-left: 0; border-top: 1px solid var(--line); }
+  .share-ticket-ledger > .share-ticket-ledger-total { border-top-color: var(--line-strong); }
+  .share-ticket-ledger dd { font: 600 14px var(--font-body); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .share-ticket-ledger-total dd { font: 800 var(--text-lg) var(--font-body); }
   .share-card-action .share-form { padding: 18px 20px 20px; }
   .share-card-action .share-form label { max-width: none; }
+}
+
+/* An amount bill without a share form (complete, canceled or view-only) has
+   only its ticket in the main column, far shorter than the panel. The ticket
+   then spans the page, with the bill panel as a two-part strip below it. */
+@media (min-width: 901px) {
+  .bill-page:has(.share-card-action:empty) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "header" "main" "panel"; gap: var(--space-6); }
+  .bill-page:has(.share-card-action:empty) .bill-panel { position: static; max-height: none; overflow: visible; }
+  /* The ticket's perforation and the panel's divider share one vertical axis. */
+  .bill-page:has(.share-card-action:empty) :is(.bill-panel, .share-ticket:has(.share-ticket-body)) { grid-template-columns: minmax(300px, 30%) minmax(0, 1fr); }
+  .bill-page:has(.share-card-action:empty) .bill-details { border-top: 0; border-left: 1px solid var(--line); padding-top: 20px; }
 }
 
 /* Forms shared by the share editor, bill editing, new bills and repayments. */
@@ -327,16 +366,6 @@
   flex-wrap: wrap;
 }
 .bill-form select { width: 100%; padding: .75rem; border: 1px solid var(--line); border-radius: .5rem; font: inherit; background: var(--surface); color: inherit; }
-.bill-controls {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 14px;
-  padding-top: 30px;
-}
-.bill-controls .dialog-actions {
-  flex-wrap: wrap;
-}
 .button.secondary.bill-danger {
   color: var(--status-danger);
 }
@@ -367,18 +396,12 @@
   .bill-page-items .bill-main { gap: var(--space-4); }
   .bill-page-items .share-ticket-figure { font-size: var(--text-xl); }
 
-  .bill-page-items .bill-initiator { margin-top: var(--space-3); padding-top: var(--space-3); }
-  .bill-page-items .bill-controls { display: flex; flex-direction: row; justify-content: flex-start; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
-  .bill-page-items .bill-controls > .eyebrow { flex-basis: auto; align-self: center; }
-  .bill-page-items .bill-controls .button { width: auto; min-height: 32px; padding: var(--space-2) var(--space-3); }
-  .bill-page-items .share-ticket { grid-template-columns: minmax(220px, 30%) minmax(0, 1fr); }
-  .bill-page-items .share-ticket-stub, .bill-page-items .share-ticket-body { gap: var(--space-2); padding: var(--space-3) var(--space-5); }
+  .bill-page-items .share-ticket:has(.share-ticket-body) { grid-template-columns: minmax(220px, 30%) minmax(0, 1fr); }
+  .bill-page-items .share-ticket-stub, .bill-page-items .share-ticket-body { align-content: center; gap: var(--space-2); padding: var(--space-4) var(--space-5); }
   .bill-page-items .share-ticket-stamp { margin-top: 0; }
   .bill-page-items .share-ticket-words { font-size: var(--text-xl); }
-  .bill-page-items .share-ticket-ledger { display: flex; flex-wrap: wrap; gap: var(--space-3); }
-  .bill-page-items .share-ticket-ledger > div { gap: var(--space-2); padding: var(--space-2) 0 0; }
+  .bill-page-items .share-ticket-ledger-total dd { font-size: 28px; }
   .claim-inline-options .claim-portion-choices button { width: 100%; align-content: center; }
-  .claim-inline-options .claim-portion-tagged > b { display: block; font-size: var(--text-xs); }
   .claim-inline-options .claim-portion-custom b { display: block; }
   .claim-detail .receipt-sheet-content { animation: none; }
 
@@ -413,10 +436,11 @@
   .claim-table-remove { padding: var(--space-1) 0 0; border: 0; background: transparent; color: var(--accent-ink); font: inherit; font-size: var(--text-xs); text-decoration: underline; }
   .claim-inline-options .claim-portion-choices { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; margin: 0; }
   .claim-inline-options .claim-portion-choices button { min-width: 0; min-height: 44px; padding: var(--space-1); border-radius: var(--radius-sm); }
+  .claim-inline-options .claim-portion-choices:has(.claim-portion-tag) button { grid-template-rows: 12px auto; }
+  .claim-inline-options .claim-portion-choices .claim-portion-custom small { grid-row: 1; }
   .claim-inline-options .claim-portion-choices b { font-size: var(--text-sm); }
   .claim-inline-options .claim-portion-choices small { display: none; }
   .claim-inline-options .claim-portion-custom small { display: block; font-size: 10px; }
-  .claim-inline-options .claim-portion-tag { transform: none; border: 0; box-shadow: none; text-transform: none; letter-spacing: normal; position: static; font-size: 10px; padding: 0; background: transparent; color: inherit; }
   .claim-table-help { color: var(--ink-muted); font-size: var(--text-xs); }
   .claim-detail { position: sticky; top: calc(var(--top-bar-height) + var(--space-4)); height: calc(100dvh - var(--top-bar-height) - 120px); box-sizing: border-box; overflow: auto; scrollbar-width: thin; min-width: 0; padding: var(--space-5); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
   .claim-detail .dialog-heading { display: flex; justify-content: space-between; }

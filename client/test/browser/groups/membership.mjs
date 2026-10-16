@@ -339,9 +339,9 @@ async function groupOwnershipSuccession(env) {
   await expect(billPeople(carol).getByRole('listitem').filter({ hasText: 'Bob' })).not.toContainText('paid the bill');
   await bobMembers.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await bob.goto(`${env.base}#/bills/${bobBill.id}`);
-  await expect(bob.getByText('INITIATOR CONTROLS', { exact: true })).toBeVisible();
+  await expect(bob.getByRole('group', { name: 'Initiator controls', exact: true }).getByRole('button', { name: 'Edit details & participants' })).toBeVisible();
   await bob.goto(`${env.base}#/bills/${historical.id}`);
-  await expect(bob.getByText('INITIATOR CONTROLS', { exact: true })).toHaveCount(0);
+  await expect(bob.getByRole('group', { name: 'Initiator controls', exact: true })).toHaveCount(0);
   // The original creator returns as an ordinary member, without reclaiming ownership.
   await bob.goto(groupUrl);
   await bob.getByRole('button', { name: 'Get invitation link', exact: true }).click();

@@ -311,10 +311,11 @@
   .claim-portion-choices .claim-portion-custom:hover:not(:disabled):not([aria-pressed="true"]) { background: color-mix(in srgb, var(--action) 16%, transparent); }
 }
 .claim-portion-choices .claim-portion-custom[aria-pressed="true"] { border-color: var(--action-edge); }
-/* Even · 1/N carries a small tab on its top edge, so every choice keeps the same height. */
-.claim-portion-choices .claim-portion-tagged { position: relative; }
-.claim-portion-tag { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); padding: 1px 6px; border-radius: 999px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-strong); color: var(--ink-secondary); font: 800 9px / 1.3 var(--font-heading); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; pointer-events: none; }
-.claim-portion-choices button[aria-pressed="true"] .claim-portion-tag { background: var(--action); color: var(--ink-on-action); box-shadow: inset 0 0 0 1px var(--action-edge); }
+/* Reserve a label row for every choice so fractions stay aligned with Even. */
+.claim-portion-choices:has(.claim-portion-tag) button { grid-template-rows: 12px auto 14px; align-content: center; }
+.claim-portion-choices:has(.claim-portion-tag) b { grid-row: 2; }
+.claim-portion-choices:has(.claim-portion-tag) small { grid-row: 3; }
+.claim-portion-tag { grid-row: 1; color: inherit; font: 800 9px / 1.3 var(--font-heading); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; pointer-events: none; }
 .claim-fraction { display: inline-flex; align-items: center; gap: 1px; line-height: 1; font-variant-numeric: lining-nums; }
 .claim-fraction sup, .claim-fraction sub { font-size: .72em; vertical-align: 0; }
 .claim-fraction sup { transform: translateY(-.28em); }
