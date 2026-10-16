@@ -193,7 +193,7 @@ export function PortionChoices({ label, totalCents, choices, pressed, custom, cu
       style={inline ? { gridTemplateColumns: `repeat(${choices.length + 1}, minmax(0, 1fr))` } : undefined}>
       {choices.map((choice) => {
         const amount = price(choice.fraction);
-        return <button type="button" key={choice.key} className={choice.tag ? "claim-portion-tagged" : undefined}
+        return <button type="button" key={choice.key}
           aria-label={amount ? `${choice.name} · ${amount}` : choice.name}
           aria-pressed={!customOpen && pressed === choice.key}
           title={inline && cap && !lessOrEqual(choice.fraction, cap) ? `Only ${shortText(cap)} left` : undefined}

@@ -170,7 +170,7 @@ async function billSharing(env) {
   await expect(shareTicket(alice)).toContainText("You're done for now. Waiting on Bob.");
   await expect(billPanel(alice)).toContainText('Waiting for Bob to confirm.');
   await expect(billPanel(alice)).toContainText('Up to 5¢ of difference goes to the initiator');
-  await expect(billPanel(alice).getByRole('button', { name: 'Cancel this bill', exact: true })).toBeVisible();
+  await expect(alice.locator('.bill-header').getByRole('button', { name: 'Cancel this bill', exact: true })).toBeVisible();
   const billUrl = alice.url();
   await bob.goto(base);
   const bobAttention = bob.getByRole('region', { name: 'Needs your attention' });
@@ -316,11 +316,14 @@ async function billCorrections(env) {
 
   }
   await incompleteBill('Correctable groceries');
-  // Focus reaches the initiator's own share form before the panel's bill controls.
-  const editBill = alice.getByRole('button', { name: 'Edit details & participants' });
+  // Initiator controls join export in the header, before the share form.
+  const headerActions = alice.locator('.bill-header').getByRole('group', { name: 'Bill actions', exact: true });
+  const editBill = headerActions.getByRole('group', { name: 'Initiator controls', exact: true }).getByRole('button', { name: 'Edit details & participants' });
+  await expect(editBill).toBeVisible();
+  await expect(headerActions.getByRole('button', { name: 'Export bill file' })).toBeVisible();
   assert.equal(await editBill.evaluate(edit =>
-    Boolean(document.getElementById('my-share-amount').compareDocumentPosition(edit) & Node.DOCUMENT_POSITION_FOLLOWING),
-  ), true, 'The share form precedes the initiator controls in DOM order');
+    Boolean(edit.compareDocumentPosition(document.getElementById('my-share-amount')) & Node.DOCUMENT_POSITION_FOLLOWING),
+  ), true, 'Header controls precede the share form in DOM order');
   // At 390px the bill summary strip comes before the Your share card, without overflow.
   const summaryBox = await billSummary(bobAgain).boundingBox();
   const ticketBox = await shareTicket(bobAgain).boundingBox();
