@@ -1,8 +1,9 @@
+import { readGroupPeopleInSnapshot, splitGroupPeople, usernameTag } from '../identity/group-names.js';
 import { and, desc, eq, exists, inArray, isNull, or } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { bills, billShares, groupMembers, groups, users } from "../db/schema.js";
 import { requireMember as member } from '../groups/group-access.js';
-import { readLedgerPeopleInSnapshot, readMemberBalancesInSnapshot } from "../ledger/accounting.js";
+import { readMemberBalancesInSnapshot } from "../ledger/accounting.js";
 import { balanceTotals, groupLedger, memberBalances } from "../ledger/group-ledger.js";
 import { selectFrozenTaxRate } from '../receipts/pricing/frozen-receipt-pricing.js';
 import { readRepayments } from '../repayments/repayments.js';
@@ -38,7 +39,8 @@ async function readBillsInSnapshot(tx: Tx, userId: string, groupId?: string, id?
     )
     .orderBy(desc(bills.createdAt), bills.id);
   if (id && !rows.length) throw new BillError(404, "Bill not found.");
-  if (!rows.length) return [];
+  const people = await readGroupPeopleInSnapshot(tx, groupId ? [groupId] : [...new Set(rows.map(row => row.bill.groupId))], 'history');
+  if (!rows.length) return { bills: [], people };
   const shares = await tx
     .select({
       userId: billShares.userId,
@@ -59,12 +61,13 @@ async function readBillsInSnapshot(tx: Tx, userId: string, groupId?: string, id?
   const details = await readItemDetailsInSnapshot(tx,
     rows.filter(({ bill }) => bill.mode === 'items').map(({ bill }) => bill.id));
   const photos = await billNotePhotos(tx, rows.map(({ bill }) => bill.id));
-  return rows.map(({ bill }) => {
+  const namedBills = rows.map(({ bill }) => {
     const participants = shares
       .filter((s) => s.billId === bill.id)
       .map((s) => ({
         ...s,
         displayName: s.displayName ?? "Member",
+        ...usernameTag(people.get(bill.groupId)?.find(person => person.userId === s.userId)),
         isCurrentUser: s.userId === userId,
       }));
     const submittedCents = safeCents(
@@ -90,15 +93,17 @@ async function readBillsInSnapshot(tx: Tx, userId: string, groupId?: string, id?
         .length,
     };
   });
+  return { bills: namedBills, people };
 }
 export async function readBills(userId: string, groupId?: string, id?: string) {
-  return db.transaction(tx => readBillsInSnapshot(tx, userId, groupId, id),
+  return db.transaction(async tx => (await readBillsInSnapshot(tx, userId, groupId, id)).bills,
     { isolationLevel: "repeatable read", accessMode: "read only" });
 }
 export async function readGroupBills(userId: string, groupId: string) {
   return db.transaction(async tx => {
-    const rows = await readBillsInSnapshot(tx, userId, groupId);
-    const { members, formerMembers } = await readLedgerPeopleInSnapshot(tx, groupId);
+    const { bills: rows, people } = await readBillsInSnapshot(tx, userId, groupId);
+    // Reuse the same names for bill participants and the ledger in this snapshot.
+    const { members, formerMembers } = splitGroupPeople(people.get(groupId)!);
     const repayments = await readRepayments(tx, userId, groupId);
     return { bills: rows, repayments, summary: balanceTotals(memberBalances(rows, userId, repayments)), ledger: groupLedger(rows, members, repayments, formerMembers) };
   }, { isolationLevel: "repeatable read", accessMode: "read only" });

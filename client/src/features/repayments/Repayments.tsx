@@ -17,15 +17,15 @@ import { repaymentDisplayName } from './repayment-names';
 
 const statusLabel = { pending: 'Pending', confirmed: 'Confirmed', rejected: 'Rejected' };
 
-export function Repayments({ group, records, formerMembers, api, refresh, selectedId }: {
+export function Repayments({ group, records, ledger, api, refresh, selectedId }: {
   selectedId?: string; group: GroupDetail; records: Repayment[];
-  formerMembers: GroupLedger['formerMembers']; api: BillApi; refresh: () => void;
+  ledger: Pick<GroupLedger, 'members' | 'formerMembers'>; api: BillApi; refresh: () => void;
 }) {
   const [creating, setCreating] = useState(false);
   const [selected, setSelected] = useState<Repayment | null>(() => records.find(record => record.id === selectedId && record.recipientId === group.members.find(member => member.isCurrentUser)?.id) ?? null);
   const { pending, busy, error, setError, execute } = useOperation();
   const me = group.members.find(member => member.isCurrentUser)!;
-  const name = (id: string) => repaymentDisplayName(group, formerMembers, id);
+  const name = (id: string) => repaymentDisplayName(group, ledger, id);
   // Refreshes may reveal a decision made in another tab while this dialog is open.
   const current = selected ? records.find(record => record.id === selected.id) ?? selected : null;
   const pendingRecords = records.filter(record => record.status === 'pending');

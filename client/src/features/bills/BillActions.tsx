@@ -1,3 +1,4 @@
+import { memberName } from '../../shared/member-name';
 import { amountText } from '../../shared/money';
 import { type Bill, type BillEdit } from "@share-tally/domain/contracts/bills";
 import { useEffect, useState } from "react";
@@ -49,7 +50,7 @@ function DraftNotice({ bill, review }: { bill: Bill; review: ReturnType<typeof u
   return <Notification tone="warning" title="Review the latest bill">
     <p>{review.notice}</p>
     {!review.terminal && <>
-      <p>Latest: {bill.title} · {bill.purchaseDate} · CAD {amountText(bill.totalCents)} · {bill.participants.map(p => p.displayName).join(', ')}</p>
+      <p>Latest: {bill.title} · {bill.purchaseDate} · CAD {amountText(bill.totalCents)} · {bill.participants.map(p => memberName(p)).join(', ')}</p>
       {bill.notes && <p>{bill.notes}</p>}
       <Button variant="secondary" onClick={review.review}>Review latest bill</Button>
     </>}

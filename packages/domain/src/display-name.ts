@@ -6,10 +6,8 @@ export type ProfileNameFields = {
   lastName?: string | null;
 };
 
-// The one display rule: Username, then Profile name, then Member.
+// The one display rule: Profile name, then Username, then Member. Blank fields are absent.
 export function resolveDisplayName(profile: ProfileNameFields): string {
-  const username = profile.username?.trim();
-  if (username) return username;
   const profileName = [profile.firstName, profile.lastName].map(part => part?.trim()).filter(Boolean).join(' ');
-  return profileName || 'Member';
+  return profileName || profile.username?.trim() || 'Member';
 }

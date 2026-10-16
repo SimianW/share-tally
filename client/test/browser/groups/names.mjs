@@ -1,6 +1,8 @@
-// Displayed names: the current Clerk Username, then Profile name, then Member,
+// Displayed names: the current Clerk Profile name, then Username, then Member,
 // kept live across members, tabs, groups and old records (#206).
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { serverRequire, serverRoot } from '../environment.mjs';
 import { randomUUID } from 'node:crypto';
 import { expect } from '@playwright/test';
 import { costcoFriends, aliceBill, weekendGroceries, billPeople } from './fixtures.mjs';
@@ -8,6 +10,7 @@ import { homeRow, splitByAmount } from '../ui.mjs';
 
 export const scenarios = [
   { name: 'member-renames', run: memberRenames },
+  { name: 'same-named-members', run: sameNamedMembers },
 ];
 
 // Stored records with stable identifiers, read straight from PostgreSQL.
@@ -47,6 +50,7 @@ async function editAccount(page, button, fields) {
 async function expectAccountName(page, name) {
   await page.getByRole('button', { name: 'Account menu', exact: true }).click();
   await expect(page.locator('.account-menu-identity strong')).toHaveText(name);
+  await expect(page.getByText('Your displayed name is your Profile name. Change it in Profile & security.', { exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
 }
 
@@ -118,38 +122,42 @@ async function memberRenames(env) {
   await splitByAmount(carolNewBill, '10.00');
   await expect(carolNewBill.getByRole('checkbox', { name: 'Bob', exact: true })).toBeVisible();
 
-  // Bob saves a Username, which takes precedence over his Profile name.
-  let within = await editAccount(bob, 'Update username', { Username: '111wsm' });
-  await expect(bob.getByRole('heading', { level: 1 })).toContainText('Hey 111wsm', { timeout: 1_000 });
-  await expectAccountName(bob, '111wsm');
-  await expect(alice.getByText('111wsm says they sent $2.00')).toBeVisible(within());
-  await expect(alice.getByRole('region', { name: 'Group balances and repayments' })).toContainText('111wsm', within());
-  await expect(explanation.getByRole('columnheader', { name: /^111wsm/ })).toBeVisible(within());
+  // A Username edit does not replace an existing Profile name.
+  await editAccount(bob, 'Update username', { Username: 'builder' });
+  await expect(bob.getByRole('heading', { level: 1 })).toContainText('Hey Bob');
+  await expectAccountName(bob, 'Bob');
+  // A Profile name preserves the member's chosen case, ahead of their Username.
+  let within = await editAccount(bob, 'Update profile', { 'First name': 'SimianW', 'Last name': '' });
+  await expect(bob.getByRole('heading', { level: 1 })).toContainText('Hey SimianW', { timeout: 1_000 });
+  await expectAccountName(bob, 'SimianW');
+  await expect(alice.getByText('SimianW says they sent $2.00')).toBeVisible(within());
+  await expect(alice.getByRole('region', { name: 'Group balances and repayments' })).toContainText('SimianW', within());
+  await expect(explanation.getByRole('columnheader', { name: /^SimianW/ })).toBeVisible(within());
   await expect(explanation.getByRole('columnheader', { name: /^Bob/ })).toHaveCount(0);
-  await expect(billPeople(aliceFruit)).toContainText('111wsm', within());
-  await expect(billPeople(carol)).toContainText('111wsm', within());
-  await expect(homeRow(carolHome, 'Costco friends').getByTitle('111wsm', { exact: true })).toHaveCount(1, within());
-  await expect(bobApartment.locator('#main-content').getByTitle('111wsm', { exact: true }).first()).toBeVisible(within());
-  await expect(homeRow(bob, 'Costco friends').getByTitle('111wsm', { exact: true })).toHaveCount(1, within());
-  await expect(editPicker.getByRole('checkbox', { name: '111wsm', exact: true })).toBeChecked(within());
-  await expect(carolNewBill.getByRole('checkbox', { name: '111wsm', exact: true })).toBeVisible(within());
+  await expect(billPeople(aliceFruit)).toContainText('SimianW', within());
+  await expect(billPeople(carol)).toContainText('SimianW', within());
+  await expect(homeRow(carolHome, 'Costco friends').getByTitle('SimianW', { exact: true })).toHaveCount(1, within());
+  await expect(bobApartment.locator('#main-content').getByTitle('SimianW', { exact: true }).first()).toBeVisible(within());
+  await expect(homeRow(bob, 'Costco friends').getByTitle('SimianW', { exact: true })).toHaveCount(1, within());
+  await expect(editPicker.getByRole('checkbox', { name: 'SimianW', exact: true })).toBeChecked(within());
+  await expect(carolNewBill.getByRole('checkbox', { name: 'SimianW', exact: true })).toBeVisible(within());
   await expect(carolNewBill.getByRole('group', { name: "Who's in?" })).toBeVisible();
   // Unsaved input survives the refreshed names.
   await expect(unsubmitted).toBeVisible();
   await aliceFruit.getByRole('button', { name: 'View Apples · $3.00', exact: true }).click();
-  await expect(sheet.locator('.claim-legend')).toContainText('111wsm · 1/2');
+  await expect(sheet.locator('.claim-legend')).toContainText('SimianW · 1/2');
   await expect(sheet.getByRole('button', { name: '1/4 · $0.75', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(carol.getByLabel('Your share (CAD)', { exact: true })).toHaveValue('7.77');
   // Bob's other tab reloads his account too.
-  await expectAccountName(bobApartment, '111wsm');
+  await expectAccountName(bobApartment, 'SimianW');
 
   // Old records use the current name: the repayment history and a completed bill.
   await alice.getByText('Older repayments (2)', { exact: true }).click();
   const history = alice.getByRole('region', { name: 'Repayment history' });
-  await expect(history).toContainText('111wsm → Alice');
+  await expect(history).toContainText('SimianW → Alice');
   await expect(history).not.toContainText('Bob');
   const aliceComplete = await newTab(env, alice, `${base}#/bills/${complete.id}`);
-  await expect(billPeople(aliceComplete)).toContainText('111wsm');
+  await expect(billPeople(aliceComplete)).toContainText('SimianW');
   await expect(billPeople(aliceComplete)).not.toContainText('Bob');
   await aliceComplete.close();
 
@@ -159,29 +167,31 @@ async function memberRenames(env) {
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
     document.dispatchEvent(new Event('visibilitychange'));
   });
-  await editAccount(bob, 'Update username', { Username: 'bobcat' });
-  await expect(alice.getByText('bobcat says they sent $2.00')).toBeVisible(within());
-  await expect(billPeople(carol)).toContainText('111wsm');
-  await expect(homeRow(carolHome, 'Costco friends').getByTitle('111wsm', { exact: true })).toHaveCount(1);
+  within = await editAccount(bob, 'Update profile', { 'First name': '王思民', 'Last name': '' });
+  await expect(alice.getByText('王思民 says they sent $2.00')).toBeVisible(within());
+  await expect(billPeople(carol)).toContainText('SimianW');
+  await expect(homeRow(carolHome, 'Costco friends').getByTitle('SimianW', { exact: true })).toHaveCount(1);
   await carol.context().unroute('**/api/**/events');
   for (const page of [carol, carolHome]) await page.evaluate(() => {
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
     document.dispatchEvent(new Event('visibilitychange'));
   });
-  await expect(billPeople(carol)).toContainText('bobcat');
-  await expect(homeRow(carolHome, 'Costco friends').getByTitle('bobcat', { exact: true })).toHaveCount(1);
+  await expect(billPeople(carol)).toContainText('王思民');
+  await expect(homeRow(carolHome, 'Costco friends').getByTitle('王思民', { exact: true })).toHaveCount(1);
   await expect(carol.getByLabel('Your share (CAD)', { exact: true })).toHaveValue('7.77');
 
-  // Without a Username, the Profile name shows; a Profile name edit then follows.
-  within = await editAccount(bob, 'Update username', { Username: '' });
-  await expect(bob.getByRole('heading', { level: 1 })).toContainText('Hey Bob', { timeout: 1_000 });
-  await expect(alice.getByText('Bob says they sent $2.00')).toBeVisible(within());
+  // Whitespace-only Profile fields fall back to the Username.
+  within = await editAccount(bob, 'Update profile', { 'First name': ' ', 'Last name': '  ' });
+  await expect(bob.getByRole('heading', { level: 1 })).toContainText('Hey builder', { timeout: 1_000 });
+  await expect(alice.getByText('builder says they sent $2.00')).toBeVisible(within());
   within = await editAccount(bob, 'Update profile', { 'First name': 'Robert', 'Last name': 'Builder' });
   await expect(bob.getByRole('heading', { level: 1 })).toContainText('Hey Robert Builder', { timeout: 1_000 });
   await expect(alice.getByText('Robert Builder says they sent $2.00')).toBeVisible(within());
   await expect(sheet.locator('.claim-legend')).toContainText('Robert Builder · 1/2', within());
   await expect(sheet.getByRole('button', { name: '1/4 · $0.75', exact: true })).toHaveAttribute('aria-pressed', 'true');
   // Without either field, Member shows.
+  await editAccount(bob, 'Update username', { Username: ' ' });
+  await expectAccountName(bob, 'Robert Builder');
   within = await editAccount(bob, 'Update profile', { 'First name': '', 'Last name': '' });
   await expect(bob.getByRole('heading', { level: 1 })).toContainText('Hey Member', { timeout: 1_000 });
   await expect(alice.getByText('Member says they sent $2.00')).toBeVisible(within());
@@ -201,13 +211,122 @@ async function memberRenames(env) {
   // Renaming changed presentation only.
   assert.deepEqual(await financialRecords(pool), stored);
 
-  // A member with an outdated cached name and no session is corrected by the
-  // server's own synchronization, without signing in or editing again.
+  // The release rewrites unchanged Clerk data, without this member signing in.
+  await env.waitForServer('profile-set', { setProfile: {
+    clerkUserId: 'user_test_member_1', username: 'quiet-friend', firstName: 'Quiet', lastName: 'Friend',
+  } });
   await api('/groups/join', 'member-1-token', 'POST', { token: (await api(`/groups/${group.id}/invitation`)).path.split('/').at(-1) });
-  await pool.query(`UPDATE users SET display_name = 'Old name' WHERE clerk_user_id = 'user_test_member_1'`);
+  await pool.query(`UPDATE users SET display_name = 'quiet-friend' WHERE clerk_user_id = 'user_test_member_1'`);
   await alice.reload();
-  await expect(alice.locator('#main-content').getByTitle('Old name', { exact: true }).first()).toBeVisible();
-  await env.waitForServer('profile-set', { setProfile: { clerkUserId: 'user_test_member_1', username: 'quiet-friend' } });
+  await expect(alice.locator('#main-content').getByTitle('quiet-friend', { exact: true }).first()).toBeVisible();
+  const beforeRelease = await financialRecords(pool);
+  // Recreate the pre-release schema and migration journal in this isolated DB.
+  const journal = JSON.parse(await readFile(`${serverRoot}drizzle/meta/_journal.json`, 'utf8'));
+  const rewrite = journal.entries.find(entry => entry.tag === '0020_profile_name_rule');
+  await pool.query('ALTER TABLE users DROP COLUMN IF EXISTS display_name_version, DROP COLUMN IF EXISTS username');
+  await pool.query('DELETE FROM drizzle.__drizzle_migrations WHERE created_at >= $1', [rewrite.when]);
+  const { drizzle } = serverRequire('drizzle-orm/node-postgres');
+  const { migrate } = serverRequire('drizzle-orm/node-postgres/migrator');
+  await migrate(drizzle(pool), { migrationsFolder: `${serverRoot}drizzle` });
   await env.waitForServer('profiles-synced', 'sync-profiles');
-  await expect(alice.locator('#main-content').getByTitle('quiet-friend', { exact: true }).first()).toBeVisible({ timeout: 5_000 });
+  await expect(alice.locator('#main-content').getByTitle('Quiet Friend', { exact: true }).first()).toBeVisible({ timeout: 5_000 });
+  assert.deepEqual(await financialRecords(pool), beforeRelease);
+  // The usual synchronization is quiet after the one-time rewrite.
+  await env.waitForServer('profiles-synced', 'sync-profiles');
+  await expect(alice.locator('#main-content').getByTitle('Quiet Friend', { exact: true }).first()).toBeVisible();
+}
+
+async function sameNamedMembers(env) {
+  const { api, base, pageFor } = env;
+  const { group, ids, billsUrl, groupUrl } = await costcoFriends(env);
+  for (const [id, username, firstName, lastName] of [
+    ['alice', 'alice-handle', 'Alice', ''],
+    ['bob', 'alex_friend_long_username_bob', 'Alex', 'Friend'],
+    ['carol', 'alex_friend_long_username_carol', 'Alex', 'Friend'],
+  ]) {
+    await env.waitForServer('profile-set', { setProfile: { clerkUserId: `user_test_${id}`, username, firstName, lastName } });
+    await api('/me/profile', `${id}-token`, 'POST');
+  }
+  const complete = await aliceBill(env, group.id, 'Shared lunch', 300, [ids.Alice, ids.Bob, ids.Carol],
+    [['alice-token', 100], ['bob-token', 100], ['carol-token', 100]]);
+  await api(`/groups/${group.id}/repayments`, 'bob-token', 'POST', {
+    requestId: randomUUID(), recipientId: ids.Alice, amountCents: 50,
+  });
+  const openAlice = async url => {
+    const page = await pageFor('alice-token', { width: 1280, height: 900 });
+    await page.goto(url);
+    return page;
+  };
+  const alice = await pageFor('alice-token', { width: 1280, height: 900 });
+  await alice.goto(`${base}#/new-bill/${group.id}`);
+  await splitByAmount(alice, '10.00');
+  const picker = alice.getByRole('group', { name: "Who's in?" });
+  await expect(picker.getByRole('checkbox', { name: 'Alex F. @alex_friend_long_username_bob', exact: true })).toBeVisible();
+  await expect(picker.getByRole('checkbox', { name: 'Alex F. @alex_friend_long_username_carol', exact: true })).toBeVisible();
+  await expect(picker).not.toContainText('@alice-handle');
+  await alice.setViewportSize({ width: 390, height: 844 });
+  // Long disambiguators must be readable, rather than hidden by the chip's ellipsis.
+  for (const username of ['alex_friend_long_username_bob', 'alex_friend_long_username_carol']) {
+    const label = picker.locator('.person-chip-name').filter({ hasText: `@${username}` });
+    await expect.poll(() => label.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
+  }
+  await alice.setViewportSize({ width: 1280, height: 900 });
+  const repayments = await openAlice(billsUrl);
+  const balances = repayments.getByRole('region', { name: "Everyone's balance" });
+  const suggestions = repayments.getByRole('region', { name: 'Suggested transfers' });
+  const history = repayments.getByRole('region', { name: 'Repayment history' });
+  await expect(balances).toContainText('Alex Friend @alex_friend_long_username_bob');
+  await expect(balances).toContainText('Alex Friend @alex_friend_long_username_carol');
+  await expect(balances).not.toContainText('@alice-handle');
+  await expect(suggestions).toContainText('Alex Friend @alex_friend_long_username_bob');
+  await expect(suggestions).toContainText('Alex Friend @alex_friend_long_username_carol');
+  await expect(history).toContainText('Alex Friend @alex_friend_long_username_bob → Alice');
+  const draftId = randomUUID();
+  const item = { id: randomUUID(), name: 'Apples', originalText: 'APPLES', quantity: '1', amountCents: 300, discountCents: 0, taxable: false, finalCents: 300, manualFinal: false };
+  const draft = (await api(`/groups/${group.id}/receipt-drafts/${draftId}`, 'alice-token', 'PUT', { revision: 0, data: {
+    mode: 'items', title: 'Fruit', purchaseDate: '2026-10-01', timeZone: 'America/Toronto', notes: '', totalCents: 300,
+    participantIds: [ids.Alice, ids.Bob, ids.Carol],
+    receipt: { subtotalCents: 300, discountCents: 0, taxCents: 0, extraCents: 0, pricesIncludeTax: false }, items: [item],
+  } })).draft;
+  const fruit = (await api(`/receipt-drafts/${draftId}/initialize`, 'alice-token', 'POST', { revision: draft.revision })).bill;
+  await api(`/bills/${fruit.id}/claims`, 'bob-token', 'POST', {
+    reviewedItems: fruit.items.map(({ id, version }) => ({ itemId: id, version })),
+    claims: [{ itemId: item.id, numerator: 1, denominator: 2 }],
+  });
+  const claims = await openAlice(`${base}#/bills/${fruit.id}`);
+  await claims.getByRole('button', { name: 'View Apples · $3.00', exact: true }).click();
+  const legend = claims.getByRole('region', { name: 'Apples', exact: true }).locator('.claim-legend');
+  await expect(legend).toContainText('Alex Friend @alex_friend_long_username_bob · 1/2');
+  const completedBill = await openAlice(`${base}#/bills/${complete.id}`);
+  await expect(billPeople(completedBill)).toContainText('Alex Friend @alex_friend_long_username_bob');
+  await expect(billPeople(completedBill)).toContainText('Alex Friend @alex_friend_long_username_carol');
+  await repayments.getByRole('button', { name: 'Record repayment', exact: true }).click();
+  const form = repayments.getByRole('dialog', { name: 'Record repayment', exact: true });
+  await expect(form.getByLabel('Recipient', { exact: true }).locator('option')).toHaveText(['Choose a member', 'Alex Friend @alex_friend_long_username_bob', 'Alex Friend @alex_friend_long_username_carol']);
+  await expect(form).toContainText('sent by Alice.');
+  await expect(form).not.toContainText('@alice-handle');
+  await form.getByLabel('Recipient', { exact: true }).selectOption(ids.Bob);
+  const members = await openAlice(groupUrl);
+  await expect(members.getByRole('dialog').getByText('Alex Friend @alex_friend_long_username_bob', { exact: true })).toBeVisible();
+  const bob = await pageFor('bob-token', { width: 390, height: 844 });
+  await bob.goto(base);
+  let within = await editAccount(bob, 'Update username', { Username: 'new-bob' });
+  await expect(picker.getByRole('checkbox', { name: 'Alex F. @new-bob', exact: true })).toBeVisible(within());
+  await expect(form.getByLabel('Recipient', { exact: true }).locator('option')).toHaveText(['Choose a member', 'Alex Friend @new-bob', 'Alex Friend @alex_friend_long_username_carol'], within());
+  within = await editAccount(bob, 'Update profile', { 'First name': 'Robert', 'Last name': 'Friend' });
+  await expect(picker.getByRole('checkbox', { name: 'Robert', exact: true })).toBeVisible(within());
+  await expect(picker.getByRole('checkbox', { name: 'Alex', exact: true })).toBeVisible(within());
+  await expect(picker).not.toContainText('@');
+  await expect(form.getByLabel('Recipient', { exact: true }).locator('option')).toHaveText(['Choose a member', 'Robert Friend', 'Alex Friend'], within());
+  await expect(form.getByLabel('Recipient', { exact: true })).toHaveValue(ids.Bob);
+  await expect(members.getByRole('dialog').getByText('Robert Friend', { exact: true })).toBeVisible(within());
+  await expect(members.getByRole('dialog')).not.toContainText('@');
+  await expect(balances).toContainText('Robert Friend', within());
+  await expect(balances).not.toContainText('@');
+  await expect(suggestions).not.toContainText('@');
+  await expect(history).toContainText('Robert Friend → Alice');
+  await expect(billPeople(completedBill)).toContainText('Robert Friend', within());
+  await expect(billPeople(completedBill)).not.toContainText('@');
+  await expect(legend).toContainText('Robert Friend · 1/2', within());
+  await expect(legend).not.toContainText('@');
 }

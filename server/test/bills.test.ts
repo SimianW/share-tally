@@ -4009,12 +4009,12 @@ test('renaming a member changes displayed names only, never ownership, amounts, 
   assert.equal(before.attention.actions.find((action: { kind: string }) => action.kind === 'review-repayment').senderName, 'Bob');
 
   await clerk({ setProfile: { clerkUserId: 'user_test_bob', username: 'builder', firstName: 'Bob', lastName: 'Builder' } }, 'profile-set');
-  assert.deepEqual(await json(await api('/me/profile', 'bob-token', 'POST')), { displayName: 'builder', changed: true });
+  assert.deepEqual(await json(await api('/me/profile', 'bob-token', 'POST')), { displayName: 'Bob Builder', changed: true });
 
   // Every read, including old and completed records, carries the current name and nothing else changes.
   const after = await reads();
   assert.ok(JSON.stringify(before).includes('"displayName":"Bob"'));
   assert.ok(!JSON.stringify(after).includes('"Bob"'));
-  assert.deepEqual(after, JSON.parse(JSON.stringify(before).replaceAll('"Bob"', '"builder"')));
+  assert.deepEqual(after, JSON.parse(JSON.stringify(before).replaceAll('"Bob"', '"Bob Builder"')));
   assert.deepEqual(await records(), storedBefore);
 });

@@ -1,3 +1,4 @@
+import { memberName } from "../../shared/member-name";
 import { routes } from '../../shared/browser/paths';
 import { useState, type MouseEvent } from 'react';
 import { money } from "../../shared/money";
@@ -26,7 +27,10 @@ function people(view: GroupView) {
 // that adds up to the tapped figure.
 export function BalanceSheet({ data, view, trace, close }: Props & { trace: Trace; close: () => void }) {
   const { subject: who, object: whom, verb } = wording(view);
-  const displayName = (id: string) => view.members.find(member => member.userId === id)?.displayName ?? view.name(id);
+  const displayName = (id: string) => {
+    const member = view.members.find(member => member.userId === id);
+    return member ? memberName(member) : view.name(id);
+  };
   const title = trace.kind === 'member'
     ? trace.userId === view.me.id ? 'Your balance' : `${displayName(trace.userId)}'s balance`
     : `${who(trace.suggestion.fromUserId)} ${verb(trace.suggestion.fromUserId, 'pay')} ${whom(trace.suggestion.toUserId)}`;

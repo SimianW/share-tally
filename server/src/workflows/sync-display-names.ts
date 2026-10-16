@@ -11,7 +11,7 @@ import { notifyGroupChanged, notifyMembersChanged } from '../realtime/group-even
 // in any process, cannot store a name older than the one already stored.
 export async function syncDisplayNames(profiles: ProfileReader, clerkUserIds?: string[]) {
   const names = (await profiles(clerkUserIds ?? await allClerkUserIds())).map(profile => ({
-    clerkUserId: profile.clerkUserId, displayName: resolveDisplayName(profile), updatedAt: new Date(profile.updatedAt),
+    clerkUserId: profile.clerkUserId, displayName: resolveDisplayName(profile), username: profile.username?.trim() || null, updatedAt: new Date(profile.updatedAt),
   }));
   const renamed: string[] = [];
   // One short transaction per user: an hourly pass never holds one member's row

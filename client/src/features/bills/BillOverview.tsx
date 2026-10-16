@@ -1,3 +1,4 @@
+import { memberName } from '../../shared/member-name';
 // The bill page is built around the viewer's own share (#158): a ticket that
 // says what this bill means for them, and a panel that carries the whole bill.
 import type { ReactNode } from "react";
@@ -17,7 +18,7 @@ function waitingFor(bill: Bill) {
   const waiting = bill.participants.filter(p => !p.confirmedAt);
   return new Intl.ListFormat("en", { type: "conjunction" }).format([
     ...waiting.filter(p => p.isCurrentUser).map(() => "you"),
-    ...waiting.filter(p => !p.isCurrentUser).map(p => p.displayName),
+    ...waiting.filter(p => !p.isCurrentUser).map(p => memberName(p)),
   ]);
 }
 
@@ -145,7 +146,7 @@ export function BillPanel({ bill, needsAmountCorrection, initiatorActions }: {
     ? <p className="bill-explain"><Icon name="close" size={14} />Canceled bills are excluded from balances. Shares can no longer be submitted or confirmed.</p>
     : bill.completedAt ? <>
       {adjustment !== 0 && <p className="bill-formula">
-        {initiator.displayName}: {money(initiator.amountCents ?? 0)} submitted {adjustment < 0 ? "−" : "+"} {money(Math.abs(adjustment))} adjustment
+        {memberName(initiator)}: {money(initiator.amountCents ?? 0)} submitted {adjustment < 0 ? "−" : "+"} {money(Math.abs(adjustment))} adjustment
         = <b>{money((initiator.amountCents ?? 0) + adjustment)} effective cost</b>
       </p>}
       <p className="bill-explain"><Icon name="check" size={14} />Complete and final. Details, participants and shares can no longer change.</p>
@@ -168,7 +169,7 @@ export function BillPanel({ bill, needsAmountCorrection, initiatorActions }: {
       <div className="bill-confirmed">
         <span className="bill-faces" aria-hidden="true">
           {bill.participants.map(p => <span key={p.userId} className={p.confirmedAt ? "is-confirmed" : undefined}>
-            <Avatar name={p.displayName} imageUrl={p.imageUrl} fallbackImageUrl={p.fallbackImageUrl} small />
+            <Avatar name={p.displayName} username={p.username} imageUrl={p.imageUrl} fallbackImageUrl={p.fallbackImageUrl} small />
           </span>)}
         </span>
         <span><b>{bill.confirmedCount}</b> of {count} confirmed</span>
@@ -181,9 +182,9 @@ export function BillPanel({ bill, needsAmountCorrection, initiatorActions }: {
         {bill.participants.map(p => {
           const state = bill.canceledAt ? "void" : p.confirmedAt ? "in" : "out";
           return <li key={p.userId} className="bill-person">
-            <Avatar name={p.displayName} imageUrl={p.imageUrl} fallbackImageUrl={p.fallbackImageUrl} small />
+            <Avatar name={p.displayName} username={p.username} imageUrl={p.imageUrl} fallbackImageUrl={p.fallbackImageUrl} small />
             <span className="bill-person-name">
-              <b>{p.displayName}{p.isCurrentUser && <em> (you)</em>}</b>
+              <b>{memberName(p)}{p.isCurrentUser && <em> (you)</em>}</b>
               <small>
                 <i className={`bill-dot bill-dot-${state}`} aria-hidden="true" />
                 {state === "void" ? "Canceled" : state === "in" ? "Confirmed" : "Not confirmed"}

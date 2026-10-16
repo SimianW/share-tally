@@ -1,5 +1,6 @@
-import { and, desc, eq, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
-import { bills, billShares, groupMembers, groups, repayments, users } from '../db/schema.js';
+import { readGroupPeopleInSnapshot, splitGroupPeople } from '../identity/group-names.js';
+import { and, desc, eq, inArray, isNotNull, isNull, or } from 'drizzle-orm';
+import { bills, billShares, groupMembers, groups, repayments } from '../db/schema.js';
 import type { Transaction as Tx } from '../db/types.js';
 import { memberBalances, type LedgerBill } from './group-ledger.js';
 
@@ -55,17 +56,6 @@ export async function readGroupAccountingInSnapshot(tx: Tx, groupId: string): Pr
 // repayment records who are no longer members, so the retained history can
 // still identify them. One query, ordered by user ID.
 export async function readLedgerPeopleInSnapshot(tx: Tx, groupId: string) {
-  const groupBills = eq(bills.groupId, groupId);
-  const groupRepayments = eq(repayments.groupId, groupId);
-  const current = inArray(users.id, tx.select({ id: groupMembers.userId }).from(groupMembers).where(eq(groupMembers.groupId, groupId)));
-  const rows = await tx.select({ userId: users.id, displayName: users.displayName, current: sql<boolean>`${current}` }).from(users).where(or(
-    current,
-    inArray(users.id, tx.select({ id: bills.initiatorId }).from(bills).where(groupBills)),
-    inArray(users.id, tx.select({ id: billShares.userId }).from(billShares)
-      .innerJoin(bills, eq(bills.id, billShares.billId)).where(groupBills)),
-    inArray(users.id, tx.select({ id: repayments.senderId }).from(repayments).where(groupRepayments)),
-    inArray(users.id, tx.select({ id: repayments.recipientId }).from(repayments).where(groupRepayments)),
-  )).orderBy(users.id);
-  const person = ({ userId, displayName }: typeof rows[number]) => ({ userId, displayName });
-  return { members: rows.filter(row => row.current).map(person), formerMembers: rows.filter(row => !row.current).map(person) };
+  const people = (await readGroupPeopleInSnapshot(tx, [groupId], 'history')).get(groupId)!;
+  return splitGroupPeople(people);
 }

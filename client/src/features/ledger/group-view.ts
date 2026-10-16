@@ -1,3 +1,4 @@
+import { memberName } from "../../shared/member-name.ts";
 import type { Bill } from "@share-tally/domain/contracts/bills";
 import type { GroupLedger, Summary } from "@share-tally/domain/contracts/ledger";
 import type { Repayment } from "@share-tally/domain/contracts/repayments";
@@ -14,7 +15,7 @@ export type GroupPageData = {
 type BillTodo = 'Enter your share' | 'Confirm your share' | 'Claim your items' | 'Confirm your items';
 export type OpenBill = { bill: Bill; todo: BillTodo | null; waitingFor: string[] };
 export type DashboardRow = {
-  member: Pick<GroupDetail['members'][number], 'id' | 'displayName' | 'imageUrl' | 'fallbackImageUrl'>;
+  member: Pick<GroupDetail['members'][number], 'id' | 'displayName' | 'username' | 'imageUrl' | 'fallbackImageUrl'>;
   suggestion: { direction: 'pay' | 'receive'; amountCents: number } | null;
   incoming: Repayment[];
   outgoing: Repayment[];
@@ -34,9 +35,12 @@ function todoFor(bill: Bill): BillTodo | null {
 // preserve that order. No balances, suggestions, or pending totals are calculated.
 export function groupView(data: GroupPageData) {
   const me = data.group.members.find(member => member.isCurrentUser)!;
-  const members = new Map(data.group.members.map(member => [member.id, member]));
-  const formerMembers = new Map(data.ledger.formerMembers.map(member => [member.userId, member.displayName]));
-  const name = (id: string) => id === me.id ? 'You' : members.get(id)?.displayName ?? formerMembers.get(id) ?? 'Member';
+  // Financial views name people in the history scope: a former member with the
+  // same name tags a current member here, though not in the member list.
+  const ledgerPeople = new Map([...data.ledger.members, ...data.ledger.formerMembers].map(person => [person.userId, person]));
+  const members = new Map(data.group.members.map(member => [member.id,
+    { ...member, username: ledgerPeople.get(member.id)?.username ?? member.username }]));
+  const name = (id: string) => id === me.id ? 'You' : memberName(members.get(id) ?? ledgerPeople.get(id));
   // The group snapshot is authoritative for current membership. Former members
   // remain nameable in retained entries, but never appear as balance targets.
   const currentIds = new Set(members.keys());
@@ -52,7 +56,7 @@ export function groupView(data: GroupPageData) {
       todo: todoFor(bill),
       waitingFor: bill.participants
         .filter(participant => participant.confirmedAt === null && !participant.isCurrentUser)
-        .map(participant => participant.displayName),
+        .map(participant => memberName(participant)),
     });
   }
   open.sort((a, b) => Number(a.todo === null) - Number(b.todo === null));

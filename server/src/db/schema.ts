@@ -13,6 +13,12 @@ export const users = pgTable('users', {
   // The user's displayed name, cached from verified Clerk data. Kept current
   // by workflows/sync-display-names.ts; never an identity or financial input.
   displayName: text('display_name'),
+  // Cached with the same Clerk version; deliberately not unique.
+  username: text('username'),
+
+  // Older cache rules are refreshed once without discarding clerkUpdatedAt,
+  // so even release backfills reject older Clerk reads.
+  displayNameVersion: integer('display_name_version').notNull().default(0),
 
   // Clerk's updatedAt for the account data displayName came from. A name read
   // from Clerk before this is stale and is never stored, whichever process read it.

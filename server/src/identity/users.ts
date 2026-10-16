@@ -5,6 +5,10 @@ import type { Transaction } from "../db/types.js";
 import type { ProfileReader } from "./clerk-profiles.js";
 import { resolveDisplayName } from "@share-tally/domain/display-name";
 
+// Version 2 also caches Usernames, including unchanged accounts from version 1.
+// Normal synchronization backfills them and publishes post-commit notifications.
+const DISPLAY_NAME_VERSION = 2;
+
 export async function getOrCreateUser(clerkUserId: string,): Promise<AppUser> {
   const [createdUser] = await db
     .insert(users)
@@ -36,10 +40,12 @@ export async function getGroupUser(clerkUserId: string, profiles: ProfileReader)
   const user = await getOrCreateUser(clerkUserId);
   if (user.displayName !== null) return user;
   const [profile] = await profiles([clerkUserId]);
-  // Only the first name, with the Clerk version it came from: a synchronization may
-  // have stored a newer one meanwhile, and a lagging one must not replace this one.
+  // Cache both name fields with the Clerk version they came from. The guarded
+  // update locks the row: a concurrent synchronization that won first stays saved.
   const [updated] = await db.update(users).set({
     displayName: resolveDisplayName(profile ?? {}),
+    username: profile?.username?.trim() || null,
+    displayNameVersion: DISPLAY_NAME_VERSION,
     clerkUpdatedAt: profile ? new Date(profile.updatedAt) : null,
   }).where(and(eq(users.id, user.id), isNull(users.displayName))).returning();
   if (updated) return updated;
@@ -54,16 +60,19 @@ export async function allClerkUserIds() {
 }
 
 // Stores each user's current name, unless the stored one came from Clerk data saved
-// later. Returns the IDs of users whose name changed.
-export async function saveDisplayNames(tx: Transaction, names: { clerkUserId: string; displayName: string; updatedAt: Date }[]) {
+// later. Equal Clerk versions are rewritten once when the display rule changes.
+// Username-only changes also invalidate views: their disambiguation tag changed.
+export async function saveDisplayNames(tx: Transaction, names: { clerkUserId: string; displayName: string; username: string | null; updatedAt: Date }[]) {
   const renamed: string[] = [];
-  for (const { clerkUserId, displayName, updatedAt } of names) {
+  for (const { clerkUserId, displayName, username, updatedAt } of names) {
     // Lock the row so a concurrent save cannot slip in between this check and the write.
-    const [stored] = await tx.select({ id: users.id, displayName: users.displayName, clerkUpdatedAt: users.clerkUpdatedAt })
+    const [stored] = await tx.select({ id: users.id, displayName: users.displayName, username: users.username, clerkUpdatedAt: users.clerkUpdatedAt, displayNameVersion: users.displayNameVersion })
       .from(users).where(eq(users.clerkUserId, clerkUserId)).for('update');
-    if (!stored || (stored.clerkUpdatedAt && stored.clerkUpdatedAt >= updatedAt)) continue;
-    await tx.update(users).set({ displayName, clerkUpdatedAt: updatedAt }).where(eq(users.id, stored.id));
-    if (stored.displayName !== displayName) renamed.push(stored.id);
+    if (!stored) continue;
+    if (stored.clerkUpdatedAt && (stored.clerkUpdatedAt > updatedAt ||
+      (stored.clerkUpdatedAt.getTime() === updatedAt.getTime() && stored.displayNameVersion >= DISPLAY_NAME_VERSION))) continue;
+    await tx.update(users).set({ displayName, username, clerkUpdatedAt: updatedAt, displayNameVersion: DISPLAY_NAME_VERSION }).where(eq(users.id, stored.id));
+    if (stored.displayName !== displayName || stored.username !== username) renamed.push(stored.id);
   }
   return renamed;
 }

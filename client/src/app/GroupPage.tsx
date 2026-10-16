@@ -1,3 +1,4 @@
+import { memberName } from '../shared/member-name';
 import { routes } from '../shared/browser/paths';
 import { useId, useState, type ReactNode } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
@@ -32,7 +33,7 @@ export function GroupPage({ data, title, drafts, api, refresh, openMembers, sele
       <div className="group-page-title">{title}
         <p className="group-member-count">
           <span className="group-member-faces" aria-hidden="true">
-            {data.group.members.slice(0, 5).map(member => <Avatar key={member.id} name={member.displayName} imageUrl={member.imageUrl} fallbackImageUrl={member.fallbackImageUrl} small />)}
+            {data.group.members.slice(0, 5).map(member => <Avatar key={member.id} name={member.displayName} username={member.username} imageUrl={member.imageUrl} fallbackImageUrl={member.fallbackImageUrl} small />)}
             {data.group.memberCount > 5 && <span className="group-member-more">+{data.group.memberCount - 5}</span>}
           </span>
           {data.group.memberCount} {data.group.memberCount === 1 ? 'member' : 'members'}
@@ -71,7 +72,7 @@ export function GroupPage({ data, title, drafts, api, refresh, openMembers, sele
     <section className="group-card group-audit" aria-label="Group balances and repayments">
       <h2>Group balances &amp; repayments</h2>
       <GroupBalances data={data} view={view} />
-      <Repayments key={`${data.group.id}:${selectedRepaymentId ?? ''}`} selectedId={selectedRepaymentId} group={data.group} records={view.repayments} formerMembers={data.ledger.formerMembers} api={api} refresh={refresh} />
+      <Repayments key={`${data.group.id}:${selectedRepaymentId ?? ''}`} selectedId={selectedRepaymentId} group={data.group} records={view.repayments} ledger={data.ledger} api={api} refresh={refresh} />
     </section>
     {prefill && <RecordRepayment group={data.group} api={api} initial={prefill} close={() => setPrefill(null)} saved={() => { setPrefill(null); refresh(); }} />}
   </section>;
@@ -84,26 +85,26 @@ function DashboardPerson({ row, record, review }: {
 }) {
   const { member, suggestion, incoming, outgoing } = row;
   return <li>
-    <Avatar name={member.displayName} imageUrl={member.imageUrl} fallbackImageUrl={member.fallbackImageUrl} small />
+    <Avatar name={member.displayName} username={member.username} imageUrl={member.imageUrl} fallbackImageUrl={member.fallbackImageUrl} small />
     <div className="group-dashboard-person">
       {incoming.map(pending => <div className="group-transfer-line" key={pending.id}>
-        <span><b>{member.displayName}</b> says they sent {money(pending.amountCents)}
+        <span><b>{memberName(member)}</b> says they sent {money(pending.amountCents)}
           {incoming.length > 1 && <small>Recorded {new Date(pending.createdAt).toLocaleString()}</small>}
         </span>
         <strong className="group-tone-pending">{money(pending.amountCents)}</strong>
         <Button className="small" onClick={() => review(pending.id)}>Review</Button>
       </div>)}
       {suggestion && (incoming.length && suggestion.direction === 'receive'
-        ? <p className="group-transfer-note">Suggested: {member.displayName} pays you {money(suggestion.amountCents)}</p>
+        ? <p className="group-transfer-note">Suggested: {memberName(member)} pays you {money(suggestion.amountCents)}</p>
         : <div className="group-transfer-line">
-          <span>{suggestion.direction === 'pay' ? <>You pay <b>{member.displayName}</b></> : <><b>{member.displayName}</b> pays you</>}
+          <span>{suggestion.direction === 'pay' ? <>You pay <b>{memberName(member)}</b></> : <><b>{memberName(member)}</b> pays you</>}
             <small>Suggested transfer</small>
           </span>
           <strong className={`group-tone-${suggestion.direction === 'pay' ? 'owe' : 'owed'}`}>{money(suggestion.amountCents)}</strong>
           {suggestion.direction === 'pay' && !outgoing.length && <Button className="small" variant="secondary" onClick={() => record({ recipientId: member.id, amountCents: suggestion.amountCents })}>I sent this</Button>}
         </div>)}
       {outgoing.map(pending => <p className="group-transfer-note" key={pending.id}>
-        You recorded {money(pending.amountCents)} · waiting for {member.displayName} to confirm
+        You recorded {money(pending.amountCents)} · waiting for {memberName(member)} to confirm
         {outgoing.length > 1 && <small>Recorded {new Date(pending.createdAt).toLocaleString()}</small>}
       </p>)}
     </div>

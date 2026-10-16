@@ -1,3 +1,4 @@
+import { memberName } from '../../shared/member-name';
 import { routes } from '../../shared/browser/paths';
 import { useId, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { AnimatedMoney } from '../../shared/ui/AnimatedMoney';
@@ -63,7 +64,10 @@ export function GroupBalances({ data, view }: { data: GroupPageData; view: Group
   const toggle = () => { setExpanded(value => !value); setPinned(null); };
   const { subject: who, object: whom, verb } = wording(view);
   // Accessible names use display names, as balance figures do: "Bob pays Carol, $12.00".
-  const displayName = (id: string) => view.members.find(member => member.userId === id)?.displayName ?? view.name(id);
+  const displayName = (id: string) => {
+    const member = view.members.find(member => member.userId === id);
+    return member ? memberName(member) : view.name(id);
+  };
   // Figures stay as they are; on desktop they become buttons that trace them.
   const traceButton = (subject: Subject, label: string, figure: ReactNode) => <button type="button"
     className="group-ledger-figure" aria-label={label}
@@ -90,8 +94,8 @@ export function GroupBalances({ data, view }: { data: GroupPageData; view: Group
             const figure = <strong className={tone(member.netCents)}>
               {member.netCents > 0 ? '+' : member.netCents < 0 ? '−' : ''}<AnimatedMoney cents={member.netCents} />
             </strong>;
-            const label = `${member.displayName}'s balance, ${signed(member.netCents)}`;
-            const name = <span>{member.displayName}{member.userId === view.me.id && ' (you)'}</span>;
+            const label = `${memberName(member)}'s balance, ${signed(member.netCents)}`;
+            const name = <span>{memberName(member)}{member.userId === view.me.id && ' (you)'}</span>;
             return <li key={member.userId} className={same(active, subject) ? 'group-ledger-traced' : undefined}>
               {narrow ? sheetButton(subject, label, <>{name}{figure}</>) : <>{name}{traceButton(subject, label, figure)}</>}
             </li>;

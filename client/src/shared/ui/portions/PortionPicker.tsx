@@ -1,3 +1,4 @@
+import { memberName } from '../../member-name';
 import { useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { AnimatePresence, motion, type Transition } from "motion/react";
 import { money } from "../../money";
@@ -100,15 +101,15 @@ export function PortionLegend({ measure, totalCents, others, taken, mine, change
     {others.map(({ person, fraction: f, reserved }) => {
       const change = changes.find((entry) => entry.userId === person.userId);
       return <span key={person.userId} className={`claim-legend-chip${change ? " is-lit" : ""}${f ? "" : " is-pending"}`} data-person={person.userId}>
-        <Avatar name={person.displayName} imageUrl={person.imageUrl} fallbackImageUrl={person.fallbackImageUrl} small />
-        {person.displayName} · {f ? show(f) : "not yet"}{reserved && " reserved"}{change && <em>{signedText(change.delta)}</em>}
+        <Avatar name={person.displayName} username={person.username} imageUrl={person.imageUrl} fallbackImageUrl={person.fallbackImageUrl} small />
+        {memberName(person)} · {f ? show(f) : "not yet"}{reserved && " reserved"}{change && <em>{signedText(change.delta)}</em>}
       </span>;
     })}
     {released.map((change) => {
       const person = participants.find((candidate) => candidate.userId === change.userId);
-      const name = person?.displayName ?? "Someone";
+      const name = memberName(person, person?.displayName ?? "Someone");
       return <span key={`released-${change.userId}`} className="claim-legend-chip is-lit is-gone" data-person={change.userId}>
-        <Avatar name={name} imageUrl={person?.imageUrl} fallbackImageUrl={person?.fallbackImageUrl} small />
+        <Avatar name={person?.displayName ?? "Someone"} username={person?.username} imageUrl={person?.imageUrl} fallbackImageUrl={person?.fallbackImageUrl} small />
         {name} released {text({ n: -change.delta.n, d: change.delta.d })}
       </span>;
     })}

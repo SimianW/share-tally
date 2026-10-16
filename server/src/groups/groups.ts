@@ -1,8 +1,9 @@
+import { readGroupPeopleInSnapshot, usernameTag } from '../identity/group-names.js';
 import type { GroupDeletionReason, MemberDepartureReason } from '@share-tally/domain/contracts/groups';
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
 import { readAttentionInSnapshot } from '../attention/attention.js';
-import { readGroupAccountingInSnapshot, readMemberBalancesInSnapshot } from "../ledger/accounting.js";
+import { readGroupAccountingInSnapshot, readLedgerPeopleInSnapshot, readMemberBalancesInSnapshot } from "../ledger/accounting.js";
 import type { Transaction as Tx } from '../db/types.js';
 import { groupLedger } from '../ledger/group-ledger.js';
 import { notifyGroupChanged } from '../realtime/group-events.js';
@@ -10,7 +11,7 @@ import { readRepayments } from '../repayments/repayments.js';
 import { safeCents } from '../shared/money.js';
 import { lockGroupForMember } from './group-access.js';
 import { db } from "../db/index.js";
-import { groupMembers, groups, users } from "../db/schema.js";
+import { bills, billShares, groupMembers, groups, repayments, users } from "../db/schema.js";
 import { parseGroupIcon } from "./group-icon.js";
 import type { GroupDraft } from "@share-tally/domain/contracts/groups";
 
@@ -119,24 +120,35 @@ export async function listGroupsForUser(userId: string) {
       displayName: sql<string>`coalesce(${users.displayName}, 'Member')`,
     }).from(groupMembers).innerJoin(users, eq(groupMembers.userId, users.id))
       .where(inArray(groupMembers.groupId, ids)).orderBy(groupMembers.joinedAt, users.id) : [];
+    const people = await readGroupPeopleInSnapshot(tx, ids, 'members');
     return rows.map(row => ({
+      ownerUsername: usernameTag(people.get(row.id)?.find(person => person.userId === row.ownerId)).username,
       ...toGroup(row, userId),
       netCents: safeCents(balances.get(row.id) ?? 0n),
       pendingActionCount: pendingByGroup.get(row.id) ?? 0,
       memberPreview: members.filter(member => member.groupId === row.id).slice(0, previewSize)
-        .map(({ id, displayName }) => ({ id, displayName })),
+        .map(({ id, displayName }) => ({ id, displayName,
+          ...usernameTag(people.get(row.id)?.find(person => person.userId === id)) })),
     }));
   }, { isolationLevel: 'repeatable read', accessMode: 'read only' });
 }
 
-// The active groups these users belong to, and everyone in those groups, themselves included.
+// Active groups naming these users through membership or retained history, and
+// every current member who needs to reread those names.
 export async function sharedGroups(tx: Tx, userIds: string[]) {
   if (!userIds.length) return { groupIds: [], memberIds: [] };
   const theirGroups = tx.select({ id: groupMembers.groupId }).from(groupMembers)
     .innerJoin(groups, eq(groupMembers.groupId, groups.id))
     .where(and(inArray(groupMembers.userId, userIds), isNull(groups.deletedAt)));
+  // Former members still name retained records and can change collisions.
+  const historicalGroups = tx.select({ id: groups.id }).from(groups).where(and(isNull(groups.deletedAt), or(
+    inArray(groups.id, theirGroups),
+    inArray(groups.id, tx.select({ id: bills.groupId }).from(bills).where(inArray(bills.initiatorId, userIds))),
+    inArray(groups.id, tx.select({ id: bills.groupId }).from(bills).innerJoin(billShares, eq(billShares.billId, bills.id)).where(inArray(billShares.userId, userIds))),
+    inArray(groups.id, tx.select({ id: repayments.groupId }).from(repayments).where(or(inArray(repayments.senderId, userIds), inArray(repayments.recipientId, userIds)))),
+  )));
   const rows = await tx.select({ groupId: groupMembers.groupId, userId: groupMembers.userId })
-    .from(groupMembers).where(inArray(groupMembers.groupId, theirGroups));
+    .from(groupMembers).where(inArray(groupMembers.groupId, historicalGroups));
   return {
     groupIds: [...new Set(rows.map(row => row.groupId))],
     memberIds: [...new Set(rows.map(row => row.userId))],
@@ -148,25 +160,29 @@ export class GroupAccessError extends Error {
 }
 
 export async function getGroupForMember(groupId: string, userId: string) {
-  const [row] = await db.select(summaryFields).from(groupMembers)
-    .innerJoin(groups, eq(groupMembers.groupId, groups.id))
-    .innerJoin(users, eq(groups.ownerId, users.id))
-    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId), isNull(groups.deletedAt)));
-  // Do not reveal whether an inaccessible group exists.
-  if (!row) throw new GroupAccessError(404, 'Group not found.');
-  const members = await db.select({
-    id: users.id,
-    displayName: sql<string>`coalesce(${users.displayName}, 'Member')`,
-    joinedAt: groupMembers.joinedAt,
-  }).from(groupMembers).innerJoin(users, eq(groupMembers.userId, users.id))
-    .where(eq(groupMembers.groupId, groupId)).orderBy(groupMembers.joinedAt, users.id);
-  return {
-    ...toGroup(row, userId),
-    memberCount: members.length,
-    members: members.map(member => ({
-      ...member, isOwner: member.id === row.ownerId, isCurrentUser: member.id === userId,
-    })),
-  };
+  return db.transaction(async tx => {
+    const [row] = await tx.select(summaryFields).from(groupMembers)
+      .innerJoin(groups, eq(groupMembers.groupId, groups.id))
+      .innerJoin(users, eq(groups.ownerId, users.id))
+      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId), isNull(groups.deletedAt)));
+    // Do not reveal whether an inaccessible group exists.
+    if (!row) throw new GroupAccessError(404, 'Group not found.');
+    const members = await tx.select({
+      id: users.id,
+      displayName: sql<string>`coalesce(${users.displayName}, 'Member')`,
+      joinedAt: groupMembers.joinedAt,
+    }).from(groupMembers).innerJoin(users, eq(groupMembers.userId, users.id))
+      .where(eq(groupMembers.groupId, groupId)).orderBy(groupMembers.joinedAt, users.id);
+    const people = (await readGroupPeopleInSnapshot(tx, [groupId], 'members')).get(groupId)!;
+    return {
+      ...toGroup(row, userId),
+      ownerUsername: usernameTag(people.find(person => person.userId === row.ownerId)).username,
+      memberCount: members.length,
+      members: members.map(member => ({
+        ...member, ...usernameTag(people.find(person => person.userId === member.id)), isOwner: member.id === row.ownerId, isCurrentUser: member.id === userId,
+      })),
+    };
+  }, { isolationLevel: 'repeatable read', accessMode: 'read only' });
 }
 
 export async function groupInvitation(groupId: string, userId: string, regenerate: boolean) {
@@ -225,9 +241,7 @@ export class GroupDeletionError extends GroupAccessError {
 async function deletionReasons(tx: Tx, groupId: string, userId: string): Promise<GroupDeletionReason[]> {
   const bills = await readGroupAccountingInSnapshot(tx, groupId);
   const repayments = await readRepayments(tx, userId, groupId);
-  const members = await tx.select({ userId: users.id, displayName: users.displayName })
-    .from(groupMembers).innerJoin(users, eq(users.id, groupMembers.userId))
-    .where(eq(groupMembers.groupId, groupId)).orderBy(users.id);
+  const { members } = await readLedgerPeopleInSnapshot(tx, groupId);
   const ledger = groupLedger(bills, members, repayments);
   const reasons: GroupDeletionReason[] = [];
   if (ledger.incompleteBillIds.length)
