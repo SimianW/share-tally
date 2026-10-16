@@ -300,6 +300,7 @@ async function scannedDraftEditing(env) {
 async function compactReview(env) {
   const { api } = env;
   const { group, groupRoute, newBillRoute, alice, stepButton } = await receiptGroup(env);
+  await alice.clock.install();
   const image = await receiptPhoto(300, 500);
   const reconciliation = () => reconciliationButton(alice);
   // Exercise the same compact review contract at desktop and mobile widths.
@@ -373,11 +374,27 @@ async function compactReview(env) {
         "Review photo fills one viewport dimension");
     };
     await assertPhotoFitted();
-    const initialPhotoWidth = (await photo.boundingBox()).width;
-    await alice.getByRole("button", { name: "Zoom in", exact: true }).click();
-    await expect.poll(async () => (await photo.boundingBox()).width).toBeGreaterThan(initialPhotoWidth);
-    await alice.getByRole("button", { name: /Fit/ }).click();
-    await assertPhotoFitted();
+    // Freeze partway through zooming so Fit must supersede an unfinished animation.
+    await alice.clock.pauseAt(await alice.evaluate(() => Date.now() + 1000));
+    for (const direction of ["Zoom in", "Zoom out"]) {
+      if (direction === "Zoom out") {
+        await alice.getByRole("button", { name: "Zoom in", exact: true }).click();
+        await alice.clock.runFor(500);
+      }
+      const widthBeforeZoom = (await photo.boundingBox()).width;
+      await alice.getByRole("button", { name: direction, exact: true }).click();
+      await alice.clock.runFor(64);
+      const widthDuringZoom = (await photo.boundingBox()).width;
+      assert.ok(direction === "Zoom in" ? widthDuringZoom > widthBeforeZoom : widthDuringZoom < widthBeforeZoom,
+        `${direction} starts before Fit`);
+      await alice.getByRole("button", { name: /Fit/ }).click();
+      await alice.clock.runFor(500);
+      await expect(photoDialog.getByRole("status", { name: "Photo zoom" })).toHaveText("100%");
+      await assertPhotoFitted();
+      await alice.clock.runFor(500);
+      await assertPhotoFitted();
+    }
+    await alice.clock.resume();
     await alice.getByRole("button", { name: "Close photo", exact: true }).click();
     await expect(photoDialog).toHaveCount(0);
     await row("Apples").click();
