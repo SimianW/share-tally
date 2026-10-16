@@ -1,4 +1,5 @@
 import type { GroupLedger, LedgerEntry } from '@share-tally/domain/contracts/ledger';
+import { usernameTag } from '../identity/group-names.js';
 import type { Repayment } from '../repayments/repayments.js';
 import type { bills as billsTable } from '../db/schema.js';
 import { safeCents } from '../shared/money.js';
@@ -150,7 +151,7 @@ export function groupLedger(
     balances.set(effect.userId, (balances.get(effect.userId) ?? 0n) + BigInt(effect.netCents));
   const result = members.map(member => {
     const netCents = safeCents(balances.get(member.userId)!);
-    return { userId: member.userId, displayName: member.displayName ?? 'Member', ...(member.username ? { username: member.username } : {}), netCents };
+    return { userId: member.userId, displayName: member.displayName ?? 'Member', ...usernameTag(member), netCents };
   });
   const pairs = pairDebts(entries);
   const directDebts: Suggestion[] = [];
@@ -179,7 +180,7 @@ export function groupLedger(
   });
   return {
     members: result,
-    formerMembers: formerMembers.map(member => ({ userId: member.userId, displayName: member.displayName ?? 'Member', ...(member.username ? { username: member.username } : {}),
+    formerMembers: formerMembers.map(member => ({ userId: member.userId, displayName: member.displayName ?? 'Member', ...usernameTag(member),
       netCents: safeCents(balances.get(member.userId) ?? 0n) })),
     suggestions,
     directDebts,

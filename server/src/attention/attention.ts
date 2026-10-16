@@ -1,4 +1,4 @@
-import { readGroupPeopleInSnapshot } from '../identity/group-names.js';
+import { readGroupPeopleInSnapshot, usernameTag } from '../identity/group-names.js';
 import type { Transaction as Tx } from '../db/types.js';
 import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
@@ -35,14 +35,13 @@ export async function readAttentionInSnapshot(tx: Tx, userId: string) {
     .where(and(isNull(groups.deletedAt), eq(receiptDrafts.initiatorId, userId),
       isNull(receiptDrafts.billId), inArray(receiptDrafts.processingStatus, ['ready', 'fallback'])))
     .orderBy(asc(receiptDrafts.createdAt), asc(receiptDrafts.id));
-  const people = await readGroupPeopleInSnapshot(tx, [...new Set(incoming.map(record => record.groupId))]);
+  const people = await readGroupPeopleInSnapshot(tx, [...new Set(incoming.map(record => record.groupId))], 'history');
   return [...shares.map(share => ({
     kind: share.amountCents === null ? 'missing-share' as const : 'confirm-share' as const,
     ...share,
   })), ...incoming.map(({ senderId, ...record }) => ({
     kind: 'review-repayment' as const, ...record, senderName: record.senderName ?? 'Member',
-    ...(people.get(record.groupId)?.find(person => person.userId === senderId)?.username
-      ? { senderUsername: people.get(record.groupId)!.find(person => person.userId === senderId)!.username } : {}),
+    senderUsername: usernameTag(people.get(record.groupId)?.find(person => person.userId === senderId)).username,
   })), ...drafts.map(draft => ({ kind: 'review-draft' as const, ...draft }))];
 }
 

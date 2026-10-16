@@ -4,6 +4,8 @@ ShareTally names people by their Profile name, falling back to their Username an
 
 Profile names are not unique, so Username remains the identifier wherever someone has to find exactly one user, such as searching for a user or a future friend request. Within a group, members whose displayed names are the same also show their Username beside the name, so nobody records money against the wrong person. Members with distinct names show no Username.
 
+Names are compared case-insensitively after trimming. Member lists, bill participant pickers and group previews compare only current members. Bills, ledger, repayment and attention views also compare former members named in retained history (ADR-0021), so those records remain distinguishable. A former member with the same name does not add a Username tag to a current-member-only view.
+
 ## Considered Options
 
 - **Keep Username first.** Rejected because it always appears in lowercase and cannot hold non-Latin names.

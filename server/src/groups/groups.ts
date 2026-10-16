@@ -1,4 +1,4 @@
-import { readGroupPeopleInSnapshot } from '../identity/group-names.js';
+import { readGroupPeopleInSnapshot, usernameTag } from '../identity/group-names.js';
 import type { GroupDeletionReason, MemberDepartureReason } from '@share-tally/domain/contracts/groups';
 import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
@@ -120,10 +120,9 @@ export async function listGroupsForUser(userId: string) {
       displayName: sql<string>`coalesce(${users.displayName}, 'Member')`,
     }).from(groupMembers).innerJoin(users, eq(groupMembers.userId, users.id))
       .where(inArray(groupMembers.groupId, ids)).orderBy(groupMembers.joinedAt, users.id) : [];
-    const people = await readGroupPeopleInSnapshot(tx, ids);
+    const people = await readGroupPeopleInSnapshot(tx, ids, 'members');
     return rows.map(row => ({
-      ...(people.get(row.id)?.find(person => person.userId === row.ownerId)?.username
-        ? { ownerUsername: people.get(row.id)!.find(person => person.userId === row.ownerId)!.username } : {}),
+      ownerUsername: usernameTag(people.get(row.id)?.find(person => person.userId === row.ownerId)).username,
       ...toGroup(row, userId),
       netCents: safeCents(balances.get(row.id) ?? 0n),
       pendingActionCount: pendingByGroup.get(row.id) ?? 0,
@@ -160,10 +159,6 @@ export class GroupAccessError extends Error {
   constructor(public status: 400 | 403 | 404 | 409, message: string) { super(message); }
 }
 
-function usernameTag(person: { username?: string } | undefined) {
-  return person?.username ? { username: person.username } : {};
-}
-
 export async function getGroupForMember(groupId: string, userId: string) {
   return db.transaction(async tx => {
     const [row] = await tx.select(summaryFields).from(groupMembers)
@@ -178,10 +173,10 @@ export async function getGroupForMember(groupId: string, userId: string) {
       joinedAt: groupMembers.joinedAt,
     }).from(groupMembers).innerJoin(users, eq(groupMembers.userId, users.id))
       .where(eq(groupMembers.groupId, groupId)).orderBy(groupMembers.joinedAt, users.id);
-    const people = (await readGroupPeopleInSnapshot(tx, [groupId])).get(groupId)!;
+    const people = (await readGroupPeopleInSnapshot(tx, [groupId], 'members')).get(groupId)!;
     return {
       ...toGroup(row, userId),
-      ...(people.find(person => person.userId === row.ownerId)?.username ? { ownerUsername: people.find(person => person.userId === row.ownerId)!.username } : {}),
+      ownerUsername: usernameTag(people.find(person => person.userId === row.ownerId)).username,
       memberCount: members.length,
       members: members.map(member => ({
         ...member, ...usernameTag(people.find(person => person.userId === member.id)), isOwner: member.id === row.ownerId, isCurrentUser: member.id === userId,

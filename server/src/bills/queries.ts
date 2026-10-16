@@ -1,4 +1,4 @@
-import { readGroupPeopleInSnapshot } from '../identity/group-names.js';
+import { readGroupPeopleInSnapshot, splitGroupPeople, usernameTag } from '../identity/group-names.js';
 import { and, desc, eq, exists, inArray, isNull, or } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { bills, billShares, groupMembers, groups, users } from "../db/schema.js";
@@ -39,7 +39,7 @@ async function readBillsInSnapshot(tx: Tx, userId: string, groupId?: string, id?
     )
     .orderBy(desc(bills.createdAt), bills.id);
   if (id && !rows.length) throw new BillError(404, "Bill not found.");
-  const people = await readGroupPeopleInSnapshot(tx, groupId ? [groupId] : [...new Set(rows.map(row => row.bill.groupId))]);
+  const people = await readGroupPeopleInSnapshot(tx, groupId ? [groupId] : [...new Set(rows.map(row => row.bill.groupId))], 'history');
   if (!rows.length) return { bills: [], people };
   const shares = await tx
     .select({
@@ -67,8 +67,7 @@ async function readBillsInSnapshot(tx: Tx, userId: string, groupId?: string, id?
       .map((s) => ({
         ...s,
         displayName: s.displayName ?? "Member",
-        ...(people.get(bill.groupId)?.find(person => person.userId === s.userId)?.username
-          ? { username: people.get(bill.groupId)!.find(person => person.userId === s.userId)!.username } : {}),
+        ...usernameTag(people.get(bill.groupId)?.find(person => person.userId === s.userId)),
         isCurrentUser: s.userId === userId,
       }));
     const submittedCents = safeCents(
@@ -104,9 +103,7 @@ export async function readGroupBills(userId: string, groupId: string) {
   return db.transaction(async tx => {
     const { bills: rows, people } = await readBillsInSnapshot(tx, userId, groupId);
     // Reuse the same names for bill participants and the ledger in this snapshot.
-    const groupPeople = people.get(groupId)!;
-    const members = groupPeople.filter(person => person.current);
-    const formerMembers = groupPeople.filter(person => !person.current);
+    const { members, formerMembers } = splitGroupPeople(people.get(groupId)!);
     const repayments = await readRepayments(tx, userId, groupId);
     return { bills: rows, repayments, summary: balanceTotals(memberBalances(rows, userId, repayments)), ledger: groupLedger(rows, members, repayments, formerMembers) };
   }, { isolationLevel: "repeatable read", accessMode: "read only" });

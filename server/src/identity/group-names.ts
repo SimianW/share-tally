@@ -2,10 +2,10 @@ import { eq, inArray, or, sql } from 'drizzle-orm';
 import { bills, billShares, groupMembers, groups, repayments, users } from '../db/schema.js';
 import type { Transaction } from '../db/types.js';
 
-// Current members and former members named in retained history share one naming
-// scope (ADR-0021). Read all requested groups together, never one query per bill.
+// Member lists count only current members; history also counts former members
+// named in retained records. Read all requested groups together, never per bill.
 // Callers authorize these groups before exposing the result.
-export async function readGroupPeopleInSnapshot(tx: Transaction, groupIds: string[]) {
+export async function readGroupPeopleInSnapshot(tx: Transaction, groupIds: string[], scope: 'members' | 'history') {
   if (!groupIds.length) return new Map<string, GroupPerson[]>();
   const current = inArray(users.id, tx.select({ id: groupMembers.userId }).from(groupMembers)
     .where(eq(groupMembers.groupId, groups.id)));
@@ -13,7 +13,7 @@ export async function readGroupPeopleInSnapshot(tx: Transaction, groupIds: strin
     groupId: groups.id, userId: users.id,
     displayName: sql<string>`coalesce(${users.displayName}, 'Member')`,
     username: users.username, current: sql<boolean>`${current}`,
-  }).from(groups).innerJoin(users, or(
+  }).from(groups).innerJoin(users, scope === 'members' ? current : or(
     current,
     inArray(users.id, tx.select({ id: bills.initiatorId }).from(bills).where(eq(bills.groupId, groups.id))),
     inArray(users.id, tx.select({ id: billShares.userId }).from(billShares)
@@ -36,3 +36,16 @@ export async function readGroupPeopleInSnapshot(tx: Transaction, groupIds: strin
 }
 
 type GroupPerson = { userId: string; displayName: string; username?: string; current: boolean };
+
+// People from the scoped read already expose a Username only on collision.
+export function usernameTag(person: { username?: string } | undefined) {
+  return person?.username ? { username: person.username } : {};
+}
+
+export function splitGroupPeople(people: GroupPerson[]) {
+  const person = ({ current: _current, ...name }: GroupPerson) => name;
+  return {
+    members: people.filter(row => row.current).map(person),
+    formerMembers: people.filter(row => !row.current).map(person),
+  };
+}

@@ -1051,7 +1051,7 @@ test('an unchanged account from the previous release gets its Username without s
   }
 });
 
-test('bill and ledger names include collisions with retained former members, whose edits notify the group', async () => {
+test('member lists and pickers exclude former-member collisions while bill and ledger history keeps them live', async () => {
   await setProfile('user_test_alice', { username: 'alex-one', firstName: 'Alex' });
   await setProfile('user_test_bob', { username: 'alex-two', firstName: 'Alex' });
   const group = await create();
@@ -1061,13 +1061,28 @@ test('bill and ledger names include collisions with retained former members, who
     requestId: crypto.randomUUID(), title: 'History', purchaseDate: '2026-10-01', timeZone: 'America/Toronto', notes: '', totalCents: 100,
     participantIds: members.map((m: { id: string }) => m.id),
   }), 201)).bill;
-  // A canceled bill leaves settled history without blocking departure.
-  await json(await api(`/bills/${bill.id}/cancel`, 'alice-token', 'POST', { revision: bill.revision }));
+  // Both people remain named in a completed bill; Bob owes nothing and can leave.
+  await json(await api(`/bills/${bill.id}/share`, 'alice-token', 'POST', {
+    amountCents: 100, revision: bill.revision, expectedAmountCents: null,
+  }));
+  const completed = (await json(await api(`/bills/${bill.id}/share`, 'bob-token', 'POST', {
+    amountCents: 0, revision: bill.revision, expectedAmountCents: null,
+  }))).bill;
+  assert.ok(completed.completedAt);
   await json(await api(`/groups/${group.id}/leave`, 'bob-token', 'POST', {}));
+  // Group detail supplies both the member list and the bill participant pickers.
   const detail = (await json(await api(`/groups/${group.id}`))).group;
-  assert.equal(detail.members[0].username, 'alex-one');
+  assert.deepEqual(detail.members.map((m: { id: string }) => m.id), [members[0].id]);
+  assert.ok(!('username' in detail.members[0]));
+  assert.ok(!('ownerUsername' in detail));
+  const listed = (await json(await api('/groups'))).groups[0];
+  assert.deepEqual(listed.memberPreview.map((m: { id: string; displayName: string }) => ({ id: m.id, displayName: m.displayName })),
+    [{ id: members[0].id, displayName: 'Alex' }]);
+  assert.ok(!('username' in listed.memberPreview[0]));
+  assert.ok(!('ownerUsername' in listed));
   const read = async () => json(await api(`/groups/${group.id}/bills`));
   let snapshot = await read();
+  assert.deepEqual(snapshot.ledger.entries.map((entry: { id: string }) => entry.id), [bill.id]);
   assert.equal(snapshot.ledger.members[0].username, 'alex-one');
   assert.equal(snapshot.ledger.formerMembers[0].username, 'alex-two');
   for (const path of [`/groups/${group.id}/bills`, `/bills/${bill.id}`]) {

@@ -1,4 +1,4 @@
-import { readGroupPeopleInSnapshot } from '../identity/group-names.js';
+import { readGroupPeopleInSnapshot, splitGroupPeople } from '../identity/group-names.js';
 import { and, desc, eq, inArray, isNotNull, isNull, or } from 'drizzle-orm';
 import { bills, billShares, groupMembers, groups, repayments } from '../db/schema.js';
 import type { Transaction as Tx } from '../db/types.js';
@@ -56,7 +56,6 @@ export async function readGroupAccountingInSnapshot(tx: Tx, groupId: string): Pr
 // repayment records who are no longer members, so the retained history can
 // still identify them. One query, ordered by user ID.
 export async function readLedgerPeopleInSnapshot(tx: Tx, groupId: string) {
-  const people = (await readGroupPeopleInSnapshot(tx, [groupId])).get(groupId)!;
-  const person = ({ current: _current, ...name }: typeof people[number]) => name;
-  return { members: people.filter(row => row.current).map(person), formerMembers: people.filter(row => !row.current).map(person) };
+  const people = (await readGroupPeopleInSnapshot(tx, [groupId], 'history')).get(groupId)!;
+  return splitGroupPeople(people);
 }
