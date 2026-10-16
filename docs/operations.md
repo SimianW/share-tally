@@ -32,7 +32,7 @@ The web image renders the shared [`deploy/nginx.conf`](../deploy/nginx.conf) thr
 
 ### Displayed-name rule releases
 
-Migration `0020_profile_name_rule` marks existing name caches with rule version 0. The API's startup Clerk synchronization rewrites each cache with the Profile-name-first rule and advances its version to 1, publishing the usual rename notifications after commit. It retains Clerk's timestamp and row lock, so older reads cannot replace newer data during the rewrite. Unchanged names advance the rule version without sending notifications. Failed or missing Clerk reads remain pending for the next synchronization; completed rows are not forced again on startup.
+Migration `0020_profile_name_rule` marks existing name caches with rule version 0, and migration `0021_member_usernames` adds the cached Username column. The API's startup Clerk synchronization rewrites each cache with the Profile-name-first rule, stores the current Username and advances its rule version to 2, publishing the usual rename notifications after commit. Rows already at version 1 are read again so their Usernames are filled in. It retains Clerk's timestamp and row lock, so older reads cannot replace newer data during the rewrite. A row whose displayed name and Username are both unchanged advances its rule version without a notification; a changed Username alone does notify, because it can add or remove a collision tag. The rewrite runs in the background after startup, so names update shortly after release rather than at the moment the API starts. Failed or missing Clerk reads remain pending for the next synchronization; completed rows are not forced again on startup.
 
 ### Health endpoints and incident checks
 
