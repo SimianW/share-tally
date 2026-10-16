@@ -39,7 +39,26 @@ test('ledger names former people while keeping balance members and transfer targ
 
 test('repayment history resolves former names without changing current-name precedence', () => {
   const group = { members: currentMembers };
-  assert.equal(repaymentDisplayName(group, formerMembers, 'carol'), 'Carol');
-  assert.equal(repaymentDisplayName(group, [...formerMembers, { userId: 'bob', displayName: 'Old Bob' }], 'bob'), 'Bob');
-  assert.equal(repaymentDisplayName(group, formerMembers, 'unknown'), 'Member');
+  const ledger = { members: [], formerMembers };
+  assert.equal(repaymentDisplayName(group, ledger, 'carol'), 'Carol');
+  assert.equal(repaymentDisplayName(group, { members: [], formerMembers: [...formerMembers, { userId: 'bob', displayName: 'Old Bob' }] }, 'bob'), 'Bob');
+  assert.equal(repaymentDisplayName(group, ledger, 'unknown'), 'Member');
+});
+
+// The member list counts current members only, so it carries no tag for Bob; the
+// ledger also counts the former Bob and tags both.
+test('financial views keep the history-scoped Username of a current member', () => {
+  const data = pageData();
+  data.ledger.members = [
+    { userId: 'alice', displayName: 'Alice', netCents: 0 },
+    { userId: 'bob', displayName: 'Bob', username: 'bob-now', netCents: 0 },
+  ];
+  data.ledger.formerMembers = [{ userId: 'old-bob', displayName: 'Bob', username: 'bob-then', netCents: 0 }];
+  data.repayments = [{ id: 'r1', senderId: 'bob', recipientId: 'alice', status: 'pending', createdAt: '2026-10-01T00:00:00Z' }];
+  const view = groupView(data);
+  assert.equal(view.name('bob'), 'Bob @bob-now');
+  assert.equal(view.name('old-bob'), 'Bob @bob-then');
+  assert.equal(view.rows.find(row => row.member.id === 'bob').member.username, 'bob-now');
+  assert.equal(repaymentDisplayName(data.group, data.ledger, 'bob'), 'Bob @bob-now');
+  assert.equal(repaymentDisplayName(data.group, data.ledger, 'old-bob'), 'Bob @bob-then');
 });

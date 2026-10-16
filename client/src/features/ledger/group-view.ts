@@ -35,9 +35,12 @@ function todoFor(bill: Bill): BillTodo | null {
 // preserve that order. No balances, suggestions, or pending totals are calculated.
 export function groupView(data: GroupPageData) {
   const me = data.group.members.find(member => member.isCurrentUser)!;
-  const members = new Map(data.group.members.map(member => [member.id, member]));
-  const formerMembers = new Map(data.ledger.formerMembers.map(member => [member.userId, member]));
-  const name = (id: string) => id === me.id ? 'You' : memberName(members.get(id) ?? formerMembers.get(id));
+  // Financial views name people in the history scope: a former member with the
+  // same name tags a current member here, though not in the member list.
+  const ledgerPeople = new Map([...data.ledger.members, ...data.ledger.formerMembers].map(person => [person.userId, person]));
+  const members = new Map(data.group.members.map(member => [member.id,
+    { ...member, username: ledgerPeople.get(member.id)?.username ?? member.username }]));
+  const name = (id: string) => id === me.id ? 'You' : memberName(members.get(id) ?? ledgerPeople.get(id));
   // The group snapshot is authoritative for current membership. Former members
   // remain nameable in retained entries, but never appear as balance targets.
   const currentIds = new Set(members.keys());
