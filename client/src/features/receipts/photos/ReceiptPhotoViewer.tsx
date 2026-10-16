@@ -78,7 +78,8 @@ export function ReceiptPhotoViewer({ image, points, subject, close, title, kicke
       <button type="button" className="button secondary" aria-label="Zoom out" disabled={scale <= 1} onClick={() => void zoom.current?.zoomOut(0.5)}><ZoomOut size={18} /></button>
       <output aria-label="Photo zoom">{Math.round(scale * 100)}%</output>
       <button type="button" className="button secondary" aria-label="Zoom in" disabled={scale >= maxScale} onClick={() => void zoom.current?.zoomIn(0.5)}><ZoomIn size={18} /></button>
-      <Button variant="text" onClick={() => void zoom.current?.setTransform((size.width - image.width * fit) / 2, (size.height - image.height * fit) / 2, 1, 0)}>Fit photo</Button>
+      {/* The default animation cancels any running zoom; a zero-duration transform does not. */}
+      <Button variant="text" onClick={() => void zoom.current?.setTransform((size.width - image.width * fit) / 2, (size.height - image.height * fit) / 2, 1)}>Fit photo</Button>
     </div>
     <div ref={viewport} className="receipt-photo-viewport" aria-label={`Zoomed ${(title ?? "receipt photo").toLowerCase()}`}>
       {fit > 0 && Number.isFinite(fit) && <TransformWrapper key={`${size.width}:${size.height}`} ref={zoom} initialScale={1} minScale={1} maxScale={maxScale} centerOnInit limitToBounds onInit={() => setScale(1)} onTransform={(_, state) => setScale(state.scale)} wheel={{ step: 0.12 }} doubleClick={{ mode: "zoomIn", step: 1 }} keyboard={{ disabled: false, panStep: 60 }}>
