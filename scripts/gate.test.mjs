@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -105,4 +105,19 @@ test('SIGINT sent to the wrapper alone stops the command', { skip: !hasFlock && 
   const [code] = await once(wrapper, 'exit');
   assert.equal(code, 130);
   assert.ok(Date.now() - started < 5000, 'the command ran on after SIGINT');
+});
+
+test('a symlink at the lock path is refused and its target left untouched', async t => {
+  const directory = await temporaryDirectory(t);
+  const target = join(directory, 'victim');
+  await writeFile(target, 'keep me\n');
+  await symlink(target, join(directory, 'lock'));
+  const env = { ...process.env, SHARE_TALLY_HEAVY_LOCK: join(directory, 'lock') };
+  delete env.SHARE_TALLY_HEAVY_LOCK_HELD;
+  const { status, stdout, stderr } = spawnSync(process.execPath, [heavyLock, 'sh', '-c', 'echo ran'], { env, encoding: 'utf8', timeout: 20_000 });
+  assert.equal(status, 1);
+  assert.equal(stdout, '');
+  assert.match(stderr, /^heavy-lock: .*symlink/);
+  assert.doesNotMatch(stderr, /\n\s+at /, 'printed a stack trace');
+  assert.equal(await readFile(target, 'utf8'), 'keep me\n');
 });

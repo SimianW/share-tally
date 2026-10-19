@@ -7,7 +7,7 @@
 // SHARE_TALLY_HEAVY_LOCK_HELD=1, and nested heavy checks inherit it and run
 // without waiting.
 import { spawn, spawnSync } from 'node:child_process';
-import { openSync, readFileSync, writeFileSync } from 'node:fs';
+import { constants as fs, ftruncateSync, openSync, readSync, writeSync } from 'node:fs';
 import { constants } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
@@ -17,8 +17,16 @@ export function holdHeavyCheckLock(description = process.argv.slice(1).join(' ')
   const path = process.env.SHARE_TALLY_HEAVY_LOCK || '/tmp/share-tally-heavy-checks.lock';
   // Node opens files close-on-exec, so only processes given this fd keep the lock:
   // flock(1) locks the shared open file, and the lock outlives flock.
-  // Append mode keeps the holder's details readable while others wait.
-  const fd = openSync(path, 'a');
+  // The path is fixed and shared, so refuse a symlink planted there rather than
+  // write through it, and read and write the holder's details only through this fd.
+  let fd;
+  try {
+    fd = openSync(path, fs.O_RDWR | fs.O_CREAT | fs.O_NOFOLLOW, 0o644);
+  } catch (error) {
+    const reason = error.code === 'ELOOP' ? 'it is a symlink' : error.code;
+    console.error(`heavy-lock: cannot open ${path} (${reason}); remove it or set SHARE_TALLY_HEAVY_LOCK to another path.`);
+    process.exit(1);
+  }
   const flock = options => spawnSync('flock', [...options, '3'], { stdio: ['ignore', 'inherit', 'inherit', fd] });
   const attempt = flock(['-n']);
   if (attempt.error) {
@@ -28,13 +36,15 @@ export function holdHeavyCheckLock(description = process.argv.slice(1).join(' ')
     return undefined;
   }
   if (attempt.status !== 0) {
-    const holder = readFileSync(path, 'utf8').trim() || 'an unknown process';
+    const buffer = Buffer.alloc(4096);
+    const holder = buffer.toString('utf8', 0, readSync(fd, buffer, 0, buffer.length, 0)).trim() || 'an unknown process';
     console.error(`heavy-lock: waiting for ${path}, held by ${holder}. This run starts once the holder exits, `
       + 'which can take many minutes; run heavy checks in the background or with a long tool timeout.');
     const wait = flock([]);
     if (wait.status !== 0) throw new Error(`flock exited with ${wait.status ?? wait.signal} while waiting for ${path}`);
   }
-  writeFileSync(path, `pid ${process.pid} since ${new Date().toISOString()} in ${process.cwd()}: ${description}\n`);
+  ftruncateSync(fd);
+  writeSync(fd, `pid ${process.pid} since ${new Date().toISOString()} in ${process.cwd()}: ${description}\n`, 0);
   process.env.SHARE_TALLY_HEAVY_LOCK_HELD = '1';
   return fd;
 }
