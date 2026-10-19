@@ -145,7 +145,7 @@ async function releaseFixture(t, {
     RAILWAY_POLL_INTERVAL_MS: '5',
     RAILWAY_REQUEST_TIMEOUT_MS: '500',
     RAILWAY_DEPLOYMENT_TIMEOUT_MS: '2000',
-    NODE_OPTIONS: `--import=${JSON.stringify(testClock)}`,
+    NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --import=${JSON.stringify(testClock)}`.trim(),
     RELEASE_TEST_CLOCK_URL: `http://127.0.0.1:${server.address().port}/clock`,
     RELEASE_TEST_CLOCK_FILE: clockFile,
   }
@@ -158,13 +158,15 @@ async function releaseFixture(t, {
         let output = ''
         child.stdout.on('data', (chunk) => { output += chunk })
         child.stderr.on('data', (chunk) => { output += chunk })
-        // The script runs on the test clock, so only a missing timeout reaches this.
+        // The script runs on the test clock, so only a missing timeout or a
+        // deadline that never ends reaches this.
         const watchdog = setTimeout(() => child.kill('SIGKILL'), 30000)
         child.on('error', reject)
         child.on('close', async (code, signal) => {
           clearTimeout(watchdog)
-          const elapsed = Number(await readFile(clockFile, 'utf8').catch(() => NaN))
-          resolve({ code, signal, output, elapsed })
+          const elapsed = await readFile(clockFile, 'utf8').catch(() => null)
+          if (elapsed === null) reject(new Error(`The test clock never connected:\n${output}`))
+          else resolve({ code, signal, output, elapsed: Number(elapsed) })
         })
       })
     },
@@ -233,7 +235,8 @@ for (const cancelResponse of ['http-error', 'graphql-error', 'stalled']) {
     assert.match(result.output, /cancellation failed; deployment may still activate/)
     assert.equal(result.output.includes(token), false)
     assert.equal(release.images.has('web-service'), false)
-    assert.ok(result.elapsed <= 400, `Release took ${result.elapsed}ms`)
+    // The deadline expires at 100ms; only a stalled cancellation waits its 300ms timeout.
+    assert.equal(result.elapsed, cancelResponse === 'stalled' ? 400 : 100, `Release took ${result.elapsed}ms`)
   })
 }
 
@@ -260,7 +263,7 @@ test('a Railway request that never answers times out and never deploys web', asy
   const result = await release.run({ RAILWAY_REQUEST_TIMEOUT_MS: '50' })
   assert.equal(result.code, 1, result.output)
   assert.equal(result.signal, null)
-  assert.ok(result.elapsed <= 50, `Release took ${result.elapsed}ms`)
+  assert.equal(result.elapsed, 50, `Release took ${result.elapsed}ms`)
   assert.equal(release.images.has('web-service'), false)
 })
 
@@ -269,7 +272,7 @@ test('the API deployment deadline also bounds a stalled status request', async (
   const result = await release.run({ RAILWAY_REQUEST_TIMEOUT_MS: '4000', RAILWAY_DEPLOYMENT_TIMEOUT_MS: '100' })
   assert.equal(result.code, 1, result.output)
   assert.equal(result.signal, null)
-  assert.ok(result.elapsed <= 100, `Release took ${result.elapsed}ms`)
+  assert.equal(result.elapsed, 100, `Release took ${result.elapsed}ms`)
   assert.equal(release.images.has('web-service'), false)
   assert.deepEqual(release.requests.filter(({ query }) => query.includes('deploymentCancel')).map(({ variables }) => variables.id), ['api-service-deployment'])
 })
@@ -328,7 +331,7 @@ test('the request timeout bounds a response body that never finishes', async (t)
   const result = await release.run({ RAILWAY_REQUEST_TIMEOUT_MS: '50' })
   assert.equal(result.code, 1, result.output)
   assert.equal(result.signal, null)
-  assert.ok(result.elapsed <= 50, `Release took ${result.elapsed}ms`)
+  assert.equal(result.elapsed, 50, `Release took ${result.elapsed}ms`)
   assert.equal(release.images.has('web-service'), false)
 })
 
