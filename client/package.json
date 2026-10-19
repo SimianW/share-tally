@@ -25,7 +25,7 @@
     "test:environment": "node ../scripts/build-domain.mjs && node ../scripts/heavy-lock.mjs node --test test/browser/environment.test.mjs test/browser/nginx.test.mjs",
     "test:nginx": "node --test test/browser/nginx.test.mjs",
     "test:network-isolation": "node ../scripts/build-domain.mjs && node ../scripts/heavy-lock.mjs node --test test/browser/network-isolation.test.mjs",
-    "test:unit": "node ../scripts/build-domain.mjs && node --test scripts/test-*.mjs ../deploy/release.test.mjs ../scripts/gate.test.mjs"
+    "test:unit": "node ../scripts/build-domain.mjs && node --test scripts/test-*.mjs ../deploy/release.test.mjs ../deploy/browser-gate.test.mjs ../scripts/gate.test.mjs"
   },
   "dependencies": {
     "@clerk/react": "^6.15.1",

@@ -46,6 +46,8 @@ Dashboard rollback is separate from CI: do not restart an old Drone build to rol
 
 The [Drone configuration](../.drone.yml) defines the release ordering and which events reach the host Docker socket and deployment secrets. A failing gate prevents publishing and deployment.
 
+Every push to `main` runs the gate. Pushes to other branches run it too, unless every file changed since the branch left `main` is under `docs/` or `research/` or ends in `.md`; [`deploy/browser-gate-skippable.sh`](../deploy/browser-gate-skippable.sh) decides, runs the gate on any doubt or error, and logs the reason. [`deploy/browser-gate.test.mjs`](../deploy/browser-gate.test.mjs) covers the details. A branch build's gate only reports; publishing and deployment stay limited to `main`.
+
 [`deploy/browser-check.sh`](../deploy/browser-check.sh) builds the `browser-checks` image. It runs each check in a container that shares the host network and Docker socket, the setup described in [Checks and tests](development.md#checks-and-tests). The script collects failures so one failed check does not hide later failures; scenario failures are named in the output. Failure screenshots stay inside the removed container. To get them, [rerun the scenario locally](development.md#rerun-a-failing-release-scenario).
 
 While the step runs, Vite listens on all host interfaces and serves test-only identities, so keep the Drone host's test ports firewalled from the internet.
