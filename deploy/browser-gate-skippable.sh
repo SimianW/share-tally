@@ -17,6 +17,7 @@ command -v git >/dev/null 2>&1 || run 'git unavailable'
 git fetch --quiet --no-tags origin +refs/heads/main:refs/remotes/origin/main ||
   run 'could not fetch main'
 base="$(git merge-base origin/main HEAD)" || run 'no merge base with main'
+[ "$base" != "$(git rev-parse HEAD)" ] || run 'no commits beyond main'
 
 # Without rename detection both sides of a move are listed and checked.
 changed="$(git diff --no-renames --name-only "$base" HEAD)" ||
@@ -27,4 +28,4 @@ outside="$(printf '%s\n' "$changed" | grep -Ev '^(docs/|research/)|\.md$' || tru
 if [ -n "$outside" ]; then
   run "changes outside documentation, such as $(printf '%s\n' "$outside" | head -n 1)"
 fi
-echo "Browser gate skipped: nothing outside documentation changed since main." >&2
+echo "BROWSER GATE SKIPPED: nothing outside documentation changed since main." >&2

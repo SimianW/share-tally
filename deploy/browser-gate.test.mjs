@@ -51,7 +51,7 @@ test('a branch that changes only documentation skips the browser gate', async (t
   await commitFiles(clone, ['docs/operations.md', 'research/notes.txt', 'README.md', 'client/README.md'])
   assert.deepEqual(decide(clone), {
     decision: 'skip',
-    reason: 'Browser gate skipped: nothing outside documentation changed since main.',
+    reason: 'BROWSER GATE SKIPPED: nothing outside documentation changed since main.',
   })
 })
 
@@ -74,6 +74,19 @@ test('main always runs the browser gate, even for documentation', async (t) => {
   const { remote } = await branchClone(t)
   await commitFiles(remote, ['docs/operations.md'])
   assert.deepEqual(decide(remote, 'main'), { decision: 'run', reason: 'Browser gate runs: main always runs it.' })
+})
+
+test('main under a full ref name runs the browser gate, even for documentation', async (t) => {
+  const { remote, clone } = await branchClone(t)
+  await commitFiles(remote, ['docs/operations.md'])
+  git(clone, 'switch', '-q', 'main')
+  git(clone, 'pull', '-q', '--ff-only')
+  assert.deepEqual(decide(clone, 'refs/heads/main'), { decision: 'run', reason: 'Browser gate runs: no commits beyond main.' })
+})
+
+test('a new branch with no commits beyond main runs the browser gate', async (t) => {
+  const { clone } = await branchClone(t)
+  assert.deepEqual(decide(clone), { decision: 'run', reason: 'Browser gate runs: no commits beyond main.' })
 })
 
 test('changes that reached main after the branch left it do not count', async (t) => {
