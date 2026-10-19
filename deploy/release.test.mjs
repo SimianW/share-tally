@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFileSync, spawn } from 'node:child_process'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
 
 const deployScript = fileURLToPath(new URL('./deploy.sh', import.meta.url))
+const testClock = fileURLToPath(new URL('./release-test-clock.mjs', import.meta.url))
 const token = 'test-project-token-must-never-be-logged'
 
 async function releaseFixture(t, {
@@ -19,8 +20,10 @@ async function releaseFixture(t, {
   hostileResponse,
   cancelResponse = 'success',
 } = {}) {
-  const remote = await mkdtemp(join(tmpdir(), 'share-tally-release-'))
-  t.after(() => rm(remote, { recursive: true, force: true }))
+  const directory = await mkdtemp(join(tmpdir(), 'share-tally-release-'))
+  t.after(() => rm(directory, { recursive: true, force: true }))
+  const remote = join(directory, 'remote')
+  const clockFile = join(directory, 'clock')
   execFileSync('git', ['init', '-q', '--initial-branch=main', remote])
   execFileSync('git', ['-C', remote, '-c', 'user.name=Release test', '-c', 'user.email=release@example.invalid', 'commit', '-q', '--allow-empty', '-m', 'Release'])
   const sha = execFileSync('git', ['-C', remote, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
@@ -32,7 +35,16 @@ async function releaseFixture(t, {
   const redirectedTokens = []
   let webBeforeApiSuccess = false
   const statuses = { 'api-service': [...apiStatuses], 'web-service': [...webStatuses] }
+  let clock
+  function stall() {
+    clock.write('\n')
+  }
   const server = createServer(async (request, response) => {
+    if (request.url === '/clock') {
+      clock = response
+      response.writeHead(200).flushHeaders()
+      return
+    }
     let body = ''
     for await (const chunk of request) body += chunk
     const { query, variables } = JSON.parse(body)
@@ -45,6 +57,7 @@ async function releaseFixture(t, {
         response.writeHead(200, { 'content-type': 'application/json' })
         response.write('{"data":')
       }
+      stall()
       return
     }
     if (hostileResponse === 'redirect') {
@@ -92,7 +105,10 @@ async function releaseFixture(t, {
         response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ errors: [{ message: token }] }))
         return
       }
-      if (cancelResponse === 'stalled') return
+      if (cancelResponse === 'stalled') {
+        stall()
+        return
+      }
       data = { deploymentCancel: cancelResponse === 'success' }
     } else if (query.includes('deployment(')) {
       if (pollError) {
@@ -129,22 +145,28 @@ async function releaseFixture(t, {
     RAILWAY_POLL_INTERVAL_MS: '5',
     RAILWAY_REQUEST_TIMEOUT_MS: '500',
     RAILWAY_DEPLOYMENT_TIMEOUT_MS: '2000',
+    NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --import=${JSON.stringify(testClock)}`.trim(),
+    RELEASE_TEST_CLOCK_URL: `http://127.0.0.1:${server.address().port}/clock`,
+    RELEASE_TEST_CLOCK_FILE: clockFile,
   }
   return {
     sha, env, images, active, violations, requests, redirectedTokens,
     get webBeforeApiSuccess() { return webBeforeApiSuccess },
     run(overrides = {}) {
       return new Promise((resolve, reject) => {
-        const started = performance.now()
         const child = spawn('sh', [deployScript], { env: { ...env, ...overrides } })
         let output = ''
         child.stdout.on('data', (chunk) => { output += chunk })
         child.stderr.on('data', (chunk) => { output += chunk })
-        const watchdog = setTimeout(() => child.kill('SIGKILL'), 5000)
+        // The script runs on the test clock, so only a missing timeout or a
+        // deadline that never ends reaches this.
+        const watchdog = setTimeout(() => child.kill('SIGKILL'), 30000)
         child.on('error', reject)
-        child.on('close', (code, signal) => {
+        child.on('close', async (code, signal) => {
           clearTimeout(watchdog)
-          resolve({ code, signal, output, duration: performance.now() - started })
+          const elapsed = await readFile(clockFile, 'utf8').catch(() => null)
+          if (elapsed === null) reject(new Error(`The test clock never connected:\n${output}`))
+          else resolve({ code, signal, output, elapsed: Number(elapsed) })
         })
       })
     },
@@ -213,7 +235,8 @@ for (const cancelResponse of ['http-error', 'graphql-error', 'stalled']) {
     assert.match(result.output, /cancellation failed; deployment may still activate/)
     assert.equal(result.output.includes(token), false)
     assert.equal(release.images.has('web-service'), false)
-    assert.ok(result.duration < 1500, `Release took ${result.duration}ms`)
+    // The deadline expires at 100ms; only a stalled cancellation waits its 300ms timeout.
+    assert.equal(result.elapsed, cancelResponse === 'stalled' ? 400 : 100, `Release took ${result.elapsed}ms`)
   })
 }
 
@@ -240,6 +263,7 @@ test('a Railway request that never answers times out and never deploys web', asy
   const result = await release.run({ RAILWAY_REQUEST_TIMEOUT_MS: '50' })
   assert.equal(result.code, 1, result.output)
   assert.equal(result.signal, null)
+  assert.equal(result.elapsed, 50, `Release took ${result.elapsed}ms`)
   assert.equal(release.images.has('web-service'), false)
 })
 
@@ -248,7 +272,7 @@ test('the API deployment deadline also bounds a stalled status request', async (
   const result = await release.run({ RAILWAY_REQUEST_TIMEOUT_MS: '4000', RAILWAY_DEPLOYMENT_TIMEOUT_MS: '100' })
   assert.equal(result.code, 1, result.output)
   assert.equal(result.signal, null)
-  assert.ok(result.duration < 1500, `Release took ${result.duration}ms`)
+  assert.equal(result.elapsed, 100, `Release took ${result.elapsed}ms`)
   assert.equal(release.images.has('web-service'), false)
   assert.deepEqual(release.requests.filter(({ query }) => query.includes('deploymentCancel')).map(({ variables }) => variables.id), ['api-service-deployment'])
 })
@@ -274,8 +298,9 @@ test('an unknown deployment status echoing the token fails promptly without expo
   const release = await releaseFixture(t, { apiStatuses: [token] })
   const result = await release.run()
   assert.equal(result.code, 1)
+  assert.equal(result.signal, null)
   assert.equal(result.output.includes(token), false)
-  assert.ok(result.duration < 1500, `Release took ${result.duration}ms`)
+  assert.equal(result.elapsed, 0, `Release took ${result.elapsed}ms`)
   assert.equal(release.images.has('web-service'), false)
 })
 
@@ -306,7 +331,7 @@ test('the request timeout bounds a response body that never finishes', async (t)
   const result = await release.run({ RAILWAY_REQUEST_TIMEOUT_MS: '50' })
   assert.equal(result.code, 1, result.output)
   assert.equal(result.signal, null)
-  assert.ok(result.duration < 1500, `Release took ${result.duration}ms`)
+  assert.equal(result.elapsed, 50, `Release took ${result.elapsed}ms`)
   assert.equal(release.images.has('web-service'), false)
 })
 
