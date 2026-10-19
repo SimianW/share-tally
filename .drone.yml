@@ -31,16 +31,17 @@ steps:
       - sh deploy/check.sh
 
   # Release gate: a failing browser scenario stops publish and deploy. Runs
-  # only for trusted pushes to main, never for pull_request events.
+  # for trusted pushes only, never for pull_request events. Every push to main
+  # runs it; other branches skip it when only documentation changed since main.
   - name: browser-tests
     image: docker:27-cli
     volumes:
       - name: docker-socket
         path: /var/run/docker.sock
     commands:
+      - if sh deploy/browser-gate-skippable.sh; then exit 0; fi
       - sh deploy/browser-check.sh
     when:
-      branch: [main]
       event: [push]
 
   - name: publish-images
