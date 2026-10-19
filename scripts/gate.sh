@@ -1,7 +1,7 @@
 #!/bin/sh
-# Local release gate: the checks CI requires before release, under one
-# heavy-check lock. Every step runs even if an earlier one failed; the summary
-# names each failed step and browser scenario, and any failure exits non-zero.
+# The local gate: runs what CI runs before release, under one heavy-check lock.
+# Every step runs even if an earlier one failed; the summary names each failed
+# step, browser check and scenario, and any failure exits non-zero.
 #   sh scripts/gate.sh
 # SHARE_TALLY_GATE_CHECK and SHARE_TALLY_GATE_BROWSER_CHECK replace the step
 # commands (split on spaces), so tests can run the gate against stubs.
@@ -21,6 +21,11 @@ step() {
   echo unknown >"$status_file"
   { "$@" 2>&1; echo $? >"$status_file"; } | tee -a "$log"
   status=$(cat "$status_file")
+  # End output that lacks a final newline, so it does not merge into the next line.
+  if [ -n "$(tail -c 1 "$log")" ]; then
+    echo
+    echo >>"$log"
+  fi
   echo "=== $name exited with $status"
   [ "$status" = 0 ] || failed="$failed
   $name (exit $status)"
@@ -33,9 +38,10 @@ if [ -z "$failed" ]; then
   exit 0
 fi
 echo "Gate failed. Failed steps:$failed"
-# The browser runner reports its failures as "Failed: <suite>/<scenario>, ...".
-if grep -q '^Failed: ' "$log"; then
-  echo "Failed scenarios:"
-  sed -n 's/^Failed: /  /p' "$log"
+# deploy/browser-check.sh names its failed checks as "Browser release gate
+# failed: ...", and the browser runner its scenarios as "Failed: <suite>/<scenario>, ...".
+if grep -Eq '^(Browser release gate failed|Failed): ' "$log"; then
+  echo "Reported failures:"
+  grep -E '^(Browser release gate failed|Failed): ' "$log" | sed 's/^/  /'
 fi
 exit 1

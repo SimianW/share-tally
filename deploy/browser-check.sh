@@ -25,6 +25,7 @@ run_check test:environment || failed="$failed test:environment"
 run_check test:network-isolation || failed="$failed test:network-isolation"
 run_check test:browser --all || failed="$failed browser-scenarios"
 if [ -n "$failed" ]; then
-  echo "Browser release gate failed:$failed. Scenario failures are listed above as \"Failed: <suite>/<scenario>\"." >&2
+  echo "Browser release gate failed:$failed." >&2
+  echo "Scenario failures are listed above as \"Failed: <suite>/<scenario>\"." >&2
   exit 1
 fi
