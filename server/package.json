@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node ../scripts/build-domain.mjs && node --import=tsx --test --test-timeout=120000 test/*.test.ts",
+    "test": "node ../scripts/build-domain.mjs && node ../scripts/heavy-lock.mjs node --import=tsx --test --test-timeout=120000 test/*.test.ts",
     "benchmark": "node ../scripts/build-domain.mjs && node --import=tsx benchmark/cli.ts",
     "benchmark:record": "node ../scripts/build-domain.mjs && node --import=tsx benchmark/record.ts",
     "dev": "node ../scripts/build-domain.mjs && node --env-file=.env --watch --import=tsx src/index.ts",

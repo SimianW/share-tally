@@ -9,6 +9,8 @@ COPY scripts/build-domain.mjs /app/scripts/build-domain.mjs
 COPY server/package.json server/pnpm-lock.yaml server/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY server/ ./
+# The test script queues on the host-wide heavy-check lock.
+COPY scripts/heavy-lock.mjs /app/scripts/heavy-lock.mjs
 RUN pnpm typecheck && pnpm build
 
 FROM node-base AS client-lint
@@ -24,6 +26,8 @@ COPY client/ ./
 # Unit checks read the Nginx template and release scripts. Browser HTTP/SSE
 # checks inherit the same template, entrypoint and static-header include.
 COPY deploy/ /app/deploy/
+# Unit checks run the local gate; browser checks queue on the heavy-check lock.
+COPY scripts/ /app/scripts/
 RUN pnpm lint && pnpm test:unit && touch /client-lint-passed
 
 # Run this image with the host Docker socket, so tests can create disposable DBs.

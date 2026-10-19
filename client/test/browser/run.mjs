@@ -6,6 +6,7 @@
 // A failing scenario does not stop the ones after it; the run fails at the end.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
+import { holdHeavyCheckLock } from '../../../scripts/heavy-lock.mjs';
 import { screenshots, startEnvironment } from './environment.mjs';
 import { selectScenarios } from './selection.mjs';
 import { suites } from './suites.mjs';
@@ -20,6 +21,8 @@ if (unknown.length) {
   console.error(`Unknown suite or scenario: ${unknown.join(', ')}. Use --list to see every scenario.`);
   process.exit(2);
 }
+// Scenarios queue behind other heavy checks on this host; listing does not.
+holdHeavyCheckLock();
 
 let active, starting, interrupted = false;
 // After a signal the handler owns shutdown; the scenario loop waits for it to exit the process.
