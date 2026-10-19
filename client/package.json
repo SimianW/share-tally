@@ -22,10 +22,10 @@
     "test:receipts": "node ../scripts/build-domain.mjs && node test/browser/run.mjs receipts",
     "test:groups": "node ../scripts/build-domain.mjs && node test/browser/run.mjs groups",
     "test:browser": "node ../scripts/build-domain.mjs && node test/browser/run.mjs",
-    "test:environment": "node ../scripts/build-domain.mjs && node --test test/browser/environment.test.mjs test/browser/nginx.test.mjs",
+    "test:environment": "node ../scripts/build-domain.mjs && node ../scripts/heavy-lock.mjs node --test test/browser/environment.test.mjs test/browser/nginx.test.mjs",
     "test:nginx": "node --test test/browser/nginx.test.mjs",
-    "test:network-isolation": "node ../scripts/build-domain.mjs && node --test test/browser/network-isolation.test.mjs",
-    "test:unit": "node ../scripts/build-domain.mjs && node --test scripts/test-*.mjs ../deploy/release.test.mjs"
+    "test:network-isolation": "node ../scripts/build-domain.mjs && node ../scripts/heavy-lock.mjs node --test test/browser/network-isolation.test.mjs",
+    "test:unit": "node ../scripts/build-domain.mjs && node --test scripts/test-*.mjs ../deploy/release.test.mjs ../scripts/gate.test.mjs"
   },
   "dependencies": {
     "@clerk/react": "^6.15.1",
