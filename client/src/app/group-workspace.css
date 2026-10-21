@@ -20,7 +20,6 @@
 .group-tone-settled { color: var(--ink-secondary); }
 .group-net { display: grid; margin: 0; font: 700 17px var(--font-heading); }
 .group-net > strong { font: 900 clamp(40px, 7vw, 56px)/1.05 var(--font-heading); letter-spacing: -.03em; overflow-wrap: anywhere; }
-.group-net-caption { margin: 4px 0 0; color: var(--ink-muted); font-size: 12px; }
 .group-dashboard-rows { margin: 18px 0 0; padding: 0; list-style: none; }
 .group-dashboard-rows > li { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
 .group-dashboard-rows > li > .avatar { margin-top: 2px; }
@@ -37,7 +36,8 @@
 .group-open-note { display: flex; align-items: baseline; gap: 6px; margin: 16px 0 0; color: var(--ink-muted); font-size: 13px; }
 .group-open-note svg { flex-shrink: 0; align-self: center; }
 .group-bill-list { padding-block: 4px; }
-.group-bill { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, auto); align-items: center; gap: 14px; padding: 14px 4px; color: inherit; text-decoration: none; border-bottom: 1px solid var(--line); }
+/* The negative margin keeps row content where it was while the rounded hover fill gets room around it. */
+.group-bill { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, auto); align-items: center; gap: 14px; margin-inline: -8px; padding: 14px 12px; border-radius: 14px; color: inherit; text-decoration: none; border-bottom: 1px solid var(--line); }
 .group-bill:last-child { border-bottom: 0; }
 .group-bill:hover { background: var(--surface-soft); }
 .group-bill-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--surface-soft); }
@@ -50,6 +50,12 @@
 .group-badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; overflow-wrap: anywhere; }
 .group-badge-todo { background: var(--action); color: var(--ink-on-action); box-shadow: var(--glow-action); }
 .group-badge-waiting { background: var(--surface-sunken); color: var(--ink-secondary); border: 1px solid var(--line); }
+.group-waiting { display: grid; justify-items: end; gap: 4px; }
+.group-waiting-faces { display: flex; }
+.group-waiting-faces .avatar { border-color: var(--surface); }
+.group-waiting-faces .avatar + .avatar { margin-left: -7px; }
+.group-waiting-names { color: var(--ink-secondary); font-size: 12.5px; line-height: 1.45; }
+.group-waiting-names b { color: var(--accent-ink); font-weight: 800; white-space: nowrap; }
 .group-empty { display: flex; align-items: center; gap: 8px; padding: 18px 0; margin: 0; color: var(--ink-muted); font-size: 13px; }
 .group-empty svg { flex-shrink: 0; }
 .group-drafts:empty, .group-drafts:has(> .receipt-drafts:empty) { display: none; }
@@ -188,6 +194,7 @@
   .group-card { padding: 18px; }
   .group-bill { grid-template-columns: auto minmax(0, 1fr); }
   .group-bill-end { grid-column: 2; justify-items: start; text-align: left; max-width: 100%; }
+  .group-waiting { justify-items: start; }
   .group-transfer-line { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; }
   .group-transfer-line > .button { grid-column: 1 / -1; justify-self: start; }
   .group-transfer-line > strong:last-child { padding-right: 0; }

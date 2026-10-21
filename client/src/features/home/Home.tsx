@@ -72,7 +72,7 @@ function HomeHeading({ name, attention, onCreate }: { name: string; attention: A
       </span>;
   return <header className="page-header home-heading">
     <div>
-      <h1>Hey {name}{state && ','} {state}</h1>
+      <h1>Hey {name.trim().split(/\s+/)[0] || name}{state && ','} {state}</h1>
       <span className="sr-only home-actions-announcement" aria-live="polite" aria-atomic="true" aria-busy={count === undefined}>{announcement}</span>
     </div>
     <Button onClick={onCreate}>

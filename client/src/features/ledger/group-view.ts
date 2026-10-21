@@ -13,7 +13,8 @@ export type GroupPageData = {
 };
 
 type BillTodo = 'Enter your share' | 'Confirm your share' | 'Claim your items' | 'Confirm your items';
-export type OpenBill = { bill: Bill; todo: BillTodo | null; waitingFor: string[] };
+type Participant = Bill['participants'][number];
+export type OpenBill = { bill: Bill; todo: BillTodo | null; waitingFor: (Participant & { name: string })[] };
 export type DashboardRow = {
   member: Pick<GroupDetail['members'][number], 'id' | 'displayName' | 'username' | 'imageUrl' | 'fallbackImageUrl'>;
   suggestion: { direction: 'pay' | 'receive'; amountCents: number } | null;
@@ -56,7 +57,7 @@ export function groupView(data: GroupPageData) {
       todo: todoFor(bill),
       waitingFor: bill.participants
         .filter(participant => participant.confirmedAt === null && !participant.isCurrentUser)
-        .map(participant => memberName(participant)),
+        .map(participant => ({ ...participant, name: memberName(participant) })),
     });
   }
   open.sort((a, b) => Number(a.todo === null) - Number(b.todo === null));

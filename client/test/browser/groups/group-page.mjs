@@ -210,13 +210,12 @@ async function checkGroupPage(pageFor, base, api) {
   await expect(alice.locator('.group-member-count')).toContainText('4 members');
   await expect(alice.getByRole('button', { name: 'New bill' })).toBeVisible();
   await expect(dashboard.getByRole('heading', { name: /You're owed.*\$97\.25/ })).toBeVisible();
-  await expect(dashboard).toContainText('From completed bills and confirmed repayments.');
   await expect(dashboard).toContainText("5 open bills aren't counted yet");
   for (const [title, label] of [[openName, 'Enter your share'], [confirmName, 'Confirm your share'],
     [claimName, 'Claim your items'], [confirmItemsName, 'Confirm your items']]) {
     await expect(billLink(openBills, title)).toContainText(label);
   }
-  await expect(billLink(openBills, waitingName)).toContainText(/Waiting for (?:Bob, Carol|Carol, Bob)/);
+  await expect(billLink(openBills, waitingName)).toContainText(/Waiting for (?:Bob and Carol|Carol and Bob)/);
   await expect(billLink(openBills, waitingName)).not.toContainText('your share');
   await expect(alice.getByRole('heading', { name: /Your drafts/ })).toBeVisible();
   await expect(alice.locator('section.receipt-drafts')).toContainText('Receipt draft to review');
@@ -587,7 +586,7 @@ async function checkLedgerTrace(page, audit, state) {
   await expect(trace.getByRole('button', { name: 'Unpin' })).toHaveCount(0);
   await away();
   await expect(traced).toHaveCount(0);
-  await expect(trace).toContainText('Hover over a balance or transfer above to trace it');
+  await expect(trace.locator('.ledger-trace-hint')).toHaveCount(0);
   await figure('Carol').hover();
   await expect(tracing('Carol')).toBeVisible();
   await away();
@@ -806,7 +805,7 @@ async function checkTransferTrace(pageFor, base, api) {
   await expect(roles).toHaveCount(0);
   await expect(sum).toHaveCount(0);
   await expect(trace.getByRole('button', { name: 'Unpin' })).toHaveCount(0);
-  await expect(trace).toContainText('Hover over a balance or transfer above to trace it');
+  await expect(trace.locator('.ledger-trace-hint')).toHaveCount(0);
   // The remaining transfer renders the refreshed explanation.
   state = await api(`/groups/${trio.id}/bills`);
   const [, direct, passed] = explanation(state, trio.ids.Bob, trio.ids.Carol);

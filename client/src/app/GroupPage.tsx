@@ -1,6 +1,6 @@
 import { memberName } from '../shared/member-name';
 import { routes } from '../shared/browser/paths';
-import { useId, useState, type ReactNode } from 'react';
+import { Fragment, useId, useState, type ReactNode } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { AnimatedMoney } from '../shared/ui/AnimatedMoney';
 import { GroupBalances } from '../features/ledger/GroupBalances';
@@ -50,7 +50,6 @@ export function GroupPage({ data, title, drafts, api, refresh, openMembers, sele
         <span>{view.netCents > 0 ? "You're owed" : view.netCents < 0 ? 'You owe' : "You're settled up"}{view.netCents === 0 && <span aria-hidden="true"> ✓</span>}</span>
         {view.netCents !== 0 && <> <strong><AnimatedMoney cents={view.netCents} /></strong></>}
       </h2>
-      <p className="group-net-caption">From completed bills and confirmed repayments.</p>
       {view.rows.length > 0 && <ul className="group-dashboard-rows">
         {view.rows.map(row => <DashboardPerson key={row.member.id} row={row} record={setPrefill} review={review} />)}
       </ul>}
@@ -146,9 +145,23 @@ function GroupBill({ bill, view, entry }: { bill: Bill; view: GroupView; entry?:
     </span>
     <span className="group-bill-end">
       <b>{money(bill.totalCents)}</b>
-      {entry ? <span className={`group-badge ${entry.todo ? 'group-badge-todo' : 'group-badge-waiting'}`}>
-        {entry.todo ?? (entry.waitingFor.length ? `Waiting for ${entry.waitingFor.join(', ')}` : 'Waiting for completion')}
-      </span> : <small>{bill.canceledAt ? 'Canceled' : 'Complete'}</small>}
+      {!entry ? <small>{bill.canceledAt ? 'Canceled' : 'Complete'}</small>
+        : entry.todo ? <span className="group-badge group-badge-todo">{entry.todo}</span>
+        : entry.waitingFor.length ? <Waiting people={entry.waitingFor} />
+        : <span className="group-badge group-badge-waiting">Waiting for completion</span>}
     </span>
   </a>;
+}
+
+// Faces first, then every name in bold, so a glance shows who still has to act.
+function Waiting({ people }: { people: OpenBill['waitingFor'] }) {
+  return <span className="group-waiting">
+    <span className="group-waiting-faces" aria-hidden="true">
+      {people.slice(0, 4).map(person => <Avatar key={person.userId} name={person.displayName} username={person.username}
+        imageUrl={person.imageUrl} fallbackImageUrl={person.fallbackImageUrl} small />)}
+    </span>
+    <span className="group-waiting-names">Waiting for {people.map((person, index) => <Fragment key={person.userId}>
+      {index === 0 ? '' : index === people.length - 1 ? ' and ' : ', '}<b>{person.name}</b>
+    </Fragment>)}</span>
+  </span>;
 }

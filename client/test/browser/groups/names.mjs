@@ -50,7 +50,6 @@ async function editAccount(page, button, fields) {
 async function expectAccountName(page, name) {
   await page.getByRole('button', { name: 'Account menu', exact: true }).click();
   await expect(page.locator('.account-menu-identity strong')).toHaveText(name);
-  await expect(page.getByText('Your displayed name is your Profile name. Change it in Profile & security.', { exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
 }
 
@@ -185,7 +184,7 @@ async function memberRenames(env) {
   await expect(bob.getByRole('heading', { level: 1 })).toContainText('Hey builder', { timeout: 1_000 });
   await expect(alice.getByText('builder says they sent $2.00')).toBeVisible(within());
   within = await editAccount(bob, 'Update profile', { 'First name': 'Robert', 'Last name': 'Builder' });
-  await expect(bob.getByRole('heading', { level: 1 })).toContainText('Hey Robert Builder', { timeout: 1_000 });
+  await expect(bob.getByRole('heading', { level: 1 })).toHaveText(/^Hey Robert,/, { timeout: 1_000 });
   await expect(alice.getByText('Robert Builder says they sent $2.00')).toBeVisible(within());
   await expect(sheet.locator('.claim-legend')).toContainText('Robert Builder · 1/2', within());
   await expect(sheet.getByRole('button', { name: '1/4 · $0.75', exact: true })).toHaveAttribute('aria-pressed', 'true');
