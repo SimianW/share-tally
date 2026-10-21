@@ -126,17 +126,16 @@ export function GroupBalances({ data, view }: { data: GroupPageData; view: Group
         </button>
       </h3>
       {expanded && <>
-        <p className="ledger-trace-hint">
-          {trace?.kind === 'member' ? <>Reading down <b>{trace.userId === view.me.id ? 'your' : `${view.name(trace.userId)}'s`}</b> column:
+        {trace && <p className="ledger-trace-hint">
+          {trace.kind === 'member' ? <>Reading down <b>{trace.userId === view.me.id ? 'your' : `${view.name(trace.userId)}'s`}</b> column:
             each bill adds what they paid and subtracts their share and any initiator adjustment; each confirmed repayment
             adds what they sent and subtracts what they received.</>
-            : trace ? <><b>{who(trace.suggestion.fromUserId)}</b> {verb(trace.suggestion.fromUserId, 'pay')} <b>{whom(trace.suggestion.toUserId)}</b>
+            : <><b>{who(trace.suggestion.fromUserId)}</b> {verb(trace.suggestion.fromUserId, 'pay')} <b>{whom(trace.suggestion.toUserId)}</b>
               {' '}{money(trace.suggestion.amountCents)}. {trace.suggestion.explanation.directLines.length
                 ? 'Highlighted rows are the bills and repayments directly between them.'
-                : 'No bill or repayment is directly between them.'}</>
-            : 'Hover over a balance or transfer above to trace it, or click it to keep it highlighted.'}
+                : 'No bill or repayment is directly between them.'}</>}
           {pinned && <button type="button" className="ledger-trace-unpin" onClick={() => setPinned(null)}>Unpin</button>}
-        </p>
+        </p>}
         <LedgerTable data={data} view={view} trace={trace} />
       </>}
     </section>}
