@@ -6,7 +6,7 @@ import { billItems, bills, billShares, itemClaims, } from "../../db/schema.js";
 import type { Transaction as Tx } from "../../db/types.js";
 import { notifyGroupChanged } from "../../realtime/group-events.js";
 import { correctedPrice } from "../../receipts/pricing/frozen-receipt-pricing.js";
-import { checked, claimInput, itemInput, reviewedItemsInput, } from "../../receipts/receipt-input.js";
+import { boundedArray, checked, claimInput, itemInput, reviewedItemsInput, } from "../../receipts/receipt-input.js";
 import type { ItemConflicts } from "@share-tally/domain/contracts/bills";
 import { BillError } from "../../shared/bill-error.js";
 import { lockedBill } from '../access.js';
@@ -199,7 +199,7 @@ export async function editItems(id: string, userId: string, body: unknown) {
         reviewedItems: reviewedItemsInput,
         // No default: omitted historical provenance stays unknown, while a
         // newly chosen override (or return to calculation) records its intent.
-        items: z.array(itemInput.extend({ manualFinal: z.boolean().nullable().optional() })).min(1).max(200),
+        items: boundedArray(z.array(itemInput.extend({ manualFinal: z.boolean().nullable().optional() })).min(1), 200),
       })
       .strict(),
     body,

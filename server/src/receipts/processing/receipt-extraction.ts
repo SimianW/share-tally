@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { priceDraft } from "../pricing/receipt-pricing.js";
-import { itemEvidence, receiptEvidenceFields, type DraftItemInput } from "../receipt-input.js";
+import { boundedArray, itemEvidence, receiptEvidenceFields, type DraftItemInput } from "../receipt-input.js";
 import { needsCheckForScan } from "../receipt-needs-check.js";
 const money = z.number().min(0).max(10000);
 export const extractedReceipt = z.object({
@@ -9,7 +9,7 @@ export const extractedReceipt = z.object({
   text: z.string().max(100000).optional(),
   currency: z.string().nullable(),
   total: money.nullable(),
-  items: z
+  items: boundedArray(z
     .array(
       z.object({
         description: z.string(),
@@ -22,8 +22,7 @@ export const extractedReceipt = z.object({
         tax: money.nullable(),
         taxable: z.boolean().nullable(),
       }),
-    )
-    .max(200),
+    ), 200),
   subtotal: money.nullable().optional(),
   evidence: receiptEvidenceFields.optional(),
   rawAnalysis: z.record(z.string(), z.unknown()).optional(),

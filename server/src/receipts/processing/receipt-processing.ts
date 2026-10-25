@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { ExtractedReceipt } from "./receipt-extraction.js";
-import type { DraftItemInput } from "../receipt-input.js";
+import { boundedArray, type DraftItemInput } from "../receipt-input.js";
 import type { ReceiptModelEvidence } from "../providers/receipt-names.js";
 
 function merchantAddress(rawAnalysis: ExtractedReceipt["rawAnalysis"]): string | null {
@@ -92,7 +92,7 @@ export type ReceiptModelAttempt =
   | { kind: "error" };
 
 const resultSchema = z
-  .object({ items: z.array(z.unknown()).max(200) })
+  .object({ items: boundedArray(z.array(z.unknown()), 200) })
   .strict();
 const answerSchema = z
   .object({

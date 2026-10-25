@@ -3,7 +3,7 @@ import { editable, ownDraft } from './access.js';
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { billItems, bills, billShares, groupMembers, receiptDrafts } from "../../db/schema.js";
-import { checked, draftInput, itemInput } from "../receipt-input.js";
+import { boundedArray, checked, draftInput, itemInput } from "../receipt-input.js";
 import type { Transaction as Tx } from "../../db/types.js";
 import { BillError } from "../../shared/bill-error.js";
 import { parseBill } from "../../bills/inputs.js";
@@ -40,7 +40,7 @@ export async function publishDraft(tx: Tx, id: string, userId: string, revision:
   const items =
     mode === "items"
       ? checked(
-          z.array(itemInput.extend({ taxCents: itemInput.shape.taxCents.nullable(), extraCents: itemInput.shape.extraCents.nullable() })).min(1).max(200),
+          boundedArray(z.array(itemInput.extend({ taxCents: itemInput.shape.taxCents.nullable(), extraCents: itemInput.shape.extraCents.nullable() })).min(1), 200),
           // Publish only bill-item fields, not draft-only derivations, fallback
           // markers, discount provenance or Azure evidence.
           priced.map((item) => ({
