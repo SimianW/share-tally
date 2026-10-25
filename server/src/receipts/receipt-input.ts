@@ -1,6 +1,14 @@
 import { z } from "zod";
 import { BillError } from "../shared/bill-error.js";
 
+// Check the raw length before Zod allocates parsed elements or their issues.
+export function boundedArray<T extends z.ZodType>(schema: z.ZodArray<T>, maximum: number) {
+  return z.unknown().superRefine((value, context) => {
+    if (Array.isArray(value) && value.length > maximum)
+      context.addIssue({ code: "too_big", origin: "array", maximum, inclusive: true, fatal: true });
+  }).pipe(schema.max(maximum));
+}
+
 const amount = z.number().int().min(0).max(1_000_000);
 export const itemInput = z
   .object({
@@ -16,37 +24,39 @@ export const itemInput = z
   })
   .strict();
 // Azure source observations are optional: drafts created before this mapping have none.
+// A scan is one photo, normally one page with eight coordinates per region.
+// Leave room for richer evidence while bounding every nested collection.
 export const boundingRegion = z.object({
   pageNumber: z.number(),
-  polygon: z.array(z.number()),
+  polygon: boundedArray(z.array(z.number()), 32),
 });
 export const itemEvidence = z.object({
   descriptionConfidence: z.number().optional(),
   priceConfidence: z.number().optional(),
   unitPriceConfidence: z.number().optional(),
-  descriptionRegions: z.array(boundingRegion).optional(),
-  priceRegions: z.array(boundingRegion).optional(),
-  unitPriceRegions: z.array(boundingRegion).optional(),
-  regions: z.array(boundingRegion).optional(),
+  descriptionRegions: boundedArray(z.array(boundingRegion), 16).optional(),
+  priceRegions: boundedArray(z.array(boundingRegion), 16).optional(),
+  unitPriceRegions: boundedArray(z.array(boundingRegion), 16).optional(),
+  regions: boundedArray(z.array(boundingRegion), 16).optional(),
   productCode: z.string().optional(),
   quantityUnit: z.string().optional(),
   unitPrice: z.number().optional(),
   content: z.string().optional(),
 });
 export const receiptEvidenceFields = z.object({
-  pages: z.array(z.object({
+  pages: boundedArray(z.array(z.object({
     pageNumber: z.number().int().positive(),
     width: z.number().positive(),
     height: z.number().positive(),
     unit: z.string(),
-  })).optional(),
+  })), 16).optional(),
   countryRegion: z.string().optional(),
-  taxDetails: z.array(z.object({
+  taxDetails: boundedArray(z.array(z.object({
     amount: z.number().optional(),
     rate: z.number().optional(),
     netAmount: z.number().optional(),
     description: z.string().optional(),
-  })).optional(),
+  })), 32).optional(),
 });
 export const draftItemInput = itemInput.omit({ taxCents: true, extraCents: true }).extend({
   // Response-only derivation metadata: accepted for round trips, never trusted.
@@ -87,9 +97,9 @@ export const draftInput = z.preprocess(
     timeZone: z.string().max(100),
     notes: z.string().max(2000),
     totalCents: amount.nullable(),
-    participantIds: z.array(z.uuid()).max(16),
+    participantIds: boundedArray(z.array(z.uuid()), 16),
     mode: z.enum(["manual", "items"]),
-    items: z.array(draftItemInput).max(200),
+    items: boundedArray(z.array(draftItemInput), 200),
   })
   .strict(),
 );
@@ -106,22 +116,22 @@ export function checked<T>(schema: z.ZodType<T>, value: unknown): T {
     throw new BillError(
       400,
       result.error.issues
-        .map((i) => `${i.path.join(".")}: ${i.message}`)
         .slice(0, 3)
+        .map((i) => `${i.path.join(".")}: ${i.message}`)
         .join("; "),
     );
   return result.data;
 }
 export const revisionInput = z.number().int().positive();
-export const reviewedItemsInput = z.array(z.object({
+export const reviewedItemsInput = boundedArray(z.array(z.object({
   itemId: z.uuid(),
   version: z.number().int().positive(),
-}).strict()).max(200).refine(items => new Set(items.map(item => item.itemId)).size === items.length,
+}).strict()), 200).refine(items => new Set(items.map(item => item.itemId)).size === items.length,
   'Reviewed items must have unique IDs.');
 export const claimInput = z
   .object({
     reviewedItems: reviewedItemsInput,
-    claims: z
+    claims: boundedArray(z
       .array(
         z
           .object({
@@ -130,7 +140,6 @@ export const claimInput = z
             denominator: z.number().int().min(1).max(10000),
           })
           .strict(),
-      )
-      .max(200),
+      ), 200),
   })
   .strict();

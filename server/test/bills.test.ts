@@ -2259,6 +2259,19 @@ test('legacy stored manual drafts ignore ownShareCents when read, updated and in
   }
 });
 
+test('oversized receipt items return 400 before item validation and leave the API responsive', async () => {
+  const { group } = await setup(false);
+  const data = {
+    title: '', purchaseDate: '', timeZone: 'UTC', notes: '', totalCents: null,
+    participantIds: [], mode: 'items', items: new Array(50_000).fill({}),
+  };
+  const started = Date.now();
+  const error = await json(await api(`/groups/${group.id}/receipt-preview/prices`, 'alice-token', 'POST', data), 400);
+  assert.match(error.error, /^items: Too big/);
+  assert.ok(Date.now() - started < 5_000, 'Oversized input should be rejected promptly');
+  await json(await api(`/groups/${group.id}/bills`));
+});
+
 test('receipt drafts preserve missing money and reject initialization until required amounts exist', async () => {
   const { group, draft } = await setup();
   const id = crypto.randomUUID();
